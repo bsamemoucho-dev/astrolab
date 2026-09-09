@@ -282,8 +282,9 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
     const writerMode = fullSections.some((section) => section.provider === "llm") ? "llm" : "template";
     const status = overallStatus(sections, writerMode);
     const title = `Dossier de lecture — ${payload.personLabel}`;
-    const markdown = renderDossierMarkdown({ title, personLabel: payload.personLabel, createdAt, sections: fullSections });
-    const html = renderDossierHtml({ title, personLabel: payload.personLabel, createdAt, writerMode, sections: fullSections });
+    const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
+    const markdown = renderDossierMarkdown({ title, personLabel: payload.personLabel, createdAt, sections: fullSections, author });
+    const html = renderDossierHtml({ title, personLabel: payload.personLabel, createdAt, writerMode, sections: fullSections, author });
     const costEstimate =
       usage.promptTokens > 0 || usage.completionTokens > 0
         ? estimateUsageCost(usage.model, usage.promptTokens, usage.completionTokens)

@@ -145,8 +145,9 @@ export async function createPublicReading(input = {}, options = {}) {
   const personLabel = personInfo.firstName ? `pour ${personInfo.firstName}` : "";
   const title = `Lecture symbolique ${personLabel}`.trim();
   const createdAt = new Date().toISOString();
-  const markdown = renderDossierMarkdown({ title, personLabel: personInfo.firstName ?? null, createdAt, sections: fullSections });
-  const html = renderDossierHtml({ title, personLabel: personInfo.firstName ?? null, createdAt, writerMode, sections: fullSections });
+  const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
+  const markdown = renderDossierMarkdown({ title, personLabel: personInfo.firstName ?? null, createdAt, sections: fullSections, author });
+  const html = renderDossierHtml({ title, personLabel: personInfo.firstName ?? null, createdAt, writerMode, sections: fullSections, author });
 
   return {
     schema: "astrolab.public_reading",

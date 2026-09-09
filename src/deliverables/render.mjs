@@ -104,12 +104,15 @@ const CSS = `
   @media print { body { background:#fff; } .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; } }
 `;
 
-export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections }) {
+export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null }) {
   const badges = {
     calculated: "badge-calculated",
     symbolic: "badge-symbolic",
     unavailable: "badge-unavailable"
   };
+  const authorLine = author
+    ? `<p>${escapeHtml(author)}</p>`
+    : "";
   const body = sections
     .map((section) => {
       const badgeClass = badges[section.badgeCode] ?? "badge-symbolic";
@@ -161,6 +164,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   </div>
   ${body}
   <footer>
+    ${authorLine}
     <p>${writerNote}</p>
     <p>Document généré par AstroLab — socle de calcul local et déterministe ; toute interprétation est étiquetée et doit être relue avant livraison.</p>
   </footer>
@@ -169,7 +173,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 </html>`;
 }
 
-export function renderDossierMarkdown({ title, personLabel, createdAt, sections }) {
+export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null }) {
   const parts = [`# ${title}`, ""];
   if (personLabel) {
     parts.push(`Personne : ${personLabel}`);
@@ -177,6 +181,9 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections 
   parts.push(`Généré le : ${createdAt}`, "", "---", "");
   for (const section of sections) {
     parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "", section.text, "");
+  }
+  if (author) {
+    parts.push("---", author);
   }
   return parts.join("\n");
 }
