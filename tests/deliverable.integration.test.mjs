@@ -306,6 +306,32 @@ test("public reading rejects invalid birth data without crashing", async () => {
   }
 });
 
+test("public daily horoscope returns the requested sign (template fallback without key)", async () => {
+  const app = await startTestApp();
+  try {
+    const ok = await request(app.baseUrl, "/api/public/horoscope/belier");
+    assert.equal(ok.status, 200);
+    assert.equal(ok.payload.sign.fr, "Bélier");
+    assert.equal(ok.payload.sign.glyph, "♈");
+    assert.equal(ok.payload.provider, "template");
+    assert.ok(ok.payload.horoscope.amour && ok.payload.horoscope.travail && ok.payload.horoscope.bienEtre);
+    assert.ok(ok.payload.day.length > 3);
+  } finally {
+    await app.close();
+  }
+});
+
+test("public horoscope rejects an unknown sign", async () => {
+  const app = await startTestApp();
+  try {
+    const bad = await request(app.baseUrl, "/api/public/horoscope/notasign");
+    assert.equal(bad.status, 400);
+    assert.match(bad.payload.error, /signe/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("healthz and public config endpoints are available", async () => {
   const app = await startTestApp();
   try {

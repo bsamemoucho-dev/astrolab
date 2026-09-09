@@ -1269,15 +1269,66 @@ const ZODIAC_FR_NAMES = [
   "Balance", "Scorpion", "Sagittaire", "Capricorne", "Verseau", "Poissons"
 ];
 
+const ZODIAC_KEYS = [
+  "aries", "taurus", "gemini", "cancer", "leo", "virgo",
+  "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"
+];
+
 function renderGuestZodiac() {
   const box = $("#guest-zodiac");
   if (!box) {
     return;
   }
-  box.innerHTML = ZODIAC_GLYPHS.map(
-    (glyph, index) =>
-      `<div class="zodiac-card"><span class="zodiac-glyph">${glyph}</span><span class="zodiac-name">${ZODIAC_FR_NAMES[index]}</span><span class="zodiac-symbol">${glyph}</span></div>`
+  box.innerHTML = ZODIAC_KEYS.map(
+    (key, index) =>
+      `<button type="button" class="zodiac-card" data-sign-key="${key}">
+        <span class="zodiac-glyph">${ZODIAC_GLYPHS[index]}</span>
+        <span class="zodiac-name">${ZODIAC_FR_NAMES[index]}</span>
+        <span class="zodiac-symbol">${ZODIAC_GLYPHS[index]}</span>
+      </button>`
   ).join("");
+  $all("#guest-zodiac .zodiac-card").forEach((card) => {
+    card.addEventListener("click", () => openHoroscope(card.dataset.signKey));
+  });
+}
+
+async function openHoroscope(signKey) {
+  const overlay = $("#horoscope-overlay");
+  overlay.hidden = false;
+  $("#horoscope-loading").hidden = false;
+  $("#horoscope-content").hidden = true;
+  $("#horoscope-loading").textContent = "Génération de l’horoscope du jour…";
+  $("#horoscope-note").textContent = "";
+  try {
+    const data = await api(`/api/public/horoscope/${signKey}`);
+    $("#horoscope-glyph").textContent = data.sign.glyph;
+    $("#horoscope-sign").textContent = data.sign.fr;
+    $("#horoscope-day").textContent = data.day;
+    $("#horoscope-amour").textContent = data.horoscope.amour ?? "";
+    $("#horoscope-travail").textContent = data.horoscope.travail ?? "";
+    $("#horoscope-bienetre").textContent = data.horoscope.bienEtre ?? "";
+    $("#horoscope-loading").hidden = true;
+    $("#horoscope-content").hidden = false;
+    $("#horoscope-note").textContent =
+      data.provider === "llm"
+        ? "Horoscope du jour généré automatiquement — lecture symbolique, non contractuelle."
+        : "Version illustrative (rédaction automatique non activée).";
+  } catch (error) {
+    $("#horoscope-loading").hidden = true;
+    $("#horoscope-loading").textContent = "";
+    showMessage(error.message, true);
+  }
+}
+
+function bindHoroscope() {
+  $("#horoscope-close")?.addEventListener("click", () => {
+    $("#horoscope-overlay").hidden = true;
+  });
+  $("#horoscope-overlay")?.addEventListener("click", (event) => {
+    if (event.target === $("#horoscope-overlay")) {
+      $("#horoscope-overlay").hidden = true;
+    }
+  });
 }
 
 function bindExpressForm() {
@@ -1401,6 +1452,7 @@ function bindExpressForm() {
 function bindForms() {
   bindPriceSlider();
   bindExpressForm();
+  bindHoroscope();
   $("#register-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {

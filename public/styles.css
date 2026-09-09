@@ -678,3 +678,73 @@ body.guest #express-view .express-wrap .panel {
 }
 #express-form .secondary:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-soft); }
 #express-viewer { border-radius: 22px; }
+
+/* ---------- modale horoscope du jour ---------- */
+
+.horoscope-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(5, 8, 22, 0.72);
+  backdrop-filter: blur(8px);
+}
+.horoscope-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 26px 24px 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: linear-gradient(165deg, #141c44, #0c1232);
+  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+}
+.horoscope-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  box-shadow: none;
+}
+.horoscope-close:hover { border-color: var(--gold); color: var(--gold); background: transparent; }
+.horoscope-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.horoscope-glyph {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  font-size: 1.8rem;
+  color: var(--gold);
+  background: var(--gold-soft);
+  text-shadow: 0 0 18px rgba(233, 196, 106, 0.5);
+}
+.horoscope-head h3 { font-family: var(--serif); font-size: 1.4rem; color: #fff; margin: 0; }
+.horoscope-content { display: grid; gap: 14px; }
+.horoscope-block {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+.h-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 5px;
+}
+.horoscope-block p { color: var(--ink-soft); line-height: 1.55; font-size: 0.94rem; }
+#horoscope-note { margin-top: 12px; }

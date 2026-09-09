@@ -11,6 +11,7 @@ import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisSer
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
 import { createPublicReading } from "../models/publicReadingService.mjs";
+import { generateDailyHoroscope } from "../models/horoscopeService.mjs";
 import { createReport, listReports } from "../models/reportService.mjs";
 import {
   deleteDeliverable,
@@ -99,6 +100,9 @@ export function createApp(options = {}) {
     }),
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
       sendJson(res, 200, await createPublicReading(await readJson(req)));
+    }),
+    route("GET", /^\/api\/public\/horoscope\/(?<sign>[^/]+)$/, async (_req, res, params) => {
+      sendJson(res, 200, await generateDailyHoroscope(params.sign));
     }),
     route("GET", /^\/api\/config$/, async (_req, res) => {
       sendJson(res, 200, {
