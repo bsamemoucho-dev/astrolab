@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AstroLab</title>
+    <meta name="description" content="Dossier personnel structuré pour analyses transversales documentées.">
+    <script>
+      if (window.location.protocol === "file:") {
+        window.location.replace("http://localhost:4173/");
+      }
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Navigation principale">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">✦</div>
+          <div>
+            <p class="brand-name">AstroLab</p>
+            <p class="brand-caption">Lectures symboliques · socle vérifié</p>
+          </div>
+        </div>
+        <nav class="nav">
+          <p class="nav-section">Espace</p>
+          <button data-view="auth" class="nav-button active">Compte</button>
+          <p class="nav-section">Découvrir</p>
+          <button data-view="offre" class="nav-button">Offre & prix</button>
+          <p class="nav-section">Personnes</p>
+          <button data-view="profile" class="nav-button" disabled>Profil</button>
+          <button data-view="people" class="nav-button" disabled>Personnes</button>
+          <button data-view="relations" class="nav-button" disabled>Relations</button>
+          <p class="nav-section">Analyses</p>
+          <button data-view="natal" class="nav-button" disabled>Thème natal</button>
+          <button data-view="analyses" class="nav-button" disabled>Analyses</button>
+          <button data-view="history" class="nav-button" disabled>Historique</button>
+          <button data-view="methods" class="nav-button">Méthodes</button>
+          <p class="nav-section">Livraison</p>
+          <button data-view="deliverables" class="nav-button" disabled>Dossier client</button>
+          <p class="nav-section">Commercial</p>
+          <button data-view="commerce" class="nav-button" disabled>Tarifs & crédits</button>
+          <p class="nav-section admin-only" hidden>Admin</p>
+          <button data-view="admin" class="nav-button admin-only" hidden>Administration</button>
+        </nav>
+        <div class="sidebar-card">
+          <span>Plateforme</span>
+          <strong>Opérationnelle</strong>
+          <div class="meter"><span></span></div>
+          <small>Socle vérifié · test en ligne · sans encaissement</small>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div class="topbar-title">
+            <button class="icon-button" type="button" aria-label="Menu">☰</button>
+            <div>
+              <p class="eyebrow">Tableau de bord</p>
+              <h2 id="view-title">Compte</h2>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <label class="search-box" aria-label="Rechercher">
+              <span>⌕</span>
+              <input type="search" placeholder="Rechercher..." autocomplete="off">
+            </label>
+            <div id="session-state" class="session-state">Non connecté</div>
+          </div>
+        </header>
+
+        <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+        <section id="auth-view" class="view active">
+          <div class="intro-panel">
+            <div>
+              <p class="eyebrow">Astrologie intelligente et intégrée</p>
+              <h1>Toutes les traditions, <span>une vision claire.</span></h1>
+              <p class="lead">AstroLab structure les données, sources, incertitudes, analyses et rapports sans mélanger calcul, tradition et interprétation.</p>
+            </div>
+            <div class="astro-visual" aria-hidden="true">
+              <div class="orbit orbit-one"></div>
+              <div class="orbit orbit-two"></div>
+              <div class="orbit orbit-three"></div>
+              <div class="constellation"></div>
+            </div>
+          </div>
+          <div class="grid two">
+            <form id="register-form" class="panel">
+              <h3>Créer un compte</h3>
+              <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
+              <label>Mot de passe <input name="password" type="password" autocomplete="new-password" minlength="10" required></label>
+              <button type="submit">Créer</button>
+              <p class="hint">En développement, le code de vérification est affiché après création et conservé dans la boîte d’envoi locale.</p>
+            </form>
+
+            <form id="verify-form" class="panel">
+              <h3>Vérifier l’e-mail</h3>
+              <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
+              <label>Code <input name="code" inputmode="numeric" required></label>
+              <button type="submit">Vérifier</button>
+            </form>
+
+            <form id="login-form" class="panel">
+              <h3>Connexion</h3>
+              <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
+              <label>Mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
+              <button type="submit">Se connecter</button>
+            </form>
+
+            <div class="panel">
+              <h3>Règles actives</h3>
+              <ul class="checklist">
+                <li>E-mail vérifié avant accès complet.</li>
+                <li>Sessions en cookie HTTP only.</li>
+                <li>Données filtrées par utilisateur.</li>
+                <li>Chaque changement sensible écrit l’historique.</li>
+              </ul>
+              <button id="logout-button" class="secondary" type="button">Se déconnecter</button>
+            </div>
+
+            <div id="account-tools" class="panel" hidden>
+              <h3>Données du compte</h3>
+              <p class="hint">L’export contient les données structurées du dossier, les sources, les points de données et l’historique. Les secrets d’authentification ne sont pas inclus.</p>
+              <div class="split-actions">
+                <button id="export-account-button" class="secondary" type="button">Exporter JSON</button>
+                <button id="delete-account-button" class="danger" type="button">Supprimer le compte</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="profile-view" class="view">
+          <form id="profile-form" class="panel wide">
+            <h3>Profil principal</h3>
+            <div class="grid three">
+              <label>Prénom <input name="firstName" required></label>
+              <label>Nom <input name="lastName"></label>
+              <label>Nom de naissance <input name="birthName"></label>
+            </div>
+            <div class="grid three">
+              <label>Date de naissance <input name="birthDate" type="date" required></label>
+              <label>Lieu de naissance <input name="birthPlace" required placeholder="Paris, France"></label>
+              <label>Pays <input name="country"></label>
+            </div>
+            <input name="resolvedPlace" type="hidden">
+            <button id="profile-resolve-place" class="secondary" type="button">Résoudre le lieu</button>
+            <div id="profile-place-details" class="technical-details" hidden></div>
+            <div class="time-box">
+              <label>Précision de l’heure
+                <select name="timePrecision" id="profile-time-precision">
+                  <option value="unknown">Inconnue</option>
+                  <option value="exact">Exacte</option>
+                  <option value="approximate">Approximative</option>
+                  <option value="interval">Intervalle</option>
+                </select>
+              </label>
+              <label>Heure <input name="timeValue" type="time"></label>
+              <label>Début <input name="timeStart" type="time"></label>
+              <label>Fin <input name="timeEnd" type="time"></label>
+            </div>
+            <label>Source ou réserve <textarea name="sourceNote" rows="3" placeholder="Ex. acte de naissance, souvenir familial, intervalle estimé..."></textarea></label>
+            <button type="submit">Enregistrer le profil</button>
+          </form>
+        </section>
+
+        <section id="people-view" class="view">
+          <div class="grid two">
+            <form id="person-form" class="panel">
+              <h3>Ajouter une personne</h3>
+              <label>Prénom <input name="firstName" required></label>
+              <label>Nom <input name="lastName"></label>
+              <label>Date de naissance <input name="birthDate" type="date"></label>
+              <label>Lieu de naissance <input name="birthPlace" placeholder="Paris, France"></label>
+              <input name="resolvedPlace" type="hidden">
+              <button id="person-resolve-place" class="secondary" type="button">Rechercher / sélectionner le lieu</button>
+              <div id="person-place-details" class="technical-details" hidden></div>
+              <label>Précision de l’heure
+                <select name="timePrecision">
+                  <option value="exact">Exacte</option>
+                  <option value="approximate">Approximative</option>
+                  <option value="interval">Intervalle</option>
+                  <option value="unknown">Inconnue</option>
+                </select>
+              </label>
+              <div class="grid two compact">
+                <label>Heure <input name="timeValue" type="time"></label>
+                <label>Début <input name="timeStart" type="time"></label>
+                <label>Fin <input name="timeEnd" type="time"></label>
+              </div>
+              <button type="submit">Ajouter</button>
+              <p class="hint">Le lieu est nécessaire pour calculer : utilisez « Rechercher / sélectionner le lieu ».</p>
+            </form>
+            <div class="panel">
+              <h3>Personnes du dossier</h3>
+              <div id="people-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="relations-view" class="view">
+          <div class="grid two">
+            <form id="relationship-form" class="panel">
+              <h3>Créer une relation</h3>
+              <label>Personne source <select name="fromPersonId" required></select></label>
+              <label>Personne liée <select name="toPersonId" required></select></label>
+              <label>Type
+                <select name="type">
+                  <option value="mother">Mère</option>
+                  <option value="father">Père</option>
+                  <option value="grandparent">Grand-parent</option>
+                  <option value="sibling">Frère/sœur</option>
+                  <option value="child">Enfant</option>
+                  <option value="partner">Partenaire</option>
+                  <option value="ex_partner">Ex-partenaire</option>
+                  <option value="friend">Ami</option>
+                  <option value="associate">Associé</option>
+                  <option value="other">Autre</option>
+                </select>
+              </label>
+              <button type="submit">Enregistrer</button>
+            </form>
+            <div class="panel">
+              <h3>Relations enregistrées</h3>
+              <div id="relationship-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="analyses-view" class="view">
+          <div class="grid two">
+            <form id="analysis-form" class="panel">
+              <h3>Créer une analyse</h3>
+              <label>Périmètre
+                <select name="scope">
+                  <option value="personal_profile">Profil personnel</option>
+                  <option value="family_context">Contexte familial</option>
+                  <option value="transversal_overview">Vue transversale</option>
+                </select>
+              </label>
+              <button type="submit">Créer le snapshot</button>
+              <p class="hint">La version créée fige les données du dossier. Les méthodes non documentées restent explicitement indisponibles.</p>
+            </form>
+            <div class="panel">
+              <h3>Analyses enregistrées</h3>
+              <div id="analysis-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="natal-view" class="view">
+          <div class="grid two">
+            <form id="natal-form" class="panel">
+              <h3>Calcul Western Natal V1</h3>
+              <label>Personne <select name="personId" id="natal-person"></select></label>
+              <div class="grid two compact">
+                <label>Date de naissance <input name="birthDate" type="date"></label>
+                <label>Heure de naissance <input name="timeValue" type="time"></label>
+              </div>
+              <label>Précision de l’heure
+                <select name="timePrecision">
+                  <option value="exact">Exacte</option>
+                  <option value="approximate">Approximative</option>
+                  <option value="interval">Intervalle</option>
+                  <option value="unknown">Inconnue</option>
+                </select>
+              </label>
+              <div class="grid two compact">
+                <label>Début d’intervalle <input name="timeStart" type="time"></label>
+                <label>Fin d’intervalle <input name="timeEnd" type="time"></label>
+              </div>
+              <label>Lieu de naissance <input name="birthPlace" placeholder="Paris, France"></label>
+              <input name="resolvedPlace" type="hidden">
+              <button id="natal-resolve-place" class="secondary" type="button">Rechercher / sélectionner le lieu</button>
+              <div id="natal-place-details" class="technical-details" hidden></div>
+              <button type="submit">Calculer le thème</button>
+              <p class="hint">Sortie calculatoire de développement : aucune interprétation finale et aucune RuleVersion active.</p>
+            </form>
+            <div class="panel">
+              <h3>Thème vérifié</h3>
+              <div id="natal-summary" class="list"></div>
+            </div>
+            <div class="panel wide">
+              <div class="panel-heading">
+                <h3>Données techniques</h3>
+                <button id="copy-natal-json" class="secondary" type="button">Copier le JSON</button>
+              </div>
+              <details class="tech-fold">
+                <summary>Voir l’artefact technique complet (développeur)</summary>
+                <pre id="natal-json" class="json-output">{}</pre>
+              </details>
+            </div>
+          </div>
+        </section>
+
+        <section id="deliverables-view" class="view">
+          <div class="grid two">
+            <form id="deliverable-form" class="panel">
+              <h3>Générer un dossier de lecture</h3>
+              <p class="hint">Le socle est toujours calculé et vérifié localement (positions, angles, maisons, stabilité). Les sections narratives sont rédigées par le rédacteur IA configuré, sinon un brouillon technique est produit.</p>
+              <label>Personne (données de naissance requises)
+                <select name="personId" id="deliverable-person" required></select>
+              </label>
+              <label>Intention ou question de la personne
+                <textarea name="intention" rows="3" placeholder="Ex. comprendre ma manière de tenir, d'avancer, de me protéger…"></textarea>
+              </label>
+              <fieldset class="parent-fieldset">
+                <legend>Parents — lecture transgénérationnelle (optionnel)</legend>
+                <div class="grid two compact">
+                  <label>Mère — nom <input name="motherName" placeholder="Micheline"></label>
+                  <label>Mère — date de naissance <input name="motherBirthDate" type="date"></label>
+                </div>
+                <label>Mère — lieu de naissance <input name="motherBirthPlace" placeholder="Bouillante, Guadeloupe"></label>
+                <div class="grid two compact">
+                  <label>Père — nom <input name="fatherName" placeholder="Jean-François"></label>
+                  <label>Père — date de naissance <input name="fatherBirthDate" type="date"></label>
+                </div>
+                <label>Père — lieu de naissance <input name="fatherBirthPlace" placeholder="Roubaix, France"></label>
+              </fieldset>
+              <button type="submit">Générer le dossier</button>
+              <div id="deliverable-progress" class="progress-panel" hidden>
+                <div class="progress-top">
+                  <strong id="deliverable-progress-label">Génération du dossier…</strong>
+                  <span id="deliverable-progress-percent">0 %</span>
+                </div>
+                <div class="progress-track"><span id="deliverable-progress-bar"></span></div>
+                <p class="hint" id="deliverable-progress-section">Calcul du socle vérifié…</p>
+              </div>
+              <p class="hint">Module « Périodes & Cycles » : non disponible dans cette version (calcul des transits en cours de méthode).</p>
+            </form>
+            <div class="panel">
+              <h3>Dossiers générés</h3>
+              <div id="deliverable-list" class="list"></div>
+            </div>
+          </div>
+          <div id="deliverable-viewer" class="panel wide" hidden>
+            <div class="panel-heading">
+              <div>
+                <h3 id="deliverable-viewer-title">Dossier</h3>
+                <div class="meta" id="deliverable-viewer-status"></div>
+              </div>
+              <div class="split-actions">
+                <button id="review-deliverable-button" class="secondary" type="button">Marquer comme relu</button>
+                <button id="export-deliverable-pdf" class="secondary" type="button">PDF</button>
+                <button id="download-deliverable-html" class="secondary" type="button">HTML</button>
+                <button id="download-deliverable-md" class="secondary" type="button">Markdown</button>
+              </div>
+            </div>
+            <iframe id="deliverable-frame" class="deliverable-frame" title="Dossier de lecture"></iframe>
+          </div>
+        </section>
+
+        <section id="offre-view" class="view">
+          <div class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <h3>Offre & prix libre</h3>
+                <p class="hint">Démo visuelle — aucun paiement réel pour le moment.</p>
+              </div>
+            </div>
+            <div class="price-card">
+              <div class="price-hero">
+                <span id="price-amount">10 €</span>
+                <strong id="price-tier">Merci pour votre confiance 🙏</strong>
+              </div>
+              <div class="price-chips" id="price-chips">
+                <button type="button" class="chip" data-price="5">5 €</button>
+                <button type="button" class="chip active" data-price="10">10 €</button>
+                <button type="button" class="chip" data-price="25">25 €</button>
+                <button type="button" class="chip" data-price="50">50 €</button>
+                <button type="button" class="chip" data-price="100">100 €</button>
+                <button type="button" class="chip" data-price="1000">1 000 €</button>
+              </div>
+              <input id="price-slider" type="range" min="1" max="1000000" step="1" value="10" aria-label="Choisissez le prix de votre lecture">
+              <div class="slider-scale">
+                <span>1 €</span>
+                <span>prix suggéré : 10 €</span>
+                <span>1 000 000 €</span>
+              </div>
+
+              <div class="share-box">
+                <p class="hint">Une part peut être reversée à une association :</p>
+                <div class="price-chips" id="share-chips">
+                  <button type="button" class="chip active" data-share="0">0 % — tout pour la lecture</button>
+                  <button type="button" class="chip" data-share="50">50 % max — la moitié pour l'association</button>
+                </div>
+                <p class="hint" id="price-split"></p>
+              </div>
+
+              <div class="split-actions">
+                <button id="price-validate" type="button">Valider ce prix</button>
+                <button class="secondary" type="button" id="price-reset">Revenir à 10 €</button>
+              </div>
+              <div id="price-confirm" class="note note-accent" hidden>
+                <strong>Confirmez-vous vraiment ce montant ?</strong>
+                <span id="price-confirm-text"></span>
+                <div class="split-actions">
+                  <button id="price-confirm-yes" type="button">Oui, je confirme</button>
+                  <button class="secondary" type="button" id="price-confirm-no">Non</button>
+                </div>
+              </div>
+              <p class="hint" id="price-result"></p>
+              <small class="fiscal-note">
+                Note : démo sans paiement. Tout montant réellement encaissé constitue un revenu à déclarer ; seule la part
+                effectivement reversée à un organisme éligible peut ouvrir droit à un reçu fiscal pour le client.
+              </small>
+            </div>
+          </div>
+        </section>
+
+        <section id="history-view" class="view">
+          <div class="panel wide">
+            <h3>Historique des modifications</h3>
+            <div id="history-list" class="timeline"></div>
+          </div>
+        </section>
+
+        <section id="methods-view" class="view">
+          <div class="panel wide">
+            <h3>Registre méthodologique</h3>
+            <p class="hint">Les modules ci-dessous sont seulement des structures. Aucun calcul traditionnel n’est inventé.</p>
+            <div id="method-list" class="list"></div>
+          </div>
+        </section>
+
+        <section id="commerce-view" class="view">
+          <div class="grid two">
+            <div class="panel">
+              <h3>Crédits</h3>
+              <div class="credit-balance">
+                <span>Solde disponible</span>
+                <strong id="credit-balance">0</strong>
+              </div>
+              <p class="hint">Les paiements réels ne sont pas connectés. Les crédits ci-dessous sont des écritures de développement pour tester le ledger.</p>
+            </div>
+            <div class="panel">
+              <h3>Plans</h3>
+              <div id="plan-list" class="list"></div>
+            </div>
+            <div class="panel wide">
+              <h3>Ledger</h3>
+              <div id="credit-ledger" class="timeline"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="admin-view" class="view">
+          <div class="grid two">
+            <div class="panel">
+              <h3>Résumé système</h3>
+              <div id="admin-counts" class="stats-grid"></div>
+            </div>
+            <div class="panel">
+              <h3>Utilisateurs</h3>
+              <div id="admin-users" class="list"></div>
+            </div>
+            <div class="panel wide">
+              <h3>Audit global</h3>
+              <div id="admin-audit" class="timeline"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
