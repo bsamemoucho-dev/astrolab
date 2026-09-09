@@ -1427,3 +1427,158 @@ details.parent-fieldset summary {
 details.parent-fieldset summary::marker {
   color: var(--violet);
 }
+
+/* ---------- Mode visiteur « simple » ---------- */
+
+.time-simple {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.express-optional summary {
+  cursor: pointer;
+  padding: 4px 0;
+  font-weight: 700;
+  color: var(--violet-deep);
+  list-style-position: inside;
+}
+
+#guest-hero {
+  max-width: 640px;
+  margin: 30px auto 6px;
+  padding: 0 8px 14px;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.guest-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-brand-name {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+#guest-hero h1 {
+  font-size: clamp(2rem, 5.4vw, 3.2rem);
+  color: var(--ink);
+}
+
+#guest-hero h1 span {
+  background: linear-gradient(90deg, var(--violet-deep), var(--iris));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.guest-lead {
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.guest-pro-link {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 6px 10px;
+}
+
+.guest-pro-link:hover {
+  color: var(--violet-deep);
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* En visite : on n'affiche QUE l'écran de lecture simple */
+body.guest .sidebar,
+body.guest .topbar {
+  display: none !important;
+}
+
+body.guest .message {
+  margin: 10px auto 0;
+  max-width: 620px;
+}
+
+body.guest .app-shell {
+  display: block;
+  max-width: 860px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 10px 18px 48px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body.guest .workspace {
+  background: transparent;
+}
+
+body.guest .view {
+  padding: 0;
+}
+
+body.guest #express-view {
+  padding: 6px 0 36px;
+}
+
+body.guest #express-view .grid.two {
+  grid-template-columns: 1fr;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+body.guest #express-view .grid.two .panel + .panel {
+  display: none; /* pas de panneau latéral en visite */
+}
+
+body.guest #express-viewer {
+  max-width: 860px;
+  margin: 18px auto 0;
+}
+
+body.guest .note-accent {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .time-simple {
+    grid-template-columns: 1fr;
+  }
+}
+
+.express-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+#express-viewer {
+  margin: 22px auto 0;
+  max-width: 860px;
+}
+
+#express-viewer:not([hidden]) {
+  display: block;
+}
+
+#express-ready-hint {
+  margin: 2px 0 0;
+}

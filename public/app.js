@@ -1253,6 +1253,16 @@ function printHtmlInWindow(html) {
   setTimeout(() => printWindow.print(), 500);
 }
 
+function applyGuestLayout() {
+  const guest = !state.user;
+  document.body.classList.toggle("guest", guest);
+  const hero = $("#guest-hero");
+  if (hero) {
+    hero.hidden = !guest;
+  }
+  return guest;
+}
+
 function bindExpressForm() {
   const form = $("#express-form");
   if (!form) {
@@ -1264,6 +1274,26 @@ function bindExpressForm() {
   field(form, "birthPlace").addEventListener("input", () => {
     field(form, "resolvedPlace").value = "";
     $("#express-place-details").hidden = true;
+  });
+
+  const precisionSelect = field(form, "timePrecision");
+  const timeWrap = $("#express-time-label");
+  const intervalWrap = $("#express-interval-fields");
+  const syncTimeVisibility = () => {
+    const value = precisionSelect.value;
+    timeWrap.hidden = !(value === "exact" || value === "approximate");
+    intervalWrap.hidden = value !== "interval";
+  };
+  precisionSelect.addEventListener("change", syncTimeVisibility);
+  syncTimeVisibility();
+
+  $("#guest-pro-link")?.addEventListener("click", () => {
+    document.body.classList.remove("guest");
+    const hero = $("#guest-hero");
+    if (hero) {
+      hero.hidden = true;
+    }
+    setView("auth");
   });
 
   form.addEventListener("submit", async (event) => {
@@ -1295,8 +1325,6 @@ function bindExpressForm() {
       const reading = await api("/api/public/readings", { method: "POST", body });
       state.guestReading = { html: reading.html, markdown: reading.markdown };
       $("#express-viewer").hidden = false;
-      $("#express-actions").hidden = false;
-      $("#express-placeholder").hidden = true;
       $("#express-frame").srcdoc = reading.html;
       $("#express-progress").hidden = true;
       showMessage(
@@ -1373,6 +1401,7 @@ function bindForms() {
     try {
       const result = await api("/api/auth/login", { method: "POST", body: formData(event.currentTarget) });
       state.user = result.user;
+      applyGuestLayout();
       await refreshDossier();
       setView("profile");
       showMessage("Connexion réussie.");
@@ -1386,8 +1415,9 @@ function bindForms() {
     state.user = null;
     state.dossier = null;
     updateNav();
-    setView("auth");
-    showMessage("Déconnecté.");
+    applyGuestLayout();
+    setView("express");
+    showMessage("Déconnecté. Vous repartez sur la lecture simple.");
   });
 
   $("#export-account-button").addEventListener("click", async () => {
@@ -1411,8 +1441,9 @@ function bindForms() {
       state.user = null;
       state.dossier = null;
       updateNav();
-      setView("auth");
-      showMessage("Compte supprimé.");
+      applyGuestLayout();
+      setView("express");
+      showMessage("Compte supprimé. Vous repartez sur la lecture simple.");
     } catch (error) {
       showMessage(error.message, true);
     }
@@ -1669,11 +1700,13 @@ async function boot() {
   await loadConfig();
   const session = await api("/api/session");
   state.user = session.user;
+  applyGuestLayout();
   if (state.user) {
     await refreshDossier();
     setView("profile");
   } else {
     updateNav();
+    setView("express");
   }
   await renderMethods();
 }

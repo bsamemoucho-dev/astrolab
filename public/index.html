@@ -353,36 +353,46 @@
         </section>
 
         <section id="express-view" class="view">
-          <div class="grid two">
+          <div id="guest-hero" hidden>
+            <div class="guest-brand">
+              <span class="brand-mark" aria-hidden="true">✦</span>
+              <span class="guest-brand-name">AstroLab</span>
+            </div>
+            <h1>Votre lecture, <span>simplement.</span></h1>
+            <p class="guest-lead">Renseignez votre naissance, recevez votre lecture. Sans compte, sans collecte : vos données ne sont pas enregistrées.</p>
+            <button id="guest-pro-link" class="guest-pro-link" type="button">Espace professionnel — se connecter</button>
+          </div>
+
+          <div class="express-wrap">
             <form id="express-form" class="panel">
-              <h3>Lecture express — sans compte</h3>
-              <div class="note note-accent">
-                <strong>🔒 Aucun compte, aucune collecte</strong>
-                <span>Vos données de naissance servent uniquement à ce calcul, ne sont pas enregistrées et ne sont pas reliées à internet. Vous repartez avec votre lecture, c'est tout.</span>
-              </div>
-              <label>Prénom (optionnel — pour personnaliser la lecture) <input name="firstName" placeholder="ex. Caroline"></label>
+              <h3>Votre lecture</h3>
               <label>Date de naissance <input name="birthDate" type="date" required></label>
-              <label>Précision de l'heure
-                <select name="timePrecision">
-                  <option value="exact">Exacte</option>
-                  <option value="approximate">Approximative</option>
-                  <option value="interval">Intervalle</option>
-                  <option value="unknown">Inconnue</option>
-                </select>
-              </label>
-              <div class="grid two compact">
-                <label>Heure <input name="timeValue" type="time"></label>
+              <div class="time-simple">
+                <label>Heure
+                  <select name="timePrecision" id="express-precision">
+                    <option value="exact">Connue (précise)</option>
+                    <option value="approximate">Approximative</option>
+                    <option value="unknown">Inconnue</option>
+                    <option value="interval">Intervalle</option>
+                  </select>
+                </label>
+                <label id="express-time-label">Heure <input name="timeValue" type="time"></label>
+              </div>
+              <div id="express-interval-fields" hidden>
                 <label>Début <input name="timeStart" type="time"></label>
                 <label>Fin <input name="timeEnd" type="time"></label>
               </div>
-              <label>Lieu de naissance <input name="birthPlace" placeholder="Paris, France" required></label>
+              <label>Lieu de naissance <input name="birthPlace" placeholder="Ex. Paris, France" required></label>
               <input name="resolvedPlace" type="hidden">
-              <button id="express-resolve-place" class="secondary" type="button">Rechercher / sélectionner le lieu</button>
+              <button id="express-resolve-place" class="secondary" type="button">Localiser ce lieu</button>
               <div id="express-place-details" class="technical-details" hidden></div>
-              <label>Intention ou question (optionnel)
-                <textarea name="intention" rows="3" placeholder="Ce que vous aimeriez éclairer…"></textarea>
-              </label>
-              <details class="parent-fieldset">
+
+              <details class="parent-fieldset express-optional">
+                <summary>Personnaliser — prénom &amp; question (optionnel)</summary>
+                <label>Prénom <input name="firstName" placeholder="ex. Caroline"></label>
+                <label>Votre question <textarea name="intention" rows="2" placeholder="Ce que vous aimeriez éclairer…"></textarea></label>
+              </details>
+              <details class="parent-fieldset express-optional">
                 <summary>Parents — lecture transgénérationnelle (optionnel)</summary>
                 <div class="grid two compact">
                   <label>Mère — nom <input name="motherName"></label>
@@ -395,20 +405,23 @@
                 </div>
                 <label>Père — lieu <input name="fatherBirthPlace"></label>
               </details>
-              <button type="submit">Générer ma lecture</button>
-              <p class="hint" id="express-progress" hidden>Génération en cours — calcul du socle puis rédaction des sections (1 à 2 minutes environ).</p>
+
+              <button type="submit">Recevoir ma lecture</button>
+              <p class="hint" id="express-progress" hidden>Génération en cours — calcul puis rédaction (1 à 2 minutes environ).</p>
             </form>
-            <div class="panel">
-              <h3>Votre lecture</h3>
-              <div id="express-placeholder" class="hint">Remplissez votre naissance puis cliquez « Générer ma lecture ». Vous pourrez la télécharger immédiatement (HTML, Markdown ou PDF), sans créer de compte.</div>
-              <div class="split-actions" id="express-actions" hidden>
+          </div>
+          <div class="panel wide" id="express-viewer" hidden>
+            <div class="panel-heading">
+              <div>
+                <h3>Votre lecture</h3>
+                <p class="hint" id="express-ready-hint">Elle est prête : téléchargez-la, elle n'est conservée nulle part.</p>
+              </div>
+              <div class="split-actions" id="express-actions">
                 <button id="guest-download-html" class="secondary" type="button">HTML</button>
                 <button id="guest-download-md" class="secondary" type="button">Markdown</button>
                 <button id="guest-download-pdf" class="secondary" type="button">PDF</button>
               </div>
             </div>
-          </div>
-          <div class="panel wide" id="express-viewer" hidden>
             <iframe id="express-frame" class="deliverable-frame" title="Votre lecture"></iframe>
           </div>
         </section>
