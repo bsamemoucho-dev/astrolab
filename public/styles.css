@@ -1402,3 +1402,28 @@ legend {
 #price-confirm .split-actions {
   justify-content: center;
 }
+
+/* ---------- Lecture express (sans compte) ---------- */
+
+#express-viewer {
+  margin-top: 20px;
+}
+
+#express-actions {
+  margin-top: 12px;
+}
+
+#express-actions button {
+  min-height: 36px;
+}
+
+details.parent-fieldset summary {
+  cursor: pointer;
+  padding: 6px 0;
+  font-weight: 700;
+  color: var(--violet-deep);
+}
+
+details.parent-fieldset summary::marker {
+  color: var(--violet);
+}

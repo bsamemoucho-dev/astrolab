@@ -10,6 +10,7 @@ import { getAdminSummary, listAdminAuditLogs } from "../models/adminService.mjs"
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
+import { createPublicReading } from "../models/publicReadingService.mjs";
 import { createReport, listReports } from "../models/reportService.mjs";
 import {
   deleteDeliverable,
@@ -79,6 +80,25 @@ export function createApp(options = {}) {
         production: process.env.NODE_ENV === "production",
         time: new Date().toISOString()
       });
+    }),
+    // Parcours public « sans compte » : résolution de lieu et lecture, aucune
+    // inscription, aucune donnée personnelle persistée.
+    route("GET", /^\/api\/public\/places\/search$/, async (_req, res, _params, url) => {
+      sendJson(res, 200, { places: await searchPlacesForEntry(url.searchParams.get("q")) });
+    }),
+    route("POST", /^\/api\/public\/places\/resolve$/, async (req, res) => {
+      try {
+        sendJson(res, 200, { place: await resolvePlaceForEntry(await readJson(req)) });
+      } catch (error) {
+        if (error.status === 409) {
+          sendJson(res, 409, { error: error.message, matches: error.matches });
+          return;
+        }
+        throw error;
+      }
+    }),
+    route("POST", /^\/api\/public\/readings$/, async (req, res) => {
+      sendJson(res, 200, await createPublicReading(await readJson(req)));
     }),
     route("GET", /^\/api\/config$/, async (_req, res) => {
       sendJson(res, 200, {

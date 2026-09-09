@@ -7,6 +7,7 @@ const state = {
 
 const titles = {
   auth: "Compte",
+  express: "Lecture express",
   offre: "Offre & prix",
   profile: "Profil",
   people: "Personnes",
@@ -144,10 +145,11 @@ function showResolvedPlace(targetId, place) {
   box.hidden = false;
 }
 
-async function resolvePlaceForForm(form, detailsId, placeId = null) {
+async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = false) {
   const payload = formPayload(form);
+  const base = usePublic ? "/api/public/places" : "/api/places";
   try {
-    const result = await api("/api/places/resolve", {
+    const result = await api(`${base}/resolve`, {
       method: "POST",
       body: {
         query: payload.birthPlace,
@@ -177,7 +179,7 @@ async function resolvePlaceForForm(form, detailsId, placeId = null) {
       box.hidden = false;
       $all("[data-resolve-place-id]", box).forEach((button) => {
         button.addEventListener("click", async () => {
-          await resolvePlaceForForm(form, detailsId, button.dataset.resolvePlaceId);
+          await resolvePlaceForForm(form, detailsId, button.dataset.resolvePlaceId, usePublic);
         });
       });
       showMessage(error.message, true);
@@ -188,7 +190,7 @@ async function resolvePlaceForForm(form, detailsId, placeId = null) {
   }
 }
 
-async function ensureResolvedPlace(form, detailsId) {
+async function ensureResolvedPlace(form, detailsId, usePublic = false) {
   if (field(form, "resolvedPlace").value) {
     return true;
   }
@@ -196,7 +198,7 @@ async function ensureResolvedPlace(form, detailsId) {
     showMessage("Indiquez le lieu de naissance.", true);
     return false;
   }
-  return Boolean(await resolvePlaceForForm(form, detailsId));
+  return Boolean(await resolvePlaceForForm(form, detailsId, null, usePublic));
 }
 
 function setView(name) {
@@ -214,7 +216,8 @@ function updateNav() {
     if (
       button.dataset.view !== "auth" &&
       button.dataset.view !== "methods" &&
-      button.dataset.view !== "offre"
+      button.dataset.view !== "offre" &&
+      button.dataset.view !== "express"
     ) {
       button.disabled = !authenticated;
     }
@@ -1238,8 +1241,112 @@ async function refreshDossier() {
   updateNav();
 }
 
+function printHtmlInWindow(html) {
+  const printWindow = window.open("", "_blank", "width=900,height=1000");
+  if (!printWindow) {
+    throw new Error("Autorisez les fenêtres pop-up pour imprimer/enregistrer en PDF.");
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 500);
+}
+
+function bindExpressForm() {
+  const form = $("#express-form");
+  if (!form) {
+    return;
+  }
+  $("#express-resolve-place").addEventListener("click", () => {
+    resolvePlaceForForm(form, "express-place-details", null, true);
+  });
+  field(form, "birthPlace").addEventListener("input", () => {
+    field(form, "resolvedPlace").value = "";
+    $("#express-place-details").hidden = true;
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalLabel = submitButton.textContent;
+    try {
+      if (!(await ensureResolvedPlace(form, "express-place-details", true))) {
+        return;
+      }
+      const payload = formPayload(form);
+      const body = {
+        firstName: payload.firstName || null,
+        birthDate: payload.birthDate,
+        timePrecision: payload.timePrecision ?? "unknown",
+        timeValue: payload.timeValue || null,
+        timeStart: payload.timeStart || null,
+        timeEnd: payload.timeEnd || null,
+        birthPlace: payload.birthPlace || null,
+        resolvedPlace: payload.resolvedPlace ?? null,
+        intention: payload.intention || null,
+        parents: deliverableParentsFromForm(form)
+      };
+      submitButton.disabled = true;
+      submitButton.textContent = "Génération en cours… (1 à 2 min)";
+      $("#express-progress").hidden = false;
+      showMessage("Calcul du socle puis rédaction des sections… veuillez patienter (1 à 2 minutes).");
+
+      const reading = await api("/api/public/readings", { method: "POST", body });
+      state.guestReading = { html: reading.html, markdown: reading.markdown };
+      $("#express-viewer").hidden = false;
+      $("#express-actions").hidden = false;
+      $("#express-placeholder").hidden = true;
+      $("#express-frame").srcdoc = reading.html;
+      $("#express-progress").hidden = true;
+      showMessage(
+        reading.writerMode === "llm"
+          ? "Lecture prête — téléchargez-la ou imprimez-la, rien n'a été enregistré."
+          : "Lecture générée en brouillon technique (socle vérifié complet)."
+      );
+    } catch (error) {
+      $("#express-progress").hidden = true;
+      showMessage(error.message, true);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = originalLabel;
+    }
+  });
+
+  $("#guest-download-html").addEventListener("click", () => {
+    if (!state.guestReading) return;
+    const blob = new Blob([state.guestReading.html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "lecture-astrologique.html";
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+  $("#guest-download-md").addEventListener("click", () => {
+    if (!state.guestReading) return;
+    const blob = new Blob([state.guestReading.markdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "lecture-astrologique.md";
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+  $("#guest-download-pdf").addEventListener("click", () => {
+    if (!state.guestReading) return;
+    try {
+      printHtmlInWindow(state.guestReading.html);
+      showMessage("Choisissez « Enregistrer au format PDF » dans la fenêtre d'impression.");
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+  });
+}
+
 function bindForms() {
   bindPriceSlider();
+  bindExpressForm();
   $("#register-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {

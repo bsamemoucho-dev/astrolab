@@ -259,6 +259,53 @@ test("validator rejects invented facts, predictions, and contradictions with the
   assert.equal(clean.ok, true);
 });
 
+test("public no-account reading works without authentication and stores nothing", async () => {
+  const app = await startTestApp();
+  try {
+    const reading = await request(app.baseUrl, "/api/public/readings", {
+      method: "POST",
+      body: {
+        firstName: "Test",
+        birthDate: "1990-01-15",
+        timePrecision: "exact",
+        timeValue: "12:30",
+        resolvedPlace: {
+          selectedName: "Paris, France",
+          normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+        }
+      }
+    });
+    assert.equal(reading.status, 200);
+    assert.equal(reading.payload.writerMode, "template");
+    assert.equal(reading.payload.status, "template_draft");
+    assert.match(reading.payload.html, /<!doctype html>/);
+    assert.match(reading.payload.html, /socle de calcul vérifié/i);
+    assert.ok(reading.payload.sections.some((section) => section.id === "lettre-ame"));
+    assert.equal(reading.payload.sections.length, 11); // 11 sections narratives ; l'annexe est dans le HTML
+
+    const state = await app.store.load();
+    assert.equal(state.users.length, 0);
+    assert.equal(state.persons.length, 0);
+    assert.equal((state.deliverables ?? []).length, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("public reading rejects invalid birth data without crashing", async () => {
+  const app = await startTestApp();
+  try {
+    const missing = await request(app.baseUrl, "/api/public/readings", {
+      method: "POST",
+      body: { firstName: "X" }
+    });
+    assert.equal(missing.status, 400);
+    assert.match(missing.payload.error, /date de naissance/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("healthz and public config endpoints are available", async () => {
   const app = await startTestApp();
   try {
