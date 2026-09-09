@@ -153,7 +153,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 <body>
 <div class="sheet">
   <header class="cover">
-    <div class="brand">AstroLab · Lecture symbolique personnalisée</div>
+    <div class="brand">Lastro · Lecture symbolique personnalisée</div>
     <h1>${escapeHtml(title)}</h1>
     <div class="cover-meta">${personLabel ? `Personne : ${escapeHtml(personLabel)} · ` : ""}Généré le ${escapeHtml(createdAt)}</div>
   </header>
@@ -166,7 +166,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   <footer>
     ${authorLine}
     <p>${writerNote}</p>
-    <p>Document généré par AstroLab — socle de calcul local et déterministe ; toute interprétation est étiquetée et doit être relue avant livraison.</p>
+    <p>Document généré par Lastro — socle de calcul local et déterministe ; toute interprétation est étiquetée et doit être relue avant livraison.</p>
   </footer>
 </div>
 </body>

@@ -1260,7 +1260,24 @@ function applyGuestLayout() {
   if (hero) {
     hero.hidden = !guest;
   }
+  renderGuestZodiac();
   return guest;
+}
+
+const ZODIAC_FR_NAMES = [
+  "Bélier", "Taureau", "Gémeaux", "Cancer", "Lion", "Vierge",
+  "Balance", "Scorpion", "Sagittaire", "Capricorne", "Verseau", "Poissons"
+];
+
+function renderGuestZodiac() {
+  const box = $("#guest-zodiac");
+  if (!box) {
+    return;
+  }
+  box.innerHTML = ZODIAC_GLYPHS.map(
+    (glyph, index) =>
+      `<div class="zodiac-card"><span class="zodiac-glyph">${glyph}</span><span class="zodiac-name">${ZODIAC_FR_NAMES[index]}</span><span class="zodiac-symbol">${glyph}</span></div>`
+  ).join("");
 }
 
 function bindExpressForm() {
@@ -1294,6 +1311,15 @@ function bindExpressForm() {
       hero.hidden = true;
     }
     setView("auth");
+  });
+
+  $("#guest-cta")?.addEventListener("click", () => {
+    const target = $("#express-form");
+    if (!target) {
+      return;
+    }
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    field(target, "birthDate")?.focus();
   });
 
   form.addEventListener("submit", async (event) => {
