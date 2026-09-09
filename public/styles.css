@@ -534,3 +534,147 @@ body.guest .note-accent { display: none; }
 
 /* ---------- print ---------- */
 @media print { body { background: #fff; } }
+
+/* ============================================================ *\
+   2e passe « Premium » — profondeur, lueurs, ornements, forme
+\* ============================================================ */
+
+/* --- atmosphère derrière le héros --- */
+#guest-hero { position: relative; padding-top: 22px; }
+#guest-hero::before {
+  content: "";
+  position: absolute;
+  inset: -18% -8%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(640px 440px at 50% 4%, rgba(139, 124, 240, 0.3), transparent 62%),
+    radial-gradient(520px 400px at 72% 16%, rgba(233, 196, 106, 0.18), transparent 60%),
+    radial-gradient(520px 400px at 28% 18%, rgba(139, 124, 240, 0.16), transparent 60%);
+  filter: blur(6px);
+}
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+#guest-hero h1 {
+  font-size: clamp(2.5rem, 7vw, 4.4rem);
+  letter-spacing: -0.015em;
+  text-shadow: 0 0 46px rgba(233, 196, 106, 0.18);
+}
+#guest-hero h1 span {
+  background: linear-gradient(90deg, #f4d98a, #e9c46a 55%, #f6e6b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 30px rgba(233, 196, 106, 0.35);
+}
+.guest-lead { color: #c6ccf2; letter-spacing: 0.02em; }
+
+/* bouton Connexion en contour doré (plus élégant que le bloc plein) */
+.guest-topbar button {
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--gold);
+  box-shadow: none;
+}
+.guest-topbar button:hover { border-color: var(--gold); background: var(--gold-soft); box-shadow: none; transform: none; }
+
+.guest-cta-note { color: #9aa3c7; letter-spacing: 0.02em; }
+.gold-btn {
+  font-weight: 800;
+  box-shadow: 0 18px 50px -12px rgba(233, 196, 106, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.gold-btn::after { content: " →"; margin-left: 8px; }
+
+/* --- grille des 12 signes : cartes ornées --- */
+.guest-zodiac { gap: 16px; max-width: 840px; position: relative; }
+#guest-zodiac::after {
+  content: "";
+  position: absolute;
+  inset: -46px -20px;
+  z-index: -1;
+  background: radial-gradient(60% 52% at 50% 42%, rgba(139, 124, 240, 0.14), transparent 62%);
+  filter: blur(10px);
+}
+.zodiac-card {
+  position: relative;
+  border-radius: 18px;
+  padding: 18px 8px 14px;
+  border: 1px solid rgba(233, 196, 106, 0.35);
+  background: linear-gradient(165deg, rgba(20, 28, 66, 0.9), rgba(12, 18, 48, 0.6));
+  box-shadow: 0 22px 54px -26px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.zodiac-card::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(233, 196, 106, 0.18);
+  border-radius: 13px;
+  pointer-events: none;
+}
+.zodiac-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--gold);
+  box-shadow: 0 28px 64px -26px rgba(233, 196, 106, 0.5), inset 0 0 26px rgba(233, 196, 106, 0.08);
+}
+.zodiac-glyph { font-size: 2.1rem; color: var(--gold); text-shadow: 0 0 20px rgba(233, 196, 106, 0.5); }
+.zodiac-name { font-family: var(--serif); font-size: 0.95rem; color: #eef1ff; letter-spacing: 0.03em; }
+.zodiac-symbol { font-size: 0.72rem; color: var(--violet); opacity: 0.85; }
+
+/* --- formulaire de lecture raffiné --- */
+#express-view .express-wrap .panel,
+body.guest #express-view .express-wrap .panel {
+  border-radius: 22px;
+  padding: 28px;
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(165deg, rgba(17, 24, 52, 0.92), rgba(11, 17, 40, 0.9));
+  box-shadow: 0 34px 90px -42px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+#express-view .express-wrap .panel h3 { font-size: 1.4rem; color: #fff; }
+#express-form label {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+}
+#express-form input, #express-form select, #express-form textarea {
+  border-radius: 12px;
+  background: rgba(10, 15, 38, 0.85);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+#express-form input:focus, #express-form select:focus, #express-form textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px var(--gold-soft);
+  background: #0d1436;
+}
+#express-form button[type="submit"] {
+  border-radius: 999px;
+  min-height: 52px;
+  font-size: 1.02rem;
+  margin-top: 6px;
+}
+#express-form .secondary {
+  border-radius: 12px;
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink-soft);
+}
+#express-form .secondary:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-soft); }
+#express-viewer { border-radius: 22px; }
