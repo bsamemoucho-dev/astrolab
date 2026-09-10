@@ -403,11 +403,24 @@
 
               <div id="express-payment" class="pay-panel" hidden>
                 <div class="pay-head">
-                  <strong>Pendant que votre lecture se prépare…</strong>
-                  <span>Vous pouvez régler dès maintenant, au montant que vous voulez : le prix est libre.</span>
+                  <strong id="pay-title">Régler votre lecture</strong>
+                  <span id="pay-text">Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.</span>
                 </div>
-                <button id="pay-open" class="pay-button" type="button">Régler par SumUp →</button>
-                <small>Paiement sécurisé SumUp, sans quitter cette page. Votre lecture continue de se générer — rien n'est bloqué.</small>
+                <div class="price-chips" id="pay-presets">
+                  <button type="button" class="chip" data-amount="200">2 €</button>
+                  <button type="button" class="chip" data-amount="500">5 €</button>
+                  <button type="button" class="chip active" data-amount="1000">10 €</button>
+                  <button type="button" class="chip" data-amount="2000">20 €</button>
+                  <button type="button" class="chip" data-amount="5000">50 €</button>
+                </div>
+                <label class="pay-amount"><span id="pay-amount-label">Montant libre</span>
+                  <span class="pay-amount-field"><input id="pay-amount" type="number" min="1" step="1" value="10"> €</span>
+                </label>
+                <button id="pay-start" class="pay-button" type="button">Continuer vers le paiement →</button>
+                <div id="checkout-container" class="checkout-container" hidden></div>
+                <button id="pay-continue" class="pay-button" type="button" hidden>Paiement effectué ? Continuer →</button>
+                <p class="hint" id="pay-status" hidden></p>
+                <small id="pay-note">Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement.</small>
               </div>
 
               <details class="parent-fieldset express-optional">
@@ -448,20 +461,6 @@
             <iframe id="express-frame" class="deliverable-frame" title="Votre lecture"></iframe>
           </div>
         </section>
-
-        <div id="payment-overlay" class="pay-overlay" hidden>
-          <div class="pay-modal" role="dialog" aria-modal="true" aria-label="Paiement SumUp">
-            <div class="pay-modal-head">
-              <strong>Régler votre lecture</strong>
-              <div class="split-actions">
-                <a class="secondary-link" href="https://pay.sumup.com/b2c/QPU73QKO" target="_blank" rel="noopener noreferrer">Ouvrir dans un onglet</a>
-                <button id="payment-close" class="secondary" type="button">✕</button>
-              </div>
-            </div>
-            <iframe id="payment-frame" title="Paiement SumUp"></iframe>
-            <p class="hint">Le paiement se fait ici, sans quitter votre lecture. Si la zone reste vide, utilisez « Ouvrir dans un onglet ».</p>
-          </div>
-        </div>
 
         <section id="offre-view" class="view">
           <div class="panel wide">

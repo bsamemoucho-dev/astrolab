@@ -418,15 +418,51 @@ const UI_STRINGS = {
 };
 
 const UI_EXTRA = {
-  fr: { backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe", payModalTitle: "Régler votre lecture", payTabOpen: "Ouvrir dans un onglet", payModalHint: "Le paiement se fait ici, sans quitter votre lecture. Si la zone reste vide, utilisez « Ouvrir dans un onglet »." },
-  en: { backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password", payModalTitle: "Pay for your reading", payTabOpen: "Open in a new tab", payModalHint: "Payment happens here, without leaving your reading. If the area stays empty, use Open in a new tab." },
-  de: { backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort", payModalTitle: "Deine Deutung bezahlen", payTabOpen: "In neuem Tab öffnen", payModalHint: "Die Zahlung erfolgt hier, ohne deine Deutung zu verlassen. Bleibt der Bereich leer, nutze In neuem Tab öffnen." },
-  es: { backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña", payModalTitle: "Pagar tu lectura", payTabOpen: "Abrir en una pestaña", payModalHint: "El pago se realiza aquí, sin salir de tu lectura. Si el área queda vacía, usa Abrir en una pestaña." },
-  it: { backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password", payModalTitle: "Paga la tua lettura", payTabOpen: "Apri in una nuova scheda", payModalHint: "Il pagamento avviene qui, senza lasciare la lettura. Se l'area resta vuota, usa Apri in una nuova scheda." },
-  pt: { backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe", payModalTitle: "Pagar a sua leitura", payTabOpen: "Abrir num novo separador", payModalHint: "O pagamento é feito aqui, sem sair da sua leitura. Se a área ficar vazia, use Abrir num novo separador." },
-  no: { backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord", payModalTitle: "Betal for lesningen din", payTabOpen: "Åpne i ny fane", payModalHint: "Betalingen skjer her, uten å forlate lesningen. Hvis området forblir tomt, bruk Åpne i ny fane." },
-  da: { backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode", payModalTitle: "Betal for din læsning", payTabOpen: "Åbn i ny fane", payModalHint: "Betalingen sker her, uden at forlade din læsning. Hvis området forbliver tomt, brug Åbn i ny fane." },
-  nl: { backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord", payModalTitle: "Jouw lezing betalen", payTabOpen: "Openen in nieuw tabblad", payModalHint: "De betaling gebeurt hier, zonder je lezing te verlaten. Blijft het vak leeg, gebruik dan Openen in nieuw tabblad." }
+  fr: { backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe",
+    payTitle: "Régler votre lecture", payText: "Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.",
+    payAmount: "Montant libre", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
+    payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
+    payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement." },
+  en: { backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password",
+    payTitle: "Pay for your reading", payText: "Choose any amount, then pay right here: card, Apple Pay or Google Pay.",
+    payAmount: "Amount (free)", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
+    payConfirmed: "Payment confirmed ✓ — creating your reading…", payContinue: "Payment done? Continue →",
+    payNote: "Secure payment by Stripe. Your card details never pass through our servers; your reading is created as soon as the payment is confirmed." },
+  de: { backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort",
+    payTitle: "Deine Deutung bezahlen", payText: "Wähle den Betrag frei und zahle direkt hier: Karte, Apple Pay oder Google Pay.",
+    payAmount: "Freier Betrag", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
+    payConfirmed: "Zahlung bestätigt ✓ — deine Deutung wird erstellt …", payContinue: "Zahlung erledigt? Weiter →",
+    payNote: "Sichere Zahlung über Stripe. Deine Kartendaten laufen nie über unsere Server; die Deutung wird nach Bestätigung der Zahlung erstellt." },
+  es: { backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña",
+    payTitle: "Pagar tu lectura", payText: "Elige libremente el importe y paga aquí mismo: tarjeta, Apple Pay o Google Pay.",
+    payAmount: "Importe libre", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
+    payConfirmed: "Pago confirmado ✓ — generando tu lectura…", payContinue: "¿Pago realizado? Continuar →",
+    payNote: "Pago seguro con Stripe. Los datos de tu tarjeta nunca pasan por nuestros servidores; la lectura se genera al confirmarse el pago." },
+  it: { backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password",
+    payTitle: "Paga la tua lettura", payText: "Scegli liberamente l'importo e paga qui: carta, Apple Pay o Google Pay.",
+    payAmount: "Importo libero", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
+    payConfirmed: "Pagamento confermato ✓ — stiamo creando la tua lettura…", payContinue: "Pagamento fatto? Continua →",
+    payNote: "Pagamento sicuro con Stripe. I dati della carta non passano mai dai nostri server; la lettura viene creata alla conferma del pagamento." },
+  pt: { backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe",
+    payTitle: "Pagar a sua leitura", payText: "Escolha livremente o valor e pague aqui mesmo: cartão, Apple Pay ou Google Pay.",
+    payAmount: "Valor livre", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
+    payConfirmed: "Pagamento confirmado ✓ — a gerar a sua leitura…", payContinue: "Pagamento feito? Continuar →",
+    payNote: "Pagamento seguro pela Stripe. Os dados do cartão nunca passam pelos nossos servidores; a leitura é gerada quando o pagamento é confirmado." },
+  no: { backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord",
+    payTitle: "Betal for lesningen din", payText: "Velg beløpet fritt og betal her: kort, Apple Pay eller Google Pay.",
+    payAmount: "Fritt beløp", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payConfirmed: "Betaling bekreftet ✓ — lesningen din lages …", payContinue: "Betalt? Fortsett →",
+    payNote: "Sikker betaling via Stripe. Kortopplysningene går aldri via våre servere; lesningen lages så snart betalingen er bekreftet." },
+  da: { backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode",
+    payTitle: "Betal for din læsning", payText: "Vælg beløbet frit og betal her: kort, Apple Pay eller Google Pay.",
+    payAmount: "Frit beløb", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payConfirmed: "Betaling bekræftet ✓ — din læsning laves …", payContinue: "Betalt? Fortsæt →",
+    payNote: "Sikker betaling via Stripe. Dine kortoplysninger går aldrig gennem vores servere; læsningen laves, så snart betalingen er bekræftet." },
+  nl: { backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord",
+    payTitle: "Jouw lezing betalen", payText: "Kies vrij het bedrag en betaal hier: kaart, Apple Pay of Google Pay.",
+    payAmount: "Vrij bedrag", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
+    payConfirmed: "Betaling bevestigd ✓ — je lezing wordt gemaakt …", payContinue: "Betaald? Doorgaan →",
+    payNote: "Veilige betaling via Stripe. Je kaartgegevens gaan nooit via onze servers; de lezing wordt gemaakt zodra de betaling is bevestigd." }
 };
 
 function currentLanguage() {
@@ -519,10 +555,12 @@ function applyUITranslations() {
     submit.textContent = t.submit;
   }
   setNodeText("#express-progress", t.progress);
-  setNodeText(".pay-head strong", t.payTitle);
-  setNodeText(".pay-head span", t.payText);
-  setNodeText(".pay-button", t.payButton);
-  setNodeText(".pay-panel small", t.payNote);
+  setNodeText("#pay-title", t.payTitle);
+  setNodeText("#pay-text", t.payText);
+  setNodeText("#pay-amount-label", t.payAmount);
+  setNodeText("#pay-start", t.payStart);
+  setNodeText("#pay-continue", t.payContinue);
+  setNodeText("#pay-note", t.payNote);
   setNodeText("#express-viewer h3", t.viewerTitle);
   setNodeText("#express-ready-hint", t.viewerHint);
   setNodeText("#guest-download-html", t.dlHtml);
@@ -535,9 +573,6 @@ function applyUITranslations() {
   setNodeText("#login-form button[type='submit']", t.authSubmit);
   setFieldLabelIn("#login-form", "email", t.emailLabel);
   setFieldLabelIn("#login-form", "password", t.passwordLabel);
-  setNodeText(".pay-modal-head strong", t.payModalTitle);
-  setNodeText(".pay-modal .secondary-link", t.payTabOpen);
-  setNodeText(".pay-modal .hint", t.payModalHint);
 
   const precision = $("#express-precision");
   if (precision?.options?.length >= 4) {
@@ -1885,76 +1920,166 @@ function bindExpressForm() {
   $("#guest-back")?.addEventListener("click", backToReading);
   $("#auth-back")?.addEventListener("click", backToReading);
 
-  const paymentOverlay = $("#payment-overlay");
-  $("#pay-open")?.addEventListener("click", () => {
-    if (!paymentOverlay) {
+  // ---------- paiement Stripe intégré (montant libre) ----------
+  const amountInput = $("#pay-amount");
+  const presets = $all("#pay-presets .chip");
+
+  const syncPresets = () => {
+    const amount = Number(amountInput?.value ?? 0);
+    for (const chip of presets) {
+      chip.classList.toggle("active", Number(chip.dataset.amount) === Math.round(amount * 100));
+    }
+  };
+  if (amountInput) {
+    amountInput.addEventListener("input", syncPresets);
+  }
+  for (const chip of presets) {
+    chip.addEventListener("click", () => {
+      if (amountInput) {
+        amountInput.value = String(Math.round(Number(chip.dataset.amount) / 100));
+      }
+      syncPresets();
+    });
+  }
+
+  const setPayStatus = (text) => {
+    const status = $("#pay-status");
+    if (status) {
+      status.textContent = text ?? "";
+      status.hidden = !text;
+    }
+  };
+
+  const loadStripeJs = () => {
+    if (window.Stripe) {
+      return Promise.resolve(window.Stripe);
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://js.stripe.com/v3/";
+      script.onload = () => resolve(window.Stripe);
+      script.onerror = () => reject(new Error("Impossible de charger Stripe."));
+      document.head.append(script);
+    });
+  };
+
+  let embeddedCheckout = null;
+
+  const startPayment = async () => {
+    const body = state.pendingReadingBody;
+    if (!body) {
       return;
     }
-    const frame = $("#payment-frame");
-    if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "https://pay.sumup.com/b2c/QPU73QKO");
+    const payments = state.config?.payments ?? {};
+    const euros = Math.max(1, Math.min(5000, Math.round(Number(amountInput?.value ?? 10))));
+    if (amountInput) {
+      amountInput.value = String(euros);
     }
-    paymentOverlay.hidden = false;
-  });
-  $("#payment-close")?.addEventListener("click", () => {
-    if (paymentOverlay) {
-      paymentOverlay.hidden = true;
+    const startButton = $("#pay-start");
+    startButton.disabled = true;
+    setPayStatus(uiStrings().payPreparing);
+    try {
+      const session = await api("/api/public/checkout-session", {
+        method: "POST",
+        body: { amountCents: euros * 100, label: "Lecture symbolique Lastro" }
+      });
+      state.paymentSessionId = session.sessionId;
+      const Stripe = await loadStripeJs();
+      const stripe = Stripe(payments.publishableKey);
+      if (embeddedCheckout) {
+        embeddedCheckout.destroy();
+        embeddedCheckout = null;
+      }
+      embeddedCheckout = await stripe.initEmbeddedCheckout({
+        fetchClientSecret: async () => session.clientSecret,
+        onComplete: () => runGeneration(state.paymentSessionId)
+      });
+      embeddedCheckout.mount("#checkout-container");
+      $("#checkout-container").hidden = false;
+      $("#pay-continue").hidden = false;
+      startButton.hidden = true;
+      setPayStatus("");
+    } catch (error) {
+      startButton.disabled = false;
+      setPayStatus("");
+      showMessage(error.message, true);
     }
-  });
-  paymentOverlay?.addEventListener("click", (event) => {
-    if (event.target === paymentOverlay) {
-      paymentOverlay.hidden = true;
+  };
+
+  $("#pay-start")?.addEventListener("click", startPayment);
+  $("#pay-continue")?.addEventListener("click", () => {
+    if (state.paymentSessionId) {
+      runGeneration(state.paymentSessionId);
     }
   });
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  const runGeneration = async (paymentSessionId = null) => {
+    const form = $("#express-form");
     const submitButton = form.querySelector('button[type="submit"]');
+    const body = state.pendingReadingBody;
+    if (!body) {
+      return;
+    }
     const originalLabel = submitButton.textContent;
     try {
-      if (!(await ensureResolvedPlace(form, "express-place-details", true))) {
-        return;
-      }
-      const payload = formPayload(form);
-      const body = {
-        firstName: payload.firstName || null,
-        language: currentLanguage(),
-        birthDate: payload.birthDate,
-        timePrecision: payload.timePrecision ?? "unknown",
-        timeValue: payload.timeValue || null,
-        timeStart: payload.timeStart || null,
-        timeEnd: payload.timeEnd || null,
-        birthPlace: payload.birthPlace || null,
-        resolvedPlace: payload.resolvedPlace ?? null,
-        intention: payload.intention || null,
-        parents: deliverableParentsFromForm(form)
-      };
       submitButton.disabled = true;
       submitButton.textContent = `${uiStrings().submit} …`;
+      $("#express-payment").hidden = true;
       $("#express-progress").hidden = false;
-      const paymentPanel = $("#express-payment");
-      if (paymentPanel) {
-        paymentPanel.hidden = false;
-      }
-      showMessage("Calcul du socle puis rédaction des sections… veuillez patienter (1 à 2 minutes).");
+      showMessage(paymentSessionId ? uiStrings().payConfirmed : "Calcul puis rédaction de votre lecture… patientez 1 à 2 minutes.");
 
-      const reading = await api("/api/public/readings", { method: "POST", body });
+      const reading = await api("/api/public/readings", {
+        method: "POST",
+        body: { ...body, paymentSessionId }
+      });
       state.guestReading = { html: reading.html, markdown: reading.markdown };
       $("#express-viewer").hidden = false;
       $("#express-frame").srcdoc = reading.html;
       $("#express-progress").hidden = true;
       showMessage(
         reading.writerMode === "llm"
-          ? "Lecture prête — téléchargez-la ou imprimez-la, rien n'a été enregistré."
+          ? "Lecture prête — téléchargez-la, elle n'est conservée nulle part."
           : "Lecture générée en brouillon technique (socle vérifié complet)."
       );
     } catch (error) {
       $("#express-progress").hidden = true;
+      $("#express-payment").hidden = false;
       showMessage(error.message, true);
     } finally {
       submitButton.disabled = false;
       submitButton.textContent = originalLabel;
     }
+  };
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!(await ensureResolvedPlace(form, "express-place-details", true))) {
+      return;
+    }
+    const payload = formPayload(form);
+    state.pendingReadingBody = {
+      firstName: payload.firstName || null,
+      language: currentLanguage(),
+      birthDate: payload.birthDate,
+      timePrecision: payload.timePrecision ?? "unknown",
+      timeValue: payload.timeValue || null,
+      timeStart: payload.timeStart || null,
+      timeEnd: payload.timeEnd || null,
+      birthPlace: payload.birthPlace || null,
+      resolvedPlace: payload.resolvedPlace ?? null,
+      intention: payload.intention || null,
+      parents: deliverableParentsFromForm(form)
+    };
+
+    const payments = state.config?.payments ?? {};
+    if (payments.configured) {
+      const panel = $("#express-payment");
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      syncPresets();
+      return;
+    }
+    await runGeneration(null);
   });
 
   $("#guest-download-html").addEventListener("click", () => {

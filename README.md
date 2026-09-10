@@ -131,6 +131,9 @@ Variables d'environnement :
 | `ASTROLAB_ALLOW_REGISTRATION` | `0` ferme les inscriptions publiques | activées |
 | `ASTROLAB_LLM_API_KEY` | Rédaction narrative (facultative) | désactivée |
 | `ASTROLAB_LLM_BASE_URL` / `ASTROLAB_LLM_MODEL` | Fournisseur/modèle LLM | OpenAI `gpt-4o-mini` |
+| `STRIPE_SECRET_KEY` | Clé secrète Stripe (`sk_…`) — active le paiement obligatoire | paiement désactivé |
+| `STRIPE_PUBLISHABLE_KEY` | Clé publique Stripe (`pk_…`), envoyée au navigateur | — |
+| `STRIPE_CURRENCY` | Devise du paiement | `eur` |
 | `NODE_ENV=production` | Cookies `Secure` (nécessite HTTPS) | — |
 
 Endpoints de service : `GET /healthz` (santé) et `GET /api/config` (configuration publique, sans secret).

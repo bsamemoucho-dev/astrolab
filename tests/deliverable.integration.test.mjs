@@ -292,6 +292,24 @@ test("public no-account reading works without authentication and stores nothing"
   }
 });
 
+test("public checkout session reports that payments are not configured yet", async () => {
+  const app = await startTestApp();
+  try {
+    const response = await request(app.baseUrl, "/api/public/checkout-session", {
+      method: "POST",
+      body: { amountCents: 1000 }
+    });
+    assert.equal(response.status, 503);
+    assert.match(response.payload.error, /paiement/i);
+
+    const config = await fetch(`${app.baseUrl}/api/config`).then((r) => r.json());
+    assert.equal(config.payments.configured, false);
+    assert.equal(config.payments.publishableKey, null);
+  } finally {
+    await app.close();
+  }
+});
+
 test("public reading rejects invalid birth data without crashing", async () => {
   const app = await startTestApp();
   try {

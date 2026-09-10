@@ -11,6 +11,7 @@ import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisSer
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
 import { createPublicReading } from "../models/publicReadingService.mjs";
+import { createEmbeddedCheckoutSession, retrieveCheckoutSession, stripeConfiguration } from "../payments/stripe.mjs";
 import { generateDailyHoroscope } from "../models/horoscopeService.mjs";
 import { createReport, listReports } from "../models/reportService.mjs";
 import {
@@ -72,6 +73,7 @@ export function createApp(options = {}) {
   const publicDir = options.publicDir ?? DEFAULT_PUBLIC_DIR;
   const commerceEnabled = options.commerceEnabled ?? process.env.ASTROLAB_ENABLE_COMMERCE !== "0";
   const allowRegistration = options.allowRegistration ?? process.env.ASTROLAB_ALLOW_REGISTRATION !== "0";
+  const usedPaymentSessions = new Set();
 
   const routes = [
     route("GET", /^\/healthz$/, async (_req, res) => {
@@ -98,16 +100,59 @@ export function createApp(options = {}) {
         throw error;
       }
     }),
+    route("POST", /^\/api\/public\/checkout-session$/, async (req, res) => {
+      const body = await readJson(req);
+      sendJson(
+        res,
+        201,
+        await createEmbeddedCheckoutSession({
+          amountCents: body.amountCents,
+          label: body.label ?? "Lecture symbolique Lastro"
+        })
+      );
+    }),
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
-      sendJson(res, 200, await createPublicReading(await readJson(req)));
+      const body = await readJson(req);
+
+      // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
+      if (stripeConfiguration()) {
+        const sessionId = String(body.paymentSessionId ?? "").trim();
+        if (!sessionId) {
+          const error = new Error("Le paiement est requis pour recevoir votre lecture.");
+          error.status = 402;
+          throw error;
+        }
+        if (usedPaymentSessions.has(sessionId)) {
+          const error = new Error("Ce paiement a déjà été utilisé pour une lecture.");
+          error.status = 409;
+          throw error;
+        }
+        const session = await retrieveCheckoutSession(sessionId);
+        if (session.payment_status !== "paid") {
+          const error = new Error("Le paiement n'est pas encore confirmé. Patientez quelques secondes puis réessayez.");
+          error.status = 402;
+          throw error;
+        }
+        usedPaymentSessions.add(sessionId);
+      }
+
+      sendJson(res, 200, await createPublicReading(body));
     }),
     route("GET", /^\/api\/public\/horoscope\/(?<sign>[^/]+)$/, async (_req, res, params) => {
       sendJson(res, 200, await generateDailyHoroscope(params.sign));
     }),
     route("GET", /^\/api\/config$/, async (_req, res) => {
+      const stripe = stripeConfiguration();
       sendJson(res, 200, {
         commerceEnabled,
         allowRegistration,
+        payments: {
+          provider: stripe ? "stripe" : null,
+          configured: Boolean(stripe),
+          publishableKey: stripe?.publishableKey ?? null,
+          currency: stripe?.currency ?? "eur",
+          minAmountCents: 50
+        },
         llmConfigured: Boolean(llmConfiguration()),
         llmModel: llmConfiguration()?.model ?? null,
         emailVerificationMode: process.env.ASTROLAB_EMAIL_MODE ?? "dev_code",
