@@ -9,7 +9,7 @@
 import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { crossCheckReading } from "../deliverables/crossCheck.mjs";
-import { docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
+import { aiReviewNote, docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
 import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
@@ -192,11 +192,20 @@ export async function createPublicReading(input = {}, options = {}) {
       }
     }
   }
+  // Passe finale : le texte définitif (éventuellement corrigé) est re-contrôlé,
+  // et le statut de chaque section est recalculé.
   for (const section of sections) {
+    if (section.provider === "llm") {
+      const finalCheck =
+        options.validate === false ? { ok: true, issues: [] } : validateSectionText({ sectionId: section.id, text: section.text, socle });
+      section.validation = finalCheck;
+      section.status = finalCheck.ok ? "ok" : "needs_review";
+    }
     if (!section.crossCheckStatus) {
       section.crossCheckStatus = verification.status === "checked" ? "confirmed" : "not_checked";
     }
   }
+  const reviewPasses = 1 + (verification.status === "checked" ? 1 : 0) + 1;
 
   const fullSections = [...sections, ...annexSections(socle, strings)];
   const writerMode = fullSections.some((section) => section.provider === "llm") ? "llm" : "template";
@@ -214,14 +223,16 @@ export async function createPublicReading(input = {}, options = {}) {
       : verification.status === "failed"
         ? "Vérification croisée indisponible pour cette lecture."
         : null;
-  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings, verificationNote });
-  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings, verificationNote });
+  const aiReview = aiReviewNote(language, reviewPasses, false);
+  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings, verificationNote, aiReview });
+  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings, verificationNote, aiReview });
 
   return {
     schema: "astrolab.public_reading",
     status: writerMode === "llm" ? "ready_for_human_review" : "template_draft",
     writerMode,
     language,
+    aiReview: { passes: reviewPasses, humanReviewed: false, note: aiReview },
     verification: {
       status: verification.status,
       provider: verification.provider ?? null,

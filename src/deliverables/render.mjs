@@ -103,10 +103,11 @@ const CSS = `
   .annex { background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:18px 22px; margin-top:40px; }
   .annex p, .annex li { font-size:13px; line-height:1.6; color:#444; }
   footer { margin-top:42px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
+  .ai-review { margin:14px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; font-weight:600; }
   @media print { body { background:#fff; } .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; } }
 `;
 
-export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null, verificationNote = null }) {
+export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null, verificationNote = null, aiReview = null }) {
   const t = strings ?? docStrings("fr");
   const badges = {
     calculated: "badge-calculated",
@@ -157,6 +158,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
     <div class="cover-meta">${personLabel ? `${escapeHtml(t.person)} : ${escapeHtml(personLabel)} · ` : ""}${escapeHtml(t.generatedOn)} ${escapeHtml(createdAt)}</div>
   </header>
   <div class="caveat">${escapeHtml(t.caveat)}</div>
+  ${aiReview ? `<div class="ai-review">${escapeHtml(aiReview)}</div>` : ""}
   ${body}
   <footer>
     ${authorLine}
@@ -169,7 +171,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 </html>`;
 }
 
-export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null, strings = null, verificationNote = null }) {
+export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null, strings = null, verificationNote = null, aiReview = null }) {
   const t = strings ?? docStrings("fr");
   const parts = [`# ${title}`, ""];
   if (personLabel) {
@@ -178,6 +180,9 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections,
   parts.push(`${t.generatedOn} : ${createdAt}`, "", "---", "");
   for (const section of sections) {
     parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "", section.text, "");
+  }
+  if (aiReview) {
+    parts.push("---", `**${aiReview}**`);
   }
   if (author) {
     parts.push("---", author);

@@ -678,3 +678,39 @@ DETAILS.nl = {
     interval: "Geboortetijd als interval opgegeven: er is geen exacte tijd verzonnen."
   }
 };
+
+// ---------------------------------------------------------------------------
+// Mention de relecture automatique (affichée dans le document)
+// ---------------------------------------------------------------------------
+
+const AI_REVIEW_NOTES = {
+  fr: "Texte rédigé par une IA — {n} relectures et corrections automatiques — non relu par un humain.",
+  en: "Text written by an AI — {n} automatic reviews and corrections — not reviewed by a human.",
+  de: "Text von einer KI verfasst — {n} automatische Prüfungen und Korrekturen — nicht von einem Menschen geprüft.",
+  es: "Texto redactado por una IA — {n} revisiones y correcciones automáticas — no revisado por un humano.",
+  it: "Testo scritto da un'IA — {n} revisioni e correzioni automatiche — non rivisto da un essere umano.",
+  pt: "Texto redigido por uma IA — {n} revisões e correções automáticas — não revisto por um humano.",
+  no: "Tekst skrevet av en KI — {n} automatiske gjennomganger og korreksjoner — ikke gjennomgått av et menneske.",
+  da: "Tekst skrevet af en AI — {n} automatiske gennemgange og rettelser — ikke gennemgået af et menneske.",
+  nl: "Tekst geschreven door een AI — {n} automatische controles en correcties — niet nagekeken door een mens."
+};
+
+export function aiReviewNote(code, passes, humanReviewed = false) {
+  const language = normalizeLanguage(code);
+  if (humanReviewed) {
+    const human = {
+      fr: "Cette lecture a été relue et validée par un praticien.",
+      en: "This reading has been reviewed and approved by a practitioner.",
+      de: "Diese Deutung wurde von einem Praktiker geprüft und freigegeben.",
+      es: "Esta lectura ha sido revisada y validada por un profesional.",
+      it: "Questa lettura è stata rivista e validata da un professionista.",
+      pt: "Esta leitura foi revista e validada por um profissional.",
+      no: "Denne lesningen er gjennomgått og godkjent av en utøver.",
+      da: "Denne læsning er gennemgået og godkendt af en udøver.",
+      nl: "Deze lezing is nagekeken en goedgekeurd door een beoefenaar."
+    };
+    return human[language] ?? human.fr;
+  }
+  const template = AI_REVIEW_NOTES[language] ?? AI_REVIEW_NOTES.fr;
+  return template.replace("{n}", String(passes));
+}
