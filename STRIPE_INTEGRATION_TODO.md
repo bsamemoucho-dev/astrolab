@@ -178,7 +178,7 @@ Pour qu'il le reçoive aussi par e-mail :
 
 ```
 BREVO_API_KEY=xkeysib-...
-BREVO_SENDER_EMAIL=contact@lastro.fr
+BREVO_SENDER_EMAIL=info@lastro.fr
 BREVO_SENDER_NAME=Lastro
 ```
 
