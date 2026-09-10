@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { stripeConfiguration, stripeKeyNotice, stripeKeyProblem } from "../src/payments/stripe.mjs";
+import { stripeConfiguration, stripeKeyDiagnostics, stripeKeyNotice, stripeKeyProblem } from "../src/payments/stripe.mjs";
 
 const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY"];
 
@@ -93,6 +93,47 @@ test("clé restreinte (rk_) acceptée comme clé secrète", () => {
     { STRIPE_SECRET_KEY: "rk_live_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789" },
     () => {
       assert.equal(stripeKeyProblem(), null);
+    }
+  );
+});
+
+test("diagnostic : repère une clé secrète tronquée", () => {
+  const account = "51UE4C2RsIRc7hIlD";
+  const secret = `sk_live_${account}${"x".repeat(20)}`;
+  const publishable = `pk_live_${account}${"y".repeat(83)}`;
+  withKeys({ STRIPE_SECRET_KEY: secret, STRIPE_PUBLISHABLE_KEY: publishable }, () => {
+    const diagnostics = stripeKeyDiagnostics();
+    assert.equal(diagnostics.secretLength, secret.length);
+    assert.equal(diagnostics.secretLooksComplete, false);
+    assert.equal(diagnostics.accountMatches, true);
+    assert.equal(diagnostics.secretPrefix, "sk_live_");
+  });
+});
+
+test("diagnostic : repère deux clés de comptes différents", () => {
+  withKeys(
+    {
+      STRIPE_SECRET_KEY: "sk_live_AAAAAAAAAAAAAAAA" + "x".repeat(85),
+      STRIPE_PUBLISHABLE_KEY: "pk_live_BBBBBBBBBBBBBBBB" + "y".repeat(83)
+    },
+    () => {
+      const diagnostics = stripeKeyDiagnostics();
+      assert.equal(diagnostics.secretLooksComplete, true);
+      assert.equal(diagnostics.accountMatches, false);
+    }
+  );
+});
+
+test("diagnostic : repère deux clés de comptes différents", () => {
+  withKeys(
+    {
+      STRIPE_SECRET_KEY: "sk_live_AAAAAAAAAAAAAAAA" + "x".repeat(85),
+      STRIPE_PUBLISHABLE_KEY: "pk_live_BBBBBBBBBBBBBBBB" + "y".repeat(83)
+    },
+    () => {
+      const diagnostics = stripeKeyDiagnostics();
+      assert.equal(diagnostics.secretLooksComplete, true);
+      assert.equal(diagnostics.accountMatches, false);
     }
   );
 });

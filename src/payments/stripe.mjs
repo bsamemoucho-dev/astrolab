@@ -68,6 +68,36 @@ export function stripeKeyNotice() {
   return null;
 }
 
+// Diagnostic sans secret : longueurs et identifiant de compte (déjà public via
+// la clé publiable), pour distinguer une clé tronquée d'une clé d'un autre
+// compte sans jamais exposer la clé secrète elle-même.
+export function stripeKeyDiagnostics() {
+  const secret = cleanKey(rawSecret());
+  const publishable = cleanKey(rawPublishable());
+  if (!secret && !publishable) {
+    return { secretLength: 0, publishableLength: 0, accountMatches: null };
+  }
+  const accountOf = (key) => key.slice(8, 24);
+  return {
+    secretLength: secret.length,
+    publishableLength: publishable.length,
+    secretPrefix: secret.slice(0, 8) || null,
+    // Une clé live complète : 109 caractères (sk_live_ + 101).
+    secretLooksComplete: secret.length >= 100,
+    accountMatches: secret.length >= 24 && publishable.length >= 24 ? accountOf(secret) === accountOf(publishable) : null
+  };
+}
+
+let lastFailure = null;
+
+export function lastStripeFailure() {
+  return lastFailure;
+}
+
+function recordFailure(message) {
+  lastFailure = { at: new Date().toISOString(), message: String(message ?? "").slice(0, 300) };
+}
+
 export function stripeConfiguration() {
   if (stripeKeyProblem()) {
     return null;
@@ -106,6 +136,7 @@ async function stripeRequest(config, path, { method = "GET", body = null } = {})
     error.status = 502;
     error.publicMessage = "Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.";
     error.cause = cause;
+    recordFailure(`${error.message} (${cause?.message ?? cause})`);
     throw error;
   }
   const data = await response.json().catch(() => null);
@@ -114,8 +145,10 @@ async function stripeRequest(config, path, { method = "GET", body = null } = {})
     const error = new Error(message);
     error.status = 502;
     error.publicMessage = "Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.";
+    recordFailure(message);
     throw error;
   }
+  lastFailure = null;
   return data;
 }
 

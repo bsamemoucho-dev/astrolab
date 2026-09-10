@@ -13,8 +13,10 @@ import { calculateWesternNatalForUser } from "../models/natalCalculationService.
 import { createPublicReading } from "../models/publicReadingService.mjs";
 import {
   createEmbeddedCheckoutSession,
+  lastStripeFailure,
   retrieveCheckoutSession,
   stripeConfiguration,
+  stripeKeyDiagnostics,
   stripeKeyNotice,
   stripeKeyProblem
 } from "../payments/stripe.mjs";
@@ -167,7 +169,9 @@ export function createApp(options = {}) {
           currency: stripe?.currency ?? "eur",
           minAmountCents: 50,
           problem: stripeKeyProblem(),
-          notice: stripeKeyNotice()
+          notice: stripeKeyNotice(),
+          diagnostics: stripeKeyDiagnostics(),
+          lastError: lastStripeFailure()
         },
         llmConfigured: Boolean(llmConfiguration()),
         llmModel: llmConfiguration()?.model ?? null,
