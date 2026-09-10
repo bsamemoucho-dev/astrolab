@@ -14,6 +14,8 @@ import { createPublicReading } from "../models/publicReadingService.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
+  MAX_AMOUNT_CENTS,
+  MIN_AMOUNT_CENTS,
   retrieveCheckoutSession,
   stripeConfiguration,
   stripeKeyDiagnostics,
@@ -167,7 +169,8 @@ export function createApp(options = {}) {
           configured: Boolean(stripe),
           publishableKey: stripe?.publishableKey ?? null,
           currency: stripe?.currency ?? "eur",
-          minAmountCents: 50,
+          minAmountCents: MIN_AMOUNT_CENTS,
+          maxAmountCents: MAX_AMOUNT_CENTS,
           problem: stripeKeyProblem(),
           notice: stripeKeyNotice(),
           diagnostics: stripeKeyDiagnostics(),

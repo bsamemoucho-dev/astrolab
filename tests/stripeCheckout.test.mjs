@@ -80,6 +80,32 @@ test("la session de paiement utilise les paramètres attendus par l'API Stripe a
   );
 });
 
+test("le montant est encadré par l'offre : 5 € minimum, 50 € maximum", async () => {
+  await withKeys(
+    { STRIPE_SECRET_KEY: "sk_live_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789" },
+    () =>
+      withFakeStripe(
+        () => ({ ok: true, payload: { id: "cs_live_3", client_secret: "cs_live_3_secret", amount_total: 5000, currency: "eur" } }),
+        async (calls) => {
+          // Tous les appels sont lancés avant le moindre await : la configuration
+          // d'environnement n'est disponible que pendant la phase synchrone.
+          const tooLow = createEmbeddedCheckoutSession({ amountCents: 400 });
+          const tooHigh = createEmbeddedCheckoutSession({ amountCents: 5001 });
+          const minimum = createEmbeddedCheckoutSession({ amountCents: 500 });
+          const maximum = createEmbeddedCheckoutSession({ amountCents: 5000 });
+
+          await assert.rejects(tooLow, /entre 5 € et 50 €/);
+          await assert.rejects(tooHigh, /entre 5 € et 50 €/);
+          await Promise.all([minimum, maximum]);
+          // Les deux refus n'ont pas appelé Stripe, les deux acceptations oui.
+          assert.equal(calls.length, 2);
+          assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "500");
+          assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "5000");
+        }
+      )
+  );
+});
+
 test("un compte épinglé à une ancienne version d'API retombe sur ui_mode embedded", async () => {
   await withKeys(
     { STRIPE_SECRET_KEY: "sk_live_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789" },

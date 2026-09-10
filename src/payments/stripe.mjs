@@ -8,6 +8,10 @@
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
+// Offre de prix : montant libre de 5 € à 50 € (en centimes).
+export const MIN_AMOUNT_CENTS = 500;
+export const MAX_AMOUNT_CENTS = 5000;
+
 const SECRET_PREFIXES = ["sk_live_", "sk_test_", "rk_live_", "rk_test_"];
 const PUBLISHABLE_PREFIXES = ["pk_live_", "pk_test_"];
 
@@ -165,8 +169,8 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
     throw error;
   }
   const amount = Math.round(Number(amountCents));
-  if (!Number.isFinite(amount) || amount < 50 || amount > 500000) {
-    const error = new Error("Montant invalide : minimum 0,50 €.");
+  if (!Number.isFinite(amount) || amount < MIN_AMOUNT_CENTS || amount > MAX_AMOUNT_CENTS) {
+    const error = new Error("Montant invalide : la lecture se règle entre 5 € et 50 €.");
     error.status = 400;
     throw error;
   }

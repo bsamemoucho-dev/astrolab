@@ -41,7 +41,7 @@ avec les valeurs réelles du produit.
 | Field | Current Value | What to Set |
 |-------|--------------|-------------|
 | mode | `payment` | **Rien à faire** : Lastro vend des lectures à l'unité. Passer à `subscription` seulement si un abonnement est ajouté un jour. |
-| line_items | `price_data` dynamique : libellé « Lecture symbolique Lastro », montant libre saisi par le client, devise `STRIPE_CURRENCY` (eur) | **Rien à faire** : le montant est libre, il n'y a donc pas de `price_...` à créer. Si tu passes un jour à des prix fixes, crée les produits dans le Dashboard (<https://dashboard.stripe.com/prices>) et remplace la ligne par `line_items[0][price]=price_...`. |
+| line_items | `price_data` dynamique : libellé « Lecture symbolique Lastro », montant libre **de 5 € à 50 €** (bornes `MIN_AMOUNT_CENTS` / `MAX_AMOUNT_CENTS` dans [src/payments/stripe.mjs](src/payments/stripe.mjs)), devise `STRIPE_CURRENCY` (eur) | **Rien à faire** : le montant est libre, il n'y a donc pas de `price_...` à créer. Les bornes sont publiées au navigateur par `/api/config` (`minAmountCents`, `maxAmountCents`) et rappelées par les pastilles 5/10/20/30/50 €. Pour changer l'offre, modifier les deux constantes et les pastilles de [public/index.html](public/index.html). Si tu passes un jour à des prix fixes, crée les produits dans le Dashboard (<https://dashboard.stripe.com/prices>) et remplace la ligne par `line_items[0][price]=price_...`. |
 | success_url | *absent volontairement* | Non utilisé en paiement intégré (`redirect_on_completion: "never"`). À ajouter uniquement si tu passes en page hébergée : URL de la page de lecture, en conservant `{CHECKOUT_SESSION_ID}`. |
 | cancel_url | *absent volontairement* | Idem : à ajouter uniquement en page hébergée (retour vers le formulaire de lecture). |
 | ui_mode | `embedded_page` (avec repli automatique sur `embedded` pour les anciens comptes) | À confirmer : `embedded_page` = paiement dans la page (choix actuel) ; `hosted_page` = redirection vers Stripe (demande de Checkout Studio). |
@@ -126,7 +126,7 @@ public/app.js               montage du formulaire Stripe dans #checkout-containe
 
 ### Comment ça marche
 
-1. Le client choisit un montant libre puis coche la mention « texte généré par une IA ».
+1. Le client choisit un montant **entre 5 € et 50 €** (pastilles 5/10/20/30/50 € ou saisie libre bornée) puis coche la mention « texte généré par une IA ».
 2. `POST /api/public/checkout-session` crée une session Checkout (`embedded_page`, montant
    libre) et renvoie `sessionId` + `clientSecret`.
 3. `stripe.initEmbeddedCheckout(...)` monte le formulaire **dans la page** ; à la
