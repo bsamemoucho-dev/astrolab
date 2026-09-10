@@ -111,6 +111,67 @@ test("une reprise de rédaction ne redemande jamais de paiement", async () => {
   }
 });
 
+test("un lien perdu est renvoyé par e-mail, sans rien révéler à un curieux", async () => {
+  const app = await startApp();
+  const originalFetch = globalThis.fetch;
+  const sent = [];
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).includes("api.brevo.com")) {
+      sent.push(JSON.parse(options.body));
+      return { ok: true, status: 201, json: async () => ({ messageId: "1" }) };
+    }
+    return originalFetch(url, options);
+  };
+  const previousKey = process.env.BREVO_API_KEY;
+  const previousSender = process.env.BREVO_SENDER_EMAIL;
+  process.env.BREVO_API_KEY = "xkeysib-test";
+  process.env.BREVO_SENDER_EMAIL = "contact@lastro.fr";
+  try {
+    const { createPaidDelivery, markDeliveryReady } = await import("../src/models/publicDeliveryService.mjs");
+    const { delivery } = await createPaidDelivery(app.store, {
+      paymentSessionId: "cs_recover",
+      email: "client@example.com"
+    });
+    await markDeliveryReady(app.store, delivery.id, { html: "<p>x</p>", markdown: "x" });
+
+    const wrong = await request(app.baseUrl, "/api/public/deliveries/recover", {
+      method: "POST",
+      body: { reference: delivery.reference, email: "quelquun@ailleurs.fr" }
+    });
+    const right = await request(app.baseUrl, "/api/public/deliveries/recover", {
+      method: "POST",
+      body: { reference: delivery.reference, email: "client@example.com" }
+    });
+    const unknown = await request(app.baseUrl, "/api/public/deliveries/recover", {
+      method: "POST",
+      body: { reference: "L-2026-AAAAAA-BBBB", email: "client@example.com" }
+    });
+
+    // Réponse identique dans les trois cas : on n'apprend rien sur l'existence
+    // d'une commande ni sur l'adresse associée.
+    assert.deepEqual(wrong.payload, { requested: true });
+    assert.deepEqual(right.payload, { requested: true });
+    assert.deepEqual(unknown.payload, { requested: true });
+    // Un seul e-mail est parti : celui de la bonne adresse.
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to[0].email, "client@example.com");
+    assert.match(sent[0].textContent, new RegExp(delivery.token));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousKey === undefined) {
+      delete process.env.BREVO_API_KEY;
+    } else {
+      process.env.BREVO_API_KEY = previousKey;
+    }
+    if (previousSender === undefined) {
+      delete process.env.BREVO_SENDER_EMAIL;
+    } else {
+      process.env.BREVO_SENDER_EMAIL = previousSender;
+    }
+    await app.close();
+  }
+});
+
 test("le lien de récupération part dans la file d'envoi d'e-mails", async () => {
   const app = await startApp();
   try {

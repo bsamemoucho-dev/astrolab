@@ -176,6 +176,7 @@ Variables d'environnement :
 | `STRIPE_PUBLISHABLE_KEY` | Clé publique Stripe (`pk_…`), envoyée au navigateur | — |
 | `STRIPE_CURRENCY` | Devise du paiement | `eur` |
 | `ASTROLAB_TEST_CODE` | Code d'accès gratuit réservé aux tests de l'exploitant (12 caractères minimum) | désactivé |
+| `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` | Envoi du lien de récupération par e-mail (Brevo) | désactivé |
 | `GOOGLE_API_KEY` / `GEMINI_API_KEY` | Vérification croisée du texte par Google Gemini (optionnelle) | désactivée |
 | `GEMINI_MODEL` | Modèle Gemini utilisé pour la vérification | `gemini-2.5-flash` |
 | `ASTROLAB_CROSS_CHECK` | `0` désactive la vérification croisée | activée si clé fournie |

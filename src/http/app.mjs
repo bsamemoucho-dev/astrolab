@@ -15,7 +15,9 @@ import {
   createPaidDelivery,
   deleteDeliveryByToken,
   deliveryLink,
+  findDeliveryByReference,
   getDeliveryByToken,
+  maskEmail,
   markDeliveryFailed,
   findDeliveryByPaymentSession,
   markDeliveryGenerating,
@@ -23,6 +25,7 @@ import {
   publicDelivery,
   queueDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
+import { emailEnabled, flushQueuedEmails } from "../notifications/mailer.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
@@ -268,15 +271,42 @@ export function createApp(options = {}) {
         await markDeliveryReady(store, delivery.id, reading);
         const link = deliveryLink(delivery.token, publicBaseUrl(req));
         await queueDeliveryEmail(store, delivery, { link });
+        // L'envoi ne doit jamais faire échouer la livraison : en cas d'échec,
+        // le message reste dans la file et le client a déjà son lien à l'écran.
+        const mail = await flushQueuedEmails(store).catch(() => ({ sent: 0, skipped: true }));
         sendJson(res, 200, {
           ...reading,
           ...(freeAccess ? { freeAccess: true } : {}),
-          delivery: { reference: delivery.reference, link, expiresAt: delivery.expiresAt }
+          delivery: {
+            reference: delivery.reference,
+            link,
+            expiresAt: delivery.expiresAt,
+            email: maskEmail(delivery.email),
+            emailSent: mail.sent > 0,
+            emailConfigured: emailEnabled()
+          }
         });
       } catch (error) {
         await markDeliveryFailed(store, delivery.id, error.message);
         throw error;
       }
+    }),
+    // Lien perdu : le client redonne son numéro de commande et l'e-mail utilisé
+    // au paiement, et reçoit le lien à cette adresse. La réponse est identique
+    // que la commande existe ou non, pour ne rien révéler à un curieux.
+    route("POST", /^\/api\/public\/deliveries\/recover$/, async (req, res) => {
+      const body = await readJson(req);
+      const reference = String(body.reference ?? "").trim().toUpperCase().replace(/\s+/g, "");
+      const email = String(body.email ?? "").trim().toLowerCase();
+      const delivery = reference && email ? await findDeliveryByReference(store, reference) : null;
+
+      if (delivery && delivery.email && delivery.email === email) {
+        const link = deliveryLink(delivery.token, publicBaseUrl(req));
+        await queueDeliveryEmail(store, delivery, { link });
+        await flushQueuedEmails(store).catch(() => null);
+        console.log(`[Lastro] lien de lecture renvoyé — ${delivery.reference}`);
+      }
+      sendJson(res, 200, { requested: true });
     }),
     // Récupération d'une lecture payée : le jeton du lien est le seul secret.
     route("GET", /^\/api\/public\/deliveries\/(?<token>[^/]+)$/, async (_req, res, params) => {
@@ -321,6 +351,7 @@ export function createApp(options = {}) {
         commerceEnabled,
         allowRegistration,
         testCodeEnabled: testCodeEnabled(),
+        emailConfigured: emailEnabled(),
         payments: {
           provider: stripe ? "stripe" : null,
           configured: Boolean(stripe),

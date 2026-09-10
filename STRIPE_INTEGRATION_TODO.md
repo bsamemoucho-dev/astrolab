@@ -163,6 +163,32 @@ Pour activer le code de test :
 ⚠️ Ne communique ce code à personne : il donne des lectures gratuites. En cas de fuite,
 change sa valeur dans Render (l'ancien code cesse immédiatement de fonctionner).
 
+### Envoyer le lien de récupération par e-mail (Brevo)
+
+Le client reçoit après paiement un **lien de récupération** vers sa lecture (valable 30 jours).
+Pour qu'il le reçoive aussi par e-mail :
+
+1. créer un compte sur <https://www.brevo.com> (offre gratuite : 300 e-mails/jour) ;
+2. **Expéditeurs, domaines & IP → Domaines → Ajouter `lastro.fr`** : Brevo affiche alors
+   2 ou 3 enregistrements DNS (un `TXT` de vérification, un `DKIM` de type
+   `mail._domainkey`, parfois un `DMARC`). Recopie-les **tels quels** chez IONOS, à côté de
+   tes enregistrements existants — **ne touche pas aux MX** de ton e-mail ;
+3. **SMTP & API → Clés API** : créer une clé (elle commence par `xkeysib-`) ;
+4. Render → **Environment** :
+
+```
+BREVO_API_KEY=xkeysib-...
+BREVO_SENDER_EMAIL=contact@lastro.fr
+BREVO_SENDER_NAME=Lastro
+```
+
+Tant que ces variables ne sont pas définies, **rien n'est perdu** : le lien reste affiché au
+client et le message attend dans la file interne (`outbox` du stockage) avec la raison de
+l'échec. Dès que la configuration est là, les messages en attente partent au prochain envoi.
+
+⚠️ Vérifie que `BREVO_SENDER_EMAIL` correspond bien à une adresse **vérifiée** chez Brevo,
+sinon l'API refuse l'envoi (le message d'erreur est journalisé).
+
 ### Tests
 
 | Carte | Comportement |
