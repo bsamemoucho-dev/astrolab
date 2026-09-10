@@ -78,7 +78,7 @@
             <div>
               <p class="eyebrow">Astrologie intelligente et intégrée</p>
               <h1>Toutes les traditions, <span>une vision claire.</span></h1>
-              <p class="lead">AstroLab structure les données, sources, incertitudes, analyses et rapports sans mélanger calcul, tradition et interprétation.</p>
+              <p class="lead">Lastro structure les données, sources, incertitudes, analyses et rapports sans mélanger calcul, tradition et interprétation.</p>
             </div>
             <div class="astro-visual" aria-hidden="true">
               <div class="orbit orbit-one"></div>
@@ -363,10 +363,7 @@
             </div>
             <p class="hero-tag">✦ Lecture personnalisée</p>
             <h1>Bienvenue sur <span>Lastro</span>.</h1>
-            <p class="guest-lead">Laissez les étoiles guider votre chemin.</p>
-            <div id="guest-zodiac" class="guest-zodiac"></div>
-            <p class="guest-cta-note">Recevez votre lecture personnalisée — sans compte, sans collecte.</p>
-            <button id="guest-cta" class="gold-btn" type="button">Recevoir ma lecture</button>
+            <p class="guest-lead">Ce que votre ciel dit de vous.</p>
           </div>
 
           <div class="express-wrap">
@@ -414,6 +411,14 @@
 
               <button type="submit">Recevoir ma lecture</button>
               <p class="hint" id="express-progress" hidden>Génération en cours — calcul puis rédaction (1 à 2 minutes environ).</p>
+              <div id="express-payment" class="pay-panel" hidden>
+                <div class="pay-head">
+                  <strong>Pendant que votre lecture se prépare…</strong>
+                  <span>Vous pouvez régler dès maintenant, au montant que vous voulez : le prix est libre.</span>
+                </div>
+                <a class="pay-button" href="https://pay.sumup.com/b2c/QPU73QKO" target="_blank" rel="noopener noreferrer">Régler par SumUp →</a>
+                <small>Paiement sécurisé SumUp. Votre lecture continue de se générer en parallèle — rien n'est bloqué.</small>
+              </div>
             </form>
           </div>
           <div class="panel wide" id="express-viewer" hidden>
@@ -431,26 +436,6 @@
             <iframe id="express-frame" class="deliverable-frame" title="Votre lecture"></iframe>
           </div>
         </section>
-
-        <div id="horoscope-overlay" class="horoscope-overlay" hidden>
-          <div class="horoscope-card" role="dialog" aria-modal="true" aria-label="Horoscope du jour">
-            <button id="horoscope-close" class="horoscope-close" type="button" aria-label="Fermer">✕</button>
-            <div class="horoscope-head">
-              <span id="horoscope-glyph" class="horoscope-glyph">♈</span>
-              <div>
-                <h3 id="horoscope-sign">Bélier</h3>
-                <span id="horoscope-day" class="meta"></span>
-              </div>
-            </div>
-            <p id="horoscope-loading" class="hint">Génération de l’horoscope du jour…</p>
-            <div id="horoscope-content" class="horoscope-content" hidden>
-              <div class="horoscope-block"><span class="h-label">Amour</span><p id="horoscope-amour"></p></div>
-              <div class="horoscope-block"><span class="h-label">Travail</span><p id="horoscope-travail"></p></div>
-              <div class="horoscope-block"><span class="h-label">Bien-être</span><p id="horoscope-bienetre"></p></div>
-            </div>
-            <p class="hint" id="horoscope-note"></p>
-          </div>
-        </div>
 
         <section id="offre-view" class="view">
           <div class="panel wide">
@@ -471,13 +456,12 @@
                 <button type="button" class="chip" data-price="25">25 €</button>
                 <button type="button" class="chip" data-price="50">50 €</button>
                 <button type="button" class="chip" data-price="100">100 €</button>
-                <button type="button" class="chip" data-price="1000">1 000 €</button>
               </div>
-              <input id="price-slider" type="range" min="1" max="1000000" step="1" value="10" aria-label="Choisissez le prix de votre lecture">
+              <input id="price-slider" type="range" min="1" max="500" step="1" value="10" aria-label="Choisissez le prix de votre lecture">
               <div class="slider-scale">
                 <span>1 €</span>
                 <span>prix suggéré : 10 €</span>
-                <span>1 000 000 €</span>
+                <span>500 €</span>
               </div>
 
               <div class="share-box">

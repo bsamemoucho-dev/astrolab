@@ -15,5 +15,5 @@ if (host) {
 }
 
 function onListen() {
-  console.log(`AstroLab running at http://localhost:${port}`);
+  console.log(`Lastro running at http://localhost:${port}`);
 }

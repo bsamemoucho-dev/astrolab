@@ -1113,9 +1113,7 @@ function bindPriceSlider() {
   const chips = $all("#price-chips .chip");
   const shareChips = $all("#share-chips .chip");
   const PRICE_TIERS = [
-    [100000, "Légende du ciel — merci infini 💫"],
-    [10000, "Mécène du ciel — immense gratitude ⭐"],
-    [1000, "Mécène — générosité rare ⭐"],
+    [500, "Légende du ciel — merci infini 💫"],
     [100, "Soutien précieux 💜"],
     [30, "Grand merci ✨"],
     [10, "Merci pour votre confiance 🙏"],
@@ -1260,75 +1258,7 @@ function applyGuestLayout() {
   if (hero) {
     hero.hidden = !guest;
   }
-  renderGuestZodiac();
   return guest;
-}
-
-const ZODIAC_FR_NAMES = [
-  "Bélier", "Taureau", "Gémeaux", "Cancer", "Lion", "Vierge",
-  "Balance", "Scorpion", "Sagittaire", "Capricorne", "Verseau", "Poissons"
-];
-
-const ZODIAC_KEYS = [
-  "aries", "taurus", "gemini", "cancer", "leo", "virgo",
-  "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"
-];
-
-function renderGuestZodiac() {
-  const box = $("#guest-zodiac");
-  if (!box) {
-    return;
-  }
-  box.innerHTML = ZODIAC_KEYS.map(
-    (key, index) =>
-      `<button type="button" class="zodiac-card" data-sign-key="${key}">
-        <span class="zodiac-glyph">${ZODIAC_GLYPHS[index]}</span>
-        <span class="zodiac-name">${ZODIAC_FR_NAMES[index]}</span>
-        <span class="zodiac-symbol">${ZODIAC_GLYPHS[index]}</span>
-      </button>`
-  ).join("");
-  $all("#guest-zodiac .zodiac-card").forEach((card) => {
-    card.addEventListener("click", () => openHoroscope(card.dataset.signKey));
-  });
-}
-
-async function openHoroscope(signKey) {
-  const overlay = $("#horoscope-overlay");
-  overlay.hidden = false;
-  $("#horoscope-loading").hidden = false;
-  $("#horoscope-content").hidden = true;
-  $("#horoscope-loading").textContent = "Génération de l’horoscope du jour…";
-  $("#horoscope-note").textContent = "";
-  try {
-    const data = await api(`/api/public/horoscope/${signKey}`);
-    $("#horoscope-glyph").textContent = data.sign.glyph;
-    $("#horoscope-sign").textContent = data.sign.fr;
-    $("#horoscope-day").textContent = data.day;
-    $("#horoscope-amour").textContent = data.horoscope.amour ?? "";
-    $("#horoscope-travail").textContent = data.horoscope.travail ?? "";
-    $("#horoscope-bienetre").textContent = data.horoscope.bienEtre ?? "";
-    $("#horoscope-loading").hidden = true;
-    $("#horoscope-content").hidden = false;
-    $("#horoscope-note").textContent =
-      data.provider === "llm"
-        ? "Horoscope du jour généré automatiquement — lecture symbolique, non contractuelle."
-        : "Version illustrative (rédaction automatique non activée).";
-  } catch (error) {
-    $("#horoscope-loading").hidden = true;
-    $("#horoscope-loading").textContent = "";
-    showMessage(error.message, true);
-  }
-}
-
-function bindHoroscope() {
-  $("#horoscope-close")?.addEventListener("click", () => {
-    $("#horoscope-overlay").hidden = true;
-  });
-  $("#horoscope-overlay")?.addEventListener("click", (event) => {
-    if (event.target === $("#horoscope-overlay")) {
-      $("#horoscope-overlay").hidden = true;
-    }
-  });
 }
 
 function bindExpressForm() {
@@ -1364,15 +1294,6 @@ function bindExpressForm() {
     setView("auth");
   });
 
-  $("#guest-cta")?.addEventListener("click", () => {
-    const target = $("#express-form");
-    if (!target) {
-      return;
-    }
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    field(target, "birthDate")?.focus();
-  });
-
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const submitButton = form.querySelector('button[type="submit"]');
@@ -1397,6 +1318,10 @@ function bindExpressForm() {
       submitButton.disabled = true;
       submitButton.textContent = "Génération en cours… (1 à 2 min)";
       $("#express-progress").hidden = false;
+      const paymentPanel = $("#express-payment");
+      if (paymentPanel) {
+        paymentPanel.hidden = false;
+      }
       showMessage("Calcul du socle puis rédaction des sections… veuillez patienter (1 à 2 minutes).");
 
       const reading = await api("/api/public/readings", { method: "POST", body });
@@ -1452,7 +1377,6 @@ function bindExpressForm() {
 function bindForms() {
   bindPriceSlider();
   bindExpressForm();
-  bindHoroscope();
   $("#register-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {

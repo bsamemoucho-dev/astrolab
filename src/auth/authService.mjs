@@ -61,8 +61,8 @@ export async function register(store, input) {
       id: store.id("mail"),
       to: email,
       type: "email_verification",
-      subject: "AstroLab verification code",
-      body: `Your AstroLab verification code is ${verificationCode}.`,
+      subject: "Lastro verification code",
+      body: `Your Lastro verification code is ${verificationCode}.`,
       createdAt: now()
     });
 

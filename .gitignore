@@ -3,3 +3,6 @@ data/
 .env
 .DS_Store
 *.log
+
+# Copie de travail locale (ne jamais commiter : contient .env et données)
+lastroVgpt/

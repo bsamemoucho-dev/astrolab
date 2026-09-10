@@ -749,3 +749,34 @@ body.guest #express-view .express-wrap .panel {
 }
 .horoscope-block p { color: var(--ink-soft); line-height: 1.55; font-size: 0.94rem; }
 #horoscope-note { margin-top: 12px; }
+
+/* ---------- bloc de paiement pendant la génération ---------- */
+
+.pay-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(233, 196, 106, 0.14), rgba(139, 124, 240, 0.12));
+}
+.pay-head { display: grid; gap: 4px; }
+.pay-head strong { color: #fff; font-size: 0.98rem; }
+.pay-head span { color: var(--ink-soft); font-size: 0.88rem; line-height: 1.5; }
+.pay-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--gold), #f3d38a 55%, var(--gold-deep));
+  color: #241a06;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: var(--glow-gold);
+}
+.pay-button:hover { filter: brightness(1.06); }
+.pay-panel small { color: var(--faint); font-size: 0.74rem; line-height: 1.5; }
