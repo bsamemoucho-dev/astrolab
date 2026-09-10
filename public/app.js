@@ -14,7 +14,8 @@ const LANGUAGES = [
   { code: "it", label: "Italiano", flag: "🇮🇹" },
   { code: "pt", label: "Português", flag: "🇵🇹" },
   { code: "no", label: "Norsk", flag: "🇳🇴" },
-  { code: "da", label: "Dansk", flag: "🇩🇰" }
+  { code: "da", label: "Dansk", flag: "🇩🇰" },
+  { code: "nl", label: "Nederlands", flag: "🇳🇱" }
 ];
 
 const UI_STRINGS = {
@@ -369,6 +370,50 @@ const UI_STRINGS = {
     placeAuto: "Fundet automatisk",
     placeNote: "Dette sted bruges til at beregne dit horoskop.",
     placeFound: "Sted fundet ✓"
+  },
+  nl: {
+    heroTag: "✦ Persoonlijke lezing",
+    heroTitle: "Welkom bij <span>Lastro</span>.",
+    lead: "Wat jouw hemel over je zegt.",
+    formTitle: "Jouw lezing",
+    dateLabel: "Geboortedatum",
+    hourLabel: "Tijd",
+    optExact: "Bekend (exact)",
+    optApprox: "Bij benadering",
+    optUnknown: "Onbekend",
+    optInterval: "Interval",
+    timeLabel: "Tijd",
+    startLabel: "Van",
+    endLabel: "Tot",
+    placeLabel: "Geboorteplaats",
+    placePlaceholder: "bv. Amsterdam, Nederland",
+    locateButton: "Deze plaats zoeken",
+    personalSummary: "Personaliseren — voornaam en vraag (optioneel)",
+    firstNameLabel: "Voornaam",
+    questionLabel: "Jouw vraag",
+    parentsSummary: "Ouders — transgenerationele lezing (optioneel)",
+    motherName: "Moeder — naam",
+    motherDate: "Moeder — datum",
+    motherPlace: "Moeder — plaats",
+    fatherName: "Vader — naam",
+    fatherDate: "Vader — datum",
+    fatherPlace: "Vader — plaats",
+    submit: "Mijn lezing ontvangen",
+    progress: "Bezig met genereren — berekening en tekst (1–2 minuten).",
+    payTitle: "Terwijl jouw lezing wordt voorbereid …",
+    payText: "Je kunt nu betalen, het bedrag dat je wilt: de prijs is vrij.",
+    payButton: "Betalen met SumUp →",
+    payNote: "Veilige betaling via SumUp. Jouw lezing wordt op de achtergrond verder gemaakt — niets wordt geblokkeerd.",
+    viewerTitle: "Jouw lezing",
+    viewerHint: "Hij is klaar: download hem, er wordt niets bewaard.",
+    dlHtml: "HTML",
+    dlMd: "Markdown",
+    dlPdf: "PDF",
+    proLink: "Inloggen",
+    placeConfirmed: "Plaats bevestigd",
+    placeAuto: "Automatisch gevonden",
+    placeNote: "Deze plaats wordt gebruikt om jouw kaart te berekenen.",
+    placeFound: "Plaats gevonden ✓"
   }
 };
 

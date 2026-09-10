@@ -10,7 +10,8 @@ export const LANGUAGES = Object.freeze([
   { code: "it", label: "Italiano", flag: "🇮🇹", englishName: "Italian" },
   { code: "pt", label: "Português", flag: "🇵🇹", englishName: "Portuguese" },
   { code: "no", label: "Norsk", flag: "🇳🇴", englishName: "Norwegian" },
-  { code: "da", label: "Dansk", flag: "🇩🇰", englishName: "Danish" }
+  { code: "da", label: "Dansk", flag: "🇩🇰", englishName: "Danish" },
+  { code: "nl", label: "Nederlands", flag: "🇳🇱", englishName: "Dutch" }
 ]);
 
 export function isSupportedLanguage(code) {
@@ -280,7 +281,7 @@ const DETAILS = {
   },
   en: {
     styleGuide:
-      "Write as a native English author: warm, natural, flowing sentences with 'you'. Do not translate French structures or idioms. Adapt examples to the reader's culture (family, work, spirituality).",
+      "Write in simple, plain, international English: short sentences, everyday words, no idioms and no unexplained jargon. Many readers are not native English speakers, so keep it easy to read and explain any astrological term in a few words the first time you use it.",
     planets: { Sun: "Sun", Moon: "Moon", Mercury: "Mercury", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturn" },
     signs: {
       Aries: "Aries", Taurus: "Taurus", Gemini: "Gemini", Cancer: "Cancer", Leo: "Leo", Virgo: "Virgo",
@@ -601,5 +602,79 @@ DETAILS.da = {
     unknown: "Fødselstidspunkt ukendt: Ascendant, Medium Coeli, huse og sekt er ikke beregnet.",
     approximate: "Omtrentligt fødselstidspunkt: Ascendant og huse afhænger af en ukendt usikkerhedsmargin.",
     interval: "Fødselstidspunkt angivet som interval: ingen præcis tid er opfundet."
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Néerlandais
+// ---------------------------------------------------------------------------
+
+const NL = {
+  brand: "Lastro · Persoonlijke symbolische lezing",
+  person: "Persoon",
+  generatedOn: "Gegenereerd op",
+  caveat:
+    "Kader: deze lezing is een innerlijke, symbolische en niet-voorspellende kaart. Ze is geen diagnose, geen therapie en geen voorspelling van gebeurtenissen. De vrije wil blijft volledig intact. De gebruikte astronomische gegevens zijn geverifieerd (technische bijlage); de interpretaties blijven symbolisch.",
+  writerNoteLlm: "Tekst: AI-auteur geconfigureerd, secties machinaal gevalideerd vóór menselijke controle.",
+  writerNoteTemplate: "Concept: AI-auteur niet geconfigureerd (geen sleutel). Dit document is niet klaar voor levering.",
+  footer:
+    "Document gegenereerd door Lastro — lokale en deterministische rekenbasis; elke interpretatie is gelabeld en moet vóór levering worden nagekeken.",
+  badgeCalculated: "Geverifieerde gegevens (berekening)",
+  badgeSymbolic: "Symbolische lezing",
+  badgeUnavailable: "Module niet beschikbaar in deze versie",
+  statusOk: "machinaal gevalideerd",
+  statusNeedsReview: "na te kijken",
+  statusNotAvailable: "niet beschikbaar",
+  statusTemplateDraft: "concept (zonder AI-auteur)",
+  statusLabelPrefix: "Status",
+  annexTitle: "Bijlage — geverifieerde rekenbasis",
+  annexIntro: "Deze bijlage bevat alleen de berekende en geverifieerde gegevens van deze lezing. Er staat geen interpretatie in.",
+  uncertaintyLimits: "Onzekerheidsgrenzen",
+  engineWarnings: "Waarschuwingen van de rekenmodule",
+  unavailableText:
+    "Er worden geen gebeurtenissen voorspeld: deze module geeft brede tijdvensters, rijpingsthema's en innerlijke houdingen (0–1 jaar, 1–3 jaar, 3–5 jaar).",
+  titlePrefix: "Symbolische lezing",
+  sectionTitles: {
+    introduction: "Inleiding — het kader van de lezing",
+    "position-naissance-axe": "Geboortepositie en levensas",
+    "structure-psychologique": "Psychologische en emotionele structuur",
+    transgenerationnel: "Transgenerationele lezing",
+    "archetypes-dominants": "Dominante archetypen",
+    "lecture-passe": "Diepgaande lezing van het verleden",
+    "lettre-ame": "Zielsbrief",
+    "lettre-miroir": "Spiegelbrief",
+    "periodes-cycles": "Periodes en cycli",
+    "cles-integration": "Sleutels tot integratie",
+    "conclusion-ethique": "Ethische afsluiting"
+  }
+};
+
+DOCS.nl = NL;
+
+DETAILS.nl = {
+  styleGuide:
+    "Schrijf als een Nederlandse auteur: warm, natuurlijk en vlot, met 'je'. Vermijd Franse wendingen. Pas de voorbeelden aan de Nederlandse cultuur aan (gezin, werk, spiritualiteit).",
+  planets: { Sun: "Zon", Moon: "Maan", Mercury: "Mercurius", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturnus" },
+  signs: {
+    Aries: "Ram", Taurus: "Stier", Gemini: "Tweelingen", Cancer: "Kreeft", Leo: "Leeuw", Virgo: "Maagd",
+    Libra: "Weegschaal", Scorpio: "Schorpioen", Sagittarius: "Boogschutter", Capricorn: "Steenbok", Aquarius: "Waterman", Pisces: "Vissen"
+  },
+  labels: {
+    date: "Geboortedatum", time: "Geboortetijd", timeInterval: "Geboortetijd (interval)",
+    place: "Geboorteplaats", tz: "Tijdzone", coords: "Coördinaten", zodiac: "Dierenriem",
+    houses: "Huizensysteem", sect: "Secte van de kaart", interval: "Intervalanalyse", person: "Persoon",
+    house: "huis", retro: "retrograde", asc: "Ascendant", mc: "Medium Coeli", aspect: "hoekafstand",
+    closest: "dichtstbijzijnde kandidaat", gap: "afwijking", noOrb: "geen orbis-regel actief",
+    stable: "stabiel doel", sensitive: "gevoelig", indeterminate: "onbepaald"
+  },
+  values: {
+    tropical: "tropisch", wholeSign: "hele-tekenhuizen", wholeSignShort: "hele teken",
+    diurnal: "dag (Zon boven de horizon)", nocturnal: "nacht (Zon onder de horizon)",
+    exact: "exact", approximate: "bij benadering", unknown: "onbekend"
+  },
+  uncertainty: {
+    unknown: "Geboortetijd onbekend: Ascendant, Medium Coeli, huizen en secte zijn niet berekend.",
+    approximate: "Geboortetijd bij benadering: Ascendant en huizen hangen af van een onbekende onzekerheidsmarge.",
+    interval: "Geboortetijd als interval opgegeven: er is geen exacte tijd verzonnen."
   }
 };

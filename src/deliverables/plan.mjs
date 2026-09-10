@@ -14,7 +14,8 @@ export const FRAME_DIRECTIVES = Object.freeze([
   "Langage de postures, cycles et climats intérieurs ; ton non anxiogène, non déterministe, non culpabilisant.",
   "Libre arbitre toujours respecté.",
   "Aucun fait astronomique inventé : utilise uniquement les faits calculés fournis.",
-  "Si un fait calculé manque (heure inconnue, Ascendant non calculé), travaille en tendances symboliques explicites, sans affirmation technique."
+  "Si un fait calculé manque (heure inconnue, Ascendant non calculé), travaille en tendances symboliques explicites, sans affirmation technique.",
+  "Explique brièvement chaque terme astrologique la première fois que tu l'utilises ; évite tout jargon non expliqué."
 ]);
 
 const BADGES = Object.freeze({
