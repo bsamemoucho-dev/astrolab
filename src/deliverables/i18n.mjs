@@ -7,7 +7,10 @@ export const LANGUAGES = Object.freeze([
   { code: "en", label: "English", flag: "🇬🇧", englishName: "English" },
   { code: "de", label: "Deutsch", flag: "🇩🇪", englishName: "German" },
   { code: "es", label: "Español", flag: "🇪🇸", englishName: "Spanish" },
-  { code: "it", label: "Italiano", flag: "🇮🇹", englishName: "Italian" }
+  { code: "it", label: "Italiano", flag: "🇮🇹", englishName: "Italian" },
+  { code: "pt", label: "Português", flag: "🇵🇹", englishName: "Portuguese" },
+  { code: "no", label: "Norsk", flag: "🇳🇴", englishName: "Norwegian" },
+  { code: "da", label: "Dansk", flag: "🇩🇰", englishName: "Danish" }
 ]);
 
 export function isSupportedLanguage(code) {
@@ -388,3 +391,215 @@ const DETAILS = {
 export function localeDetails(code) {
   return DETAILS[normalizeLanguage(code)] ?? DETAILS.fr;
 }
+
+// ---------------------------------------------------------------------------
+// Portugais, norvégien (bokmål), danois
+// ---------------------------------------------------------------------------
+
+const PT = {
+  brand: "Lastro · Leitura simbólica personalizada",
+  person: "Pessoa",
+  generatedOn: "Gerado em",
+  caveat:
+    "Enquadramento: esta leitura é um mapa interior, simbólico e não preditivo. Não constitui diagnóstico, nem terapia, nem previsão de acontecimentos. O livre-arbítrio permanece intacto. Os dados astronómicos utilizados são verificados (anexo técnico); as interpretações continuam a ser leituras simbólicas.",
+  writerNoteLlm: "Redação: autor IA configurado, secções validadas pela máquina antes da revisão humana.",
+  writerNoteTemplate: "Rascunho: autor IA não configurado (sem chave). Este documento não está pronto para entrega.",
+  footer:
+    "Documento gerado por Lastro — base de cálculo local e determinística; todas as interpretações são etiquetadas e devem ser revistas antes da entrega.",
+  badgeCalculated: "Dados verificados (cálculo)",
+  badgeSymbolic: "Leitura simbólica",
+  badgeUnavailable: "Módulo não disponível nesta versão",
+  statusOk: "validado pela máquina",
+  statusNeedsReview: "a rever",
+  statusNotAvailable: "não disponível",
+  statusTemplateDraft: "rascunho (sem autor IA)",
+  statusLabelPrefix: "Estado",
+  annexTitle: "Anexo — base de cálculo verificada",
+  annexIntro: "Este anexo contém apenas os dados calculados e verificados desta leitura. Nenhuma interpretação aqui figura.",
+  uncertaintyLimits: "Limites de incerteza",
+  engineWarnings: "Avisos do motor de cálculo",
+  unavailableText:
+    "Não é produzida qualquer previsão de acontecimentos: este módulo apresentará janelas amplas, temas de maturação e posturas interiores (0–1 ano, 1–3 anos, 3–5 anos).",
+  titlePrefix: "Leitura simbólica",
+  sectionTitles: {
+    introduction: "Introdução — o enquadramento da leitura",
+    "position-naissance-axe": "Posição de nascimento e eixo de vida",
+    "structure-psychologique": "Estrutura psicológica e emocional",
+    transgenerationnel: "Leitura transgeracional",
+    "archetypes-dominants": "Arquétipos dominantes",
+    "lecture-passe": "Leitura aprofundada do passado",
+    "lettre-ame": "Carta da alma",
+    "lettre-miroir": "Carta espelho",
+    "periodes-cycles": "Períodos e ciclos",
+    "cles-integration": "Chaves de integração",
+    "conclusion-ethique": "Conclusão ética"
+  }
+};
+
+const NO = {
+  brand: "Lastro · Personlig symbolsk lesning",
+  person: "Person",
+  generatedOn: "Generert",
+  caveat:
+    "Ramme: denne lesningen er et indre, symbolsk og ikke-forutsigende kart. Den er verken diagnose, terapi eller forutsigelse av hendelser. Den frie viljen er intakt. De astronomiske dataene som brukes er verifisert (teknisk vedlegg); tolkningene er symbolske.",
+  writerNoteLlm: "Tekst: AI-forfatter konfigurert, avsnitt maskinvalidert før menneskelig gjennomgang.",
+  writerNoteTemplate: "Utkast: AI-forfatter ikke konfigurert (ingen nøkkel). Dokumentet er ikke klart for levering.",
+  footer:
+    "Dokument generert av Lastro — lokalt og deterministisk beregningsgrunnlag; hver tolkning er merket og må gjennomgås før levering.",
+  badgeCalculated: "Verifiserte data (beregning)",
+  badgeSymbolic: "Symbolsk lesning",
+  badgeUnavailable: "Modulen er ikke tilgjengelig i denne versjonen",
+  statusOk: "maskinvalidert",
+  statusNeedsReview: "til gjennomgang",
+  statusNotAvailable: "ikke tilgjengelig",
+  statusTemplateDraft: "utkast (uten AI-forfatter)",
+  statusLabelPrefix: "Status",
+  annexTitle: "Vedlegg — verifisert beregningsgrunnlag",
+  annexIntro: "Dette vedlegget inneholder bare de beregnede og verifiserte dataene for denne lesningen. Ingen tolkning står her.",
+  uncertaintyLimits: "Usikkerhetsgrenser",
+  engineWarnings: "Varsler fra beregningsmotoren",
+  unavailableText:
+    "Det gis ingen forutsigelse av hendelser: denne modulen vil gi brede tidsvinduer, modningstemaer og indre holdninger (0–1 år, 1–3 år, 3–5 år).",
+  titlePrefix: "Symbolsk lesning",
+  sectionTitles: {
+    introduction: "Innledning — rammen for lesningen",
+    "position-naissance-axe": "Fødselsposisjon og livsakse",
+    "structure-psychologique": "Psykologisk og emosjonell struktur",
+    transgenerationnel: "Transgenerasjonell lesning",
+    "archetypes-dominants": "Dominerende arketyper",
+    "lecture-passe": "Dyp lesning av fortiden",
+    "lettre-ame": "Sjelebrev",
+    "lettre-miroir": "Speilbrev",
+    "periodes-cycles": "Perioder og sykluser",
+    "cles-integration": "Nøkler til integrasjon",
+    "conclusion-ethique": "Etisk avslutning"
+  }
+};
+
+const DA = {
+  brand: "Lastro · Personlig symbolsk læsning",
+  person: "Person",
+  generatedOn: "Genereret",
+  caveat:
+    "Ramme: denne læsning er et indre, symbolsk og ikke-forudsigende kort. Den er hverken diagnose, terapi eller forudsigelse af begivenheder. Den frie vilje er intakt. De anvendte astronomiske data er verificeret (teknisk bilag); fortolkningerne er symbolske.",
+  writerNoteLlm: "Tekst: AI-forfatter konfigureret, afsnit maskinvalideret før menneskelig gennemlæsning.",
+  writerNoteTemplate: "Kladde: AI-forfatter ikke konfigureret (ingen nøgle). Dokumentet er ikke klar til levering.",
+  footer:
+    "Dokument genereret af Lastro — lokalt og deterministisk beregningsgrundlag; hver fortolkning er mærket og skal gennemgås før levering.",
+  badgeCalculated: "Verificerede data (beregning)",
+  badgeSymbolic: "Symbolsk læsning",
+  badgeUnavailable: "Modulet er ikke tilgængeligt i denne version",
+  statusOk: "maskinvalideret",
+  statusNeedsReview: "til gennemgang",
+  statusNotAvailable: "ikke tilgængelig",
+  statusTemplateDraft: "kladde (uden AI-forfatter)",
+  statusLabelPrefix: "Status",
+  annexTitle: "Bilag — verificeret beregningsgrundlag",
+  annexIntro: "Dette bilag indeholder kun de beregnede og verificerede data for denne læsning. Der står ingen fortolkning her.",
+  uncertaintyLimits: "Usikkerhedsgrænser",
+  engineWarnings: "Advarsler fra beregningsmotoren",
+  unavailableText:
+    "Der gives ingen forudsigelse af begivenheder: dette modul vil give brede tidsvinduer, modningstemaer og indre holdninger (0–1 år, 1–3 år, 3–5 år).",
+  titlePrefix: "Symbolsk læsning",
+  sectionTitles: {
+    introduction: "Introduktion — rammen for læsningen",
+    "position-naissance-axe": "Fødselsposition og livsakse",
+    "structure-psychologique": "Psykologisk og følelsesmæssig struktur",
+    transgenerationnel: "Transgenerationel læsning",
+    "archetypes-dominants": "Dominerende arketyper",
+    "lecture-passe": "Dybdelæsning af fortiden",
+    "lettre-ame": "Sjælebrev",
+    "lettre-miroir": "Spejlbrev",
+    "periodes-cycles": "Perioder og cyklusser",
+    "cles-integration": "Nøgler til integration",
+    "conclusion-ethique": "Etisk afslutning"
+  }
+};
+
+DOCS.pt = PT;
+DOCS.no = NO;
+DOCS.da = DA;
+
+DETAILS.pt = {
+  styleGuide:
+    "Escreve como um autor português nativo: tom caloroso, natural e fluido, tratando por 'tu'. Evita decalques do francês. Adapta os exemplos à cultura portuguesa (família, trabalho, espiritualidade).",
+  planets: { Sun: "Sol", Moon: "Lua", Mercury: "Mercúrio", Venus: "Vénus", Mars: "Marte", Jupiter: "Júpiter", Saturn: "Saturno" },
+  signs: {
+    Aries: "Carneiro", Taurus: "Touro", Gemini: "Gémeos", Cancer: "Caranguejo", Leo: "Leão", Virgo: "Virgem",
+    Libra: "Balança", Scorpio: "Escorpião", Sagittarius: "Sagitário", Capricorn: "Capricórnio", Aquarius: "Aquário", Pisces: "Peixes"
+  },
+  labels: {
+    date: "Data de nascimento", time: "Hora de nascimento", timeInterval: "Hora de nascimento (intervalo)",
+    place: "Local de nascimento", tz: "Fuso horário", coords: "Coordenadas", zodiac: "Zodíaco",
+    houses: "Sistema de casas", sect: "Secta do tema", interval: "Análise do intervalo", person: "Pessoa",
+    house: "casa", retro: "retrógrado", asc: "Ascendente", mc: "Meio do Céu", aspect: "distância angular",
+    closest: "candidato mais próximo", gap: "desvio", noOrb: "nenhuma regra de orbe ativa",
+    stable: "objetivo(s) estável(is)", sensitive: "sensível(is)", indeterminate: "indeterminado(s)"
+  },
+  values: {
+    tropical: "tropical", wholeSign: "casas por signos inteiros", wholeSignShort: "signos inteiros",
+    diurnal: "diurna (Sol acima do horizonte)", nocturnal: "noturna (Sol abaixo do horizonte)",
+    exact: "exata", approximate: "aproximada", unknown: "desconhecida"
+  },
+  uncertainty: {
+    unknown: "Hora de nascimento desconhecida: o Ascendente, o Meio do Céu, as casas e a secta não foram calculados.",
+    approximate: "Hora de nascimento aproximada: o Ascendente e as casas dependem de uma margem de incerteza desconhecida.",
+    interval: "Hora de nascimento indicada como intervalo: nenhuma hora exata foi inventada."
+  }
+};
+
+DETAILS.no = {
+  styleGuide:
+    "Skriv som en norsk forfatter: varm, naturlig og flytende, med 'du'. Unngå franske vendinger. Tilpass eksemplene til norsk kultur (familie, arbeid, åndelighet).",
+  planets: { Sun: "Solen", Moon: "Månen", Mercury: "Merkur", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturn" },
+  signs: {
+    Aries: "Væren", Taurus: "Tyren", Gemini: "Tvillingene", Cancer: "Krepsen", Leo: "Løven", Virgo: "Jomfruen",
+    Libra: "Vekten", Scorpio: "Skorpionen", Sagittarius: "Skytten", Capricorn: "Steinbukken", Aquarius: "Vannmannen", Pisces: "Fiskene"
+  },
+  labels: {
+    date: "Fødselsdato", time: "Fødselstid", timeInterval: "Fødselstid (intervall)",
+    place: "Fødested", tz: "Tidssone", coords: "Koordinater", zodiac: "Dyrekrets",
+    houses: "Hussystem", sect: "Sekt", interval: "Intervallanalyse", person: "Person",
+    house: "hus", retro: "retrograd", asc: "Ascendant", mc: "Medium Coeli", aspect: "vinkelavstand",
+    closest: "nærmeste kandidat", gap: "avvik", noOrb: "ingen orbis-regel aktiv",
+    stable: "stabilt mål", sensitive: "sensitiv", indeterminate: "ubestemt"
+  },
+  values: {
+    tropical: "tropisk", wholeSign: "heltegnshus", wholeSignShort: "heltegn",
+    diurnal: "dag (Solen over horisonten)", nocturnal: "natt (Solen under horisonten)",
+    exact: "nøyaktig", approximate: "omtrentlig", unknown: "ukjent"
+  },
+  uncertainty: {
+    unknown: "Fødselstid ukjent: Ascendant, Medium Coeli, hus og sekt er ikke beregnet.",
+    approximate: "Omtrentlig fødselstid: Ascendant og hus avhenger av en ukjent usikkerhetsmargin.",
+    interval: "Fødselstid oppgitt som intervall: ingen eksakt tid er oppfunnet."
+  }
+};
+
+DETAILS.da = {
+  styleGuide:
+    "Skriv som en dansk forfatter: varm, naturlig og flydende, med 'du'. Undgå franske vendinger. Tilpas eksemplerne til dansk kultur (familie, arbejde, spiritualitet).",
+  planets: { Sun: "Solen", Moon: "Månen", Mercury: "Merkur", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturn" },
+  signs: {
+    Aries: "Vædderen", Taurus: "Tyren", Gemini: "Tvillingerne", Cancer: "Krebsen", Leo: "Løven", Virgo: "Jomfruen",
+    Libra: "Vægten", Scorpio: "Skorpionen", Sagittarius: "Skytten", Capricorn: "Stenbukken", Aquarius: "Vandmanden", Pisces: "Fiskene"
+  },
+  labels: {
+    date: "Fødselsdato", time: "Fødselstidspunkt", timeInterval: "Fødselstidspunkt (interval)",
+    place: "Fødested", tz: "Tidszone", coords: "Koordinater", zodiac: "Zodiak",
+    houses: "Hussystem", sect: "Sekt", interval: "Intervalanalyse", person: "Person",
+    house: "hus", retro: "retrograd", asc: "Ascendant", mc: "Medium Coeli", aspect: "vinkelafstand",
+    closest: "nærmeste kandidat", gap: "afvigelse", noOrb: "ingen orbis-regel aktiv",
+    stable: "stabilt mål", sensitive: "sensitiv", indeterminate: "ubestemt"
+  },
+  values: {
+    tropical: "tropisk", wholeSign: "heltegnshuse", wholeSignShort: "heltegn",
+    diurnal: "dag (Solen over horisonten)", nocturnal: "nat (Solen under horisonten)",
+    exact: "præcis", approximate: "omtrentlig", unknown: "ukendt"
+  },
+  uncertainty: {
+    unknown: "Fødselstidspunkt ukendt: Ascendant, Medium Coeli, huse og sekt er ikke beregnet.",
+    approximate: "Omtrentligt fødselstidspunkt: Ascendant og huse afhænger af en ukendt usikkerhedsmargin.",
+    interval: "Fødselstidspunkt angivet som interval: ingen præcis tid er opfundet."
+  }
+};
