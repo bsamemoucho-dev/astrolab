@@ -22,6 +22,12 @@ import {
   stripeKeyNotice,
   stripeKeyProblem
 } from "../payments/stripe.mjs";
+import {
+  registerTestCodeFailure,
+  testCodeEnabled,
+  testCodeMatches,
+  testCodeRateLimited
+} from "../payments/freeAccess.mjs";
 import { generateDailyHoroscope } from "../models/horoscopeService.mjs";
 import { createReport, listReports } from "../models/reportService.mjs";
 import {
@@ -124,37 +130,66 @@ export function createApp(options = {}) {
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
       const body = await readJson(req);
 
-      // Clés Stripe présentes mais inutilisables (recopie incomplète, modes
-      // mélangés…) : on refuse la lecture plutôt que de l'offrir par accident.
-      if (stripeKeyProblem()) {
-        const error = new Error("Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.");
-        error.status = 503;
-        throw error;
+      // Accès gratuit de test : code d'exploitant, comparé côté serveur.
+      let freeAccess = false;
+      const testCode = String(body.testCode ?? "").trim();
+      if (testCode) {
+        if (!testCodeEnabled()) {
+          const error = new Error("Aucun code de test n'est configuré sur ce site.");
+          error.status = 400;
+          throw error;
+        }
+        if (!testCodeMatches(testCode)) {
+          // La limite ne porte que sur les codes invalides : un code correct
+          // reste utilisable même si quelqu'un a essayé de le deviner.
+          if (testCodeRateLimited()) {
+            const error = new Error("Trop de codes de test invalides. Réessayez dans une heure.");
+            error.status = 429;
+            throw error;
+          }
+          registerTestCodeFailure();
+          const error = new Error("Code de test invalide.");
+          error.status = 403;
+          throw error;
+        }
+        freeAccess = true;
+        console.log(`[Lastro] lecture offerte (code de test) — ${new Date().toISOString()}`);
       }
 
-      // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
-      if (stripeConfiguration()) {
-        const sessionId = String(body.paymentSessionId ?? "").trim();
-        if (!sessionId) {
-          const error = new Error("Le paiement est requis pour recevoir votre lecture.");
-          error.status = 402;
+      if (!freeAccess) {
+        // Clés Stripe présentes mais inutilisables (recopie incomplète, modes
+        // mélangés…) : on refuse la lecture plutôt que de l'offrir par accident.
+        if (stripeKeyProblem()) {
+          const error = new Error("Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.");
+          error.status = 503;
           throw error;
         }
-        if (usedPaymentSessions.has(sessionId)) {
-          const error = new Error("Ce paiement a déjà été utilisé pour une lecture.");
-          error.status = 409;
-          throw error;
+
+        // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
+        if (stripeConfiguration()) {
+          const sessionId = String(body.paymentSessionId ?? "").trim();
+          if (!sessionId) {
+            const error = new Error("Le paiement est requis pour recevoir votre lecture.");
+            error.status = 402;
+            throw error;
+          }
+          if (usedPaymentSessions.has(sessionId)) {
+            const error = new Error("Ce paiement a déjà été utilisé pour une lecture.");
+            error.status = 409;
+            throw error;
+          }
+          const session = await retrieveCheckoutSession(sessionId);
+          if (session.payment_status !== "paid") {
+            const error = new Error("Le paiement n'est pas encore confirmé. Patientez quelques secondes puis réessayez.");
+            error.status = 402;
+            throw error;
+          }
+          usedPaymentSessions.add(sessionId);
         }
-        const session = await retrieveCheckoutSession(sessionId);
-        if (session.payment_status !== "paid") {
-          const error = new Error("Le paiement n'est pas encore confirmé. Patientez quelques secondes puis réessayez.");
-          error.status = 402;
-          throw error;
-        }
-        usedPaymentSessions.add(sessionId);
       }
 
-      sendJson(res, 200, await createPublicReading(body));
+      const reading = await createPublicReading(body);
+      sendJson(res, 200, freeAccess ? { ...reading, freeAccess: true } : reading);
     }),
     route("GET", /^\/api\/public\/horoscope\/(?<sign>[^/]+)$/, async (_req, res, params) => {
       sendJson(res, 200, await generateDailyHoroscope(params.sign));
@@ -164,6 +199,7 @@ export function createApp(options = {}) {
       sendJson(res, 200, {
         commerceEnabled,
         allowRegistration,
+        testCodeEnabled: testCodeEnabled(),
         payments: {
           provider: stripe ? "stripe" : null,
           configured: Boolean(stripe),

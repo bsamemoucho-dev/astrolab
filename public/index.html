@@ -426,6 +426,17 @@
                   </label>
                 </div>
                 <button id="pay-start" class="pay-button" type="button" disabled>Continuer vers le paiement →</button>
+                <div id="test-code-box" class="test-code-box" hidden>
+                  <p class="test-code-toggle-line">
+                    <button type="button" id="test-code-toggle" class="link-button" hidden>J'ai un code de test</button>
+                  </p>
+                  <div id="test-code-fields" hidden>
+                    <label for="test-code"><span id="test-code-label">Code de test</span>
+                      <input id="test-code" type="text" autocomplete="off" spellcheck="false" placeholder="Collez votre code">
+                    </label>
+                    <p class="pay-hint" id="test-code-hint">Ce code remplace le paiement (usage interne uniquement).</p>
+                  </div>
+                </div>
                 <div id="checkout-container" class="checkout-container" hidden></div>
                 <button id="pay-continue" class="pay-button" type="button" hidden>Paiement effectué ? Continuer →</button>
                 <p class="hint" id="pay-status" hidden></p>

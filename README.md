@@ -44,6 +44,20 @@ Without a key, sections are produced by a deterministic template writer and the 
 
 Alternatively, copy `.env.example` to `.env` in the project root and fill the values (`.env` is git-ignored and loaded automatically by `npm start`).
 
+## Accès gratuit de test (exploitant)
+
+Pour tester le parcours complet sans encaisser, définir `ASTROLAB_TEST_CODE` (12 caractères
+minimum) dans l'environnement. Un lien discret « J'ai un code de test » apparaît alors dans
+le tunnel de paiement — **invisible tant qu'aucun code n'est configuré** — et un code valide
+génère la lecture sans paiement.
+
+Le code vit uniquement côté serveur : il n'est ni dans ce dépôt, ni dans le JavaScript
+envoyé au navigateur. La comparaison se fait à longueur constante, les tentatives invalides
+sont limitées à 20 par heure, et chaque usage est journalisé
+(`[Lastro] lecture offerte (code de test)`). Il fonctionne même si les clés Stripe sont
+absentes ou inutilisables, ce qui permet de continuer à travailler pendant une panne de
+configuration du paiement. Ne le communiquez à personne : il donne des lectures gratuites.
+
 ## Birth place entry
 
 The birth place field is a type-ahead: as the user types, the browser asks
@@ -161,6 +175,7 @@ Variables d'environnement :
 | `STRIPE_SECRET_KEY` | Clé secrète Stripe (`sk_…`) — active le paiement obligatoire | paiement désactivé |
 | `STRIPE_PUBLISHABLE_KEY` | Clé publique Stripe (`pk_…`), envoyée au navigateur | — |
 | `STRIPE_CURRENCY` | Devise du paiement | `eur` |
+| `ASTROLAB_TEST_CODE` | Code d'accès gratuit réservé aux tests de l'exploitant (12 caractères minimum) | désactivé |
 | `GOOGLE_API_KEY` / `GEMINI_API_KEY` | Vérification croisée du texte par Google Gemini (optionnelle) | désactivée |
 | `GEMINI_MODEL` | Modèle Gemini utilisé pour la vérification | `gemini-2.5-flash` |
 | `ASTROLAB_CROSS_CHECK` | `0` désactive la vérification croisée | activée si clé fournie |

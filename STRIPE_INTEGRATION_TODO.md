@@ -138,6 +138,31 @@ public/app.js               montage du formulaire Stripe dans #checkout-containe
 5. La lecture est générée puis renvoyée au navigateur ; rien n'est conservé côté serveur
    pour le parcours public.
 
+### Tester sans payer
+
+Deux moyens, complémentaires :
+
+1. **Clés de test Stripe** (`pk_test_` / `sk_test_`) : le parcours complet est réel, avec la
+   carte `4242 4242 4242 4242`, sans aucun débit. À privilégier pour valider le tunnel de
+   paiement lui-même.
+2. **Code de test** (`ASTROLAB_TEST_CODE`) : un code saisi dans le tunnel remplace le
+   paiement et génère la lecture gratuitement, même avec les clés live. À privilégier pour
+   tester la lecture de bout en bout (jusqu'au document téléchargé) sans encaisser.
+
+Pour activer le code de test :
+
+- Render → **Environment** → ajouter `ASTROLAB_TEST_CODE` avec **12 caractères minimum**
+  (ex. une longue suite aléatoire) — le code n'est **jamais** écrit dans le dépôt ni envoyé
+  au navigateur : il est comparé côté serveur ;
+- dans le tunnel de paiement, un lien discret « J'ai un code de test » apparaît (il reste
+  **invisible** pour les visiteurs tant qu'aucun code n'est configuré) ;
+- un code valide : la lecture se génère sans paiement ; un code invalide : refus (403), avec
+  une limite de 20 tentatives par heure ; chaque usage gratuit est journalisé
+  (`[Lastro] lecture offerte (code de test)`).
+
+⚠️ Ne communique ce code à personne : il donne des lectures gratuites. En cas de fuite,
+change sa valeur dans Render (l'ancien code cesse immédiatement de fonctionner).
+
 ### Tests
 
 | Carte | Comportement |

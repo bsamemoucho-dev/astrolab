@@ -450,47 +450,47 @@ const UI_STRINGS = {
 const UI_EXTRA = {
   fr: { backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe",
     payTitle: "Régler votre lecture", payText: "Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.",
-    payAmount: "Montant libre", payRange: "Le montant minimum est de 5 €.", payHint: "Minimum 5 € — vous pouvez donner plus si vous le souhaitez.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
+    payAmount: "Montant libre", payRange: "Le montant minimum est de 5 €.", payHint: "Minimum 5 € — vous pouvez donner plus si vous le souhaitez.", testCodeToggle: "J'ai un code de test", testCodeLabel: "Code de test", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement (usage interne uniquement).", testCodeApplied: "Lecture offerte avec le code de test.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
     payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
     payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement." },
   en: { backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password",
     payTitle: "Pay for your reading", payText: "Choose any amount, then pay right here: card, Apple Pay or Google Pay.",
-    payAmount: "Amount (free)", payRange: "The minimum amount is €5.", payHint: "Minimum €5 — you are welcome to give more.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
+    payAmount: "Amount (free)", payRange: "The minimum amount is €5.", payHint: "Minimum €5 — you are welcome to give more.", testCodeToggle: "I have a test code", testCodeLabel: "Test code", testCodePlaceholder: "Paste your code", testCodeHint: "This code replaces the payment (internal use only).", testCodeApplied: "Reading provided free with the test code.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
     payConfirmed: "Payment confirmed ✓ — creating your reading…", payContinue: "Payment done? Continue →",
     payNote: "Secure payment by Stripe. Your card details never pass through our servers; your reading is created as soon as the payment is confirmed." },
   de: { backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort",
     payTitle: "Deine Deutung bezahlen", payText: "Wähle den Betrag frei und zahle direkt hier: Karte, Apple Pay oder Google Pay.",
-    payAmount: "Freier Betrag", payRange: "Der Mindestbetrag beträgt 5 €.", payHint: "Mindestens 5 € — Sie dürfen gerne mehr geben.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
+    payAmount: "Freier Betrag", payRange: "Der Mindestbetrag beträgt 5 €.", payHint: "Mindestens 5 € — Sie dürfen gerne mehr geben.", testCodeToggle: "Ich habe einen Testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Code einfügen", testCodeHint: "Dieser Code ersetzt die Zahlung (nur intern).", testCodeApplied: "Lesung mit Testcode kostenlos erstellt.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
     payConfirmed: "Zahlung bestätigt ✓ — deine Deutung wird erstellt …", payContinue: "Zahlung erledigt? Weiter →",
     payNote: "Sichere Zahlung über Stripe. Deine Kartendaten laufen nie über unsere Server; die Deutung wird nach Bestätigung der Zahlung erstellt." },
   es: { backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña",
     payTitle: "Pagar tu lectura", payText: "Elige libremente el importe y paga aquí mismo: tarjeta, Apple Pay o Google Pay.",
-    payAmount: "Importe libre", payRange: "El importe mínimo es de 5 €.", payHint: "Mínimo 5 € — puedes dar más si quieres.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
+    payAmount: "Importe libre", payRange: "El importe mínimo es de 5 €.", payHint: "Mínimo 5 € — puedes dar más si quieres.", testCodeToggle: "Tengo un código de prueba", testCodeLabel: "Código de prueba", testCodePlaceholder: "Pega tu código", testCodeHint: "Este código sustituye el pago (uso interno).", testCodeApplied: "Lectura gratuita con el código de prueba.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
     payConfirmed: "Pago confirmado ✓ — generando tu lectura…", payContinue: "¿Pago realizado? Continuar →",
     payNote: "Pago seguro con Stripe. Los datos de tu tarjeta nunca pasan por nuestros servidores; la lectura se genera al confirmarse el pago." },
   it: { backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password",
     payTitle: "Paga la tua lettura", payText: "Scegli liberamente l'importo e paga qui: carta, Apple Pay o Google Pay.",
-    payAmount: "Importo libero", payRange: "L'importo minimo è di 5 €.", payHint: "Minimo 5 € — puoi dare di più se vuoi.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
+    payAmount: "Importo libero", payRange: "L'importo minimo è di 5 €.", payHint: "Minimo 5 € — puoi dare di più se vuoi.", testCodeToggle: "Ho un codice di test", testCodeLabel: "Codice di test", testCodePlaceholder: "Incolla il codice", testCodeHint: "Questo codice sostituisce il pagamento (solo uso interno).", testCodeApplied: "Lettura gratuita con il codice di test.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
     payConfirmed: "Pagamento confermato ✓ — stiamo creando la tua lettura…", payContinue: "Pagamento fatto? Continua →",
     payNote: "Pagamento sicuro con Stripe. I dati della carta non passano mai dai nostri server; la lettura viene creata alla conferma del pagamento." },
   pt: { backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe",
     payTitle: "Pagar a sua leitura", payText: "Escolha livremente o valor e pague aqui mesmo: cartão, Apple Pay ou Google Pay.",
-    payAmount: "Valor livre", payRange: "O valor mínimo é de 5 €.", payHint: "Mínimo 5 € — pode dar mais se quiser.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
+    payAmount: "Valor livre", payRange: "O valor mínimo é de 5 €.", payHint: "Mínimo 5 € — pode dar mais se quiser.", testCodeToggle: "Tenho um código de teste", testCodeLabel: "Código de teste", testCodePlaceholder: "Cole o seu código", testCodeHint: "Este código substitui o pagamento (uso interno).", testCodeApplied: "Leitura gratuita com o código de teste.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
     payConfirmed: "Pagamento confirmado ✓ — a gerar a sua leitura…", payContinue: "Pagamento feito? Continuar →",
     payNote: "Pagamento seguro pela Stripe. Os dados do cartão nunca passam pelos nossos servidores; a leitura é gerada quando o pagamento é confirmado." },
   no: { backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord",
     payTitle: "Betal for lesningen din", payText: "Velg beløpet fritt og betal her: kort, Apple Pay eller Google Pay.",
-    payAmount: "Fritt beløp", payRange: "Minimumsbeløpet er 5 €.", payHint: "Minimum 5 € — du kan gjerne gi mer.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payAmount: "Fritt beløp", payRange: "Minimumsbeløpet er 5 €.", payHint: "Minimum 5 € — du kan gjerne gi mer.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Lim inn koden", testCodeHint: "Denne koden erstatter betalingen (kun internt bruk).", testCodeApplied: "Lesningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekreftet ✓ — lesningen din lages …", payContinue: "Betalt? Fortsett →",
     payNote: "Sikker betaling via Stripe. Kortopplysningene går aldri via våre servere; lesningen lages så snart betalingen er bekreftet." },
   da: { backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode",
     payTitle: "Betal for din læsning", payText: "Vælg beløbet frit og betal her: kort, Apple Pay eller Google Pay.",
-    payAmount: "Frit beløb", payRange: "Minimumsbeløbet er 5 €.", payHint: "Minimum 5 € — du er velkommen til at give mere.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payAmount: "Frit beløb", payRange: "Minimumsbeløbet er 5 €.", payHint: "Minimum 5 € — du er velkommen til at give mere.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Indsæt din kode", testCodeHint: "Denne kode erstatter betalingen (kun intern brug).", testCodeApplied: "Læsningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekræftet ✓ — din læsning laves …", payContinue: "Betalt? Fortsæt →",
     payNote: "Sikker betaling via Stripe. Dine kortoplysninger går aldrig gennem vores servere; læsningen laves, så snart betalingen er bekræftet." },
   nl: { backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord",
     payTitle: "Jouw lezing betalen", payText: "Kies vrij het bedrag en betaal hier: kaart, Apple Pay of Google Pay.",
-    payAmount: "Vrij bedrag", payRange: "Het minimumbedrag is € 5.", payHint: "Minimaal € 5 — je mag gerust meer geven.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
+    payAmount: "Vrij bedrag", payRange: "Het minimumbedrag is € 5.", payHint: "Minimaal € 5 — je mag gerust meer geven.", testCodeToggle: "Ik heb een testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Plak je code", testCodeHint: "Deze code vervangt de betaling (alleen intern gebruik).", testCodeApplied: "Lezing gratis met de testcode.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
     payConfirmed: "Betaling bevestigd ✓ — je lezing wordt gemaakt …", payContinue: "Betaald? Doorgaan →",
     payNote: "Veilige betaling via Stripe. Je kaartgegevens gaan nooit via onze servers; de lezing wordt gemaakt zodra de betaling is bevestigd.",
     aiNoticeTitle: "Tekst gegenereerd door kunstmatige intelligentie",
@@ -703,6 +703,13 @@ function applyUITranslations() {
   setNodeText("#pay-text", t.payText);
   setNodeText("#pay-amount-label", t.payAmount);
   setNodeText("#pay-hint", t.payHint);
+  setNodeText("#test-code-toggle", t.testCodeToggle);
+  setNodeText("#test-code-label", t.testCodeLabel);
+  setNodeText("#test-code-hint", t.testCodeHint);
+  const testCodeField = $("#test-code");
+  if (testCodeField) {
+    testCodeField.placeholder = t.testCodePlaceholder;
+  }
   setNodeText("#pay-start", t.payStart);
   setNodeText("#pay-continue", t.payContinue);
   setNodeText("#pay-note", t.payNote);
@@ -2565,6 +2572,18 @@ function bindExpressForm() {
     if (!body) {
       return;
     }
+    // Code de test : aucun paiement, la lecture est offerte. Le code est vérifié
+    // par le serveur, jamais ici.
+    const testCode = testCodeInput ? testCodeInput.value.trim() : "";
+    if (testCode) {
+      const button = $("#pay-start");
+      if (button) {
+        button.disabled = true;
+      }
+      setPayStatus(uiStrings().payPreparing);
+      await runGeneration(null, testCode);
+      return;
+    }
     const payments = state.config?.payments ?? {};
     // Montant libre : plancher à 5 €, aucun plafond (celui qui veut donner plus le peut).
     // Champ vide → on propose le montant par défaut (20 €) ; en dessous du minimum,
@@ -2612,6 +2631,38 @@ function bindExpressForm() {
     }
   };
 
+  // Accès gratuit de test : le code est saisi ici mais vérifié par le serveur
+  // (aucun code n'est présent dans ce fichier, il vit dans les variables
+  // d'environnement). Le lien n'apparaît que si un code est configuré.
+  const testCodeBox = $("#test-code-box");
+  const testCodeToggle = $("#test-code-toggle");
+  const testCodeFields = $("#test-code-fields");
+  const testCodeInput = $("#test-code");
+  const syncTestCodeAvailability = () => {
+    const enabled = Boolean(state.config?.testCodeEnabled);
+    if (testCodeBox) {
+      testCodeBox.hidden = !enabled;
+    }
+    if (testCodeToggle) {
+      testCodeToggle.hidden = !enabled || !(testCodeFields?.hidden ?? true);
+    }
+  };
+  testCodeToggle?.addEventListener("click", () => {
+    if (testCodeFields) {
+      testCodeFields.hidden = false;
+    }
+    testCodeToggle.hidden = true;
+    testCodeInput?.focus();
+  });
+  testCodeInput?.addEventListener("input", () => {
+    const hasCode = Boolean(testCodeInput.value.trim());
+    const button = $("#pay-start");
+    if (button && !button.hidden) {
+      button.textContent = hasCode ? uiStrings().submit : uiStrings().payStart;
+    }
+  });
+  syncTestCodeAvailability();
+
   const consent = $("#ai-consent");
   const startButton = $("#pay-start");
   const syncConsent = () => {
@@ -2629,7 +2680,7 @@ function bindExpressForm() {
     }
   });
 
-  const runGeneration = async (paymentSessionId = null) => {
+  const runGeneration = async (paymentSessionId = null, testCode = null) => {
     const form = $("#express-form");
     const submitButton = form.querySelector('button[type="submit"]');
     const body = state.pendingReadingBody;
@@ -2646,7 +2697,7 @@ function bindExpressForm() {
 
       const reading = await api("/api/public/readings", {
         method: "POST",
-        body: { ...body, paymentSessionId }
+        body: { ...body, paymentSessionId, ...(testCode ? { testCode } : {}) }
       });
       state.guestReading = { html: reading.html, markdown: reading.markdown };
       $("#express-viewer").hidden = false;
@@ -2659,14 +2710,16 @@ function bindExpressForm() {
           : verification?.status === "failed"
             ? " — vérification croisée indisponible."
             : "";
-      showMessage(
-        reading.writerMode === "llm"
-          ? `Lecture prête — téléchargez-la, elle n'est conservée nulle part.${verificationSuffix}`
-          : `Lecture générée en brouillon technique (socle vérifié complet).${verificationSuffix}`
-      );
+      const prefix = reading.freeAccess
+        ? `${uiStrings().testCodeApplied} `
+        : reading.writerMode === "llm"
+          ? "Lecture prête — téléchargez-la, elle n'est conservée nulle part."
+          : "Lecture générée en brouillon technique (socle vérifié complet).";
+      showMessage(`${prefix}${verificationSuffix}`);
     } catch (error) {
       $("#express-progress").hidden = true;
       $("#express-payment").hidden = false;
+      syncConsent();
       showMessage(error.message, true);
     } finally {
       submitButton.disabled = false;
@@ -2698,6 +2751,7 @@ function bindExpressForm() {
     if (payments.configured) {
       const panel = $("#express-payment");
       panel.hidden = false;
+      syncTestCodeAvailability();
       panel.scrollIntoView({ behavior: "smooth", block: "center" });
       syncPresets();
       return;

@@ -1107,6 +1107,30 @@ button.pay-button {
 
 .pay-hint { margin: 0 0 12px; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
 
+/* ---------- accès gratuit de test (exploitant) ---------- */
+.test-code-box { margin: 4px 0 12px; }
+.test-code-toggle-line { margin: 0; }
+button.link-button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+button.link-button:hover { color: var(--gold); background: transparent; }
+#test-code-fields { display: grid; gap: 8px; margin-top: 8px; }
+#test-code-fields label { font-size: 0.7rem; }
+#test-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.02em;
+}
+
 .pay-amount-field input {
   width: 96px;
   min-height: 42px;
