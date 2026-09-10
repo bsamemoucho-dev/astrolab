@@ -176,6 +176,21 @@ docker run -d --name astrolab -p 8080:8080 \
 - Renseignez `NODE_ENV=production` et servez en HTTPS (fourni par la plateforme ou par Caddy/nginx). Les cookies de session deviennent alors `Secure`.
 - Activez la rédaction IA avec `ASTROLAB_LLM_API_KEY` quand vous voulez des sections narratives (sinon le dossier est un brouillon technique avec socle vérifié complet).
 
+#### Render : rendre les comptes persistants
+
+L'offre gratuite utilise un système de fichiers éphémère (et met le service en veille après 15 min
+d'inactivité). Pour conserver comptes, sessions et dossiers entre deux déploiements :
+
+1. passer le service en instance payante (une instance *Starter* suffit : ce serveur Node est léger) ;
+2. ajouter un **disque persistant** (1 Go suffit largement pour un fichier JSON) monté sur `/var/data` ;
+3. définir `ASTROLAB_DB_PATH=/var/data/astrolab.json` (si le service est déployé via le `Dockerfile`,
+   le chemin `/data` est déjà celui du disque déclaré : garder les deux cohérents).
+
+Au démarrage, le serveur affiche `Lastro — stockage : <chemin>` : si le chemin ressemble à
+`/app/data/…` au lieu du point de montage du disque, la persistance n'est **pas** active.
+Un disque persistant empêche le déploiement sans coupure (quelques secondes d'indisponibilité à
+chaque mise en ligne) et interdit de faire tourner plusieurs instances en parallèle.
+
 La vérification e-mail reste en mode « code affiché dans la réponse » (`ASTROLAB_EMAIL_MODE=dev_code`) tant qu'aucun SMTP réel n'est configuré — suffisant pour tester.
 
 ## Recommended V1 Build Order
