@@ -6,9 +6,9 @@ const state = {
   currentView: "auth"
 };
 
-// Offre de prix : montant libre de 5 € à 50 €.
+// Offre de prix : montant libre à partir de 5 €, sans plafond. Les pastilles
+// (5/10/20/30/50) ne sont que des suggestions ; celui qui veut donner plus le peut.
 const MIN_PAYMENT_EUROS = 5;
-const MAX_PAYMENT_EUROS = 50;
 
 const LANGUAGES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
@@ -448,47 +448,47 @@ const UI_STRINGS = {
 const UI_EXTRA = {
   fr: { backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe",
     payTitle: "Régler votre lecture", payText: "Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.",
-    payAmount: "Montant libre", payRange: "Le montant doit être compris entre 5 € et 50 €.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
+    payAmount: "Montant libre", payRange: "Le montant minimum est de 5 €.", payHint: "Minimum 5 € — vous pouvez donner plus si vous le souhaitez.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
     payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
     payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement." },
   en: { backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password",
     payTitle: "Pay for your reading", payText: "Choose any amount, then pay right here: card, Apple Pay or Google Pay.",
-    payAmount: "Amount (free)", payRange: "The amount must be between €5 and €50.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
+    payAmount: "Amount (free)", payRange: "The minimum amount is €5.", payHint: "Minimum €5 — you are welcome to give more.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
     payConfirmed: "Payment confirmed ✓ — creating your reading…", payContinue: "Payment done? Continue →",
     payNote: "Secure payment by Stripe. Your card details never pass through our servers; your reading is created as soon as the payment is confirmed." },
   de: { backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort",
     payTitle: "Deine Deutung bezahlen", payText: "Wähle den Betrag frei und zahle direkt hier: Karte, Apple Pay oder Google Pay.",
-    payAmount: "Freier Betrag", payRange: "Der Betrag muss zwischen 5 € und 50 € liegen.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
+    payAmount: "Freier Betrag", payRange: "Der Mindestbetrag beträgt 5 €.", payHint: "Mindestens 5 € — Sie dürfen gerne mehr geben.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
     payConfirmed: "Zahlung bestätigt ✓ — deine Deutung wird erstellt …", payContinue: "Zahlung erledigt? Weiter →",
     payNote: "Sichere Zahlung über Stripe. Deine Kartendaten laufen nie über unsere Server; die Deutung wird nach Bestätigung der Zahlung erstellt." },
   es: { backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña",
     payTitle: "Pagar tu lectura", payText: "Elige libremente el importe y paga aquí mismo: tarjeta, Apple Pay o Google Pay.",
-    payAmount: "Importe libre", payRange: "El importe debe estar entre 5 € y 50 €.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
+    payAmount: "Importe libre", payRange: "El importe mínimo es de 5 €.", payHint: "Mínimo 5 € — puedes dar más si quieres.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
     payConfirmed: "Pago confirmado ✓ — generando tu lectura…", payContinue: "¿Pago realizado? Continuar →",
     payNote: "Pago seguro con Stripe. Los datos de tu tarjeta nunca pasan por nuestros servidores; la lectura se genera al confirmarse el pago." },
   it: { backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password",
     payTitle: "Paga la tua lettura", payText: "Scegli liberamente l'importo e paga qui: carta, Apple Pay o Google Pay.",
-    payAmount: "Importo libero", payRange: "L'importo deve essere compreso tra 5 € e 50 €.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
+    payAmount: "Importo libero", payRange: "L'importo minimo è di 5 €.", payHint: "Minimo 5 € — puoi dare di più se vuoi.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
     payConfirmed: "Pagamento confermato ✓ — stiamo creando la tua lettura…", payContinue: "Pagamento fatto? Continua →",
     payNote: "Pagamento sicuro con Stripe. I dati della carta non passano mai dai nostri server; la lettura viene creata alla conferma del pagamento." },
   pt: { backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe",
     payTitle: "Pagar a sua leitura", payText: "Escolha livremente o valor e pague aqui mesmo: cartão, Apple Pay ou Google Pay.",
-    payAmount: "Valor livre", payRange: "O valor deve estar entre 5 € e 50 €.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
+    payAmount: "Valor livre", payRange: "O valor mínimo é de 5 €.", payHint: "Mínimo 5 € — pode dar mais se quiser.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
     payConfirmed: "Pagamento confirmado ✓ — a gerar a sua leitura…", payContinue: "Pagamento feito? Continuar →",
     payNote: "Pagamento seguro pela Stripe. Os dados do cartão nunca passam pelos nossos servidores; a leitura é gerada quando o pagamento é confirmado." },
   no: { backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord",
     payTitle: "Betal for lesningen din", payText: "Velg beløpet fritt og betal her: kort, Apple Pay eller Google Pay.",
-    payAmount: "Fritt beløp", payRange: "Beløpet må være mellom 5 € og 50 €.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payAmount: "Fritt beløp", payRange: "Minimumsbeløpet er 5 €.", payHint: "Minimum 5 € — du kan gjerne gi mer.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekreftet ✓ — lesningen din lages …", payContinue: "Betalt? Fortsett →",
     payNote: "Sikker betaling via Stripe. Kortopplysningene går aldri via våre servere; lesningen lages så snart betalingen er bekreftet." },
   da: { backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode",
     payTitle: "Betal for din læsning", payText: "Vælg beløbet frit og betal her: kort, Apple Pay eller Google Pay.",
-    payAmount: "Frit beløb", payRange: "Beløbet skal være mellem 5 € og 50 €.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payAmount: "Frit beløb", payRange: "Minimumsbeløbet er 5 €.", payHint: "Minimum 5 € — du er velkommen til at give mere.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekræftet ✓ — din læsning laves …", payContinue: "Betalt? Fortsæt →",
     payNote: "Sikker betaling via Stripe. Dine kortoplysninger går aldrig gennem vores servere; læsningen laves, så snart betalingen er bekræftet." },
   nl: { backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord",
     payTitle: "Jouw lezing betalen", payText: "Kies vrij het bedrag en betaal hier: kaart, Apple Pay of Google Pay.",
-    payAmount: "Vrij bedrag", payRange: "Het bedrag moet tussen € 5 en € 50 liggen.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
+    payAmount: "Vrij bedrag", payRange: "Het minimumbedrag is € 5.", payHint: "Minimaal € 5 — je mag gerust meer geven.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
     payConfirmed: "Betaling bevestigd ✓ — je lezing wordt gemaakt …", payContinue: "Betaald? Doorgaan →",
     payNote: "Veilige betaling via Stripe. Je kaartgegevens gaan nooit via onze servers; de lezing wordt gemaakt zodra de betaling is bevestigd.",
     aiNoticeTitle: "Tekst gegenereerd door kunstmatige intelligentie",
@@ -700,6 +700,7 @@ function applyUITranslations() {
   setNodeText("#pay-title", t.payTitle);
   setNodeText("#pay-text", t.payText);
   setNodeText("#pay-amount-label", t.payAmount);
+  setNodeText("#pay-hint", t.payHint);
   setNodeText("#pay-start", t.payStart);
   setNodeText("#pay-continue", t.payContinue);
   setNodeText("#pay-note", t.payNote);
@@ -2563,14 +2564,15 @@ function bindExpressForm() {
       return;
     }
     const payments = state.config?.payments ?? {};
-    // Montant libre encadré par l'offre : 5 € minimum, 50 € maximum.
+    // Montant libre : plancher à 5 €, aucun plafond (celui qui veut donner plus le peut).
     const typed = Math.round(Number(amountInput?.value ?? MIN_PAYMENT_EUROS));
-    const euros = Math.min(MAX_PAYMENT_EUROS, Math.max(MIN_PAYMENT_EUROS, Number.isFinite(typed) ? typed : MIN_PAYMENT_EUROS));
+    const belowMinimum = !Number.isFinite(typed) || typed < MIN_PAYMENT_EUROS;
+    const euros = belowMinimum ? MIN_PAYMENT_EUROS : typed;
     if (amountInput) {
       amountInput.value = String(euros);
       syncPresets();
     }
-    if (!Number.isFinite(typed) || typed !== euros) {
+    if (belowMinimum) {
       showMessage(uiStrings().payRange, true);
       return;
     }

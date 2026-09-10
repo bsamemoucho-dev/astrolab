@@ -80,7 +80,7 @@ test("la session de paiement utilise les paramètres attendus par l'API Stripe a
   );
 });
 
-test("le montant est encadré par l'offre : 5 € minimum, 50 € maximum", async () => {
+test("le montant a un plancher de 5 € mais aucun plafond produit", async () => {
   await withKeys(
     { STRIPE_SECRET_KEY: "sk_live_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789" },
     () =>
@@ -90,17 +90,19 @@ test("le montant est encadré par l'offre : 5 € minimum, 50 € maximum", asyn
           // Tous les appels sont lancés avant le moindre await : la configuration
           // d'environnement n'est disponible que pendant la phase synchrone.
           const tooLow = createEmbeddedCheckoutSession({ amountCents: 400 });
-          const tooHigh = createEmbeddedCheckoutSession({ amountCents: 5001 });
           const minimum = createEmbeddedCheckoutSession({ amountCents: 500 });
-          const maximum = createEmbeddedCheckoutSession({ amountCents: 5000 });
+          const generous = createEmbeddedCheckoutSession({ amountCents: 25000 });
+          const huge = createEmbeddedCheckoutSession({ amountCents: 500000 });
+          const beyondStripe = createEmbeddedCheckoutSession({ amountCents: 100000000 });
 
-          await assert.rejects(tooLow, /entre 5 € et 50 €/);
-          await assert.rejects(tooHigh, /entre 5 € et 50 €/);
-          await Promise.all([minimum, maximum]);
-          // Les deux refus n'ont pas appelé Stripe, les deux acceptations oui.
-          assert.equal(calls.length, 2);
+          await assert.rejects(tooLow, /à partir de 5 €/);
+          await assert.rejects(beyondStripe, /maximum accepté par Stripe/);
+          await Promise.all([minimum, generous, huge]);
+          // Le refus n'a pas appelé Stripe ; les montants généreux, oui.
+          assert.equal(calls.length, 3);
           assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "500");
-          assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "5000");
+          assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "25000");
+          assert.equal(calls[2].body["line_items[0][price_data][unit_amount]"], "500000");
         }
       )
   );

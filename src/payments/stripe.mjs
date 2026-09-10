@@ -8,9 +8,10 @@
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
-// Offre de prix : montant libre de 5 € à 50 € (en centimes).
+// Offre de prix : montant libre à partir de 5 € (en centimes). Aucun plafond
+// produit : la seule limite haute est celle de Stripe pour un paiement unique.
 export const MIN_AMOUNT_CENTS = 500;
-export const MAX_AMOUNT_CENTS = 5000;
+export const MAX_AMOUNT_CENTS = 99999999; // 999 999,99 € — plafond technique de Stripe
 
 const SECRET_PREFIXES = ["sk_live_", "sk_test_", "rk_live_", "rk_test_"];
 const PUBLISHABLE_PREFIXES = ["pk_live_", "pk_test_"];
@@ -169,8 +170,13 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
     throw error;
   }
   const amount = Math.round(Number(amountCents));
-  if (!Number.isFinite(amount) || amount < MIN_AMOUNT_CENTS || amount > MAX_AMOUNT_CENTS) {
-    const error = new Error("Montant invalide : la lecture se règle entre 5 € et 50 €.");
+  if (!Number.isFinite(amount) || amount < MIN_AMOUNT_CENTS) {
+    const error = new Error("Montant invalide : la lecture se règle à partir de 5 €.");
+    error.status = 400;
+    throw error;
+  }
+  if (amount > MAX_AMOUNT_CENTS) {
+    const error = new Error("Montant trop élevé : le maximum accepté par Stripe est de 999 999,99 €.");
     error.status = 400;
     throw error;
   }

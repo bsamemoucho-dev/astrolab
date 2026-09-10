@@ -388,9 +388,9 @@ test("public checkout session reports that payments are not configured yet", asy
     const config = await fetch(`${app.baseUrl}/api/config`).then((r) => r.json());
     assert.equal(config.payments.configured, false);
     assert.equal(config.payments.publishableKey, null);
-    // L'offre publiée au navigateur : montant libre de 5 € à 50 €.
+    // L'offre publiée au navigateur : montant libre à partir de 5 €, sans plafond produit.
     assert.equal(config.payments.minAmountCents, 500);
-    assert.equal(config.payments.maxAmountCents, 5000);
+    assert.equal(config.payments.maxAmountCents, 99999999);
   } finally {
     await app.close();
   }
