@@ -75,10 +75,13 @@ export async function callChatCompletions(config, { system, user, temperature = 
   }
 }
 
-function buildSystemPrompt(section) {
+function buildSystemPrompt(section, context = {}) {
+  const languageName = context.languageName ?? "French";
   const parts = [
     "Tu es l'auteur expert d'un dossier de lecture symbolique et astrologique personnalisé.",
-    "Tu écris en français, avec respect, profondeur, clarté et humanité.",
+    languageName === "French"
+      ? "Tu écris en français, avec respect, profondeur, clarté et humanité."
+      : `Tu écris en ${languageName}, avec respect, profondeur, clarté et humanité. Tout le texte produit doit être en ${languageName}.`,
     ...FRAME_DIRECTIVES,
     `Section à produire : « ${section.title} ».`,
     ...(section.directives ?? [])
@@ -103,7 +106,7 @@ function buildUserPayload(section, context) {
 
 export async function writeWithLlm(section, context, config) {
   const result = await callChatCompletions(config, {
-    system: buildSystemPrompt(section),
+    system: buildSystemPrompt(section, context),
     user: buildUserPayload(section, context)
   });
   return {

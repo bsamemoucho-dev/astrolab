@@ -27,8 +27,6 @@
           <button data-view="auth" class="nav-button active">Compte</button>
           <p class="nav-section">Découvrir</p>
           <button data-view="offre" class="nav-button">Offre & prix</button>
-          <p class="nav-section">Sans compte</p>
-          <button data-view="express" class="nav-button">Lecture express</button>
           <p class="nav-section">Personnes</p>
           <button data-view="profile" class="nav-button" disabled>Profil</button>
           <button data-view="people" class="nav-button" disabled>Personnes</button>
@@ -359,7 +357,10 @@
                 <span class="brand-mark" aria-hidden="true">☾</span>
                 <span class="guest-brand-name">Lastro</span>
               </div>
-              <button id="guest-pro-link" type="button">Connexion</button>
+              <div class="guest-topbar-actions">
+                <select id="guest-language" aria-label="Langue / Language"></select>
+                <button id="guest-pro-link" type="button">Connexion</button>
+              </div>
             </div>
             <p class="hero-tag">✦ Lecture personnalisée</p>
             <h1>Bienvenue sur <span>Lastro</span>.</h1>

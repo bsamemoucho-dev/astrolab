@@ -180,27 +180,30 @@ export function buildSocle(payload) {
   };
 }
 
-export function renderSocleAnnex(socle) {
-  const lines = [
-    "# Annexe technique — socle de calcul vérifié",
-    "",
-    "Cette annexe contient les seules données calculées et vérifiées utilisées pour ce dossier. Aucune interprétation n'y figure.",
-    ""
-  ];
+export function renderSocleAnnex(socle, strings = null) {
+  const t = strings ?? {
+    annexTitle: "Annexe technique — socle de calcul vérifié",
+    annexIntro:
+      "Cette annexe contient les seules données calculées et vérifiées utilisées pour ce dossier. Aucune interprétation n'y figure.",
+    person: "Personne",
+    uncertaintyLimits: "Limites d'incertitude",
+    engineWarnings: "Avertissements du moteur de calcul"
+  };
+  const lines = [`# ${t.annexTitle}`, "", t.annexIntro, ""];
   if (socle.person?.firstName) {
-    lines.push(`Personne : ${socle.person.firstName}`, "");
+    lines.push(`${t.person} : ${socle.person.firstName}`, "");
   }
   for (const fact of socle.facts) {
     lines.push(`- **${fact.label}** : ${fact.value}`);
   }
   if (socle.uncertaintyNotes.length > 0) {
-    lines.push("", "Limites d'incertitude :", "");
+    lines.push("", `${t.uncertaintyLimits} :`, "");
     for (const note of socle.uncertaintyNotes) {
       lines.push(`- ${note}`);
     }
   }
   if (socle.warnings.length > 0) {
-    lines.push("", "Avertissements du moteur de calcul :", "");
+    lines.push("", `${t.engineWarnings} :`, "");
     for (const warning of socle.warnings) {
       lines.push(`- ${warning}`);
     }

@@ -1,6 +1,7 @@
 // Renders a client dossier (sections + verified annex) as standalone HTML or Markdown.
 // Styling is self-contained so the HTML can be opened or printed to PDF as-is.
 
+import { docStrings } from "./i18n.mjs";
 import { renderSocleAnnex } from "./socle.mjs";
 
 export function escapeHtml(value) {
@@ -66,12 +67,13 @@ export function markdownToHtml(source) {
   return out.join("\n");
 }
 
-function statusLabel(status) {
+function statusLabel(status, t = null) {
+  const strings = t ?? docStrings("fr");
   const labels = {
-    ok: "validé machine",
-    needs_review: "à vérifier",
-    not_available: "non disponible",
-    template_draft: "brouillon (sans rédacteur IA)"
+    ok: strings.statusOk,
+    needs_review: strings.statusNeedsReview,
+    not_available: strings.statusNotAvailable,
+    template_draft: strings.statusTemplateDraft
   };
   return labels[status] ?? status;
 }
@@ -104,7 +106,8 @@ const CSS = `
   @media print { body { background:#fff; } .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; } }
 `;
 
-export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null }) {
+export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null }) {
+  const t = strings ?? docStrings("fr");
   const badges = {
     calculated: "badge-calculated",
     symbolic: "badge-symbolic",
@@ -116,7 +119,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   const body = sections
     .map((section) => {
       const badgeClass = badges[section.badgeCode] ?? "badge-symbolic";
-      const status = section.status === "ok" ? "validé machine" : statusLabel(section.status);
+      const status = section.status === "ok" ? t.statusOk : statusLabel(section.status, t);
       const issues =
         section.validation?.issues?.length > 0
           ? `<div class="validation">${section.validation.issues
@@ -130,20 +133,16 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
         <h2>${escapeHtml(section.title)}</h2>
         <span class="badge ${badgeClass}">${escapeHtml(section.badgeLabel)}</span>
         <div class="block-body">${markdownToHtml(section.text)}</div>
-        <div class="validation">Statut : ${status}${issues}</div>
+        <div class="validation">${escapeHtml(t.statusLabelPrefix)} : ${escapeHtml(status)}${issues}</div>
       </section>`;
     })
     .join("\n");
 
   const writerNote =
-    writerMode === "llm"
-      ? "Rédaction : rédacteur IA configuré, sections validées par la machine avant relecture humaine."
-      : writerMode === "template"
-        ? "Brouillon : rédacteur IA non configuré (clé absente). Ce document n'est pas prêt pour la livraison."
-        : "";
+    writerMode === "llm" ? t.writerNoteLlm : writerMode === "template" ? t.writerNoteTemplate : "";
 
   return `<!doctype html>
-<html lang="fr">
+<html lang="${escapeHtml(t.lang ?? "fr")}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -153,32 +152,29 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 <body>
 <div class="sheet">
   <header class="cover">
-    <div class="brand">Lastro · Lecture symbolique personnalisée</div>
+    <div class="brand">${escapeHtml(t.brand)}</div>
     <h1>${escapeHtml(title)}</h1>
-    <div class="cover-meta">${personLabel ? `Personne : ${escapeHtml(personLabel)} · ` : ""}Généré le ${escapeHtml(createdAt)}</div>
+    <div class="cover-meta">${personLabel ? `${escapeHtml(t.person)} : ${escapeHtml(personLabel)} · ` : ""}${escapeHtml(t.generatedOn)} ${escapeHtml(createdAt)}</div>
   </header>
-  <div class="caveat">
-    Cadre : cette lecture est une cartographie intérieure, symbolique et non prédictive. Elle ne constitue ni un diagnostic,
-    ni une thérapie, ni une prédiction d'événements. Le libre arbitre reste entier. Les données astronomiques utilisées sont
-    vérifiées (annexe technique) ; les interprétations restent des lectures symboliques.
-  </div>
+  <div class="caveat">${escapeHtml(t.caveat)}</div>
   ${body}
   <footer>
     ${authorLine}
     <p>${writerNote}</p>
-    <p>Document généré par Lastro — socle de calcul local et déterministe ; toute interprétation est étiquetée et doit être relue avant livraison.</p>
+    <p>${escapeHtml(t.footer)}</p>
   </footer>
 </div>
 </body>
 </html>`;
 }
 
-export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null }) {
+export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null, strings = null }) {
+  const t = strings ?? docStrings("fr");
   const parts = [`# ${title}`, ""];
   if (personLabel) {
-    parts.push(`Personne : ${personLabel}`);
+    parts.push(`${t.person} : ${personLabel}`);
   }
-  parts.push(`Généré le : ${createdAt}`, "", "---", "");
+  parts.push(`${t.generatedOn} : ${createdAt}`, "", "---", "");
   for (const section of sections) {
     parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "", section.text, "");
   }
@@ -188,14 +184,15 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections,
   return parts.join("\n");
 }
 
-export function annexSections(socle) {
-  const text = renderSocleAnnex(socle);
+export function annexSections(socle, strings = null) {
+  const t = strings ?? docStrings("fr");
+  const text = renderSocleAnnex(socle, t);
   return [
     {
       id: "annexe-socle",
-      title: "Annexe — socle de calcul vérifié",
+      title: t.annexTitle,
       badgeCode: "calculated",
-      badgeLabel: "Données vérifiées (calcul)",
+      badgeLabel: t.badgeCalculated,
       kind: "annex",
       text,
       status: "ok",

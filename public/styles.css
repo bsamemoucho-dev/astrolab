@@ -780,3 +780,33 @@ body.guest #express-view .express-wrap .panel {
 }
 .pay-button:hover { filter: brightness(1.06); }
 .pay-panel small { color: var(--faint); font-size: 0.74rem; line-height: 1.5; }
+
+/* ---------- sélecteur de langue (accueil visiteur) ---------- */
+
+.guest-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#guest-language {
+  width: auto;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--gold);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+#guest-language:hover {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+#guest-language option {
+  background: #101638;
+  color: var(--ink);
+}

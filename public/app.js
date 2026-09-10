@@ -2,12 +2,361 @@ const state = {
   user: null,
   dossier: null,
   config: null,
+  language: null,
   currentView: "auth"
 };
 
+const LANGUAGES = [
+  { code: "fr", label: "Français", flag: "🇫🇷" },
+  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "de", label: "Deutsch", flag: "🇩🇪" },
+  { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "it", label: "Italiano", flag: "🇮🇹" }
+];
+
+const UI_STRINGS = {
+  fr: {
+    heroTag: "✦ Lecture personnalisée",
+    heroTitle: "Bienvenue sur <span>Lastro</span>.",
+    lead: "Ce que votre ciel dit de vous.",
+    formTitle: "Votre lecture",
+    dateLabel: "Date de naissance",
+    hourLabel: "Heure",
+    optExact: "Connue (précise)",
+    optApprox: "Approximative",
+    optUnknown: "Inconnue",
+    optInterval: "Intervalle",
+    timeLabel: "Heure",
+    startLabel: "Début",
+    endLabel: "Fin",
+    placeLabel: "Lieu de naissance",
+    placePlaceholder: "Ex. Paris, France",
+    locateButton: "Localiser ce lieu",
+    personalSummary: "Personnaliser — prénom & question (optionnel)",
+    firstNameLabel: "Prénom",
+    questionLabel: "Votre question",
+    parentsSummary: "Parents — lecture transgénérationnelle (optionnel)",
+    motherName: "Mère — nom",
+    motherDate: "Mère — date",
+    motherPlace: "Mère — lieu",
+    fatherName: "Père — nom",
+    fatherDate: "Père — date",
+    fatherPlace: "Père — lieu",
+    submit: "Recevoir ma lecture",
+    progress: "Génération en cours — calcul puis rédaction (1 à 2 minutes environ).",
+    payTitle: "Pendant que votre lecture se prépare…",
+    payText: "Vous pouvez régler dès maintenant, au montant que vous voulez : le prix est libre.",
+    payButton: "Régler par SumUp →",
+    payNote: "Paiement sécurisé SumUp. Votre lecture continue de se générer en parallèle — rien n'est bloqué.",
+    viewerTitle: "Votre lecture",
+    viewerHint: "Elle est prête : téléchargez-la, elle n'est conservée nulle part.",
+    dlHtml: "HTML",
+    dlMd: "Markdown",
+    dlPdf: "PDF",
+    proLink: "Connexion",
+    placeConfirmed: "Lieu confirmé",
+    placeAuto: "Localisé automatiquement",
+    placeNote: "Ce lieu sera utilisé pour calculer votre thème.",
+    placeFound: "Lieu trouvé ✓"
+  },
+  en: {
+    heroTag: "✦ Personalised reading",
+    heroTitle: "Welcome to <span>Lastro</span>.",
+    lead: "What your sky says about you.",
+    formTitle: "Your reading",
+    dateLabel: "Date of birth",
+    hourLabel: "Time",
+    optExact: "Known (exact)",
+    optApprox: "Approximate",
+    optUnknown: "Unknown",
+    optInterval: "Time range",
+    timeLabel: "Time",
+    startLabel: "From",
+    endLabel: "To",
+    placeLabel: "Place of birth",
+    placePlaceholder: "e.g. London, UK",
+    locateButton: "Find this place",
+    personalSummary: "Personalise — first name & question (optional)",
+    firstNameLabel: "First name",
+    questionLabel: "Your question",
+    parentsSummary: "Parents — transgenerational reading (optional)",
+    motherName: "Mother — name",
+    motherDate: "Mother — date",
+    motherPlace: "Mother — place",
+    fatherName: "Father — name",
+    fatherDate: "Father — date",
+    fatherPlace: "Father — place",
+    submit: "Get my reading",
+    progress: "Generating — calculation then writing (about 1–2 minutes).",
+    payTitle: "While your reading is being prepared…",
+    payText: "You can pay right now, whatever amount you want: the price is up to you.",
+    payButton: "Pay with SumUp →",
+    payNote: "Secure SumUp payment. Your reading keeps generating in parallel — nothing is blocked.",
+    viewerTitle: "Your reading",
+    viewerHint: "It's ready: download it, nothing is stored.",
+    dlHtml: "HTML",
+    dlMd: "Markdown",
+    dlPdf: "PDF",
+    proLink: "Sign in",
+    placeConfirmed: "Place confirmed",
+    placeAuto: "Found automatically",
+    placeNote: "This place will be used to calculate your chart.",
+    placeFound: "Place found ✓"
+  },
+  de: {
+    heroTag: "✦ Persönliche Deutung",
+    heroTitle: "Willkommen bei <span>Lastro</span>.",
+    lead: "Was dein Himmel über dich sagt.",
+    formTitle: "Deine Deutung",
+    dateLabel: "Geburtsdatum",
+    hourLabel: "Uhrzeit",
+    optExact: "Bekannt (genau)",
+    optApprox: "Ungefähr",
+    optUnknown: "Unbekannt",
+    optInterval: "Zeitspanne",
+    timeLabel: "Uhrzeit",
+    startLabel: "Von",
+    endLabel: "Bis",
+    placeLabel: "Geburtsort",
+    placePlaceholder: "z. B. Berlin, Deutschland",
+    locateButton: "Ort suchen",
+    personalSummary: "Personalisieren — Vorname & Frage (optional)",
+    firstNameLabel: "Vorname",
+    questionLabel: "Deine Frage",
+    parentsSummary: "Eltern — transgenerationale Deutung (optional)",
+    motherName: "Mutter — Name",
+    motherDate: "Mutter — Datum",
+    motherPlace: "Mutter — Ort",
+    fatherName: "Vater — Name",
+    fatherDate: "Vater — Datum",
+    fatherPlace: "Vater — Ort",
+    submit: "Deutung erhalten",
+    progress: "Wird erstellt — Berechnung, dann Text (etwa 1–2 Minuten).",
+    payTitle: "Während deine Deutung entsteht …",
+    payText: "Du kannst jetzt bezahlen, in der Höhe, die dir passt: der Preis ist frei.",
+    payButton: "Mit SumUp bezahlen →",
+    payNote: "Sichere Zahlung über SumUp. Deine Deutung wird parallel weiter erstellt — nichts wird blockiert.",
+    viewerTitle: "Deine Deutung",
+    viewerHint: "Sie ist fertig: lade sie herunter, nichts wird gespeichert.",
+    dlHtml: "HTML",
+    dlMd: "Markdown",
+    dlPdf: "PDF",
+    proLink: "Anmelden",
+    placeConfirmed: "Ort bestätigt",
+    placeAuto: "Automatisch gefunden",
+    placeNote: "Dieser Ort wird für die Berechnung deines Horoskops verwendet.",
+    placeFound: "Ort gefunden ✓"
+  },
+  es: {
+    heroTag: "✦ Lectura personalizada",
+    heroTitle: "Bienvenido a <span>Lastro</span>.",
+    lead: "Lo que tu cielo dice de ti.",
+    formTitle: "Tu lectura",
+    dateLabel: "Fecha de nacimiento",
+    hourLabel: "Hora",
+    optExact: "Conocida (exacta)",
+    optApprox: "Aproximada",
+    optUnknown: "Desconocida",
+    optInterval: "Intervalo",
+    timeLabel: "Hora",
+    startLabel: "Desde",
+    endLabel: "Hasta",
+    placeLabel: "Lugar de nacimiento",
+    placePlaceholder: "p. ej. Madrid, España",
+    locateButton: "Buscar este lugar",
+    personalSummary: "Personalizar — nombre y pregunta (opcional)",
+    firstNameLabel: "Nombre",
+    questionLabel: "Tu pregunta",
+    parentsSummary: "Padres — lectura transgeneracional (opcional)",
+    motherName: "Madre — nombre",
+    motherDate: "Madre — fecha",
+    motherPlace: "Madre — lugar",
+    fatherName: "Padre — nombre",
+    fatherDate: "Padre — fecha",
+    fatherPlace: "Padre — lugar",
+    submit: "Recibir mi lectura",
+    progress: "Generando — cálculo y redacción (1 a 2 minutos).",
+    payTitle: "Mientras se prepara tu lectura…",
+    payText: "Puedes pagar ahora, el importe que quieras: el precio es libre.",
+    payButton: "Pagar con SumUp →",
+    payNote: "Pago seguro con SumUp. Tu lectura sigue generándose en paralelo — nada se bloquea.",
+    viewerTitle: "Tu lectura",
+    viewerHint: "Ya está lista: descárgala, no se guarda nada.",
+    dlHtml: "HTML",
+    dlMd: "Markdown",
+    dlPdf: "PDF",
+    proLink: "Iniciar sesión",
+    placeConfirmed: "Lugar confirmado",
+    placeAuto: "Localizado automáticamente",
+    placeNote: "Este lugar se usará para calcular tu carta.",
+    placeFound: "Lugar encontrado ✓"
+  },
+  it: {
+    heroTag: "✦ Lettura personalizzata",
+    heroTitle: "Benvenuto su <span>Lastro</span>.",
+    lead: "Ciò che il tuo cielo dice di te.",
+    formTitle: "La tua lettura",
+    dateLabel: "Data di nascita",
+    hourLabel: "Ora",
+    optExact: "Nota (precisa)",
+    optApprox: "Approssimativa",
+    optUnknown: "Sconosciuta",
+    optInterval: "Intervallo",
+    timeLabel: "Ora",
+    startLabel: "Dalle",
+    endLabel: "Alle",
+    placeLabel: "Luogo di nascita",
+    placePlaceholder: "es. Roma, Italia",
+    locateButton: "Trova questo luogo",
+    personalSummary: "Personalizza — nome e domanda (opzionale)",
+    firstNameLabel: "Nome",
+    questionLabel: "La tua domanda",
+    parentsSummary: "Genitori — lettura transgenerazionale (opzionale)",
+    motherName: "Madre — nome",
+    motherDate: "Madre — data",
+    motherPlace: "Madre — luogo",
+    fatherName: "Padre — nome",
+    fatherDate: "Padre — data",
+    fatherPlace: "Padre — luogo",
+    submit: "Ricevi la mia lettura",
+    progress: "Generazione in corso — calcolo e scrittura (1–2 minuti).",
+    payTitle: "Mentre la tua lettura si prepara…",
+    payText: "Puoi pagare subito, l'importo che vuoi: il prezzo è libero.",
+    payButton: "Paga con SumUp →",
+    payNote: "Pagamento sicuro SumUp. La lettura continua in parallelo — nulla si blocca.",
+    viewerTitle: "La tua lettura",
+    viewerHint: "È pronta: scaricala, non viene conservata.",
+    dlHtml: "HTML",
+    dlMd: "Markdown",
+    dlPdf: "PDF",
+    proLink: "Accedi",
+    placeConfirmed: "Luogo confermato",
+    placeAuto: "Trovato automaticamente",
+    placeNote: "Questo luogo sarà usato per calcolare il tuo tema.",
+    placeFound: "Luogo trovato ✓"
+  }
+};
+
+function currentLanguage() {
+  return state.language ?? "fr";
+}
+
+function uiStrings() {
+  return UI_STRINGS[currentLanguage()] ?? UI_STRINGS.fr;
+}
+
+function setNodeText(selector, text) {
+  const node = $(selector);
+  if (node && typeof text === "string") {
+    node.textContent = text;
+  }
+}
+
+function setFieldLabel(name, text) {
+  const input = document.querySelector(`#express-form [name="${name}"]`);
+  const label = input?.closest("label");
+  if (!label || typeof text !== "string") {
+    return;
+  }
+  for (const node of label.childNodes) {
+    if (node.nodeType === 3 && node.textContent.trim()) {
+      node.textContent = `${text} `;
+      return;
+    }
+  }
+}
+
+function applyUITranslations() {
+  const t = uiStrings();
+  setNodeText("#guest-hero .hero-tag", t.heroTag);
+  const title = $("#guest-hero h1");
+  if (title) {
+    title.innerHTML = t.heroTitle;
+  }
+  setNodeText("#guest-hero .guest-lead", t.lead);
+  setNodeText("#express-form > h3", t.formTitle);
+
+  setFieldLabel("birthDate", t.dateLabel);
+  setFieldLabel("timePrecision", t.hourLabel);
+  setFieldLabel("timeValue", t.timeLabel);
+  setFieldLabel("timeStart", t.startLabel);
+  setFieldLabel("timeEnd", t.endLabel);
+  setFieldLabel("birthPlace", t.placeLabel);
+  setFieldLabel("firstName", t.firstNameLabel);
+  setFieldLabel("intention", t.questionLabel);
+  setFieldLabel("motherName", t.motherName);
+  setFieldLabel("motherBirthDate", t.motherDate);
+  setFieldLabel("motherBirthPlace", t.motherPlace);
+  setFieldLabel("fatherName", t.fatherName);
+  setFieldLabel("fatherBirthDate", t.fatherDate);
+  setFieldLabel("fatherBirthPlace", t.fatherPlace);
+
+  const placeInput = document.querySelector('#express-form [name="birthPlace"]');
+  if (placeInput) {
+    placeInput.placeholder = t.placePlaceholder;
+  }
+  setNodeText("#express-resolve-place", t.locateButton);
+
+  const optionalBlocks = $all("#express-form details.express-optional");
+  const personalSummary = optionalBlocks[0]?.querySelector("summary");
+  if (personalSummary) {
+    personalSummary.textContent = t.personalSummary;
+  }
+  const parentsSummary = optionalBlocks[1]?.querySelector("summary");
+  if (parentsSummary) {
+    parentsSummary.textContent = t.parentsSummary;
+  }
+
+  const submit = $("#express-form button[type='submit']");
+  if (submit && !submit.disabled) {
+    submit.textContent = t.submit;
+  }
+  setNodeText("#express-progress", t.progress);
+  setNodeText(".pay-head strong", t.payTitle);
+  setNodeText(".pay-head span", t.payText);
+  setNodeText(".pay-button", t.payButton);
+  setNodeText(".pay-panel small", t.payNote);
+  setNodeText("#express-viewer h3", t.viewerTitle);
+  setNodeText("#express-ready-hint", t.viewerHint);
+  setNodeText("#guest-download-html", t.dlHtml);
+  setNodeText("#guest-download-md", t.dlMd);
+  setNodeText("#guest-download-pdf", t.dlPdf);
+  setNodeText("#guest-pro-link", t.proLink);
+
+  const precision = $("#express-precision");
+  if (precision?.options?.length >= 4) {
+    precision.options[0].textContent = t.optExact;
+    precision.options[1].textContent = t.optApprox;
+    precision.options[2].textContent = t.optUnknown;
+    precision.options[3].textContent = t.optInterval;
+  }
+  document.documentElement.lang = currentLanguage();
+}
+
+function initLanguageSelector() {
+  const select = $("#guest-language");
+  if (!select) {
+    return;
+  }
+  const stored = localStorage.getItem("lastro_lang");
+  const browser = String(navigator.language ?? "").slice(0, 2).toLowerCase();
+  const supported = LANGUAGES.map((entry) => entry.code);
+  state.language = supported.includes(stored) ? stored : supported.includes(browser) ? browser : "fr";
+  select.innerHTML = LANGUAGES.map(
+    (entry) => `<option value="${entry.code}">${entry.flag} ${entry.label}</option>`
+  ).join("");
+  select.value = state.language;
+  select.addEventListener("change", () => {
+    state.language = select.value;
+    localStorage.setItem("lastro_lang", state.language);
+    applyUITranslations();
+  });
+  applyUITranslations();
+}
+
 const titles = {
   auth: "Compte",
-  express: "Lecture express",
+  express: "Votre lecture",
   offre: "Offre & prix",
   profile: "Profil",
   people: "Personnes",
@@ -121,29 +470,21 @@ function birthFor(personId) {
   return state.dossier?.birthData?.find((entry) => entry.personId === personId);
 }
 
-function placeConfidenceLabel(place) {
-  const value = String(place?.confidence ?? "").toLowerCase();
-  if (value.includes("verified")) {
-    return "Lieu confirmé";
-  }
-  if (value.includes("unverified") || value.includes("external")) {
-    return "Localisé automatiquement";
-  }
-  return "Lieu sélectionné";
-}
-
 function placeDetails(place) {
   if (!place) {
     return "";
   }
+  const t = uiStrings();
   const name = place.selectedName ?? place.name ?? "";
+  const confidence = String(place?.confidence ?? "").toLowerCase();
+  const label = confidence.includes("verified") ? t.placeConfirmed : confidence.includes("unverified") || confidence.includes("external") ? t.placeAuto : t.placeConfirmed;
   return `
     <article class="item">
       <div class="item-title">
         <span>✓ ${name}</span>
-        <span class="badge badge-ok">${placeConfidenceLabel(place)}</span>
+        <span class="badge badge-ok">${label}</span>
       </div>
-      <div class="meta">Ce lieu sera utilisé pour calculer votre thème.</div>
+      <div class="meta">${t.placeNote}</div>
     </article>
   `;
 }
@@ -169,7 +510,7 @@ async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = 
     field(form, "resolvedPlace").value = JSON.stringify(result.place);
     field(form, "birthPlace").value = result.place.selectedName;
     showResolvedPlace(detailsId, result.place);
-    showMessage("Lieu trouvé ✓");
+    showMessage(uiStrings().placeFound);
     return result.place;
   } catch (error) {
     if (error.matches?.length) {
@@ -1314,6 +1655,7 @@ function bindExpressForm() {
       const payload = formPayload(form);
       const body = {
         firstName: payload.firstName || null,
+        language: currentLanguage(),
         birthDate: payload.birthDate,
         timePrecision: payload.timePrecision ?? "unknown",
         timeValue: payload.timeValue || null,
@@ -1325,7 +1667,7 @@ function bindExpressForm() {
         parents: deliverableParentsFromForm(form)
       };
       submitButton.disabled = true;
-      submitButton.textContent = "Génération en cours… (1 à 2 min)";
+      submitButton.textContent = `${uiStrings().submit} …`;
       $("#express-progress").hidden = false;
       const paymentPanel = $("#express-payment");
       if (paymentPanel) {
@@ -1386,6 +1728,7 @@ function bindExpressForm() {
 function bindForms() {
   bindPriceSlider();
   bindExpressForm();
+  initLanguageSelector();
   $("#register-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {

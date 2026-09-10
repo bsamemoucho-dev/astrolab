@@ -8,6 +8,7 @@
 
 import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
+import { docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
 import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
@@ -55,6 +56,8 @@ function normalizePlace(input) {
 
 export async function createPublicReading(input = {}, options = {}) {
   const startedAt = Date.now();
+  const language = normalizeLanguage(input.language);
+  const strings = docStrings(language);
   const birthDate = cleanString(input.birthDate);
   if (!birthDate) {
     const error = new Error("La date de naissance est requise.");
@@ -87,6 +90,7 @@ export async function createPublicReading(input = {}, options = {}) {
     person: personInfo,
     parents: normalizeParents(input),
     intention: cleanString(input.intention),
+    languageName: englishNameFor(language),
     socle
   };
 
@@ -98,14 +102,14 @@ export async function createPublicReading(input = {}, options = {}) {
     if (planSection.writer === "none") {
       section = {
         id: planSection.id,
-        title: planSection.title,
+        title: strings.sectionTitles[planSection.id] ?? planSection.title,
         rank: planSection.rank,
         badgeCode: planSection.badge.code,
-        badgeLabel: planSection.badge.label,
+        badgeLabel: strings.badgeUnavailable,
         kind: planSection.kind,
         provider: "none",
         status: "not_available",
-        text: `${planSection.note}\n\nAucune prédiction d'événement n'est produite.`,
+        text: strings.unavailableText,
         validation: { ok: true, issues: [] }
       };
     } else {
@@ -121,10 +125,10 @@ export async function createPublicReading(input = {}, options = {}) {
           : validateSectionText({ sectionId: planSection.id, text: written.text, socle });
       section = {
         id: planSection.id,
-        title: planSection.title,
+        title: strings.sectionTitles[planSection.id] ?? planSection.title,
         rank: planSection.rank,
         badgeCode: planSection.badge.code,
-        badgeLabel: planSection.badge.label,
+        badgeLabel: strings.badgeSymbolic,
         kind: planSection.kind,
         provider: written.provider,
         model: written.model ?? null,
@@ -136,23 +140,24 @@ export async function createPublicReading(input = {}, options = {}) {
     sections.push(section);
   }
 
-  const fullSections = [...sections, ...annexSections(socle)];
+  const fullSections = [...sections, ...annexSections(socle, strings)];
   const writerMode = fullSections.some((section) => section.provider === "llm") ? "llm" : "template";
   const costEstimate =
     usage.promptTokens > 0 || usage.completionTokens > 0
       ? estimateUsageCost(usage.model, usage.promptTokens, usage.completionTokens)
       : null;
-  const personLabel = personInfo.firstName ? `pour ${personInfo.firstName}` : "";
-  const title = `Lecture symbolique ${personLabel}`.trim();
+  const personLabel = personInfo.firstName ? personInfo.firstName : null;
+  const title = personInfo.firstName ? `${strings.titlePrefix} — ${personInfo.firstName}` : strings.titlePrefix;
   const createdAt = new Date().toISOString();
   const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
-  const markdown = renderDossierMarkdown({ title, personLabel: personInfo.firstName ?? null, createdAt, sections: fullSections, author });
-  const html = renderDossierHtml({ title, personLabel: personInfo.firstName ?? null, createdAt, writerMode, sections: fullSections, author });
+  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings });
+  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings });
 
   return {
     schema: "astrolab.public_reading",
     status: writerMode === "llm" ? "ready_for_human_review" : "template_draft",
     writerMode,
+    language,
     personLabel: personInfo.firstName ?? null,
     costEstimate,
     generationMs: Date.now() - startedAt,
