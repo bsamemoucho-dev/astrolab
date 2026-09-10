@@ -134,6 +134,9 @@ Variables d'environnement :
 | `STRIPE_SECRET_KEY` | Clé secrète Stripe (`sk_…`) — active le paiement obligatoire | paiement désactivé |
 | `STRIPE_PUBLISHABLE_KEY` | Clé publique Stripe (`pk_…`), envoyée au navigateur | — |
 | `STRIPE_CURRENCY` | Devise du paiement | `eur` |
+| `GOOGLE_API_KEY` / `GEMINI_API_KEY` | Vérification croisée du texte par Google Gemini (optionnelle) | désactivée |
+| `GEMINI_MODEL` | Modèle Gemini utilisé pour la vérification | `gemini-2.5-flash` |
+| `ASTROLAB_CROSS_CHECK` | `0` désactive la vérification croisée | activée si clé fournie |
 | `NODE_ENV=production` | Cookies `Secure` (nécessite HTTPS) | — |
 
 Endpoints de service : `GET /healthz` (santé) et `GET /api/config` (configuration publique, sans secret).

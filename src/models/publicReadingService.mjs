@@ -8,6 +8,7 @@
 
 import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
+import { crossCheckReading } from "../deliverables/crossCheck.mjs";
 import { docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
 import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
@@ -141,6 +142,28 @@ export async function createPublicReading(input = {}, options = {}) {
     sections.push(section);
   }
 
+  // Vérification croisée par un second modèle (Google Gemini), si une clé est configurée.
+  const verification =
+    options.crossCheck === false
+      ? { status: "skipped", reason: "disabled", provider: null, model: null, issues: [], corrections: {} }
+      : await crossCheckReading({ sections, socle, language });
+  let correctedCount = 0;
+  if (verification.status === "checked" && verification.corrections) {
+    for (const [sectionId, correctedText] of Object.entries(verification.corrections)) {
+      const target = sections.find((entry) => entry.id === sectionId);
+      if (target && typeof correctedText === "string" && correctedText.trim() && correctedText.trim() !== target.text.trim()) {
+        target.text = correctedText.trim();
+        target.crossCheckStatus = "corrected";
+        correctedCount += 1;
+      }
+    }
+  }
+  for (const section of sections) {
+    if (!section.crossCheckStatus) {
+      section.crossCheckStatus = verification.status === "checked" ? "confirmed" : "not_checked";
+    }
+  }
+
   const fullSections = [...sections, ...annexSections(socle, strings)];
   const writerMode = fullSections.some((section) => section.provider === "llm") ? "llm" : "template";
   const costEstimate =
@@ -151,14 +174,27 @@ export async function createPublicReading(input = {}, options = {}) {
   const title = personInfo.firstName ? `${strings.titlePrefix} — ${personInfo.firstName}` : strings.titlePrefix;
   const createdAt = new Date().toISOString();
   const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
-  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings });
-  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings });
+  const verificationNote =
+    verification.status === "checked"
+      ? `Vérification croisée automatique (${verification.model}) : ${verification.issues.length} remarque(s), ${correctedCount} correction(s) appliquée(s).`
+      : verification.status === "failed"
+        ? "Vérification croisée indisponible pour cette lecture."
+        : null;
+  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings, verificationNote });
+  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings, verificationNote });
 
   return {
     schema: "astrolab.public_reading",
     status: writerMode === "llm" ? "ready_for_human_review" : "template_draft",
     writerMode,
     language,
+    verification: {
+      status: verification.status,
+      provider: verification.provider ?? null,
+      model: verification.model ?? null,
+      issues: verification.issues ?? [],
+      correctedCount
+    },
     personLabel: personInfo.firstName ?? null,
     costEstimate,
     generationMs: Date.now() - startedAt,

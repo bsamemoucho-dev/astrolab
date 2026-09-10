@@ -281,6 +281,7 @@ test("public no-account reading works without authentication and stores nothing"
     assert.match(reading.payload.html, /<!doctype html>/);
     assert.match(reading.payload.html, /socle de calcul vérifié/i);
     assert.ok(reading.payload.sections.some((section) => section.id === "lettre-ame"));
+    assert.equal(reading.payload.verification.status, "skipped");
     assert.equal(reading.payload.sections.length, 11); // 11 sections narratives ; l'annexe est dans le HTML
 
     const state = await app.store.load();

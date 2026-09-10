@@ -106,7 +106,7 @@ const CSS = `
   @media print { body { background:#fff; } .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; } }
 `;
 
-export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null }) {
+export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null, verificationNote = null }) {
   const t = strings ?? docStrings("fr");
   const badges = {
     calculated: "badge-calculated",
@@ -161,6 +161,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   <footer>
     ${authorLine}
     <p>${writerNote}</p>
+    ${verificationNote ? `<p>${escapeHtml(verificationNote)}</p>` : ""}
     <p>${escapeHtml(t.footer)}</p>
   </footer>
 </div>
@@ -168,7 +169,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 </html>`;
 }
 
-export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null, strings = null }) {
+export function renderDossierMarkdown({ title, personLabel, createdAt, sections, author = null, strings = null, verificationNote = null }) {
   const t = strings ?? docStrings("fr");
   const parts = [`# ${title}`, ""];
   if (personLabel) {
@@ -180,6 +181,9 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections,
   }
   if (author) {
     parts.push("---", author);
+  }
+  if (verificationNote) {
+    parts.push("", `_${verificationNote}_`);
   }
   return parts.join("\n");
 }

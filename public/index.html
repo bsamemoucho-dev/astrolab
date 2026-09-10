@@ -416,7 +416,15 @@
                 <label class="pay-amount"><span id="pay-amount-label">Montant libre</span>
                   <span class="pay-amount-field"><input id="pay-amount" type="number" min="1" step="1" value="10"> €</span>
                 </label>
-                <button id="pay-start" class="pay-button" type="button">Continuer vers le paiement →</button>
+                <div class="ai-notice">
+                  <strong id="ai-notice-title">Texte généré par une intelligence artificielle</strong>
+                  <span id="ai-notice-text">Votre lecture est rédigée automatiquement à partir de vos données de naissance, dont le calcul est vérifié. Malgré les contrôles automatiques (dont une vérification par un second modèle), une IA peut se tromper, mal interpréter ou inventer une nuance : c'est un outil de réflexion, pas une vérité, ni un diagnostic, ni une prédiction d'événements.</span>
+                  <label class="ai-consent">
+                    <input type="checkbox" id="ai-consent">
+                    <span id="ai-consent-label">J'ai lu et compris : ce texte est généré par une IA et peut contenir des erreurs.</span>
+                  </label>
+                </div>
+                <button id="pay-start" class="pay-button" type="button" disabled>Continuer vers le paiement →</button>
                 <div id="checkout-container" class="checkout-container" hidden></div>
                 <button id="pay-continue" class="pay-button" type="button" hidden>Paiement effectué ? Continuer →</button>
                 <p class="hint" id="pay-status" hidden></p>

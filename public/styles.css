@@ -1008,3 +1008,45 @@ button.pay-button {
   text-align: center;
   font-weight: 650;
 }
+
+/* ---------- avertissement IA avant paiement ---------- */
+
+.ai-notice {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(245, 199, 107, 0.4);
+  border-radius: var(--radius-md);
+  background: rgba(245, 199, 107, 0.1);
+}
+
+.ai-notice strong {
+  color: var(--warn);
+  font-size: 0.95rem;
+}
+
+.ai-notice span {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.ai-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ai-consent input {
+  width: 18px;
+  min-height: 18px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+  accent-color: var(--gold);
+}
