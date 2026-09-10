@@ -498,55 +498,82 @@ const PLACE_STRINGS = {
     suggestionsTitle: "Villes proposées",
     approximate: "Aucun résultat exact — voici les lieux les plus proches :",
     none: "Aucun lieu trouvé. Vérifiez l'orthographe ou ajoutez le pays (ex. « Valence, Espagne »).",
-    mapNote: "Déplacez la carte si le repère n'est pas au bon endroit."
+    mapNote: "Déplacez le repère si le lieu n'est pas exact.",
+    pinMoved: "Position ajustée — {distance} du point d'origine.",
+    pinReset: "Revenir au point de départ",
+    pinFar: "Déplacement de plus de 30 km : le fuseau horaire ({zone}) n'est pas recalculé. Si la ville était fausse, choisissez plutôt la bonne ville dans la liste."
   },
   en: {
     suggestionsTitle: "Suggested places",
     approximate: "No exact match — closest places:",
     none: "No place found. Check the spelling or add the country (e.g. “Valencia, Spain”).",
-    mapNote: "Move the map if the pin is not in the right place."
+    mapNote: "Drag the pin if the place is not exact.",
+    pinMoved: "Position adjusted — {distance} from the original point.",
+    pinReset: "Reset to the original point",
+    pinFar: "Moved more than 30 km: the time zone ({zone}) is not recalculated. If the city was wrong, pick the right city from the list instead."
   },
   de: {
     suggestionsTitle: "Vorgeschlagene Orte",
     approximate: "Kein genauer Treffer — nächstgelegene Orte:",
     none: "Kein Ort gefunden. Prüfe die Schreibweise oder ergänze das Land (z. B. „Valencia, Spanien“).",
-    mapNote: "Verschiebe die Karte, wenn die Markierung nicht am richtigen Ort liegt."
+    mapNote: "Verschiebe die Markierung, wenn der Ort nicht genau ist.",
+    pinMoved: "Position angepasst — {distance} vom ursprünglichen Punkt.",
+    pinReset: "Zum Ausgangspunkt zurückkehren",
+    pinFar: "Mehr als 30 km verschoben: Die Zeitzone ({zone}) wird nicht neu berechnet. Wenn die Stadt falsch war, wähle sie stattdessen aus der Liste."
   },
   es: {
     suggestionsTitle: "Lugares sugeridos",
     approximate: "Sin coincidencia exacta: lugares más cercanos:",
     none: "No se ha encontrado el lugar. Comprueba la ortografía o añade el país (p. ej. «Valencia, España»).",
-    mapNote: "Mueve el mapa si el marcador no está en el lugar correcto."
+    mapNote: "Mueve el marcador si el lugar no es exacto.",
+    pinMoved: "Posición ajustada — {distance} del punto original.",
+    pinReset: "Volver al punto de partida",
+    pinFar: "Desplazamiento de más de 30 km: la zona horaria ({zone}) no se recalcula. Si la ciudad era incorrecta, elige la ciudad correcta en la lista."
   },
   it: {
     suggestionsTitle: "Luoghi suggeriti",
     approximate: "Nessuna corrispondenza esatta: luoghi più vicini:",
     none: "Nessun luogo trovato. Controlla l'ortografia o aggiungi il paese (es. «Valencia, Spagna»).",
-    mapNote: "Sposta la mappa se il segnaposto non è nel posto giusto."
+    mapNote: "Sposta il segnaposto se il luogo non è esatto.",
+    pinMoved: "Posizione regolata — {distance} dal punto originale.",
+    pinReset: "Torna al punto di partenza",
+    pinFar: "Spostamento di oltre 30 km: il fuso orario ({zone}) non viene ricalcolato. Se la città era sbagliata, scegli quella giusta dall'elenco."
   },
   pt: {
     suggestionsTitle: "Locais sugeridos",
     approximate: "Sem correspondência exata — locais mais próximos:",
     none: "Nenhum local encontrado. Verifique a grafia ou acrescente o país (ex. «Valência, Espanha»).",
-    mapNote: "Mova o mapa se o marcador não estiver no lugar certo."
+    mapNote: "Mova o marcador se o local não estiver exato.",
+    pinMoved: "Posição ajustada — {distance} do ponto original.",
+    pinReset: "Voltar ao ponto de partida",
+    pinFar: "Deslocamento superior a 30 km: o fuso horário ({zone}) não é recalculado. Se a cidade estava errada, escolha a cidade correta na lista."
   },
   no: {
     suggestionsTitle: "Foreslåtte steder",
     approximate: "Ingen eksakt treff — nærmeste steder:",
     none: "Fant ingen sted. Sjekk skrivemåten eller legg til landet (f.eks. «Valencia, Spania»).",
-    mapNote: "Flytt kartet hvis markøren ikke står på riktig sted."
+    mapNote: "Flytt markøren hvis stedet ikke er nøyaktig.",
+    pinMoved: "Posisjon justert — {distance} fra utgangspunktet.",
+    pinReset: "Tilbake til utgangspunktet",
+    pinFar: "Flyttet mer enn 30 km: tidssonen ({zone}) beregnes ikke på nytt. Hvis byen var feil, velg riktig by fra listen."
   },
   da: {
     suggestionsTitle: "Foreslåede steder",
     approximate: "Ingen præcis matchning — nærmeste steder:",
     none: "Ingen steder fundet. Tjek stavemåden, eller tilføj landet (fx «Valencia, Spanien»).",
-    mapNote: "Flyt kortet, hvis markøren ikke står det rigtige sted."
+    mapNote: "Flyt markøren, hvis stedet ikke er præcist.",
+    pinMoved: "Position justeret — {distance} fra udgangspunktet.",
+    pinReset: "Tilbage til udgangspunktet",
+    pinFar: "Flyttet mere end 30 km: tidszonen ({zone}) genberegnes ikke. Hvis byen var forkert, vælg den rigtige by på listen."
   },
   nl: {
     suggestionsTitle: "Voorgestelde plaatsen",
     approximate: "Geen exacte match — dichtstbijzijnde plaatsen:",
     none: "Geen plaats gevonden. Controleer de spelling of voeg het land toe (bv. ‘Valencia, Spanje’).",
-    mapNote: "Verplaats de kaart als de markering niet op de juiste plek staat."
+    mapNote: "Verplaats de markering als de plaats niet exact is.",
+    pinMoved: "Positie aangepast — {distance} van het oorspronkelijke punt.",
+    pinReset: "Terug naar het oorspronkelijke punt",
+    pinFar: "Meer dan 30 km verplaatst: de tijdzone ({zone}) wordt niet opnieuw berekend. Als de stad fout was, kies dan de juiste stad uit de lijst."
   }
 };
 
@@ -818,6 +845,40 @@ function birthFor(personId) {
   return state.dossier?.birthData?.find((entry) => entry.personId === personId);
 }
 
+const PLACE_FORM_FOR_DETAILS = {
+  "express-place-details": "#express-form",
+  "profile-place-details": "#profile-form",
+  "person-place-details": "#person-form",
+  "natal-place-details": "#natal-form"
+};
+
+function formForDetails(detailsId) {
+  const selector = PLACE_FORM_FOR_DETAILS[detailsId];
+  return selector ? $(selector) : null;
+}
+
+function distanceInMeters(from, to) {
+  const radius = 6371000;
+  const toRad = (value) => (value * Math.PI) / 180;
+  const deltaLat = toRad(to.latitude - from.latitude);
+  const deltaLon = toRad(to.longitude - from.longitude);
+  const h =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(toRad(from.latitude)) * Math.cos(toRad(to.latitude)) * Math.sin(deltaLon / 2) ** 2;
+  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function formatDistance(meters) {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
+  }
+  const kilometers = meters / 1000;
+  const formatted = new Intl.NumberFormat(currentLanguage(), {
+    maximumFractionDigits: kilometers < 10 ? 1 : 0
+  }).format(kilometers);
+  return `${formatted} km`;
+}
+
 function placeDetails(place) {
   if (!place) {
     return "";
@@ -834,6 +895,8 @@ function placeDetails(place) {
       ? `<div class="place-map-wrap">
           <div class="place-mini-map" data-lat="${latitude}" data-lon="${longitude}" data-label="${escapeHtml(name)}"></div>
           <p class="place-map-note">${escapeHtml(p.mapNote)}</p>
+          <p class="place-pin-status" hidden></p>
+          <button type="button" class="secondary place-pin-reset" hidden>${escapeHtml(p.pinReset)}</button>
         </div>`
       : "";
   return `
@@ -852,7 +915,7 @@ function showResolvedPlace(targetId, place) {
   const box = $(`#${targetId}`);
   box.innerHTML = placeDetails(place);
   box.hidden = false;
-  initPlaceMaps(box);
+  initPlaceMaps(box, { place, form: formForDetails(targetId) });
 }
 
 // --- Carte de contrôle (Leaflet + fonds OpenStreetMap, aucune clé requise) ---
@@ -884,7 +947,16 @@ function loadLeaflet() {
   return leafletLoader;
 }
 
-async function initPlaceMaps(container) {
+function placePinIcon(L) {
+  return L.divIcon({
+    className: "place-pin",
+    html: '<span class="place-pin-dot"></span>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10]
+  });
+}
+
+async function initPlaceMaps(container, { place = null, form = null } = {}) {
   if (!container) {
     return;
   }
@@ -901,6 +973,7 @@ async function initPlaceMaps(container) {
     });
     return;
   }
+  const p = placeStrings();
   nodes.forEach((node) => {
     if (node.dataset.mapReady === "1") {
       return;
@@ -911,21 +984,105 @@ async function initPlaceMaps(container) {
       return;
     }
     node.dataset.mapReady = "1";
-    const map = L.map(node, { scrollWheelZoom: false, zoomControl: false, attributionControl: true });
+    const label = node.dataset.label ?? "";
+    const map = L.map(node, { scrollWheelZoom: false, zoomControl: true, attributionControl: true });
     map.setView([latitude, longitude], 10);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
-    L.circleMarker([latitude, longitude], {
-      radius: 9,
-      color: "#e9c46a",
-      weight: 2,
-      fillColor: "#e9c46a",
-      fillOpacity: 0.45
-    })
-      .addTo(map)
-      .bindTooltip(node.dataset.label ?? "", { direction: "top" });
+
+    const hidden = form ? field(form, "resolvedPlace") : null;
+    const canMove = Boolean(form && hidden && place);
+    const marker = L.marker([latitude, longitude], {
+      draggable: canMove,
+      autoPan: true,
+      title: label,
+      icon: placePinIcon(L)
+    }).addTo(map);
+    marker.bindTooltip(label, { direction: "top" });
+
+    const wrap = node.closest(".place-map-wrap");
+    const status = wrap?.querySelector(".place-pin-status") ?? null;
+    const resetButton = wrap?.querySelector(".place-pin-reset") ?? null;
+    const original = {
+      latitude: Number(place?.normalizedForCalculation?.latitude ?? place?.latitude ?? latitude),
+      longitude: Number(place?.normalizedForCalculation?.longitude ?? place?.longitude ?? longitude)
+    };
+    const timeZone = place?.normalizedForCalculation?.timeZone ?? place?.timeZone ?? "";
+
+    // Le repère déplacé change les coordonnées réellement utilisées par le
+    // calcul : on réécrit le lieu résolu, en gardant la trace de l'ajustement
+    // et en signalant que le fuseau horaire, lui, n'est pas recalculé.
+    const writeAdjustedPlace = (lat, lng, movedMeters) => {
+      if (!canMove) {
+        return;
+      }
+      const nextLatitude = Number(lat.toFixed(5));
+      const nextLongitude = Number(lng.toFixed(5));
+      hidden.value = JSON.stringify({
+        ...place,
+        latitude: nextLatitude,
+        longitude: nextLongitude,
+        normalizedForCalculation: {
+          ...(place.normalizedForCalculation ?? {}),
+          latitude: nextLatitude,
+          longitude: nextLongitude,
+          timeZone: place.normalizedForCalculation?.timeZone ?? place.timeZone ?? null
+        },
+        confidence: "coordinates_manually_adjusted",
+        resolutionSource: `${place.resolutionSource ?? "geocoding"} + ajustement manuel du repère`,
+        manualAdjustment: {
+          movedMeters: Math.round(movedMeters),
+          originalLatitude: original.latitude,
+          originalLongitude: original.longitude,
+          timeZoneRecalculated: false
+        }
+      });
+    };
+
+    const showStatus = (movedMeters) => {
+      if (!status) {
+        return;
+      }
+      if (movedMeters < 5) {
+        status.hidden = true;
+        status.classList.remove("place-pin-warning");
+        return;
+      }
+      if (movedMeters > 30000) {
+        status.textContent = p.pinFar.replace("{zone}", timeZone);
+        status.classList.add("place-pin-warning");
+      } else {
+        status.textContent = p.pinMoved.replace("{distance}", formatDistance(movedMeters));
+        status.classList.remove("place-pin-warning");
+      }
+      status.hidden = false;
+    };
+
+    marker.on("dragend", () => {
+      const { lat, lng } = marker.getLatLng();
+      const movedMeters = distanceInMeters(original, { latitude: lat, longitude: lng });
+      writeAdjustedPlace(lat, lng, movedMeters);
+      showStatus(movedMeters);
+      if (resetButton) {
+        resetButton.hidden = movedMeters < 5;
+      }
+    });
+
+    resetButton?.addEventListener("click", () => {
+      marker.setLatLng([original.latitude, original.longitude]);
+      map.setView([original.latitude, original.longitude], map.getZoom());
+      if (canMove) {
+        hidden.value = JSON.stringify(place);
+      }
+      if (status) {
+        status.hidden = true;
+        status.classList.remove("place-pin-warning");
+      }
+      resetButton.hidden = true;
+    });
+
     setTimeout(() => map.invalidateSize(), 80);
   });
 }

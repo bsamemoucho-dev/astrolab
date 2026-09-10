@@ -54,11 +54,18 @@ exact query returns nothing, the server retries with a truncated query so that a
 (`Amsterdm`, `Lisbone`) still proposes the right places, flagged as approximate.
 
 A small confirmation map (Leaflet + OpenStreetMap tiles, no API key, no account) is shown
-under the confirmed place so the user can see the pin before paying. The map is loaded
-only after a place has been confirmed; if the CDN is unreachable it disappears silently
-and the textual confirmation remains. OpenStreetMap tiles require the visible
-"© OpenStreetMap" attribution, which is kept on the map. No coordinates, time zone or
-provider name is shown as technical data in the customer interface.
+under the confirmed place so the user can see the pin before paying. **The pin is
+draggable**: the user can correct the exact position, and the moved coordinates are what
+the calculation receives (`resolvedPlace.normalizedForCalculation`). The adjustment is
+recorded in the payload (`confidence: coordinates_manually_adjusted`,
+`manualAdjustment.movedMeters`, original coordinates) so the provenance stays honest.
+The IANA time zone is deliberately **not** recomputed on drag: beyond 30 km the interface
+warns the user and suggests picking the right city from the list instead. A "back to the
+original point" button restores the server-resolved coordinates. The map is loaded only
+after a place has been confirmed; if the CDN is unreachable it disappears silently and the
+textual confirmation remains. OpenStreetMap tiles require the visible "© OpenStreetMap"
+attribution, which is kept on the map. No coordinates, time zone or provider name is shown
+as technical data in the customer interface.
 
 ## Guiding Constraints
 
