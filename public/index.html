@@ -26,6 +26,7 @@
           <p class="nav-section">Espace</p>
           <button data-view="auth" class="nav-button active">Compte</button>
           <p class="nav-section">Découvrir</p>
+          <button data-view="express" class="nav-button">Accueil</button>
           <button data-view="offre" class="nav-button">Offre & prix</button>
           <p class="nav-section">Personnes</p>
           <button data-view="profile" class="nav-button" disabled>Profil</button>
@@ -52,6 +53,24 @@
       </aside>
 
       <section class="workspace">
+        <header id="guest-header" class="guest-header" hidden>
+          <div class="guest-header-inner">
+            <div class="guest-header-left">
+              <div class="guest-brand">
+                <span class="brand-mark" aria-hidden="true">☾</span>
+                <span class="guest-brand-name">Lastro</span>
+              </div>
+              <label class="guest-lang">
+                <select id="guest-language" aria-label="Langue / Language"></select>
+              </label>
+            </div>
+            <div class="guest-header-actions">
+              <button id="guest-back" class="secondary" type="button" hidden>← Ma lecture</button>
+              <button id="guest-pro-link" type="button">Connexion</button>
+            </div>
+          </div>
+        </header>
+
         <header class="topbar">
           <div class="topbar-title">
             <button class="icon-button" type="button" aria-label="Menu">☰</button>
@@ -72,6 +91,7 @@
         <div id="message" class="message" role="status" aria-live="polite" hidden></div>
 
         <section id="auth-view" class="view active">
+          <button id="auth-back" class="guest-back" type="button" hidden>← Retour à ma lecture</button>
           <div class="intro-panel">
             <div>
               <p class="eyebrow">Astrologie intelligente et intégrée</p>
@@ -352,16 +372,6 @@
 
         <section id="express-view" class="view">
           <div id="guest-hero" hidden>
-            <div class="guest-topbar">
-              <div class="guest-brand">
-                <span class="brand-mark" aria-hidden="true">☾</span>
-                <span class="guest-brand-name">Lastro</span>
-              </div>
-              <div class="guest-topbar-actions">
-                <select id="guest-language" aria-label="Langue / Language"></select>
-                <button id="guest-pro-link" type="button">Connexion</button>
-              </div>
-            </div>
             <p class="hero-tag">✦ Lecture personnalisée</p>
             <h1>Bienvenue sur <span>Lastro</span>.</h1>
             <p class="guest-lead">Ce que votre ciel dit de vous.</p>
@@ -391,6 +401,15 @@
               <button id="express-resolve-place" class="secondary" type="button">Localiser ce lieu</button>
               <div id="express-place-details" class="technical-details" hidden></div>
 
+              <div id="express-payment" class="pay-panel" hidden>
+                <div class="pay-head">
+                  <strong>Pendant que votre lecture se prépare…</strong>
+                  <span>Vous pouvez régler dès maintenant, au montant que vous voulez : le prix est libre.</span>
+                </div>
+                <button id="pay-open" class="pay-button" type="button">Régler par SumUp →</button>
+                <small>Paiement sécurisé SumUp, sans quitter cette page. Votre lecture continue de se générer — rien n'est bloqué.</small>
+              </div>
+
               <details class="parent-fieldset express-optional">
                 <summary>Personnaliser — prénom &amp; question (optionnel)</summary>
                 <label>Prénom <input name="firstName" placeholder="ex. Caroline"></label>
@@ -412,14 +431,6 @@
 
               <button type="submit">Recevoir ma lecture</button>
               <p class="hint" id="express-progress" hidden>Génération en cours — calcul puis rédaction (1 à 2 minutes environ).</p>
-              <div id="express-payment" class="pay-panel" hidden>
-                <div class="pay-head">
-                  <strong>Pendant que votre lecture se prépare…</strong>
-                  <span>Vous pouvez régler dès maintenant, au montant que vous voulez : le prix est libre.</span>
-                </div>
-                <a class="pay-button" href="https://pay.sumup.com/b2c/QPU73QKO" target="_blank" rel="noopener noreferrer">Régler par SumUp →</a>
-                <small>Paiement sécurisé SumUp. Votre lecture continue de se générer en parallèle — rien n'est bloqué.</small>
-              </div>
             </form>
           </div>
           <div class="panel wide" id="express-viewer" hidden>
@@ -437,6 +448,20 @@
             <iframe id="express-frame" class="deliverable-frame" title="Votre lecture"></iframe>
           </div>
         </section>
+
+        <div id="payment-overlay" class="pay-overlay" hidden>
+          <div class="pay-modal" role="dialog" aria-modal="true" aria-label="Paiement SumUp">
+            <div class="pay-modal-head">
+              <strong>Régler votre lecture</strong>
+              <div class="split-actions">
+                <a class="secondary-link" href="https://pay.sumup.com/b2c/QPU73QKO" target="_blank" rel="noopener noreferrer">Ouvrir dans un onglet</a>
+                <button id="payment-close" class="secondary" type="button">✕</button>
+              </div>
+            </div>
+            <iframe id="payment-frame" title="Paiement SumUp"></iframe>
+            <p class="hint">Le paiement se fait ici, sans quitter votre lecture. Si la zone reste vide, utilisez « Ouvrir dans un onglet ».</p>
+          </div>
+        </div>
 
         <section id="offre-view" class="view">
           <div class="panel wide">

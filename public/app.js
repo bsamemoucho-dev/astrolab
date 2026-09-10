@@ -417,18 +417,45 @@ const UI_STRINGS = {
   }
 };
 
+const UI_EXTRA = {
+  fr: { backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe", payModalTitle: "Régler votre lecture", payTabOpen: "Ouvrir dans un onglet", payModalHint: "Le paiement se fait ici, sans quitter votre lecture. Si la zone reste vide, utilisez « Ouvrir dans un onglet »." },
+  en: { backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password", payModalTitle: "Pay for your reading", payTabOpen: "Open in a new tab", payModalHint: "Payment happens here, without leaving your reading. If the area stays empty, use Open in a new tab." },
+  de: { backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort", payModalTitle: "Deine Deutung bezahlen", payTabOpen: "In neuem Tab öffnen", payModalHint: "Die Zahlung erfolgt hier, ohne deine Deutung zu verlassen. Bleibt der Bereich leer, nutze In neuem Tab öffnen." },
+  es: { backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña", payModalTitle: "Pagar tu lectura", payTabOpen: "Abrir en una pestaña", payModalHint: "El pago se realiza aquí, sin salir de tu lectura. Si el área queda vacía, usa Abrir en una pestaña." },
+  it: { backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password", payModalTitle: "Paga la tua lettura", payTabOpen: "Apri in una nuova scheda", payModalHint: "Il pagamento avviene qui, senza lasciare la lettura. Se l'area resta vuota, usa Apri in una nuova scheda." },
+  pt: { backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe", payModalTitle: "Pagar a sua leitura", payTabOpen: "Abrir num novo separador", payModalHint: "O pagamento é feito aqui, sem sair da sua leitura. Se a área ficar vazia, use Abrir num novo separador." },
+  no: { backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord", payModalTitle: "Betal for lesningen din", payTabOpen: "Åpne i ny fane", payModalHint: "Betalingen skjer her, uten å forlate lesningen. Hvis området forblir tomt, bruk Åpne i ny fane." },
+  da: { backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode", payModalTitle: "Betal for din læsning", payTabOpen: "Åbn i ny fane", payModalHint: "Betalingen sker her, uden at forlade din læsning. Hvis området forbliver tomt, brug Åbn i ny fane." },
+  nl: { backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord", payModalTitle: "Jouw lezing betalen", payTabOpen: "Openen in nieuw tabblad", payModalHint: "De betaling gebeurt hier, zonder je lezing te verlaten. Blijft het vak leeg, gebruik dan Openen in nieuw tabblad." }
+};
+
 function currentLanguage() {
   return state.language ?? "fr";
 }
 
 function uiStrings() {
-  return UI_STRINGS[currentLanguage()] ?? UI_STRINGS.fr;
+  const code = currentLanguage();
+  return { ...(UI_STRINGS[code] ?? UI_STRINGS.fr), ...(UI_EXTRA[code] ?? UI_EXTRA.fr) };
 }
 
 function setNodeText(selector, text) {
   const node = $(selector);
   if (node && typeof text === "string") {
     node.textContent = text;
+  }
+}
+
+function setFieldLabelIn(formSelector, name, text) {
+  const input = document.querySelector(`${formSelector} [name="${name}"]`);
+  const label = input?.closest("label");
+  if (!label || typeof text !== "string") {
+    return;
+  }
+  for (const node of label.childNodes) {
+    if (node.nodeType === 3 && node.textContent.trim()) {
+      node.textContent = `${text} `;
+      return;
+    }
   }
 }
 
@@ -502,6 +529,15 @@ function applyUITranslations() {
   setNodeText("#guest-download-md", t.dlMd);
   setNodeText("#guest-download-pdf", t.dlPdf);
   setNodeText("#guest-pro-link", t.proLink);
+  setNodeText("#guest-back", t.backShort);
+  setNodeText("#auth-back", t.backToReading);
+  setNodeText("#login-form h3", t.authTitle);
+  setNodeText("#login-form button[type='submit']", t.authSubmit);
+  setFieldLabelIn("#login-form", "email", t.emailLabel);
+  setFieldLabelIn("#login-form", "password", t.passwordLabel);
+  setNodeText(".pay-modal-head strong", t.payModalTitle);
+  setNodeText(".pay-modal .secondary-link", t.payTabOpen);
+  setNodeText(".pay-modal .hint", t.payModalHint);
 
   const precision = $("#express-precision");
   if (precision?.options?.length >= 4) {
@@ -738,6 +774,9 @@ function setView(name) {
   $(`#${name}-view`).classList.add("active");
   $all(".nav-button").forEach((button) => button.classList.toggle("active", button.dataset.view === name));
   $("#view-title").textContent = titles[name];
+  if (typeof updateGuestChrome === "function") {
+    updateGuestChrome();
+  }
 }
 
 function updateNav() {
@@ -1782,6 +1821,27 @@ function printHtmlInWindow(html) {
   setTimeout(() => printWindow.print(), 500);
 }
 
+function updateGuestChrome() {
+  const guest = !state.user;
+  const onAuthView = state.currentView === "auth";
+  const header = $("#guest-header");
+  if (header) {
+    header.hidden = !guest;
+  }
+  const backInHeader = $("#guest-back");
+  if (backInHeader) {
+    backInHeader.hidden = !(guest && onAuthView);
+  }
+  const proLink = $("#guest-pro-link");
+  if (proLink) {
+    proLink.hidden = guest && onAuthView;
+  }
+  const authBack = $("#auth-back");
+  if (authBack) {
+    authBack.hidden = !guest;
+  }
+}
+
 function applyGuestLayout() {
   const guest = !state.user;
   document.body.classList.toggle("guest", guest);
@@ -1789,6 +1849,7 @@ function applyGuestLayout() {
   if (hero) {
     hero.hidden = !guest;
   }
+  updateGuestChrome();
   return guest;
 }
 
@@ -1817,12 +1878,33 @@ function bindExpressForm() {
   syncTimeVisibility();
 
   $("#guest-pro-link")?.addEventListener("click", () => {
-    document.body.classList.remove("guest");
-    const hero = $("#guest-hero");
-    if (hero) {
-      hero.hidden = true;
-    }
     setView("auth");
+  });
+
+  const backToReading = () => setView("express");
+  $("#guest-back")?.addEventListener("click", backToReading);
+  $("#auth-back")?.addEventListener("click", backToReading);
+
+  const paymentOverlay = $("#payment-overlay");
+  $("#pay-open")?.addEventListener("click", () => {
+    if (!paymentOverlay) {
+      return;
+    }
+    const frame = $("#payment-frame");
+    if (frame && !frame.getAttribute("src")) {
+      frame.setAttribute("src", "https://pay.sumup.com/b2c/QPU73QKO");
+    }
+    paymentOverlay.hidden = false;
+  });
+  $("#payment-close")?.addEventListener("click", () => {
+    if (paymentOverlay) {
+      paymentOverlay.hidden = true;
+    }
+  });
+  paymentOverlay?.addEventListener("click", (event) => {
+    if (event.target === paymentOverlay) {
+      paymentOverlay.hidden = true;
+    }
   });
 
   form.addEventListener("submit", async (event) => {
