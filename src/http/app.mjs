@@ -12,6 +12,18 @@ import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
 import { createPublicReading } from "../models/publicReadingService.mjs";
 import {
+  createPaidDelivery,
+  deleteDeliveryByToken,
+  deliveryLink,
+  getDeliveryByToken,
+  markDeliveryFailed,
+  findDeliveryByPaymentSession,
+  markDeliveryGenerating,
+  markDeliveryReady,
+  publicDelivery,
+  queueDeliveryEmail
+} from "../models/publicDeliveryService.mjs";
+import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
   MAX_AMOUNT_CENTS,
@@ -69,6 +81,32 @@ function route(method, pattern, handler) {
   return { method, pattern, handler };
 }
 
+// Adresse publique du site, pour construire les liens de récupération : on se
+// fie à l'hôte de la requête (fonctionne sur le domaine final comme sur une
+// préversion), jamais à une valeur codée en dur.
+function publicBaseUrl(req) {
+  const proto = String(req.headers["x-forwarded-proto"] ?? "").split(",")[0].trim() || "https";
+  const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
+
+// Seules les données nécessaires à une reprise de rédaction sont conservées :
+// jamais l'identifiant de paiement ni le code de test.
+function storableInput(body) {
+  return {
+    firstName: body.firstName ?? null,
+    language: body.language ?? null,
+    birthDate: body.birthDate ?? null,
+    timePrecision: body.timePrecision ?? null,
+    timeValue: body.timeValue ?? null,
+    timeStart: body.timeStart ?? null,
+    timeEnd: body.timeEnd ?? null,
+    resolvedPlace: body.resolvedPlace ?? null,
+    intention: body.intention ?? null,
+    parents: body.parents ?? null
+  };
+}
+
 function matchRoute(routes, req) {
   const url = new URL(req.url, "http://localhost");
   for (const candidate of routes) {
@@ -89,7 +127,6 @@ export function createApp(options = {}) {
   const publicDir = options.publicDir ?? DEFAULT_PUBLIC_DIR;
   const commerceEnabled = options.commerceEnabled ?? process.env.ASTROLAB_ENABLE_COMMERCE !== "0";
   const allowRegistration = options.allowRegistration ?? process.env.ASTROLAB_ALLOW_REGISTRATION !== "0";
-  const usedPaymentSessions = new Set();
 
   const routes = [
     route("GET", /^\/healthz$/, async (_req, res) => {
@@ -156,6 +193,8 @@ export function createApp(options = {}) {
         console.log(`[Lastro] lecture offerte (code de test) — ${new Date().toISOString()}`);
       }
 
+      let payment = null;
+      let existingDelivery = null;
       if (!freeAccess) {
         // Clés Stripe présentes mais inutilisables (recopie incomplète, modes
         // mélangés…) : on refuse la lecture plutôt que de l'offrir par accident.
@@ -173,10 +212,19 @@ export function createApp(options = {}) {
             error.status = 402;
             throw error;
           }
-          if (usedPaymentSessions.has(sessionId)) {
-            const error = new Error("Ce paiement a déjà été utilisé pour une lecture.");
-            error.status = 409;
-            throw error;
+          // Un paiement = une lecture, pour toujours : si la lecture existe déjà
+          // et qu'elle est prête, on la relivre telle quelle, sans rien régénérer
+          // ni redemander de paiement. C'est ce qui rend une perte réparable.
+          existingDelivery = await findDeliveryByPaymentSession(store, sessionId);
+          if (existingDelivery?.status === "ready") {
+            const link = deliveryLink(existingDelivery.token, publicBaseUrl(req));
+            sendJson(res, 200, {
+              schema: "astrolab.public_reading",
+              status: "delivered",
+              ...existingDelivery.reading,
+              delivery: { reference: existingDelivery.reference, link, expiresAt: existingDelivery.expiresAt }
+            });
+            return;
           }
           const session = await retrieveCheckoutSession(sessionId);
           if (session.payment_status !== "paid") {
@@ -184,12 +232,85 @@ export function createApp(options = {}) {
             error.status = 402;
             throw error;
           }
-          usedPaymentSessions.add(sessionId);
+          payment = {
+            sessionId,
+            email: session.customer_details?.email ?? null,
+            amountCents: Number.isFinite(session.amount_total) ? session.amount_total : null,
+            currency: session.currency ?? null
+          };
         }
       }
 
-      const reading = await createPublicReading(body);
-      sendJson(res, 200, freeAccess ? { ...reading, freeAccess: true } : reading);
+      // La lecture est enregistrée AVANT la rédaction : si la rédaction échoue
+      // ou si le client ferme la page au mauvais moment, elle reste
+      // récupérable via son lien, sans jamais repayer.
+      let delivery = existingDelivery;
+      if (!delivery) {
+        const created = await createPaidDelivery(store, {
+          paymentSessionId: payment?.sessionId ?? null,
+          email: payment?.email ?? null,
+          amountCents: payment?.amountCents ?? null,
+          currency: payment?.currency ?? null,
+          language: body.language ?? null,
+          input: storableInput(body),
+          freeAccess
+        });
+        delivery = created.delivery;
+      }
+      await markDeliveryGenerating(store, delivery.id);
+
+      // En reprise, on repart des données enregistrées avec le paiement : le
+      // client a peut-être fermé la page, on ne dépend pas de ce qu'il renvoie.
+      const readingInput = existingDelivery ? (existingDelivery.input ?? body) : body;
+
+      try {
+        const reading = await createPublicReading(readingInput);
+        await markDeliveryReady(store, delivery.id, reading);
+        const link = deliveryLink(delivery.token, publicBaseUrl(req));
+        await queueDeliveryEmail(store, delivery, { link });
+        sendJson(res, 200, {
+          ...reading,
+          ...(freeAccess ? { freeAccess: true } : {}),
+          delivery: { reference: delivery.reference, link, expiresAt: delivery.expiresAt }
+        });
+      } catch (error) {
+        await markDeliveryFailed(store, delivery.id, error.message);
+        throw error;
+      }
+    }),
+    // Récupération d'une lecture payée : le jeton du lien est le seul secret.
+    route("GET", /^\/api\/public\/deliveries\/(?<token>[^/]+)$/, async (_req, res, params) => {
+      const delivery = await getDeliveryByToken(store, params.token);
+      if (!delivery) {
+        const error = new Error("Ce lien de lecture est inconnu ou a expiré.");
+        error.status = 404;
+        throw error;
+      }
+      sendJson(res, 200, { delivery: publicDelivery(delivery) });
+    }),
+    route("DELETE", /^\/api\/public\/deliveries\/(?<token>[^/]+)$/, async (_req, res, params) => {
+      sendJson(res, 200, { deleted: await deleteDeliveryByToken(store, params.token) });
+    }),
+    // Reprise d'une rédaction qui avait échoué : le client a déjà payé, on ne
+    // lui redemande jamais de payer.
+    route("POST", /^\/api\/public\/deliveries\/(?<token>[^/]+)\/regenerate$/, async (_req, res, params) => {
+      const delivery = await getDeliveryByToken(store, params.token);
+      if (!delivery) {
+        const error = new Error("Ce lien de lecture est inconnu ou a expiré.");
+        error.status = 404;
+        throw error;
+      }
+      if (delivery.status !== "ready") {
+        await markDeliveryGenerating(store, delivery.id);
+        try {
+          const reading = await createPublicReading(delivery.input ?? {});
+          await markDeliveryReady(store, delivery.id, reading);
+        } catch (error) {
+          await markDeliveryFailed(store, delivery.id, error.message);
+          throw error;
+        }
+      }
+      sendJson(res, 200, { delivery: publicDelivery(await getDeliveryByToken(store, params.token)) });
     }),
     route("GET", /^\/api\/public\/horoscope\/(?<sign>[^/]+)$/, async (_req, res, params) => {
       sendJson(res, 200, await generateDailyHoroscope(params.sign));

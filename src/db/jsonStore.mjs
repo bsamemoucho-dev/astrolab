@@ -21,6 +21,7 @@ export function createEmptyState() {
     deliverables: [],
     deliverableVersions: [],
     orders: [],
+    publicReadings: [],
     creditLedger: [],
     auditLogs: [],
     methods: [
