@@ -4,35 +4,31 @@ Ce fichier est la **source de vérité** pour ce qui reste à faire côté paiem
 Il complète l'intégration existante : **aucun fichier n'a été créé pour le paiement**,
 l'appel existant a seulement été mis à jour.
 
-## Décision à confirmer : paiement dans la page ou redirection ?
+## Décision prise : paiement dans la page (pas de redirection)
 
 Checkout Studio demandait `ui_mode: hosted_page` (le client est **redirigé** vers une page
-de paiement Stripe). Le code de Lastro utilise `ui_mode: embedded_page` : **le formulaire de
-paiement s'affiche à l'intérieur de la page Lastro**, sans redirection.
+de paiement Stripe). **Décision confirmée : on garde `ui_mode: embedded_page`** — le
+formulaire de paiement s'affiche à l'intérieur de la page Lastro, sans redirection.
 
-C'est un choix produit, pas un oubli :
+Ce que cela implique :
 
-- la demande explicite était « le paiement dans la page », avec un montant libre choisi par
-  le client juste sous le formulaire de naissance ;
 - le client monte le formulaire Stripe en JavaScript avec `stripe.initEmbeddedCheckout(...)`,
   ce qui **exige** une session `embedded_page` — une session `hosted_page` ne peut pas être
   affichée dans la page ;
-- une session hébergée exigerait `success_url` et `cancel_url`, absents ici parce que
-  `redirect_on_completion: "never"` est utilisé (la lecture se génère sur place dès le
-  paiement confirmé).
+- `success_url` et `cancel_url` ne sont pas utilisés, puisqu'on reste sur place
+  (`redirect_on_completion: "never"`) : la lecture se génère dès le paiement confirmé ;
+- `integration_identifier` reste `hosted_web_0001` (valeur fixée par Checkout Studio),
+  c'est un simple libellé d'attribution côté Stripe, sans effet sur le parcours.
 
-**Pour basculer sur la page hébergée Stripe** (si souhaité) :
+**Si un jour tu veux basculer sur la page hébergée Stripe :**
 
 1. dans [src/payments/stripe.mjs](src/payments/stripe.mjs) : passer `ui_mode` à `"hosted_page"`,
    retirer `redirect_on_completion`, ajouter `success_url` et `cancel_url` ;
 2. dans [public/app.js](public/app.js) : remplacer le montage `initEmbeddedCheckout` par une
    redirection vers `session.url` (le serveur doit alors renvoyer `url` au lieu de
    `clientSecret`) ;
-3. reprendre `cancel_url` vers la page de lecture et `success_url` avec le gabarit
+3. `cancel_url` vers la page de lecture, `success_url` avec le gabarit
    `{CHECKOUT_SESSION_ID}`.
-
-Tant que ce point n'est pas tranché, **le code reste en paiement intégré** (aucune
-redirection, aucun `success_url`/`cancel_url`).
 
 ## Values to Replace
 
@@ -156,13 +152,12 @@ Apple Pay / Google Pay ne s'affichent **pas** sur `127.0.0.1`, ni en mode test s
 
 ### Étapes suivantes
 
-1. Trancher le point `ui_mode` ci-dessus (paiement dans la page vs redirection).
-2. Vérifier dans Stripe → Paramètres → Moyens de paiement que « Cartes » est activé.
-3. Tester une lecture complète en clés de test, puis repasser en clés live.
-4. Envisager un **webhook** `checkout.session.completed` pour l'encaissement asynchrone : le
+1. Vérifier dans Stripe → Paramètres → Moyens de paiement que « Cartes » est activé.
+2. Tester une lecture complète en clés de test, puis repasser en clés live.
+3. Envisager un **webhook** `checkout.session.completed` pour l'encaissement asynchrone : le
    parcours actuel vérifie le paiement à la demande, ce qui suffit pour une lecture unique,
    mais un webhook est nécessaire dès qu'il faudra livrer sans que le client reste sur la page.
-5. Ajouter plus tard l'identifiant client Stripe (`customer_id`) et l'historique de commandes
+4. Ajouter plus tard l'identifiant client Stripe (`customer_id`) et l'historique de commandes
    dans la base, quand les comptes clients existeront (aujourd'hui le parcours public est
    sans compte et sans stockage).
 
