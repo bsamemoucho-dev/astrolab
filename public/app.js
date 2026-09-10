@@ -492,8 +492,74 @@ const UI_EXTRA = {
     aiConsent: "Ik heb gelezen en begrepen: deze tekst is gegenereerd door een AI en kan fouten bevatten." }
 };
 
+// Textes de l'autocomplétion du lieu de naissance (9 langues).
+const PLACE_STRINGS = {
+  fr: {
+    suggestionsTitle: "Villes proposées",
+    approximate: "Aucun résultat exact — voici les lieux les plus proches :",
+    none: "Aucun lieu trouvé. Vérifiez l'orthographe ou ajoutez le pays (ex. « Valence, Espagne »).",
+    mapNote: "Déplacez la carte si le repère n'est pas au bon endroit."
+  },
+  en: {
+    suggestionsTitle: "Suggested places",
+    approximate: "No exact match — closest places:",
+    none: "No place found. Check the spelling or add the country (e.g. “Valencia, Spain”).",
+    mapNote: "Move the map if the pin is not in the right place."
+  },
+  de: {
+    suggestionsTitle: "Vorgeschlagene Orte",
+    approximate: "Kein genauer Treffer — nächstgelegene Orte:",
+    none: "Kein Ort gefunden. Prüfe die Schreibweise oder ergänze das Land (z. B. „Valencia, Spanien“).",
+    mapNote: "Verschiebe die Karte, wenn die Markierung nicht am richtigen Ort liegt."
+  },
+  es: {
+    suggestionsTitle: "Lugares sugeridos",
+    approximate: "Sin coincidencia exacta: lugares más cercanos:",
+    none: "No se ha encontrado el lugar. Comprueba la ortografía o añade el país (p. ej. «Valencia, España»).",
+    mapNote: "Mueve el mapa si el marcador no está en el lugar correcto."
+  },
+  it: {
+    suggestionsTitle: "Luoghi suggeriti",
+    approximate: "Nessuna corrispondenza esatta: luoghi più vicini:",
+    none: "Nessun luogo trovato. Controlla l'ortografia o aggiungi il paese (es. «Valencia, Spagna»).",
+    mapNote: "Sposta la mappa se il segnaposto non è nel posto giusto."
+  },
+  pt: {
+    suggestionsTitle: "Locais sugeridos",
+    approximate: "Sem correspondência exata — locais mais próximos:",
+    none: "Nenhum local encontrado. Verifique a grafia ou acrescente o país (ex. «Valência, Espanha»).",
+    mapNote: "Mova o mapa se o marcador não estiver no lugar certo."
+  },
+  no: {
+    suggestionsTitle: "Foreslåtte steder",
+    approximate: "Ingen eksakt treff — nærmeste steder:",
+    none: "Fant ingen sted. Sjekk skrivemåten eller legg til landet (f.eks. «Valencia, Spania»).",
+    mapNote: "Flytt kartet hvis markøren ikke står på riktig sted."
+  },
+  da: {
+    suggestionsTitle: "Foreslåede steder",
+    approximate: "Ingen præcis matchning — nærmeste steder:",
+    none: "Ingen steder fundet. Tjek stavemåden, eller tilføj landet (fx «Valencia, Spanien»).",
+    mapNote: "Flyt kortet, hvis markøren ikke står det rigtige sted."
+  },
+  nl: {
+    suggestionsTitle: "Voorgestelde plaatsen",
+    approximate: "Geen exacte match — dichtstbijzijnde plaatsen:",
+    none: "Geen plaats gevonden. Controleer de spelling of voeg het land toe (bv. ‘Valencia, Spanje’).",
+    mapNote: "Verplaats de kaart als de markering niet op de juiste plek staat."
+  }
+};
+
 function currentLanguage() {
   return state.language ?? "fr";
+}
+
+function placeStrings() {
+  return PLACE_STRINGS[currentLanguage()] ?? PLACE_STRINGS.fr;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
 function uiStrings() {
@@ -757,16 +823,27 @@ function placeDetails(place) {
     return "";
   }
   const t = uiStrings();
+  const p = placeStrings();
   const name = place.selectedName ?? place.name ?? "";
   const confidence = String(place?.confidence ?? "").toLowerCase();
   const label = confidence.includes("verified") ? t.placeConfirmed : confidence.includes("unverified") || confidence.includes("external") ? t.placeAuto : t.placeConfirmed;
+  const latitude = Number(place.latitude ?? place.normalizedForCalculation?.latitude);
+  const longitude = Number(place.longitude ?? place.normalizedForCalculation?.longitude);
+  const map =
+    Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? `<div class="place-map-wrap">
+          <div class="place-mini-map" data-lat="${latitude}" data-lon="${longitude}" data-label="${escapeHtml(name)}"></div>
+          <p class="place-map-note">${escapeHtml(p.mapNote)}</p>
+        </div>`
+      : "";
   return `
     <article class="item">
       <div class="item-title">
-        <span>✓ ${name}</span>
+        <span>✓ ${escapeHtml(name)}</span>
         <span class="badge badge-ok">${label}</span>
       </div>
       <div class="meta">${t.placeNote}</div>
+      ${map}
     </article>
   `;
 }
@@ -775,6 +852,254 @@ function showResolvedPlace(targetId, place) {
   const box = $(`#${targetId}`);
   box.innerHTML = placeDetails(place);
   box.hidden = false;
+  initPlaceMaps(box);
+}
+
+// --- Carte de contrôle (Leaflet + fonds OpenStreetMap, aucune clé requise) ---
+const LEAFLET_CDN = "https://unpkg.com/leaflet@1.9.4/dist";
+let leafletLoader = null;
+
+function loadLeaflet() {
+  if (window.L) {
+    return Promise.resolve(window.L);
+  }
+  if (leafletLoader) {
+    return leafletLoader;
+  }
+  leafletLoader = new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `${LEAFLET_CDN}/leaflet.css`;
+    document.head.appendChild(link);
+    const script = document.createElement("script");
+    script.src = `${LEAFLET_CDN}/leaflet.js`;
+    script.async = true;
+    script.onload = () => (window.L ? resolve(window.L) : reject(new Error("Carte indisponible")));
+    script.onerror = () => reject(new Error("Carte indisponible"));
+    document.head.appendChild(script);
+  });
+  leafletLoader.catch(() => {
+    leafletLoader = null;
+  });
+  return leafletLoader;
+}
+
+async function initPlaceMaps(container) {
+  if (!container) {
+    return;
+  }
+  const nodes = $all(".place-mini-map", container);
+  if (!nodes.length) {
+    return;
+  }
+  let L;
+  try {
+    L = await loadLeaflet();
+  } catch {
+    $all(".place-map-wrap", container).forEach((wrap) => {
+      wrap.hidden = true;
+    });
+    return;
+  }
+  nodes.forEach((node) => {
+    if (node.dataset.mapReady === "1") {
+      return;
+    }
+    const latitude = Number(node.dataset.lat);
+    const longitude = Number(node.dataset.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return;
+    }
+    node.dataset.mapReady = "1";
+    const map = L.map(node, { scrollWheelZoom: false, zoomControl: false, attributionControl: true });
+    map.setView([latitude, longitude], 10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+    L.circleMarker([latitude, longitude], {
+      radius: 9,
+      color: "#e9c46a",
+      weight: 2,
+      fillColor: "#e9c46a",
+      fillOpacity: 0.45
+    })
+      .addTo(map)
+      .bindTooltip(node.dataset.label ?? "", { direction: "top" });
+    setTimeout(() => map.invalidateSize(), 80);
+  });
+}
+
+// --- Autocomplétion du lieu de naissance -----------------------------------
+// L'utilisateur choisit une ville dans une liste : plus de faute de frappe
+// possible, et le lieu retenu est celui validé par le serveur.
+function attachPlaceAutocomplete(input, { detailsId, usePublic = false } = {}) {
+  if (!input || input.dataset.placeAutocomplete === "1") {
+    return;
+  }
+  const form = input.closest("form");
+  if (!form) {
+    return;
+  }
+  input.dataset.placeAutocomplete = "1";
+  input.setAttribute("autocomplete", "off");
+  input.setAttribute("spellcheck", "false");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-expanded", "false");
+
+  const wrap = document.createElement("div");
+  wrap.className = "place-field";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+
+  const list = document.createElement("div");
+  list.className = "place-suggestions";
+  list.setAttribute("role", "listbox");
+  list.hidden = true;
+  wrap.appendChild(list);
+
+  let timer = null;
+  let requestSeq = 0;
+  let items = [];
+  let active = -1;
+
+  const clearTimer = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  const closeList = () => {
+    clearTimer();
+    list.hidden = true;
+    list.innerHTML = "";
+    items = [];
+    active = -1;
+    input.setAttribute("aria-expanded", "false");
+  };
+
+  const highlight = (index) => {
+    active = index;
+    $all(".place-suggestion", list).forEach((node, position) => {
+      node.classList.toggle("active", position === index);
+    });
+  };
+
+  const choose = async (place) => {
+    closeList();
+    input.value = place.name ?? "";
+    await resolvePlaceForForm(form, detailsId, place.id, usePublic);
+  };
+
+  const render = (places, approximate) => {
+    const p = placeStrings();
+    items = places;
+    list.innerHTML = "";
+    if (!places.length) {
+      const empty = document.createElement("p");
+      empty.className = "place-suggestions-note";
+      empty.textContent = p.none;
+      list.appendChild(empty);
+    } else {
+      const title = document.createElement("p");
+      title.className = "place-suggestions-note";
+      title.textContent = approximate ? p.approximate : p.suggestionsTitle;
+      list.appendChild(title);
+      places.forEach((place) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "place-suggestion";
+        button.setAttribute("role", "option");
+        button.dataset.placeId = place.id ?? "";
+        const name = document.createElement("span");
+        name.className = "place-suggestion-name";
+        name.textContent = place.name ?? "";
+        const meta = document.createElement("span");
+        meta.className = "place-suggestion-meta";
+        meta.textContent = place.timeZone ?? "";
+        button.append(name, meta);
+        button.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          choose(place);
+        });
+        list.appendChild(button);
+      });
+    }
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    highlight(-1);
+  };
+
+  const search = async (query) => {
+    const seq = (requestSeq += 1);
+    const base = usePublic ? "/api/public/places" : "/api/places";
+    try {
+      const result = await api(`${base}/search?q=${encodeURIComponent(query)}`);
+      if (seq !== requestSeq) {
+        return;
+      }
+      render(result.places ?? [], Boolean(result.approximate));
+    } catch {
+      if (seq !== requestSeq) {
+        return;
+      }
+      render([], false);
+    }
+  };
+
+  input.addEventListener("input", () => {
+    clearTimer();
+    const query = input.value.trim();
+    if (query.length < 3) {
+      closeList();
+      return;
+    }
+    timer = setTimeout(() => {
+      timer = null;
+      search(query);
+    }, 260);
+  });
+
+  input.addEventListener("focus", () => {
+    if (items.length) {
+      list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(closeList, 180);
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (list.hidden) {
+      return;
+    }
+    const options = $all(".place-suggestion", list);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (!options.length) {
+        return;
+      }
+      event.preventDefault();
+      const next = event.key === "ArrowDown" ? (active + 1) % options.length : (active - 1 + options.length) % options.length;
+      highlight(next);
+      options[next].scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (event.key === "Enter" && active >= 0 && options[active]) {
+      event.preventDefault();
+      const place = items.find((entry) => entry.id === options[active].dataset.placeId);
+      if (place) {
+        choose(place);
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      closeList();
+    }
+  });
 }
 
 async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = false) {
@@ -1930,6 +2255,7 @@ function bindExpressForm() {
     field(form, "resolvedPlace").value = "";
     $("#express-place-details").hidden = true;
   });
+  attachPlaceAutocomplete(field(form, "birthPlace"), { detailsId: "express-place-details", usePublic: true });
 
   const precisionSelect = field(form, "timePrecision");
   const timeWrap = $("#express-time-label");
@@ -2260,6 +2586,7 @@ function bindForms() {
     field($("#profile-form"), "resolvedPlace").value = "";
     $("#profile-place-details").hidden = true;
   });
+  attachPlaceAutocomplete(field($("#profile-form"), "birthPlace"), { detailsId: "profile-place-details" });
 
   $("#natal-person").addEventListener("change", fillNatalForm);
 
@@ -2270,6 +2597,7 @@ function bindForms() {
     field($("#natal-form"), "resolvedPlace").value = "";
     $("#natal-place-details").hidden = true;
   });
+  attachPlaceAutocomplete(field($("#natal-form"), "birthPlace"), { detailsId: "natal-place-details" });
 
   $("#natal-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2308,6 +2636,7 @@ function bindForms() {
     field($("#person-form"), "resolvedPlace").value = "";
     $("#person-place-details").hidden = true;
   });
+  attachPlaceAutocomplete(field($("#person-form"), "birthPlace"), { detailsId: "person-place-details" });
 
   $("#person-form").addEventListener("submit", async (event) => {
     event.preventDefault();

@@ -208,12 +208,52 @@ async function searchOpenMeteoPlaces(query) {
   return (payload.results ?? []).filter((result) => result.latitude && result.longitude && result.timezone).map(fromOpenMeteoResult);
 }
 
-export async function searchPlacesForEntry(query) {
+// Requêtes de secours utilisées quand la saisie exacte ne donne rien : on
+// tolère une faute de frappe en fin de mot (« Marseile » → « Marsei ») ou un
+// mot en trop en fin de saisie (« Marseille Frnce » → « Marseille »).
+export function approximateQueries(query) {
+  const base = String(query ?? "").trim();
+  if (!base) {
+    return [];
+  }
+  const candidates = [];
+  const words = base.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    candidates.push(words.slice(0, -1).join(" "));
+  }
+  for (const drop of [1, 2]) {
+    if (base.length - drop >= 4) {
+      candidates.push(base.slice(0, base.length - drop));
+    }
+  }
+  const normalizedBase = normalizeQuery(base);
+  return [...new Set(candidates.map((value) => value.trim()))].filter(
+    (value) => value.length >= 4 && normalizeQuery(value) !== normalizedBase
+  );
+}
+
+// Renvoie les lieux candidats et précise s'ils proviennent d'une recherche
+// approximative (saisie fautive) pour que l'interface puisse le signaler.
+export async function searchPlacesForEntryDetailed(query) {
   const localMatches = searchPlaces(query);
   if (localMatches.length) {
-    return localMatches;
+    return { places: localMatches, approximate: false };
   }
-  return searchOpenMeteoPlaces(query);
+  const directMatches = await searchOpenMeteoPlaces(query);
+  if (directMatches.length) {
+    return { places: directMatches, approximate: false };
+  }
+  for (const candidate of approximateQueries(query)) {
+    const matches = await searchOpenMeteoPlaces(candidate);
+    if (matches.length) {
+      return { places: matches, approximate: true };
+    }
+  }
+  return { places: [], approximate: false };
+}
+
+export async function searchPlacesForEntry(query) {
+  return (await searchPlacesForEntryDetailed(query)).places;
 }
 
 export async function resolvePlaceForEntry({ query, placeId, birthDate } = {}) {

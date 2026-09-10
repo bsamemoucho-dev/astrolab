@@ -137,7 +137,34 @@ Responses:
 
 ### `GET /api/places/search`
 
-Returns local development place matches for a query string `q`.
+Returns place candidates for a query string `q` (`GET /api/public/places/search` is the
+same route without authentication, used by the public reading form).
+
+Response:
+
+```json
+{
+  "places": [
+    {
+      "id": "open-meteo:…",
+      "name": "Amsterdam, Hollande-Septentrionale, Pays-Bas",
+      "country": "Pays-Bas",
+      "latitude": 52.37403,
+      "longitude": 4.88969,
+      "timeZone": "Europe/Amsterdam"
+    }
+  ],
+  "approximate": true
+}
+```
+
+The local development gazetteer is searched first. Otherwise Open-Meteo Geocoding is
+queried. When the exact query returns nothing, a fallback drops the last word and/or the
+last one or two characters (`"Marseile"` → `"Marseil"`, `"Marseille Frnce"` →
+`"Marseille"`) and `approximate` is set to `true` so the interface can say that these are
+the closest places. Ids returned by an external provider are opaque and must be sent back
+unchanged to `POST /api/places/resolve`. External resolution can be disabled with
+`ASTROLAB_DISABLE_EXTERNAL_PLACE_RESOLUTION=1`.
 
 ### `DELETE /api/me`
 

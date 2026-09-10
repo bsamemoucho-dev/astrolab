@@ -44,6 +44,22 @@ Without a key, sections are produced by a deterministic template writer and the 
 
 Alternatively, copy `.env.example` to `.env` in the project root and fill the values (`.env` is git-ignored and loaded automatically by `npm start`).
 
+## Birth place entry
+
+The birth place field is a type-ahead: as the user types, the browser asks
+`GET /api/public/places/search?q=…` and shows a list of candidate places (name, region,
+country + IANA time zone). Picking one calls `POST /api/public/places/resolve`, which is
+the only value used by the calculation — the free text alone is never trusted. If the
+exact query returns nothing, the server retries with a truncated query so that a typo
+(`Amsterdm`, `Lisbone`) still proposes the right places, flagged as approximate.
+
+A small confirmation map (Leaflet + OpenStreetMap tiles, no API key, no account) is shown
+under the confirmed place so the user can see the pin before paying. The map is loaded
+only after a place has been confirmed; if the CDN is unreachable it disappears silently
+and the textual confirmation remains. OpenStreetMap tiles require the visible
+"© OpenStreetMap" attribution, which is kept on the map. No coordinates, time zone or
+provider name is shown as technical data in the customer interface.
+
 ## Guiding Constraints
 
 - Do not invent undocumented traditions, rules, or sources.

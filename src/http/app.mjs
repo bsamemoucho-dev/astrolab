@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { deleteAccount, getUserForSession, login, logout, register, verifyEmail } from "../auth/authService.mjs";
 import { llmConfiguration } from "../deliverables/writers.mjs";
 import { JsonStore } from "../db/jsonStore.mjs";
-import { resolvePlaceForEntry, searchPlacesForEntry } from "../geo/placeResolver.mjs";
+import { resolvePlaceForEntry, searchPlacesForEntryDetailed } from "../geo/placeResolver.mjs";
 import { getAdminSummary, listAdminAuditLogs } from "../models/adminService.mjs";
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
@@ -87,7 +87,7 @@ export function createApp(options = {}) {
     // Parcours public « sans compte » : résolution de lieu et lecture, aucune
     // inscription, aucune donnée personnelle persistée.
     route("GET", /^\/api\/public\/places\/search$/, async (_req, res, _params, url) => {
-      sendJson(res, 200, { places: await searchPlacesForEntry(url.searchParams.get("q")) });
+      sendJson(res, 200, await searchPlacesForEntryDetailed(url.searchParams.get("q")));
     }),
     route("POST", /^\/api\/public\/places\/resolve$/, async (req, res) => {
       try {
@@ -209,7 +209,7 @@ export function createApp(options = {}) {
     }),
     route("GET", /^\/api\/places\/search$/, async (req, res, _params, url) => {
       await requireUser(store, req);
-      sendJson(res, 200, { places: await searchPlacesForEntry(url.searchParams.get("q")) });
+      sendJson(res, 200, await searchPlacesForEntryDetailed(url.searchParams.get("q")));
     }),
     route("POST", /^\/api\/places\/resolve$/, async (req, res) => {
       await requireUser(store, req);
