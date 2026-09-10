@@ -56,7 +56,11 @@ exact query returns nothing, the server retries with a truncated query so that a
 A small confirmation map (Leaflet + OpenStreetMap tiles, no API key, no account) is shown
 under the confirmed place so the user can see the pin before paying. **The pin is
 draggable**: the user can correct the exact position, and the moved coordinates are what
-the calculation receives (`resolvedPlace.normalizedForCalculation`). The adjustment is
+the calculation receives (`resolvedPlace.normalizedForCalculation`). The interface states
+the exact point sent to the calculation ("Point utilisé pour le calcul : 52.3966, 4.9768 ·
+Heure de naissance interprétée en Europe/Amsterdam"), updated live while dragging, and
+draws a dashed line from the geocoded origin to the moved pin so the change is visible.
+The adjustment is
 recorded in the payload (`confidence: coordinates_manually_adjusted`,
 `manualAdjustment.movedMeters`, original coordinates) so the provenance stays honest.
 The IANA time zone is deliberately **not** recomputed on drag: beyond 30 km the interface

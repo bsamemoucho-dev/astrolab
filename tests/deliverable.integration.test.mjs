@@ -337,6 +337,44 @@ test("cross-check safeguards: a correction that contradicts the facts is rejecte
   assert.match(goodCorrection.html, /Texte de départ corrigé/);
 });
 
+test("a manually moved map pin really changes the coordinates used by the reading", async () => {
+  const writerFn = (section) => `Texte pour ${section.id}.`;
+  const base = {
+    firstName: "Test",
+    language: "fr",
+    birthDate: "1990-01-15",
+    timePrecision: "exact",
+    timeValue: "12:30"
+  };
+  const resolved = {
+    selectedName: "Amsterdam, Pays-Bas",
+    country: "Pays-Bas",
+    latitude: 52.37403,
+    longitude: 4.88969,
+    timeZone: "Europe/Amsterdam",
+    normalizedForCalculation: { latitude: 52.37403, longitude: 4.88969, timeZone: "Europe/Amsterdam" },
+    resolutionSource: "open-meteo-geocoding-api@2026-09-01",
+    confidence: "external_geocoding_unverified"
+  };
+  const moved = {
+    ...resolved,
+    latitude: 52.34709,
+    longitude: 4.81339,
+    normalizedForCalculation: { latitude: 52.34709, longitude: 4.81339, timeZone: "Europe/Amsterdam" },
+    resolutionSource: "open-meteo-geocoding-api@2026-09-01 + ajustement manuel du repère",
+    confidence: "coordinates_manually_adjusted"
+  };
+
+  const before = await createPublicReading({ ...base, resolvedPlace: resolved }, { writerFn, crossCheckFn: null });
+  const after = await createPublicReading({ ...base, resolvedPlace: moved }, { writerFn, crossCheckFn: null });
+
+  // Le document publié porte les coordonnées réellement utilisées.
+  assert.match(before.html, /52\.37403/);
+  assert.match(after.html, /52\.34709/);
+  assert.doesNotMatch(after.html, /52\.37403/);
+  assert.match(after.markdown, /52\.34709/);
+});
+
 test("public checkout session reports that payments are not configured yet", async () => {
   const app = await startTestApp();
   try {

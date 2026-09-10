@@ -501,7 +501,9 @@ const PLACE_STRINGS = {
     mapNote: "Déplacez le repère si le lieu n'est pas exact.",
     pinMoved: "Position ajustée — {distance} du point d'origine.",
     pinReset: "Revenir au point de départ",
-    pinFar: "Déplacement de plus de 30 km : le fuseau horaire ({zone}) n'est pas recalculé. Si la ville était fausse, choisissez plutôt la bonne ville dans la liste."
+    pinFar: "Déplacement de plus de 30 km : le fuseau horaire ({zone}) n'est pas recalculé. Si la ville était fausse, choisissez plutôt la bonne ville dans la liste.",
+    calcPoint: "Point utilisé pour le calcul :",
+    calcZone: "Heure de naissance interprétée en {zone}"
   },
   en: {
     suggestionsTitle: "Suggested places",
@@ -510,7 +512,9 @@ const PLACE_STRINGS = {
     mapNote: "Drag the pin if the place is not exact.",
     pinMoved: "Position adjusted — {distance} from the original point.",
     pinReset: "Reset to the original point",
-    pinFar: "Moved more than 30 km: the time zone ({zone}) is not recalculated. If the city was wrong, pick the right city from the list instead."
+    pinFar: "Moved more than 30 km: the time zone ({zone}) is not recalculated. If the city was wrong, pick the right city from the list instead.",
+    calcPoint: "Point used for the calculation:",
+    calcZone: "Birth time interpreted in {zone}"
   },
   de: {
     suggestionsTitle: "Vorgeschlagene Orte",
@@ -519,7 +523,9 @@ const PLACE_STRINGS = {
     mapNote: "Verschiebe die Markierung, wenn der Ort nicht genau ist.",
     pinMoved: "Position angepasst — {distance} vom ursprünglichen Punkt.",
     pinReset: "Zum Ausgangspunkt zurückkehren",
-    pinFar: "Mehr als 30 km verschoben: Die Zeitzone ({zone}) wird nicht neu berechnet. Wenn die Stadt falsch war, wähle sie stattdessen aus der Liste."
+    pinFar: "Mehr als 30 km verschoben: Die Zeitzone ({zone}) wird nicht neu berechnet. Wenn die Stadt falsch war, wähle sie stattdessen aus der Liste.",
+    calcPoint: "Für die Berechnung verwendeter Punkt:",
+    calcZone: "Geburtszeit interpretiert in {zone}"
   },
   es: {
     suggestionsTitle: "Lugares sugeridos",
@@ -528,7 +534,9 @@ const PLACE_STRINGS = {
     mapNote: "Mueve el marcador si el lugar no es exacto.",
     pinMoved: "Posición ajustada — {distance} del punto original.",
     pinReset: "Volver al punto de partida",
-    pinFar: "Desplazamiento de más de 30 km: la zona horaria ({zone}) no se recalcula. Si la ciudad era incorrecta, elige la ciudad correcta en la lista."
+    pinFar: "Desplazamiento de más de 30 km: la zona horaria ({zone}) no se recalcula. Si la ciudad era incorrecta, elige la ciudad correcta en la lista.",
+    calcPoint: "Punto utilizado para el cálculo:",
+    calcZone: "Hora de nacimiento interpretada en {zone}"
   },
   it: {
     suggestionsTitle: "Luoghi suggeriti",
@@ -537,7 +545,9 @@ const PLACE_STRINGS = {
     mapNote: "Sposta il segnaposto se il luogo non è esatto.",
     pinMoved: "Posizione regolata — {distance} dal punto originale.",
     pinReset: "Torna al punto di partenza",
-    pinFar: "Spostamento di oltre 30 km: il fuso orario ({zone}) non viene ricalcolato. Se la città era sbagliata, scegli quella giusta dall'elenco."
+    pinFar: "Spostamento di oltre 30 km: il fuso orario ({zone}) non viene ricalcolato. Se la città era sbagliata, scegli quella giusta dall'elenco.",
+    calcPoint: "Punto usato per il calcolo:",
+    calcZone: "Ora di nascita interpretata in {zone}"
   },
   pt: {
     suggestionsTitle: "Locais sugeridos",
@@ -546,7 +556,9 @@ const PLACE_STRINGS = {
     mapNote: "Mova o marcador se o local não estiver exato.",
     pinMoved: "Posição ajustada — {distance} do ponto original.",
     pinReset: "Voltar ao ponto de partida",
-    pinFar: "Deslocamento superior a 30 km: o fuso horário ({zone}) não é recalculado. Se a cidade estava errada, escolha a cidade correta na lista."
+    pinFar: "Deslocamento superior a 30 km: o fuso horário ({zone}) não é recalculado. Se a cidade estava errada, escolha a cidade correta na lista.",
+    calcPoint: "Ponto utilizado no cálculo:",
+    calcZone: "Hora de nascimento interpretada em {zone}"
   },
   no: {
     suggestionsTitle: "Foreslåtte steder",
@@ -555,7 +567,9 @@ const PLACE_STRINGS = {
     mapNote: "Flytt markøren hvis stedet ikke er nøyaktig.",
     pinMoved: "Posisjon justert — {distance} fra utgangspunktet.",
     pinReset: "Tilbake til utgangspunktet",
-    pinFar: "Flyttet mer enn 30 km: tidssonen ({zone}) beregnes ikke på nytt. Hvis byen var feil, velg riktig by fra listen."
+    pinFar: "Flyttet mer enn 30 km: tidssonen ({zone}) beregnes ikke på nytt. Hvis byen var feil, velg riktig by fra listen.",
+    calcPoint: "Punktet som brukes i beregningen:",
+    calcZone: "Fødselstid tolket i {zone}"
   },
   da: {
     suggestionsTitle: "Foreslåede steder",
@@ -564,7 +578,9 @@ const PLACE_STRINGS = {
     mapNote: "Flyt markøren, hvis stedet ikke er præcist.",
     pinMoved: "Position justeret — {distance} fra udgangspunktet.",
     pinReset: "Tilbage til udgangspunktet",
-    pinFar: "Flyttet mere end 30 km: tidszonen ({zone}) genberegnes ikke. Hvis byen var forkert, vælg den rigtige by på listen."
+    pinFar: "Flyttet mere end 30 km: tidszonen ({zone}) genberegnes ikke. Hvis byen var forkert, vælg den rigtige by på listen.",
+    calcPoint: "Punktet, der bruges til beregningen:",
+    calcZone: "Fødselstid fortolket i {zone}"
   },
   nl: {
     suggestionsTitle: "Voorgestelde plaatsen",
@@ -573,7 +589,9 @@ const PLACE_STRINGS = {
     mapNote: "Verplaats de markering als de plaats niet exact is.",
     pinMoved: "Positie aangepast — {distance} van het oorspronkelijke punt.",
     pinReset: "Terug naar het oorspronkelijke punt",
-    pinFar: "Meer dan 30 km verplaatst: de tijdzone ({zone}) wordt niet opnieuw berekend. Als de stad fout was, kies dan de juiste stad uit de lijst."
+    pinFar: "Meer dan 30 km verplaatst: de tijdzone ({zone}) wordt niet opnieuw berekend. Als de stad fout was, kies dan de juiste stad uit de lijst.",
+    calcPoint: "Punt gebruikt voor de berekening:",
+    calcZone: "Geboortetijd geïnterpreteerd in {zone}"
   }
 };
 
@@ -895,6 +913,7 @@ function placeDetails(place) {
       ? `<div class="place-map-wrap">
           <div class="place-mini-map" data-lat="${latitude}" data-lon="${longitude}" data-label="${escapeHtml(name)}"></div>
           <p class="place-map-note">${escapeHtml(p.mapNote)}</p>
+          <p class="place-calc-point"></p>
           <p class="place-pin-status" hidden></p>
           <button type="button" class="secondary place-pin-reset" hidden>${escapeHtml(p.pinReset)}</button>
         </div>`
@@ -1004,12 +1023,54 @@ async function initPlaceMaps(container, { place = null, form = null } = {}) {
 
     const wrap = node.closest(".place-map-wrap");
     const status = wrap?.querySelector(".place-pin-status") ?? null;
+    const calcPoint = wrap?.querySelector(".place-calc-point") ?? null;
     const resetButton = wrap?.querySelector(".place-pin-reset") ?? null;
     const original = {
       latitude: Number(place?.normalizedForCalculation?.latitude ?? place?.latitude ?? latitude),
       longitude: Number(place?.normalizedForCalculation?.longitude ?? place?.longitude ?? longitude)
     };
     const timeZone = place?.normalizedForCalculation?.timeZone ?? place?.timeZone ?? "";
+
+    // Point d'origine (gris) et trait pointillé : rendent visible ce qui a été
+    // déplacé, pour que l'utilisateur voie que le calcul suivra le nouveau point.
+    const originDot = L.circleMarker([original.latitude, original.longitude], {
+      radius: 4,
+      color: "#9aa3c7",
+      weight: 2,
+      fillColor: "#0b1230",
+      fillOpacity: 1
+    });
+    const link = L.polyline(
+      [
+        [original.latitude, original.longitude],
+        [latitude, longitude]
+      ],
+      { color: "#e9c46a", weight: 2, dashArray: "4 6", opacity: 0.9 }
+    );
+    let linkShown = false;
+    const showLink = (visible) => {
+      if (visible === linkShown) {
+        return;
+      }
+      linkShown = visible;
+      if (visible) {
+        originDot.addTo(map);
+        link.addTo(map);
+      } else {
+        map.removeLayer(originDot);
+        map.removeLayer(link);
+      }
+    };
+
+    // Affiche noir sur blanc le point exact qui partira au calcul, mis à jour
+    // pendant le déplacement.
+    const paintCalcPoint = (lat, lng) => {
+      if (!calcPoint) {
+        return;
+      }
+      calcPoint.textContent = `${p.calcPoint} ${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)} · ${p.calcZone.replace("{zone}", timeZone)}`;
+    };
+    paintCalcPoint(original.latitude, original.longitude);
 
     // Le repère déplacé change les coordonnées réellement utilisées par le
     // calcul : on réécrit le lieu résolu, en gardant la trace de l'ajustement
@@ -1060,11 +1121,23 @@ async function initPlaceMaps(container, { place = null, form = null } = {}) {
       status.hidden = false;
     };
 
+    marker.on("drag", () => {
+      const { lat, lng } = marker.getLatLng();
+      paintCalcPoint(lat, lng);
+      link.setLatLngs([
+        [original.latitude, original.longitude],
+        [lat, lng]
+      ]);
+      showLink(distanceInMeters(original, { latitude: lat, longitude: lng }) >= 5);
+    });
+
     marker.on("dragend", () => {
       const { lat, lng } = marker.getLatLng();
       const movedMeters = distanceInMeters(original, { latitude: lat, longitude: lng });
       writeAdjustedPlace(lat, lng, movedMeters);
+      paintCalcPoint(lat, lng);
       showStatus(movedMeters);
+      showLink(movedMeters >= 5);
       if (resetButton) {
         resetButton.hidden = movedMeters < 5;
       }
@@ -1076,6 +1149,8 @@ async function initPlaceMaps(container, { place = null, form = null } = {}) {
       if (canMove) {
         hidden.value = JSON.stringify(place);
       }
+      paintCalcPoint(original.latitude, original.longitude);
+      showLink(false);
       if (status) {
         status.hidden = true;
         status.classList.remove("place-pin-warning");
