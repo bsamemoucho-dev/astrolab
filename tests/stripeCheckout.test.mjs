@@ -59,6 +59,15 @@ test("la session de paiement utilise les paramètres attendus par l'API Stripe a
           assert.equal(sent.ui_mode, "embedded_page");
           assert.equal(sent.mode, "payment");
           assert.equal(sent.redirect_on_completion, "never");
+          assert.equal(sent.billing_address_collection, "auto");
+          assert.equal(sent["phone_number_collection[enabled]"], "false");
+          assert.equal(sent["automatic_tax[enabled]"], "false");
+          assert.equal(sent.allow_promotion_codes, "false");
+          assert.equal(sent.submit_type, "auto");
+          assert.equal(sent.integration_identifier, "hosted_web_0001");
+          assert.equal(sent.origin_context, "web");
+          // Réservé au mode abonnement : ne doit pas être envoyé ici.
+          assert.equal("payment_method_collection" in sent, false);
           assert.equal(sent["line_items[0][price_data][unit_amount]"], "1000");
           assert.equal(sent["line_items[0][price_data][currency]"], "eur");
           // Paramètre supprimé de l'API Stripe : ne doit plus être envoyé.

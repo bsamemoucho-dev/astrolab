@@ -170,12 +170,19 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
     error.status = 400;
     throw error;
   }
-  // Les moyens de paiement (carte, Apple Pay, Google Pay…) sont ceux activés
-  // dans le tableau de bord Stripe : Checkout les applique automatiquement.
-  // Le paramètre `automatic_payment_methods` n'existe plus sur cette route.
+  // Paramètres configurés dans Checkout Studio (valeurs fixées par l'interface).
+  // `mode` et les lignes de commande restent ceux du produit : paiement unique,
+  // montant libre choisi par le client.
   const common = {
     mode: "payment",
     redirect_on_completion: "never",
+    billing_address_collection: "auto",
+    "phone_number_collection[enabled]": "false",
+    "automatic_tax[enabled]": "false",
+    allow_promotion_codes: "false",
+    submit_type: "auto",
+    integration_identifier: "hosted_web_0001",
+    origin_context: "web",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": config.currency,
     "line_items[0][price_data][unit_amount]": String(amount),
