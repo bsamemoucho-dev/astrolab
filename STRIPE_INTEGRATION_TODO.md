@@ -126,7 +126,7 @@ public/app.js               montage du formulaire Stripe dans #checkout-containe
 
 ### Comment ça marche
 
-1. Le client choisit un montant **à partir de 5 €** (pastilles 5/10/20/30/50 € en suggestions, ou saisie libre **sans plafond**) puis coche la mention « texte généré par une IA ».
+1. Le client choisit un montant **à partir de 5 €** (pastilles 5/10/20/30/50 € en suggestions, **20 € proposé par défaut**, saisie libre **sans plafond**) puis coche la mention « texte généré par une IA ».
 2. `POST /api/public/checkout-session` crée une session Checkout (`embedded_page`, montant
    libre) et renvoie `sessionId` + `clientSecret`.
 3. `stripe.initEmbeddedCheckout(...)` monte le formulaire **dans la page** ; à la

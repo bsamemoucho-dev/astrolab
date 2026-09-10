@@ -8,7 +8,9 @@ const state = {
 
 // Offre de prix : montant libre à partir de 5 €, sans plafond. Les pastilles
 // (5/10/20/30/50) ne sont que des suggestions ; celui qui veut donner plus le peut.
+// 20 € est le montant proposé par défaut.
 const MIN_PAYMENT_EUROS = 5;
+const DEFAULT_PAYMENT_EUROS = 20;
 
 const LANGUAGES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
@@ -2565,7 +2567,10 @@ function bindExpressForm() {
     }
     const payments = state.config?.payments ?? {};
     // Montant libre : plancher à 5 €, aucun plafond (celui qui veut donner plus le peut).
-    const typed = Math.round(Number(amountInput?.value ?? MIN_PAYMENT_EUROS));
+    // Champ vide → on propose le montant par défaut (20 €) ; en dessous du minimum,
+    // on corrige sur le minimum et on explique, sans jamais valider en silence.
+    const raw = amountInput ? String(amountInput.value).trim() : "";
+    const typed = raw === "" ? DEFAULT_PAYMENT_EUROS : Math.round(Number(raw));
     const belowMinimum = !Number.isFinite(typed) || typed < MIN_PAYMENT_EUROS;
     const euros = belowMinimum ? MIN_PAYMENT_EUROS : typed;
     if (amountInput) {
