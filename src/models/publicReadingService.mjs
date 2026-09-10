@@ -143,18 +143,52 @@ export async function createPublicReading(input = {}, options = {}) {
   }
 
   // Vérification croisée par un second modèle (Google Gemini), si une clé est configurée.
+  const crossCheckFn = options.crossCheckFn ?? crossCheckReading;
   const verification =
     options.crossCheck === false
       ? { status: "skipped", reason: "disabled", provider: null, model: null, issues: [], corrections: {} }
-      : await crossCheckReading({ sections, socle, language });
+      : await crossCheckFn({ sections, socle, language });
+  // Garde-fous : une correction n'est appliquée que si elle est (1) signalée comme
+  // une erreur factuelle, (2) une retouche ciblée et non une réécriture, et
+  // (3) validée contre les faits calculés. Sinon le texte d'origine est conservé.
   let correctedCount = 0;
+  let rejectedCount = 0;
+  const similarity = (a, b) => {
+    const words = (text) => new Set(String(text).toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? []);
+    const first = words(a);
+    const second = words(b);
+    if (first.size === 0 && second.size === 0) return 1;
+    let common = 0;
+    for (const word of first) {
+      if (second.has(word)) common += 1;
+    }
+    return common / (first.size + second.size - common);
+  };
+
   if (verification.status === "checked" && verification.corrections) {
     for (const [sectionId, correctedText] of Object.entries(verification.corrections)) {
       const target = sections.find((entry) => entry.id === sectionId);
-      if (target && typeof correctedText === "string" && correctedText.trim() && correctedText.trim() !== target.text.trim()) {
-        target.text = correctedText.trim();
+      if (!target || typeof correctedText !== "string") {
+        continue;
+      }
+      const clean = correctedText.trim();
+      if (!clean || clean === target.text.trim()) {
+        continue;
+      }
+      const issue = (verification.issues ?? []).find((entry) => entry.section === sectionId);
+      const isFactualError = String(issue?.severity ?? "").toLowerCase() === "error";
+      const targetedEdit = similarity(target.text, clean) >= 0.6;
+      const stillValid =
+        options.validate === false
+          ? true
+          : validateSectionText({ sectionId, text: clean, socle }).ok;
+      if (isFactualError && targetedEdit && stillValid) {
+        target.text = clean;
         target.crossCheckStatus = "corrected";
         correctedCount += 1;
+      } else {
+        target.crossCheckStatus = "flagged";
+        rejectedCount += 1;
       }
     }
   }
@@ -176,7 +210,7 @@ export async function createPublicReading(input = {}, options = {}) {
   const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
   const verificationNote =
     verification.status === "checked"
-      ? `Vérification croisée automatique (${verification.model}) : ${verification.issues.length} remarque(s), ${correctedCount} correction(s) appliquée(s).`
+      ? `Vérification croisée automatique (${verification.model}) : ${verification.issues.length} remarque(s), ${correctedCount} correction(s) appliquée(s)${rejectedCount > 0 ? `, ${rejectedCount} correction(s) écartée(s) par les garde-fous` : ""}. Les données calculées n'ont pas été modifiées.`
       : verification.status === "failed"
         ? "Vérification croisée indisponible pour cette lecture."
         : null;
@@ -193,7 +227,8 @@ export async function createPublicReading(input = {}, options = {}) {
       provider: verification.provider ?? null,
       model: verification.model ?? null,
       issues: verification.issues ?? [],
-      correctedCount
+      correctedCount,
+      rejectedCount
     },
     personLabel: personInfo.firstName ?? null,
     costEstimate,

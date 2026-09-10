@@ -6,6 +6,7 @@ import { JsonStore } from "../src/db/jsonStore.mjs";
 import { validateSectionText } from "../src/deliverables/validator.mjs";
 import { writeSection } from "../src/deliverables/writers.mjs";
 import { DOSSIER_SECTIONS } from "../src/deliverables/plan.mjs";
+import { createPublicReading } from "../src/models/publicReadingService.mjs";
 
 async function startTestApp() {
   const { server, store } = createApp({ store: new JsonStore(null) });
@@ -291,6 +292,49 @@ test("public no-account reading works without authentication and stores nothing"
   } finally {
     await app.close();
   }
+});
+
+test("cross-check safeguards: a correction that contradicts the facts is rejected", async () => {
+  const input = {
+    firstName: "Test",
+    language: "fr",
+    birthDate: "1990-01-15",
+    timePrecision: "exact",
+    timeValue: "12:30",
+    resolvedPlace: {
+      selectedName: "Paris, France",
+      normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+    }
+  };
+  const writerFn = (section) => `Texte de départ pour ${section.id}, sans erreur factuelle.`;
+
+  const badCorrection = await createPublicReading(input, {
+    writerFn,
+    crossCheckFn: async ({ sections }) => ({
+      status: "checked",
+      provider: "gemini",
+      model: "test-model",
+      issues: [{ section: sections[0].id, severity: "error", message: "Soleil mal placé" }],
+      corrections: { [sections[0].id]: "Ton Soleil en Gémeaux raconte une tout autre histoire." }
+    })
+  });
+  assert.equal(badCorrection.verification.rejectedCount, 1);
+  assert.equal(badCorrection.verification.correctedCount, 0);
+  assert.match(badCorrection.html, /Texte de départ/);
+
+  const goodCorrection = await createPublicReading(input, {
+    writerFn,
+    crossCheckFn: async ({ sections }) => ({
+      status: "checked",
+      provider: "gemini",
+      model: "test-model",
+      issues: [{ section: sections[0].id, severity: "error", message: "coquille" }],
+      corrections: { [sections[0].id]: "Texte de départ corrigé, sans erreur factuelle." }
+    })
+  });
+  assert.equal(goodCorrection.verification.correctedCount, 1);
+  assert.equal(goodCorrection.verification.rejectedCount, 0);
+  assert.match(goodCorrection.html, /Texte de départ corrigé/);
 });
 
 test("public checkout session reports that payments are not configured yet", async () => {
