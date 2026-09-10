@@ -152,6 +152,11 @@ async function stripeRequest(config, path, { method = "GET", body = null } = {})
   return data;
 }
 
+// Stripe a renommé les modes d'interface : `embedded_page` (actuel) remplace
+// `embedded`. On envoie le nom actuel, et on retombe sur l'ancien si le compte
+// est épinglé à une version d'API antérieure.
+const EMBEDDED_UI_MODES = ["embedded_page", "embedded"];
+
 export async function createEmbeddedCheckoutSession({ amountCents, label }) {
   const config = stripeConfiguration();
   if (!config) {
@@ -165,19 +170,39 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
     error.status = 400;
     throw error;
   }
-  const data = await stripeRequest(config, "/checkout/sessions", {
-    method: "POST",
-    body: {
-      mode: "payment",
-      ui_mode: "embedded",
-      redirect_on_completion: "never",
-      "automatic_payment_methods[enabled]": "true",
-      "line_items[0][quantity]": "1",
-      "line_items[0][price_data][currency]": config.currency,
-      "line_items[0][price_data][unit_amount]": String(amount),
-      "line_items[0][price_data][product_data][name]": label ?? "Lecture symbolique Lastro"
+  // Les moyens de paiement (carte, Apple Pay, Google Pay…) sont ceux activés
+  // dans le tableau de bord Stripe : Checkout les applique automatiquement.
+  // Le paramètre `automatic_payment_methods` n'existe plus sur cette route.
+  const common = {
+    mode: "payment",
+    redirect_on_completion: "never",
+    "line_items[0][quantity]": "1",
+    "line_items[0][price_data][currency]": config.currency,
+    "line_items[0][price_data][unit_amount]": String(amount),
+    "line_items[0][price_data][product_data][name]": label ?? "Lecture symbolique Lastro"
+  };
+
+  let data = null;
+  let lastError = null;
+  for (const uiMode of EMBEDDED_UI_MODES) {
+    try {
+      data = await stripeRequest(config, "/checkout/sessions", {
+        method: "POST",
+        body: { ...common, ui_mode: uiMode }
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      // On ne réessaie que si Stripe refuse le nom du mode d'affichage
+      // (différence de version d'API). Jamais pour une clé ou un compte refusé.
+      if (!/ui_mode/i.test(error.message)) {
+        throw error;
+      }
     }
-  });
+  }
+  if (!data) {
+    throw lastError;
+  }
   return {
     sessionId: data.id,
     clientSecret: data.client_secret,
