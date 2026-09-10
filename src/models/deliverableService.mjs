@@ -7,6 +7,7 @@
 
 import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
+import { aiReviewNote } from "../deliverables/i18n.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
 import { validateSectionText } from "../deliverables/validator.mjs";
@@ -423,6 +424,25 @@ export function markDeliverableReviewed(store, userId, deliverableId, input = {}
       { reviewedByHuman: deliverable.reviewedByHuman, reviewNote: deliverable.reviewNote }
     );
     const version = (state.deliverableVersions ?? []).find((entry) => entry.id === deliverable.currentVersionId);
+    if (version) {
+      const aiReview = aiReviewNote("fr", 2, deliverable.reviewedByHuman);
+      version.aiReview = aiReview;
+      version.markdown = renderDossierMarkdown({
+        title: version.title,
+        personLabel: deliverable.personLabel,
+        createdAt: version.createdAt,
+        sections: version.sections,
+        aiReview
+      });
+      version.html = renderDossierHtml({
+        title: version.title,
+        personLabel: deliverable.personLabel,
+        createdAt: version.createdAt,
+        writerMode: deliverable.writerMode ?? "llm",
+        sections: version.sections,
+        aiReview
+      });
+    }
     return publicDeliverable(deliverable, version);
   });
 }
