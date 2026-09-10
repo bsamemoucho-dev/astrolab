@@ -121,20 +121,29 @@ function birthFor(personId) {
   return state.dossier?.birthData?.find((entry) => entry.personId === personId);
 }
 
+function placeConfidenceLabel(place) {
+  const value = String(place?.confidence ?? "").toLowerCase();
+  if (value.includes("verified")) {
+    return "Lieu confirmé";
+  }
+  if (value.includes("unverified") || value.includes("external")) {
+    return "Localisé automatiquement";
+  }
+  return "Lieu sélectionné";
+}
+
 function placeDetails(place) {
   if (!place) {
     return "";
   }
+  const name = place.selectedName ?? place.name ?? "";
   return `
     <article class="item">
       <div class="item-title">
-        <span>${place.selectedName ?? place.name}</span>
-        <span class="badge">${place.confidence ?? "non vérifié"}</span>
+        <span>✓ ${name}</span>
+        <span class="badge badge-ok">${placeConfidenceLabel(place)}</span>
       </div>
-      <div class="meta">Coordonnées utilisées : ${place.normalizedForCalculation.latitude}, ${place.normalizedForCalculation.longitude}</div>
-      <div class="meta">Fuseau IANA : ${place.normalizedForCalculation.timeZone}</div>
-      <div class="meta">Règle/fuseau : ${place.timezoneRule?.status ?? "non documenté"}</div>
-      <div class="meta">Source : ${place.resolutionSource}</div>
+      <div class="meta">Ce lieu sera utilisé pour calculer votre thème.</div>
     </article>
   `;
 }
@@ -160,7 +169,7 @@ async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = 
     field(form, "resolvedPlace").value = JSON.stringify(result.place);
     field(form, "birthPlace").value = result.place.selectedName;
     showResolvedPlace(detailsId, result.place);
-    showMessage("Lieu résolu et prêt pour le calcul.");
+    showMessage("Lieu trouvé ✓");
     return result.place;
   } catch (error) {
     if (error.matches?.length) {
@@ -169,9 +178,9 @@ async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = 
         .map(
           (place) => `
             <article class="item">
-              <div class="item-title"><span>${place.name}</span><span class="badge">${place.timeZone}</span></div>
-              <div class="meta">Sélection requise avant le calcul.</div>
-              <button class="secondary" data-resolve-place-id="${place.id}" type="button">Sélectionner</button>
+              <div class="item-title"><span>${place.name}</span></div>
+              <div class="meta">${place.country ?? "Choisissez ce lieu s'il s'agit du bon."}</div>
+              <button class="secondary" data-resolve-place-id="${place.id}" type="button">C'est celui-ci</button>
             </article>
           `
         )
