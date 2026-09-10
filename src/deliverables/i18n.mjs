@@ -229,9 +229,162 @@ const DOCS = { fr: FR, en: EN, de: DE, es: ES, it: IT };
 export function docStrings(code) {
   const language = normalizeLanguage(code);
   const table = DOCS[language] ?? FR;
-  return { ...FR, ...table, sectionTitles: { ...FR.sectionTitles, ...(table.sectionTitles ?? {}) }, lang: language };
+  const details = DETAILS[language] ?? DETAILS.fr;
+  return {
+    ...FR,
+    ...table,
+    ...details,
+    sectionTitles: { ...FR.sectionTitles, ...(table.sectionTitles ?? {}) },
+    lang: language
+  };
 }
 
 export function sectionTitleFor(code, sectionId) {
   return docStrings(code).sectionTitles[sectionId] ?? sectionId;
+}
+
+// ---------------------------------------------------------------------------
+// Données visibles (annexe + lecture) et guide d'adaptation culturelle.
+// ---------------------------------------------------------------------------
+
+const DETAILS = {
+  fr: {
+    styleGuide:
+      "Écris comme un auteur francophone natif : ton chaleureux, tutoiement, phrases fluides et concrètes. Évite les tournures traduites de l'anglais. Adapte les exemples à la culture francophone (rapport à la famille, au travail, à la spiritualité).",
+    planets: { Sun: "Soleil", Moon: "Lune", Mercury: "Mercure", Venus: "Vénus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturne" },
+    signs: {
+      Aries: "Bélier", Taurus: "Taureau", Gemini: "Gémeaux", Cancer: "Cancer", Leo: "Lion", Virgo: "Vierge",
+      Libra: "Balance", Scorpio: "Scorpion", Sagittarius: "Sagittaire", Capricorn: "Capricorne", Aquarius: "Verseau", Pisces: "Poissons"
+    },
+    labels: {
+      date: "Date de naissance", time: "Heure de naissance", timeInterval: "Heure de naissance (intervalle)",
+      place: "Lieu de naissance", tz: "Fuseau horaire", coords: "Coordonnées", zodiac: "Zodiaque",
+      houses: "Système de maisons", sect: "Secte du thème", interval: "Analyse d'intervalle", person: "Personne",
+      house: "maison", retro: "rétrograde", asc: "Ascendant", mc: "Milieu du Ciel", aspect: "distance angulaire",
+      closest: "plus proche candidat", gap: "écart", noOrb: "aucune règle d'orbe active",
+      stable: "cible(s) stable(s)", sensitive: "sensible(s)", indeterminate: "indéterminée(s)"
+    },
+    values: {
+      tropical: "tropical", wholeSign: "Whole Sign (maisons entières)", wholeSignShort: "Whole Sign",
+      diurnal: "diurne (Soleil au-dessus de l'horizon)", nocturnal: "nocturne (Soleil sous l'horizon)",
+      exact: "exacte", approximate: "approximative", unknown: "inconnue"
+    },
+    uncertainty: {
+      unknown: "Heure de naissance inconnue : l'Ascendant, le Milieu du Ciel, les maisons et la secte n'ont pas été calculés.",
+      approximate: "Heure de naissance approximative : l'Ascendant et les maisons dépendent d'une marge d'incertitude inconnue.",
+      interval: "Heure de naissance fournie en intervalle : aucune heure exacte n'a été inventée."
+    }
+  },
+  en: {
+    styleGuide:
+      "Write as a native English author: warm, natural, flowing sentences with 'you'. Do not translate French structures or idioms. Adapt examples to the reader's culture (family, work, spirituality).",
+    planets: { Sun: "Sun", Moon: "Moon", Mercury: "Mercury", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturn" },
+    signs: {
+      Aries: "Aries", Taurus: "Taurus", Gemini: "Gemini", Cancer: "Cancer", Leo: "Leo", Virgo: "Virgo",
+      Libra: "Libra", Scorpio: "Scorpio", Sagittarius: "Sagittarius", Capricorn: "Capricorn", Aquarius: "Aquarius", Pisces: "Pisces"
+    },
+    labels: {
+      date: "Date of birth", time: "Time of birth", timeInterval: "Time of birth (range)",
+      place: "Place of birth", tz: "Time zone", coords: "Coordinates", zodiac: "Zodiac",
+      houses: "House system", sect: "Chart sect", interval: "Range analysis", person: "Person",
+      house: "house", retro: "retrograde", asc: "Ascendant", mc: "Midheaven", aspect: "angular distance",
+      closest: "closest candidate", gap: "gap", noOrb: "no orb rule active",
+      stable: "stable target(s)", sensitive: "sensitive", indeterminate: "indeterminate"
+    },
+    values: {
+      tropical: "tropical", wholeSign: "Whole Sign houses", wholeSignShort: "Whole Sign",
+      diurnal: "diurnal (Sun above the horizon)", nocturnal: "nocturnal (Sun below the horizon)",
+      exact: "exact", approximate: "approximate", unknown: "unknown"
+    },
+    uncertainty: {
+      unknown: "Birth time unknown: the Ascendant, Midheaven, houses and sect were not calculated.",
+      approximate: "Approximate birth time: the Ascendant and houses depend on an unknown margin of uncertainty.",
+      interval: "Birth time given as a range: no exact time was invented."
+    }
+  },
+  de: {
+    styleGuide:
+      "Schreibe wie ein deutschsprachiger Autor: klar, warm und gut gegliedert, mit 'du'. Keine französischen Wendungen. Beispiele an die deutschsprachige Kultur anpassen (Familie, Arbeit, Spiritualität).",
+    planets: { Sun: "Sonne", Moon: "Mond", Mercury: "Merkur", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturn" },
+    signs: {
+      Aries: "Widder", Taurus: "Stier", Gemini: "Zwillinge", Cancer: "Krebs", Leo: "Löwe", Virgo: "Jungfrau",
+      Libra: "Waage", Scorpio: "Skorpion", Sagittarius: "Schütze", Capricorn: "Steinbock", Aquarius: "Wassermann", Pisces: "Fische"
+    },
+    labels: {
+      date: "Geburtsdatum", time: "Geburtszeit", timeInterval: "Geburtszeit (Zeitspanne)",
+      place: "Geburtsort", tz: "Zeitzone", coords: "Koordinaten", zodiac: "Tierkreis",
+      houses: "Häusersystem", sect: "Sekt des Horoskops", interval: "Zeitspannen-Analyse", person: "Person",
+      house: "Haus", retro: "rückläufig", asc: "Aszendent", mc: "Medium Coeli", aspect: "Winkelabstand",
+      closest: "nächster Kandidat", gap: "Abweichung", noOrb: "keine Orbis-Regel aktiv",
+      stable: "stabile(s) Ziel(e)", sensitive: "sensibel", indeterminate: "unbestimmt"
+    },
+    values: {
+      tropical: "tropisch", wholeSign: "Ganzzeichen-Häuser", wholeSignShort: "Ganzzeichen",
+      diurnal: "Taggeburt (Sonne über dem Horizont)", nocturnal: "Nachtgeburt (Sonne unter dem Horizont)",
+      exact: "genau", approximate: "ungefähr", unknown: "unbekannt"
+    },
+    uncertainty: {
+      unknown: "Geburtszeit unbekannt: Aszendent, Medium Coeli, Häuser und Sekt wurden nicht berechnet.",
+      approximate: "Ungefähre Geburtszeit: Aszendent und Häuser hängen von einer unbekannten Unsicherheit ab.",
+      interval: "Geburtszeit als Zeitspanne angegeben: es wurde keine genaue Uhrzeit erfunden."
+    }
+  },
+  es: {
+    styleGuide:
+      "Escribe como un autor hispanohablante nativo: tono cálido, natural y fluido, con 'tú'. Evita calcos del francés. Adapta los ejemplos a la cultura hispanohablante (familia, trabajo, espiritualidad).",
+    planets: { Sun: "Sol", Moon: "Luna", Mercury: "Mercurio", Venus: "Venus", Mars: "Marte", Jupiter: "Júpiter", Saturn: "Saturno" },
+    signs: {
+      Aries: "Aries", Taurus: "Tauro", Gemini: "Géminis", Cancer: "Cáncer", Leo: "Leo", Virgo: "Virgo",
+      Libra: "Libra", Scorpio: "Escorpio", Sagittarius: "Sagitario", Capricorn: "Capricornio", Aquarius: "Acuario", Pisces: "Piscis"
+    },
+    labels: {
+      date: "Fecha de nacimiento", time: "Hora de nacimiento", timeInterval: "Hora de nacimiento (intervalo)",
+      place: "Lugar de nacimiento", tz: "Zona horaria", coords: "Coordenadas", zodiac: "Zodíaco",
+      houses: "Sistema de casas", sect: "Secta de la carta", interval: "Análisis del intervalo", person: "Persona",
+      house: "casa", retro: "retrógrado", asc: "Ascendente", mc: "Medio Cielo", aspect: "distancia angular",
+      closest: "candidato más cercano", gap: "desviación", noOrb: "ninguna regla de orbe activa",
+      stable: "objetivo(s) estable(s)", sensitive: "sensible(s)", indeterminate: "indeterminado(s)"
+    },
+    values: {
+      tropical: "tropical", wholeSign: "casas por signos enteros", wholeSignShort: "signos enteros",
+      diurnal: "diurna (Sol sobre el horizonte)", nocturnal: "nocturna (Sol bajo el horizonte)",
+      exact: "exacta", approximate: "aproximada", unknown: "desconocida"
+    },
+    uncertainty: {
+      unknown: "Hora de nacimiento desconocida: no se calcularon el Ascendente, el Medio Cielo, las casas ni la secta.",
+      approximate: "Hora de nacimiento aproximada: el Ascendente y las casas dependen de un margen de incertidumbre desconocido.",
+      interval: "Hora de nacimiento dada como intervalo: no se inventó ninguna hora exacta."
+    }
+  },
+  it: {
+    styleGuide:
+      "Scrivi come un autore italiano madrelingua: tono caldo, naturale e scorrevole, con 'tu'. Evita calchi dal francese. Adatta gli esempi alla cultura italiana (famiglia, lavoro, spiritualità).",
+    planets: { Sun: "Sole", Moon: "Luna", Mercury: "Mercurio", Venus: "Venere", Mars: "Marte", Jupiter: "Giove", Saturn: "Saturno" },
+    signs: {
+      Aries: "Ariete", Taurus: "Toro", Gemini: "Gemelli", Cancer: "Cancro", Leo: "Leone", Virgo: "Vergine",
+      Libra: "Bilancia", Scorpio: "Scorpione", Sagittarius: "Sagittario", Capricorn: "Capricorno", Aquarius: "Acquario", Pisces: "Pesci"
+    },
+    labels: {
+      date: "Data di nascita", time: "Ora di nascita", timeInterval: "Ora di nascita (intervallo)",
+      place: "Luogo di nascita", tz: "Fuso orario", coords: "Coordinate", zodiac: "Zodiaco",
+      houses: "Sistema delle case", sect: "Setta del tema", interval: "Analisi dell'intervallo", person: "Persona",
+      house: "casa", retro: "retrogrado", asc: "Ascendente", mc: "Medio Cielo", aspect: "distanza angolare",
+      closest: "candidato più vicino", gap: "scarto", noOrb: "nessuna regola di orbe attiva",
+      stable: "obiettivo/i stabile/i", sensitive: "sensibile/i", indeterminate: "indeterminato/i"
+    },
+    values: {
+      tropical: "tropicale", wholeSign: "case a segno intero", wholeSignShort: "segno intero",
+      diurnal: "diurna (Sole sopra l'orizzonte)", nocturnal: "notturna (Sole sotto l'orizzonte)",
+      exact: "esatta", approximate: "approssimativa", unknown: "sconosciuta"
+    },
+    uncertainty: {
+      unknown: "Ora di nascita sconosciuta: Ascendente, Medio Cielo, case e setta non sono stati calcolati.",
+      approximate: "Ora di nascita approssimativa: Ascendente e case dipendono da un margine di incertezza sconosciuto.",
+      interval: "Ora di nascita indicata come intervallo: nessuna ora esatta è stata inventata."
+    }
+  }
+};
+
+export function localeDetails(code) {
+  return DETAILS[normalizeLanguage(code)] ?? DETAILS.fr;
 }

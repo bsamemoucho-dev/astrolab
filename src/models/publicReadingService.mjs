@@ -84,13 +84,14 @@ export async function createPublicReading(input = {}, options = {}) {
   });
 
   const personInfo = { firstName: cleanString(input.firstName) ?? null, lastName: null };
-  const socle = buildSocle(calculation.result);
+  const socle = buildSocle(calculation.result, strings);
   socle.person = personInfo;
   const context = {
     person: personInfo,
     parents: normalizeParents(input),
     intention: cleanString(input.intention),
     languageName: englishNameFor(language),
+    styleGuide: strings.styleGuide ?? null,
     socle
   };
 

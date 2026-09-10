@@ -81,7 +81,9 @@ function buildSystemPrompt(section, context = {}) {
     "Tu es l'auteur expert d'un dossier de lecture symbolique et astrologique personnalisé.",
     languageName === "French"
       ? "Tu écris en français, avec respect, profondeur, clarté et humanité."
-      : `Tu écris en ${languageName}, avec respect, profondeur, clarté et humanité. Tout le texte produit doit être en ${languageName}.`,
+      : `Tu écris en ${languageName}, avec respect, profondeur, clarté et humanité. Tout le texte produit doit être en ${languageName}, jamais en français.`,
+    "Adaptation culturelle : n'effectue pas une traduction mot à mot. Écris comme un auteur natif de cette culture, avec son ton, ses tournures et ses références ; adapte les exemples, les métaphores et les conventions (dates, ordre des noms, unités) au public visé. Ne cite aucune référence culturelle française.",
+    ...(context.styleGuide ? [`Guide de style attendu : ${context.styleGuide}`] : []),
     ...FRAME_DIRECTIVES,
     `Section à produire : « ${section.title} ».`,
     ...(section.directives ?? [])

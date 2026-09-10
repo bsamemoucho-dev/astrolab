@@ -3,6 +3,7 @@
 // provenance kept) for the client dossier. No orb, no rule, no AI wording here.
 
 import { formatDegreeInSign, frBody, frSign } from "./french.mjs";
+import { localeDetails, docStrings } from "./i18n.mjs";
 
 function houseNumberForBody(body, houses) {
   if (!Array.isArray(houses) || houses.length === 0 || body.signIndex === null || body.signIndex === undefined) {
@@ -12,37 +13,47 @@ function houseNumberForBody(body, houses) {
   return house ? house.houseNumber : null;
 }
 
-function bodyFact(body, houses) {
+function localizedBodyName(body, details) {
+  return details?.planets?.[body] ?? frBody(body);
+}
+
+function localizedSignName(sign, details) {
+  return details?.signs?.[sign] ?? frSign(sign).fr;
+}
+
+function bodyFact(body, houses, details) {
   const house = houseNumberForBody(body, houses);
-  const sign = frSign(body.sign);
+  const signName = localizedSignName(body.sign, details);
   const retrograde = body.apparentMotion?.retrograde ?? false;
+  const houseWord = details?.labels?.house ?? "maison";
+  const wholeSign = details?.values?.wholeSignShort ?? "Whole Sign";
   return {
     id: `body.${body.body}`,
-    label: frBody(body.body),
+    label: localizedBodyName(body.body, details),
     sign: body.sign,
-    signFr: sign.fr,
+    signFr: signName,
     degreeInSign: body.degreeInSign,
-    degreeLabel: `${sign.fr} ${formatDegreeInSign(body.degreeInSign)}`,
+    degreeLabel: `${signName} ${formatDegreeInSign(body.degreeInSign)}`,
     longitude: body.longitude,
     house: house,
-    houseLabel: house ? `maison ${house} (Whole Sign)` : null,
+    houseLabel: house ? `${houseWord} ${house} (${wholeSign})` : null,
     retrograde: retrograde,
     temporalStatus: body.temporalStatus ?? null
   };
 }
 
-function angleFact(name, angle) {
+function angleFact(name, angle, details) {
   if (!angle) {
     return null;
   }
-  const sign = frSign(angle.sign);
+  const signName = localizedSignName(angle.sign, details);
   return {
     id: `angle.${name}`,
-    label: name === "ascendant" ? "Ascendant" : name === "midheaven" ? "Milieu du Ciel" : name,
+    label: name === "ascendant" ? details?.labels?.asc ?? "Ascendant" : name === "midheaven" ? details?.labels?.mc ?? "Milieu du Ciel" : name,
     sign: angle.sign,
-    signFr: sign.fr,
+    signFr: signName,
     degreeInSign: angle.degreeInSign,
-    degreeLabel: `${sign.fr} ${formatDegreeInSign(angle.degreeInSign)}`,
+    degreeLabel: `${signName} ${formatDegreeInSign(angle.degreeInSign)}`,
     longitude: angle.longitude,
     uncertaintyStatus: angle.uncertaintyStatus ?? null
   };
@@ -67,7 +78,10 @@ function aspectFacts(aspectInfrastructure) {
     .slice(0, 12);
 }
 
-export function buildSocle(payload) {
+export function buildSocle(payload, strings = null) {
+  const details = strings ?? docStrings("fr");
+  const L = details.labels ?? {};
+  const V = details.values ?? {};
   const normalizedInput = payload.normalizedInput ?? {};
   const astronomical = payload.astronomicalCalculation ?? {};
   const structural = payload.structuralAstrology ?? {};
@@ -76,9 +90,9 @@ export function buildSocle(payload) {
   const houses = Array.isArray(structural.houses) ? structural.houses : structural.houses?.houses ?? [];
   const angles = astronomical.angles ?? {};
 
-  const bodyFacts = bodies.map((body) => bodyFact(body, houses));
-  const ascendant = angleFact("ascendant", angles.ascendant);
-  const midheaven = angleFact("midheaven", angles.midheaven);
+  const bodyFacts = bodies.map((body) => bodyFact(body, houses, details));
+  const ascendant = angleFact("ascendant", angles.ascendant, details);
+  const midheaven = angleFact("midheaven", angles.midheaven, details);
   const sect = structural.sect?.chartSect === "unknown" ? null : structural.sect?.chartSect ?? null;
 
   const placeName = normalizedInput.placeName ?? null;
@@ -87,22 +101,22 @@ export function buildSocle(payload) {
     ? `${placeName}, ${country}`
     : placeName ?? "—";
   const facts = [
-    { id: "identity.date", label: "Date de naissance", value: normalizedInput.birthDate },
+    { id: "identity.date", label: L.date ?? "Date de naissance", value: normalizedInput.birthDate },
     ...(normalizedInput.timePrecision === "exact" || normalizedInput.timePrecision === "approximate"
-      ? [{ id: "identity.time", label: "Heure de naissance", value: `${normalizedInput.timeValue} (${normalizedInput.timePrecision === "exact" ? "exacte" : "approximative"})` }]
+      ? [{ id: "identity.time", label: L.time ?? "Heure de naissance", value: `${normalizedInput.timeValue} (${normalizedInput.timePrecision === "exact" ? V.exact ?? "exacte" : V.approximate ?? "approximative"})` }]
       : normalizedInput.timePrecision === "interval"
-        ? [{ id: "identity.time", label: "Heure de naissance (intervalle)", value: `${normalizedInput.timeStart} – ${normalizedInput.timeEnd}` }]
-        : [{ id: "identity.time", label: "Heure de naissance", value: "inconnue" }]),
-    { id: "identity.place", label: "Lieu de naissance", value: placeLabel },
-    { id: "identity.timezone", label: "Fuseau horaire", value: normalizedInput.timeZone },
-    { id: "identity.coordinates", label: "Coordonnées", value: `${normalizedInput.latitude}, ${normalizedInput.longitude}` },
-    { id: "method.zodiac", label: "Zodiaque", value: "tropical" },
-    { id: "method.houses", label: "Système de maisons", value: "Whole Sign (maisons entières)" }
+        ? [{ id: "identity.time", label: L.timeInterval ?? "Heure de naissance (intervalle)", value: `${normalizedInput.timeStart} – ${normalizedInput.timeEnd}` }]
+        : [{ id: "identity.time", label: L.time ?? "Heure de naissance", value: V.unknown ?? "inconnue" }]),
+    { id: "identity.place", label: L.place ?? "Lieu de naissance", value: placeLabel },
+    { id: "identity.timezone", label: L.tz ?? "Fuseau horaire", value: normalizedInput.timeZone },
+    { id: "identity.coordinates", label: L.coords ?? "Coordonnées", value: `${normalizedInput.latitude}, ${normalizedInput.longitude}` },
+    { id: "method.zodiac", label: L.zodiac ?? "Zodiaque", value: V.tropical ?? "tropical" },
+    { id: "method.houses", label: L.houses ?? "Système de maisons", value: V.wholeSign ?? "Whole Sign (maisons entières)" }
   ];
 
   for (const body of bodyFacts) {
     const housePart = body.houseLabel ? ` · ${body.houseLabel}` : "";
-    const retroPart = body.retrograde ? " · rétrograde" : "";
+    const retroPart = body.retrograde ? ` · ${L.retro ?? "rétrograde"}` : "";
     facts.push({ id: body.id, label: body.label, value: `${body.degreeLabel}${housePart}${retroPart}` });
   }
 
@@ -115,8 +129,8 @@ export function buildSocle(payload) {
   if (sect) {
     facts.push({
       id: "sect",
-      label: "Secte du thème",
-      value: sect === "diurnal" ? "diurne (Soleil au-dessus de l'horizon)" : "nocturne (Soleil sous l'horizon)"
+      label: L.sect ?? "Secte du thème",
+      value: sect === "diurnal" ? V.diurnal ?? "diurne" : V.nocturnal ?? "nocturne"
     });
   }
 
@@ -125,8 +139,8 @@ export function buildSocle(payload) {
     if (aspect.closestCandidate) {
       facts.push({
         id: `aspect.${aspect.bodyA}.${aspect.bodyB}`,
-        label: `${frBody(aspect.bodyA)} – ${frBody(aspect.bodyB)}`,
-        value: `distance angulaire ${aspect.angularDistance.toFixed(1)}°, plus proche candidat : ${aspect.closestCandidate} (écart ${aspect.exactness.toFixed(2)}°) — aucune règle d'orbe active`
+        label: `${localizedBodyName(aspect.bodyA, details)} – ${localizedBodyName(aspect.bodyB, details)}`,
+        value: `${L.aspect ?? "distance angulaire"} ${aspect.angularDistance.toFixed(1)}°, ${L.closest ?? "plus proche candidat"} : ${aspect.closestCandidate} (${L.gap ?? "écart"} ${aspect.exactness.toFixed(2)}°) — ${L.noOrb ?? "aucune règle d'orbe active"}`
       });
     }
   }
@@ -135,18 +149,19 @@ export function buildSocle(payload) {
     const summary = uncertainty.intervalAnalysis.summary;
     facts.push({
       id: "uncertainty.interval",
-      label: "Analyse d'intervalle",
-      value: `${summary.stableTargets.length} cible(s) stable(s), ${summary.sensitiveTargets.length} sensible(s), ${summary.indeterminateTargets.length} indéterminée(s)`
+      label: L.interval ?? "Analyse d'intervalle",
+      value: `${summary.stableTargets.length} ${L.stable ?? "stable(s)"}, ${summary.sensitiveTargets.length} ${L.sensitive ?? "sensible(s)"}, ${summary.indeterminateTargets.length} ${L.indeterminate ?? "indéterminée(s)"}`
     });
   }
 
+  const U = details.uncertainty ?? {};
   const uncertaintyNotes = [];
   if (normalizedInput.timePrecision === "unknown") {
-    uncertaintyNotes.push("Heure de naissance inconnue : l'Ascendant, le Milieu du Ciel, les maisons et la secte n'ont pas été calculés. Les positions planétaires du jour sont fournies en tendance.");
+    uncertaintyNotes.push(U.unknown ?? "Heure de naissance inconnue : l'Ascendant, le Milieu du Ciel, les maisons et la secte n'ont pas été calculés.");
   } else if (normalizedInput.timePrecision === "approximate") {
-    uncertaintyNotes.push("Heure de naissance approximative : l'Ascendant et les maisons ont été calculés sur l'heure de référence mais restent sensibles à la marge d'incertitude (inconnue).");
+    uncertaintyNotes.push(U.approximate ?? "Heure de naissance approximative : l'Ascendant et les maisons dépendent d'une marge d'incertitude inconnue.");
   } else if (normalizedInput.timePrecision === "interval") {
-    uncertaintyNotes.push("Heure de naissance fournie en intervalle : aucune heure exacte n'a été inventée ; les franchissements de signes à l'intérieur de l'intervalle sont détaillés dans l'analyse de stabilité.");
+    uncertaintyNotes.push(U.interval ?? "Heure de naissance fournie en intervalle : aucune heure exacte n'a été inventée.");
   }
 
   return {
