@@ -307,6 +307,9 @@ label { display: grid; gap: 7px; margin-bottom: 14px; color: var(--ink-soft); fo
 input, select, textarea {
   width: 100%;
   min-height: 44px;
+  /* Jamais moins de 16px : en dessous, iOS zoome automatiquement la page
+     quand on touche un champ, et la mise en page paraît cassée. */
+  font-size: 1rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 10px 13px;
@@ -620,6 +623,32 @@ body.guest .note-accent { display: none; }
   .guest-zodiac { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .chart-row { grid-template-columns: 1fr; gap: 3px; }
   .chart-side { text-align: left; }
+}
+
+/* ---------- téléphones : en-tête compact, formulaire visible plus tôt ---------- */
+@media (max-width: 640px) {
+  /* Champs et sélecteurs à 16px minimum (sinon iOS zoome au toucher). */
+  input, select, textarea { font-size: 1rem; }
+
+  .guest-header { padding: 10px 0 2px; }
+  .guest-header-inner { align-items: center; gap: 10px; }
+  .guest-brand-name { font-size: 1.25rem; }
+  .guest-header-left { gap: 6px; }
+  .guest-lang #guest-language { min-width: 0; width: 100%; max-width: 200px; font-size: 1rem; padding: 8px 10px; }
+  .guest-header-actions { gap: 6px; }
+  .guest-header-actions button { min-height: 34px; padding: 0 12px; font-size: 0.8rem; }
+
+  #guest-hero { margin: 6px auto 2px; padding: 0 8px 10px; gap: 8px; }
+  #guest-hero h1 { font-size: 1.85rem; }
+  .guest-lead { font-size: 0.98rem; line-height: 1.45; }
+  .hero-tag { font-size: 0.6rem; letter-spacing: 0.08em; padding: 5px 12px; }
+
+  #express-view .express-wrap .panel { padding: 18px; }
+  #express-payment { padding: 14px; }
+  .price-chips { gap: 6px; }
+  .price-chips .chip { min-height: 36px; padding: 0 11px; font-size: 0.82rem; }
+  .ai-notice { padding: 12px; }
+  #pay-start { font-size: 0.86rem; }
 }
 
 /* ---------- print ---------- */

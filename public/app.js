@@ -29,7 +29,7 @@ const UI_STRINGS = {
     lead: "Ce que votre ciel dit de vous.",
     formTitle: "Votre lecture",
     dateLabel: "Date de naissance",
-    hourLabel: "Heure",
+    hourLabel: "Heure", hourPrecisionLabel: "Précision",
     optExact: "Connue (précise)",
     optApprox: "Approximative",
     optUnknown: "Inconnue",
@@ -76,7 +76,7 @@ const UI_STRINGS = {
     lead: "What your sky says about you.",
     formTitle: "Your reading",
     dateLabel: "Date of birth",
-    hourLabel: "Time",
+    hourLabel: "Time", hourPrecisionLabel: "Precision",
     optExact: "Known (exact)",
     optApprox: "Approximate",
     optUnknown: "Unknown",
@@ -123,7 +123,7 @@ const UI_STRINGS = {
     lead: "Was dein Himmel über dich sagt.",
     formTitle: "Deine Deutung",
     dateLabel: "Geburtsdatum",
-    hourLabel: "Uhrzeit",
+    hourLabel: "Uhrzeit", hourPrecisionLabel: "Genauigkeit",
     optExact: "Bekannt (genau)",
     optApprox: "Ungefähr",
     optUnknown: "Unbekannt",
@@ -170,7 +170,7 @@ const UI_STRINGS = {
     lead: "Lo que tu cielo dice de ti.",
     formTitle: "Tu lectura",
     dateLabel: "Fecha de nacimiento",
-    hourLabel: "Hora",
+    hourLabel: "Hora", hourPrecisionLabel: "Precisión",
     optExact: "Conocida (exacta)",
     optApprox: "Aproximada",
     optUnknown: "Desconocida",
@@ -217,7 +217,7 @@ const UI_STRINGS = {
     lead: "Ciò che il tuo cielo dice di te.",
     formTitle: "La tua lettura",
     dateLabel: "Data di nascita",
-    hourLabel: "Ora",
+    hourLabel: "Ora", hourPrecisionLabel: "Precisione",
     optExact: "Nota (precisa)",
     optApprox: "Approssimativa",
     optUnknown: "Sconosciuta",
@@ -264,7 +264,7 @@ const UI_STRINGS = {
     lead: "O que o seu céu diz sobre você.",
     formTitle: "A sua leitura",
     dateLabel: "Data de nascimento",
-    hourLabel: "Hora",
+    hourLabel: "Hora", hourPrecisionLabel: "Precisão",
     optExact: "Conhecida (exata)",
     optApprox: "Aproximada",
     optUnknown: "Desconhecida",
@@ -311,7 +311,7 @@ const UI_STRINGS = {
     lead: "Hva himmelen din sier om deg.",
     formTitle: "Lesningen din",
     dateLabel: "Fødselsdato",
-    hourLabel: "Klokkeslett",
+    hourLabel: "Klokkeslett", hourPrecisionLabel: "Presisjon",
     optExact: "Kjent (nøyaktig)",
     optApprox: "Omtrentlig",
     optUnknown: "Ukjent",
@@ -358,7 +358,7 @@ const UI_STRINGS = {
     lead: "Hvad din himmel siger om dig.",
     formTitle: "Din læsning",
     dateLabel: "Fødselsdato",
-    hourLabel: "Klokkeslæt",
+    hourLabel: "Klokkeslæt", hourPrecisionLabel: "Præcision",
     optExact: "Kendt (præcis)",
     optApprox: "Omtrentlig",
     optUnknown: "Ukendt",
@@ -405,7 +405,7 @@ const UI_STRINGS = {
     lead: "Wat jouw hemel over je zegt.",
     formTitle: "Jouw lezing",
     dateLabel: "Geboortedatum",
-    hourLabel: "Tijd",
+    hourLabel: "Tijd", hourPrecisionLabel: "Precisie",
     optExact: "Bekend (exact)",
     optApprox: "Bij benadering",
     optUnknown: "Onbekend",
@@ -662,7 +662,7 @@ function applyUITranslations() {
   setNodeText("#express-form > h3", t.formTitle);
 
   setFieldLabel("birthDate", t.dateLabel);
-  setFieldLabel("timePrecision", t.hourLabel);
+  setFieldLabel("timePrecision", t.hourPrecisionLabel);
   setFieldLabel("timeValue", t.timeLabel);
   setFieldLabel("timeStart", t.startLabel);
   setFieldLabel("timeEnd", t.endLabel);
