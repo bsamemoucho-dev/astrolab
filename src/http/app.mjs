@@ -11,7 +11,13 @@ import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisSer
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
 import { createPublicReading } from "../models/publicReadingService.mjs";
-import { createEmbeddedCheckoutSession, retrieveCheckoutSession, stripeConfiguration } from "../payments/stripe.mjs";
+import {
+  createEmbeddedCheckoutSession,
+  retrieveCheckoutSession,
+  stripeConfiguration,
+  stripeKeyNotice,
+  stripeKeyProblem
+} from "../payments/stripe.mjs";
 import { generateDailyHoroscope } from "../models/horoscopeService.mjs";
 import { createReport, listReports } from "../models/reportService.mjs";
 import {
@@ -114,6 +120,14 @@ export function createApp(options = {}) {
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
       const body = await readJson(req);
 
+      // Clés Stripe présentes mais inutilisables (recopie incomplète, modes
+      // mélangés…) : on refuse la lecture plutôt que de l'offrir par accident.
+      if (stripeKeyProblem()) {
+        const error = new Error("Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.");
+        error.status = 503;
+        throw error;
+      }
+
       // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
       if (stripeConfiguration()) {
         const sessionId = String(body.paymentSessionId ?? "").trim();
@@ -151,7 +165,9 @@ export function createApp(options = {}) {
           configured: Boolean(stripe),
           publishableKey: stripe?.publishableKey ?? null,
           currency: stripe?.currency ?? "eur",
-          minAmountCents: 50
+          minAmountCents: 50,
+          problem: stripeKeyProblem(),
+          notice: stripeKeyNotice()
         },
         llmConfigured: Boolean(llmConfiguration()),
         llmModel: llmConfiguration()?.model ?? null,
@@ -358,7 +374,14 @@ export function createApp(options = {}) {
       sendJson(res, 404, { error: "Not found" });
     } catch (error) {
       const status = error.status ?? (error instanceof SyntaxError ? 400 : 500);
-      sendJson(res, status, { error: status === 500 ? "Internal server error" : error.message });
+      if (status >= 500) {
+        // Journalisé tel quel côté serveur : c'est là qu'on lit la vraie cause
+        // (Render → Logs), jamais dans la réponse au navigateur.
+        console.error(`[Lastro] ${status} ${req.method} ${req.url ?? ""} — ${error.message}`, error.cause ?? "");
+      }
+      const masked = status === 500 || status === 502;
+      const message = error.publicMessage ?? (masked ? "Une erreur interne est survenue. Merci de réessayer dans un instant." : error.message);
+      sendJson(res, status, { error: message });
     }
   });
 

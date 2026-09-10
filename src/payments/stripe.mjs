@@ -8,9 +8,72 @@
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
+const SECRET_PREFIXES = ["sk_live_", "sk_test_", "rk_live_", "rk_test_"];
+const PUBLISHABLE_PREFIXES = ["pk_live_", "pk_test_"];
+
+function rawSecret() {
+  return String(process.env.STRIPE_SECRET_KEY ?? "");
+}
+
+function rawPublishable() {
+  return String(process.env.STRIPE_PUBLISHABLE_KEY ?? "");
+}
+
+// Une clé recopiée depuis le tableau de bord Stripe arrive parfois avec un
+// retour à la ligne ou un caractère invisible au milieu. Ces caractères ne sont
+// pas visibles dans l'interface de l'hébergeur, mais ils faisaient échouer
+// chaque appel à Stripe (le serveur renvoyait « Internal server error »). On les
+// retire, et on signale le nettoyage pour que la clé soit recollée proprement.
+const INVISIBLE_CHARACTERS = /[\s\u00a0\u200b\u200c\u200d\u2060\ufeff]/g;
+
+function cleanKey(value) {
+  return String(value ?? "").replace(INVISIBLE_CHARACTERS, "");
+}
+
+// Problèmes qui rendent le paiement réellement inutilisable.
+export function stripeKeyProblem() {
+  const secret = cleanKey(rawSecret());
+  const publishable = cleanKey(rawPublishable());
+  if (!secret && !publishable) {
+    return null;
+  }
+  if (!secret || !publishable) {
+    return "incomplete_key_pair";
+  }
+  if (!SECRET_PREFIXES.some((prefix) => secret.startsWith(prefix))) {
+    return "secret_key_unexpected_prefix";
+  }
+  if (!PUBLISHABLE_PREFIXES.some((prefix) => publishable.startsWith(prefix))) {
+    return "publishable_key_unexpected_prefix";
+  }
+  const secretMode = secret.includes("_live_") ? "live" : "test";
+  const publishableMode = publishable.includes("_live_") ? "live" : "test";
+  if (secretMode !== publishableMode) {
+    return "key_mode_mismatch";
+  }
+  return null;
+}
+
+// Simple avertissement : la clé a été nettoyée mais le paiement fonctionne.
+export function stripeKeyNotice() {
+  for (const [name, raw] of [
+    ["secret", rawSecret()],
+    ["publishable", rawPublishable()]
+  ]) {
+    const trimmed = raw.trim();
+    if (trimmed && trimmed !== cleanKey(trimmed)) {
+      return `${name}_key_cleaned`;
+    }
+  }
+  return null;
+}
+
 export function stripeConfiguration() {
-  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
-  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim();
+  if (stripeKeyProblem()) {
+    return null;
+  }
+  const secretKey = cleanKey(rawSecret());
+  const publishableKey = cleanKey(rawPublishable());
   if (!secretKey || !publishableKey) {
     return null;
   }
@@ -26,19 +89,31 @@ export function stripeEnabled() {
 }
 
 async function stripeRequest(config, path, { method = "GET", body = null } = {}) {
-  const response = await fetch(`${STRIPE_API}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${config.secretKey}`,
-      ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {})
-    },
-    body: body ? new URLSearchParams(body).toString() : undefined
-  });
+  let response;
+  try {
+    response = await fetch(`${STRIPE_API}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${config.secretKey}`,
+        ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {})
+      },
+      body: body ? new URLSearchParams(body).toString() : undefined
+    });
+  } catch (cause) {
+    const error = new Error(
+      "Impossible de joindre Stripe. Vérifiez STRIPE_SECRET_KEY (clé recopiée sans retour à la ligne) et la connexion sortante du service."
+    );
+    error.status = 502;
+    error.publicMessage = "Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.";
+    error.cause = cause;
+    throw error;
+  }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const message = data?.error?.message ?? `Stripe request failed (${response.status})`;
     const error = new Error(message);
     error.status = 502;
+    error.publicMessage = "Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.";
     throw error;
   }
   return data;

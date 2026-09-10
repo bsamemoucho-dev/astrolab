@@ -6,11 +6,13 @@ import { access, constants, mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { createApp } from "./http/app.mjs";
+import { stripeConfiguration, stripeKeyNotice, stripeKeyProblem } from "./payments/stripe.mjs";
 
 const port = Number(process.env.PORT ?? 4173);
 const host = process.env.HOST; // absent → écoute IPv6+IPv4 (localhost et 127.0.0.1)
 
 await reportStorage();
+reportPayments();
 
 const { server } = createApp();
 
@@ -22,6 +24,27 @@ if (host) {
 
 function onListen() {
   console.log(`Lastro running at http://localhost:${port}`);
+}
+
+// Un problème de clé Stripe est visible dans les journaux avant même le
+// premier client : mieux vaut le voir ici que dans un paiement qui échoue.
+function reportPayments() {
+  const problem = stripeKeyProblem();
+  if (problem) {
+    console.warn(
+      `Lastro — paiement Stripe INUTILISABLE (${problem}) : vérifiez STRIPE_SECRET_KEY et STRIPE_PUBLISHABLE_KEY ` +
+        "(clé recopiée en entier, sans retour à la ligne, même mode test/live). Les lectures sont refusées tant que ce n'est pas corrigé."
+    );
+    return;
+  }
+  console.log(stripeConfiguration() ? "Lastro — paiement Stripe actif" : "Lastro — paiement non configuré (lectures gratuites)");
+  const notice = stripeKeyNotice();
+  if (notice) {
+    console.warn(
+      `Lastro — ${notice} : la clé contenait un retour à la ligne ou un caractère invisible, il a été retiré automatiquement. ` +
+        "Recollez la clé proprement dans les variables d'environnement pour éviter toute ambiguïté."
+    );
+  }
 }
 
 // Rend visible dans les journaux si les comptes et dossiers survivront à un
