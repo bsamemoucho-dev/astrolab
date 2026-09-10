@@ -172,6 +172,57 @@ test("un lien perdu est renvoyé par e-mail, sans rien révéler à un curieux",
   }
 });
 
+test("l'exploitant peut tester l'envoi d'un e-mail sans passer par un paiement", async () => {
+  const app = await startApp();
+  const originalFetch = globalThis.fetch;
+  const sent = [];
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).includes("api.brevo.com")) {
+      sent.push(JSON.parse(options.body));
+      return { ok: true, status: 201, json: async () => ({ messageId: "42" }) };
+    }
+    return originalFetch(url, options);
+  };
+  const previous = { key: process.env.BREVO_API_KEY, sender: process.env.BREVO_SENDER_EMAIL, code: process.env.ASTROLAB_TEST_CODE };
+  process.env.BREVO_API_KEY = "xkeysib-test";
+  process.env.BREVO_SENDER_EMAIL = "contact@lastro.fr";
+  process.env.ASTROLAB_TEST_CODE = "mon-code-de-test-2026";
+  try {
+    // Sans le bon code, rien ne part.
+    const refused = await request(app.baseUrl, "/api/public/test-email", {
+      method: "POST",
+      body: { testCode: "mauvais-code-123456", to: "bassam@example.com" }
+    });
+    assert.equal(refused.status, 403);
+    assert.equal(sent.length, 0);
+
+    const ok = await request(app.baseUrl, "/api/public/test-email", {
+      method: "POST",
+      body: { testCode: "mon-code-de-test-2026", to: "Bassam@Example.com" }
+    });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.payload.sent, true);
+    assert.equal(ok.payload.to, "b***@example.com");
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to[0].email, "Bassam@Example.com");
+    assert.match(sent[0].subject, /Test d'envoi Lastro/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of [
+      ["BREVO_API_KEY", previous.key],
+      ["BREVO_SENDER_EMAIL", previous.sender],
+      ["ASTROLAB_TEST_CODE", previous.code]
+    ]) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+    await app.close();
+  }
+});
+
 test("le lien de récupération part dans la file d'envoi d'e-mails", async () => {
   const app = await startApp();
   try {

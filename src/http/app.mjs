@@ -25,7 +25,7 @@ import {
   publicDelivery,
   queueDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
-import { emailEnabled, flushQueuedEmails } from "../notifications/mailer.mjs";
+import { emailEnabled, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
@@ -290,6 +290,34 @@ export function createApp(options = {}) {
         await markDeliveryFailed(store, delivery.id, error.message);
         throw error;
       }
+    }),
+    // Vérification de la configuration d'envoi, réservée à l'exploitant : mieux
+    // vaut tester l'e-mail avant qu'un client en dépende.
+    route("POST", /^\/api\/public\/test-email$/, async (req, res) => {
+      const body = await readJson(req);
+      if (!testCodeEnabled() || !testCodeMatches(String(body.testCode ?? ""))) {
+        if (testCodeEnabled()) {
+          registerTestCodeFailure();
+        }
+        const error = new Error("Code de test invalide.");
+        error.status = 403;
+        throw error;
+      }
+      if (!emailEnabled()) {
+        const error = new Error("L'envoi d'e-mails n'est pas configuré : ajoutez BREVO_API_KEY et BREVO_SENDER_EMAIL.");
+        error.status = 503;
+        throw error;
+      }
+      const to = String(body.to ?? "").trim();
+      await sendEmail({
+        to,
+        subject: "Test d'envoi Lastro",
+        text:
+          "Cet e-mail confirme que l'envoi fonctionne depuis Lastro.\n\n" +
+          "Si vous le recevez, les liens de récupération de lecture partiront correctement.\n" +
+          `Envoyé le ${new Date().toISOString()}.`
+      });
+      sendJson(res, 200, { sent: true, to: maskEmail(to) });
     }),
     // Lien perdu : le client redonne son numéro de commande et l'e-mail utilisé
     // au paiement, et reçoit le lien à cette adresse. La réponse est identique

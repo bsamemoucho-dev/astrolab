@@ -186,6 +186,20 @@ Tant que ces variables ne sont pas définies, **rien n'est perdu** : le lien res
 client et le message attend dans la file interne (`outbox` du stockage) avec la raison de
 l'échec. Dès que la configuration est là, les messages en attente partent au prochain envoi.
 
+### Vérifier l'envoi en une commande
+
+Une fois les variables posées, teste l'envoi **sans faire de paiement** (le code de test est
+requis) :
+
+```bash
+curl -s https://lastro.fr/api/public/test-email -X POST -H 'content-type: application/json' \
+  -d '{"testCode":"TON_CODE_DE_TEST","to":"ton.adresse@exemple.fr"}'
+```
+
+Réponse attendue : `{"sent":true,"to":"t***@exemple.fr"}`. Si l'e-mail n'arrive pas, regarde
+**Brevo → Transactionnel → Journal des événements** : on y voit si le message a été remis,
+rejeté ou mis en spam, avec la raison.
+
 ⚠️ Vérifie que `BREVO_SENDER_EMAIL` correspond bien à une adresse **vérifiée** chez Brevo,
 sinon l'API refuse l'envoi (le message d'erreur est journalisé).
 
