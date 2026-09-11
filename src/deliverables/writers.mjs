@@ -90,6 +90,7 @@ function buildSystemPrompt(section, context = {}) {
       : `Tu écris en ${languageName}, avec respect, profondeur, clarté et humanité. Tout le texte produit doit être en ${languageName}, jamais en français.`,
     "Adaptation culturelle : n'effectue pas une traduction mot à mot. Écris comme un auteur natif de cette culture, avec son ton, ses tournures et ses références ; adapte les exemples, les métaphores et les conventions (dates, ordre des noms, unités) au public visé. Ne cite aucune référence culturelle française.",
     ...(context.styleGuide ? [`Guide de style attendu : ${context.styleGuide}`] : []),
+    ...(context.correctionNote ? [context.correctionNote] : []),
     ...(context.uncertainty?.timeKnown === false
       ? [
           TIME_UNKNOWN_DIRECTIVE,

@@ -14,6 +14,7 @@ import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
 import { provenanceSummary } from "../deliverables/provenance.mjs";
+import { findSignContradictions } from "../deliverables/validator.mjs";
 import { validateSectionText } from "../deliverables/validator.mjs";
 import { writeSection } from "../deliverables/writers.mjs";
 
@@ -166,7 +167,33 @@ export async function createPublicReading(input = {}, options = {}) {
         validation: { ok: true, issues: [] }
       };
     } else {
-      const written = await writeSection(planSection, context, options);
+      let written = await writeSection(planSection, context, options);
+
+      // Une erreur factuelle (« ta Lune en Balance » alors qu'elle est en
+      // Cancer) fait perdre confiance définitivement : on réécrit la section,
+      // puis on retire les phrases fautives si la réécriture échoue.
+      let contradictions = findSignContradictions(written.text, context.socle);
+      if (contradictions.length > 0) {
+        console.warn(`[Lastro] contradiction planète/signe dans « ${planSection.id} » — réécriture demandée`);
+        context.correctionNote = `Ta version précédente contenait une erreur factuelle sur les signes : ${contradictions
+          .map((entry) => `« ${entry.sentence.trim()} »`)
+          .join(" ")} Réécris la section en respectant strictement les signes calculés fournis. N'attribue jamais à une planète un signe qui n'est pas le sien.`;
+        written = await writeSection(planSection, context, options);
+        context.correctionNote = null;
+        contradictions = findSignContradictions(written.text, context.socle);
+        if (contradictions.length > 0) {
+          const fautives = contradictions.map((entry) => entry.sentence.trim());
+          written = {
+            ...written,
+            text: String(written.text)
+              .split(/(?<=[.!?])\s+/)
+              .filter((sentence) => !fautives.includes(sentence.trim()))
+              .join(" ")
+              .trim()
+          };
+          console.warn(`[Lastro] phrases contradictoires retirées de « ${planSection.id} »`);
+        }
+      }
       if (written.usage) {
         usage.model = usage.model ?? written.model ?? null;
         usage.promptTokens += written.usage.promptTokens ?? 0;

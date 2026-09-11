@@ -655,3 +655,36 @@ test("« Vos forces et vos tensions » n'existe que si des indicateurs convergen
   // Et la consigne interdit d'interpréter les aspects, encore inactifs.
   assert.match(contextes[0].socle.warnings.join(" "), /inactive/i);
 });
+
+test("une contradiction planète/signe déclenche une réécriture, jamais une livraison", async () => {
+  const appels = [];
+  const writerFn = (section) => {
+    appels.push(section.id);
+    if (section.id === "action" && appels.filter((id) => id === "action").length === 1) {
+      // Exactement le type d'erreur relevée sur une vraie lecture.
+      return "Ton Soleil, ta Lune et Mercure en Balance racontent autre chose. Tu avances avec diplomatie.";
+    }
+    return `Texte pour ${section.id}.`;
+  };
+
+  const reading = await createPublicReading(
+    {
+      firstName: "Test",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn, crossCheckFn: null }
+  );
+
+  // Le texte intégral n'est pas exposé dans la réponse publique : on contrôle
+  // le document livré, celui que le client lit.
+  assert.ok(reading.sections.some((section) => section.id === "action"));
+  assert.doesNotMatch(reading.html, /Lune et Mercure en Balance/i);
+  // Et la section a bien été réécrite, pas simplement amputée.
+  assert.equal(appels.filter((id) => id === "action").length, 2);
+});

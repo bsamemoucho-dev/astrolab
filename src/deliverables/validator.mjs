@@ -42,6 +42,78 @@ function expectedSign(socle, kind) {
   return null;
 }
 
+const SIGN_WORDS = [
+  ["bélier", "Aries"], ["belier", "Aries"], ["taureau", "Taurus"], ["gémeaux", "Gemini"], ["gemeaux", "Gemini"],
+  ["cancer", "Cancer"], ["lion", "Leo"], ["vierge", "Virgo"], ["balance", "Libra"], ["scorpion", "Scorpio"],
+  ["sagittaire", "Sagittarius"], ["capricorne", "Capricorn"], ["verseau", "Aquarius"], ["poissons", "Pisces"]
+];
+
+// Contradiction planète ↔ signe, au niveau de la phrase.
+//
+// Le contrôle historique ne couvrait que Soleil, Lune, Ascendant et Milieu du
+// Ciel. Une phrase comme « ton Soleil, ta Lune et Mercure en Balance » passait
+// donc alors que la Lune était en Cancer — l'erreur qui fait perdre confiance.
+//
+// Règle retenue : si une phrase nomme des planètes ET un signe, et qu'aucune des
+// planètes nommées n'est dans ce signe, c'est une contradiction. Si au moins une
+// correspond, on ne conclut rien (énumération ambiguë).
+const BODY_NAMES = [
+  ["soleil", "Sun"],
+  ["lune", "Moon"],
+  ["mercure", "Mercury"],
+  ["vénus", "Venus"],
+  ["venus", "Venus"],
+  ["mars", "Mars"],
+  ["jupiter", "Jupiter"],
+  ["saturne", "Saturn"]
+];
+
+function normalizeSignWord(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function findSignContradictions(text, socle) {
+  const bodies = Array.isArray(socle?.bodies) ? socle.bodies : [];
+  const bodiesBySign = new Map();
+  for (const body of bodies) {
+    if (!body?.sign) {
+      continue;
+    }
+    const key = normalizeSignWord(body.sign);
+    bodiesBySign.set(key, [...(bodiesBySign.get(key) ?? []), body.body]);
+  }
+  const contradictions = [];
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    if (!sentence.trim()) {
+      continue;
+    }
+    const mentioned = BODY_NAMES.filter(([fr]) => new RegExp(`\\b${fr}\\b`, "i").test(sentence)).map(([, en]) => en);
+    if (mentioned.length === 0) {
+      continue;
+    }
+    // Signes cités dans la phrase, via la table française déjà utilisée ailleurs.
+    const signsInSentence = new Set();
+    for (const [fr, en] of SIGN_WORDS) {
+      if (new RegExp(`\\b${fr}\\b`, "i").test(sentence)) {
+        // La comparaison se fait sur le nom anglais, celui des faits calculés.
+        signsInSentence.add(normalizeSignWord(en));
+      }
+    }
+    if (signsInSentence.size === 0) {
+      continue;
+    }
+    const matches = [...signsInSentence].some((sign) => (bodiesBySign.get(sign) ?? []).some((body) => mentioned.includes(body)));
+    if (!matches) {
+      contradictions.push({ sentence, bodies: mentioned, signs: [...signsInSentence] });
+    }
+  }
+  return contradictions;
+}
+
 export function validateSectionText({ sectionId, text, socle }) {
   const issues = [];
   if (!text || !text.trim()) {
