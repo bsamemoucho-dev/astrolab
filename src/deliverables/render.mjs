@@ -170,9 +170,9 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
     <div class="cover-meta">${personLabel ? `${escapeHtml(t.person)} : ${escapeHtml(personLabel)} · ` : ""}${escapeHtml(t.generatedOn)} ${escapeHtml(formatHumanDate(createdAt, t.lang))}</div>
   </header>
   <div class="caveat">${escapeHtml(t.caveat)}</div>
-  ${aiReview ? `<div class="ai-review">${escapeHtml(aiReview)}</div>` : ""}
   ${body}
   <footer>
+    ${aiReview ? `<p class="ai-review">${escapeHtml(aiReview)}</p>` : ""}
     <p class="ethical-closing">${escapeHtml(t.ethicalClosing)}</p>
     ${authorLine}
     <p>${writerNote}</p>

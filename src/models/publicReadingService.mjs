@@ -176,10 +176,16 @@ export async function createPublicReading(input = {}, options = {}) {
       // Une erreur factuelle (« ta Lune en Balance » alors qu'elle est en
       // Cancer) fait perdre confiance définitivement : on réécrit la section,
       // puis on retire les phrases fautives si la réécriture échoue.
+      // Le « coup d'œil » doit tenir en quelques lignes : au-delà, ce n'est plus
+      // un résumé exécutif mais une seconde introduction.
+      const PLAFOND_COUP_DOEIL = 900;
       const defauts = (texte) => [
         ...findSignContradictions(texte, context.socle),
         ...findUnfilledPlaceholders(texte),
-        ...findBiographicalInvention(texte)
+        ...findBiographicalInvention(texte),
+        ...(planSection.id === "introduction" && String(texte).length > PLAFOND_COUP_DOEIL
+          ? [{ sentence: `ouverture trop longue (${String(texte).length} caractères)` }]
+          : [])
       ];
       let contradictions = defauts(written.text);
       if (contradictions.length > 0) {

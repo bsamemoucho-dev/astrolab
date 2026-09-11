@@ -36,7 +36,7 @@ const FR = {
   writerNoteLlm: "Rédaction : rédacteur IA configuré, sections validées par la machine avant relecture humaine.",
   writerNoteTemplate: "Brouillon : rédacteur IA non configuré (clé absente). Ce document n'est pas prêt pour la livraison.",
   footer:
-    "Document généré par Lastro — socle de calcul local et déterministe ; toute interprétation est étiquetée et doit être relue avant livraison.",
+    "Document produit par Lastro — positions astronomiques calculées localement, interprétation symbolique.",
   badgeCalculated: "Données vérifiées (calcul)",
   badgeSymbolic: "Lecture symbolique",
   badgeUnavailable: "Module non disponible dans cette version",

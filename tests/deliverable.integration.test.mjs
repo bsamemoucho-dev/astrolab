@@ -722,3 +722,30 @@ test("un placeholder non rempli ne peut pas atteindre le client", async () => {
   assert.equal(appels.filter((id) => id === "lettre-miroir").length, 2);
   assert.ok(reading.sections.some((section) => section.id === "lettre-miroir"));
 });
+
+test("le coup d'œil trop long est réécrit, pas livré tel quel", async () => {
+  const long = Array.from({ length: 40 }, (_, index) => `Phrase numéro ${index + 1} qui allonge considérablement cette ouverture.`).join(" ");
+  const appels = [];
+  const writerFn = (section) => {
+    appels.push(section.id);
+    if (section.id === "introduction" && appels.filter((id) => id === "introduction").length === 1) {
+      return long;
+    }
+    return `Texte pour ${section.id}.`;
+  };
+  const reading = await createPublicReading(
+    {
+      firstName: "Test",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn, crossCheckFn: null }
+  );
+  assert.equal(appels.filter((id) => id === "introduction").length, 2);
+  assert.doesNotMatch(reading.html, /Phrase numéro 40/);
+});

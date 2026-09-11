@@ -16,6 +16,7 @@ export const FRAME_DIRECTIVES = Object.freeze([
   "Aucun fait astronomique inventé : utilise uniquement les faits calculés fournis.",
   "Si un fait calculé manque (heure inconnue, Ascendant non calculé), travaille en tendances symboliques explicites, sans affirmation technique.",
   "Explique brièvement chaque terme astrologique la première fois que tu l'utilises ; évite tout jargon non expliqué.",
+  "Accord et cohérence : garde le même genre grammatical du début à la fin du document (accords, adjectifs, participes). Si le genre n'est pas connu, choisis-en un une fois et ne change plus.", 
   // Anti-répétition (chantier 2) : un placement expliqué une fois, puis on avance.
   "Chaque placement (planète, signe, aspect, maison) est expliqué UNE SEULE FOIS, dans la section où il sert le mieux. Les sections suivantes ne le réexpliquent pas : elles apportent un angle nouveau (le passé, la relation, l'action, l'intégration).",
   "Les passages déjà rédigés te sont fournis dans « alreadyWritten » : appuie-toi dessus sans les redévelopper, et ne réutilise pas les mêmes formulations.",
@@ -61,7 +62,7 @@ const DIRECTIVES = {
     "Si la matière manque (peu d'indicateurs exploitables), dis-le simplement et reste court."
   ],
   action: [
-    "Pars de Mars : comment tu initiés, tu tiens, tu défends, tu t'arrêtes.",
+    "Pars de Mars : comment tu lances les choses, comment tu tiens, comment tu défends, comment tu t'arrêtes.",
     "Relie la manière d'agir aux éléments déjà établis plutôt que de la décrire isolément.",
     "Parle de l'énergie et de la colère sans jugement moral et sans conseil directif.",
     "Pas d'affirmation sur un métier, un projet ou une décision à venir."
