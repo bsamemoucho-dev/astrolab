@@ -56,9 +56,15 @@ test("un titre ne peut plus rester seul en bas de page", () => {
   assert.match(css, /widows\s*:\s*3/);
 });
 
-test("l'annexe reste visible à l'impression", () => {
-  assert.match(css, /details\.annex\s*>\s*\.block-body\s*\{[^}]*display\s*:\s*block\s*!important/);
-  assert.match(css, /details\.annex\s*>\s*summary\s*\{\s*display\s*:\s*none/);
+test("l'annexe est toujours visible : aucun détail cliquable", () => {
+  // Le repli était la cause d'une annexe absente du PDF, et un document payant
+  // ne doit pas avoir de contenu caché derrière un clic.
+  assert.doesNotMatch(html, /<details/);
+  assert.doesNotMatch(css, /details\.annex/);
+  assert.match(html, /<section class="block annex">/);
+  // Elle reste encadrée à l'écran, sobre à l'impression.
+  assert.match(css, /\.annex \{[^}]*border:1px solid/);
+  assert.match(css, /@media print \{[\s\S]*\.annex \{ border:0; background:none/);
 });
 
 test("tout champ de lieu du parcours public est branché sur la reconnaissance", () => {
@@ -212,4 +218,19 @@ test("le rendu Markdown des tableaux n'avale pas ce qui suit", () => {
   assert.match(html, /<h3>Un titre<\/h3>/);
   // La ligne de séparation ne doit pas devenir une ligne du tableau.
   assert.doesNotMatch(html, /<td>-{2,}<\/td>/);
+});
+
+test("le nom de fichier proposé vient du document, pas de l'application", () => {
+  const script = readFileSync(path.join(RACINE, "public/app.js"), "utf8");
+  // Le titre est lu dans le HTML imprimé, puis appliqué à la page hôte : sans
+  // cela le PDF enregistré s'appelait « Lastro — Lecture symbolique … ».
+  assert.match(script, /function titreDuDocument\(html\)/);
+  assert.match(script, /document\.title = titre/);
+  assert.match(script, /document\.title = titrePage/);
+  assert.match(script, /function nomDeFichier\(titre, extension/);
+  // Les téléchargements HTML et Markdown portent le nom de la lecture.
+  assert.match(script, /link\.download = nomDeFichier\(titreDuDocument\(state\.guestReading\.html\), "html"\)/);
+  assert.match(script, /link\.download = nomDeFichier\(titreDuDocument\(state\.guestReading\.html\), "md"\)/);
+  // La page ne porte plus de détail cliquable nulle part.
+  assert.doesNotMatch(readFileSync(path.join(RACINE, "public/index.html"), "utf8"), /<details[^>]*annex/i);
 });

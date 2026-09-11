@@ -450,47 +450,56 @@ const UI_STRINGS = {
 };
 
 const UI_EXTRA = {
-  fr: { backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe",
+  fr: {
+    pdfHint: "Ouvre la fenêtre d'impression : choisissez « Enregistrer au format PDF ». Décochez « En-têtes et pieds de page » pour retirer la date et l'adresse.", backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe",
     payTitle: "Régler votre lecture", payText: "Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.",
     payAmount: "Montant libre", payRange: "Le montant minimum est de 5 €.", payHint: "Minimum 5 € — vous pouvez donner plus si vous le souhaitez.", findSummary: "Vous avez déjà payé ? Retrouver ma lecture", findReferenceLabel: "Numéro de commande", findEmailLabel: "E-mail utilisé au paiement", findSubmit: "Renvoyer le lien", findSent: "Si une commande correspond à ces informations, le lien vient d'être envoyé par e-mail.", deliveryKeep: "Votre lecture est conservée 30 jours : gardez ce lien pour la retrouver ensuite.", deliveryCopy: "Copier le lien", deliveryCopied: "Lien copié ✓", deliveryOrderLabel: "Numéro de commande", deliveryEmailed: "Le lien vous a aussi été envoyé par e-mail.", deliveryDelete: "Supprimer ma lecture", recoveryPending: "Votre lecture est en cours de rédaction. Rechargez la page dans un instant.", recoveryFailed: "La rédaction a échoué. Vous pouvez la relancer sans repayer.", recoveryRetry: "Relancer la rédaction", recoveryUnknown: "Ce lien est inconnu ou a expiré.", testCodeToggle: "J'ai un code de test", testCodeLabel: "Code de test", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement (usage interne uniquement).", testCodeApplied: "Lecture offerte avec le code de test.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
     payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
     payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement. Votre lecture est conservée 30 jours, puis supprimée." },
-  en: { backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password",
+  en: {
+    pdfHint: "Opens the print window: choose “Save as PDF”. Uncheck “Headers and footers” to remove the date and the address.", backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password",
     payTitle: "Pay for your reading", payText: "Choose any amount, then pay right here: card, Apple Pay or Google Pay.",
     payAmount: "Amount (free)", payRange: "The minimum amount is €5.", payHint: "Minimum €5 — you are welcome to give more.", findSummary: "Already paid? Find my reading", findReferenceLabel: "Order number", findEmailLabel: "Email used for payment", findSubmit: "Resend the link", findSent: "If an order matches this information, the link has just been emailed to you.", deliveryKeep: "Your reading is kept for 30 days: save this link to find it again.", deliveryCopy: "Copy the link", deliveryCopied: "Link copied ✓", deliveryOrderLabel: "Order number", deliveryEmailed: "The link has also been sent to you by email.", deliveryDelete: "Delete my reading", recoveryPending: "Your reading is being written. Reload the page in a moment.", recoveryFailed: "Writing failed. You can start it again without paying.", recoveryRetry: "Restart the writing", recoveryUnknown: "This link is unknown or has expired.", testCodeToggle: "I have a test code", testCodeLabel: "Test code", testCodePlaceholder: "Paste your code", testCodeHint: "This code replaces the payment (internal use only).", testCodeApplied: "Reading provided free with the test code.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
     payConfirmed: "Payment confirmed ✓ — creating your reading…", payContinue: "Payment done? Continue →",
     payNote: "Secure payment by Stripe. Your card details never pass through our servers; your reading is created as soon as the payment is confirmed. Your reading is kept for 30 days, then deleted." },
-  de: { backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort",
+  de: {
+    pdfHint: "Öffnet das Druckfenster: wähle „Als PDF speichern“. Deaktiviere „Kopf- und Fußzeilen“, um Datum und Adresse zu entfernen.", backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort",
     payTitle: "Deine Deutung bezahlen", payText: "Wähle den Betrag frei und zahle direkt hier: Karte, Apple Pay oder Google Pay.",
     payAmount: "Freier Betrag", payRange: "Der Mindestbetrag beträgt 5 €.", payHint: "Mindestens 5 € — Sie dürfen gerne mehr geben.", findSummary: "Schon bezahlt? Meine Lesung finden", findReferenceLabel: "Bestellnummer", findEmailLabel: "Bei der Zahlung verwendete E-Mail", findSubmit: "Link erneut senden", findSent: "Wenn eine Bestellung zu diesen Angaben passt, wurde der Link soeben per E-Mail verschickt.", deliveryKeep: "Deine Lesung wird 30 Tage aufbewahrt: Speichere diesen Link, um sie wiederzufinden.", deliveryCopy: "Link kopieren", deliveryCopied: "Link kopiert ✓", deliveryOrderLabel: "Bestellnummer", deliveryEmailed: "Der Link wurde dir auch per E-Mail geschickt.", deliveryDelete: "Meine Lesung löschen", recoveryPending: "Deine Lesung wird gerade verfasst. Lade die Seite gleich neu.", recoveryFailed: "Das Verfassen ist fehlgeschlagen. Du kannst es ohne erneute Zahlung neu starten.", recoveryRetry: "Verfassen neu starten", recoveryUnknown: "Dieser Link ist unbekannt oder abgelaufen.", testCodeToggle: "Ich habe einen Testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Code einfügen", testCodeHint: "Dieser Code ersetzt die Zahlung (nur intern).", testCodeApplied: "Lesung mit Testcode kostenlos erstellt.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
     payConfirmed: "Zahlung bestätigt ✓ — deine Deutung wird erstellt …", payContinue: "Zahlung erledigt? Weiter →",
     payNote: "Sichere Zahlung über Stripe. Deine Kartendaten laufen nie über unsere Server; die Deutung wird nach Bestätigung der Zahlung erstellt. Deine Lesung wird 30 Tage aufbewahrt und dann gelöscht." },
-  es: { backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña",
+  es: {
+    pdfHint: "Abre la ventana de impresión: elige «Guardar como PDF». Desmarca «Encabezados y pies de página» para quitar la fecha y la dirección.", backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña",
     payTitle: "Pagar tu lectura", payText: "Elige libremente el importe y paga aquí mismo: tarjeta, Apple Pay o Google Pay.",
     payAmount: "Importe libre", payRange: "El importe mínimo es de 5 €.", payHint: "Mínimo 5 € — puedes dar más si quieres.", findSummary: "¿Ya has pagado? Recuperar mi lectura", findReferenceLabel: "Número de pedido", findEmailLabel: "Correo usado en el pago", findSubmit: "Reenviar el enlace", findSent: "Si un pedido coincide con estos datos, el enlace acaba de enviarse por correo.", deliveryKeep: "Tu lectura se conserva 30 días: guarda este enlace para encontrarla después.", deliveryCopy: "Copiar el enlace", deliveryCopied: "Enlace copiado ✓", deliveryOrderLabel: "Número de pedido", deliveryEmailed: "El enlace también se te ha enviado por correo.", deliveryDelete: "Eliminar mi lectura", recoveryPending: "Tu lectura se está redactando. Recarga la página en un momento.", recoveryFailed: "La redacción ha fallado. Puedes reiniciarla sin volver a pagar.", recoveryRetry: "Reiniciar la redacción", recoveryUnknown: "Este enlace es desconocido o ha caducado.", testCodeToggle: "Tengo un código de prueba", testCodeLabel: "Código de prueba", testCodePlaceholder: "Pega tu código", testCodeHint: "Este código sustituye el pago (uso interno).", testCodeApplied: "Lectura gratuita con el código de prueba.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
     payConfirmed: "Pago confirmado ✓ — generando tu lectura…", payContinue: "¿Pago realizado? Continuar →",
     payNote: "Pago seguro con Stripe. Los datos de tu tarjeta nunca pasan por nuestros servidores; la lectura se genera al confirmarse el pago. Tu lectura se conserva 30 días y luego se elimina." },
-  it: { backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password",
+  it: {
+    pdfHint: "Apre la finestra di stampa: scegli «Salva come PDF». Deseleziona «Intestazioni e piè di pagina» per togliere data e indirizzo.", backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password",
     payTitle: "Paga la tua lettura", payText: "Scegli liberamente l'importo e paga qui: carta, Apple Pay o Google Pay.",
     payAmount: "Importo libero", payRange: "L'importo minimo è di 5 €.", payHint: "Minimo 5 € — puoi dare di più se vuoi.", findSummary: "Hai già pagato? Ritrova la mia lettura", findReferenceLabel: "Numero d'ordine", findEmailLabel: "E-mail usata per il pagamento", findSubmit: "Invia di nuovo il link", findSent: "Se un ordine corrisponde a questi dati, il link è appena stato inviato per e-mail.", deliveryKeep: "La tua lettura è conservata 30 giorni: salva questo link per ritrovarla.", deliveryCopy: "Copia il link", deliveryCopied: "Link copiato ✓", deliveryOrderLabel: "Numero d'ordine", deliveryEmailed: "Il link ti è stato inviato anche per e-mail.", deliveryDelete: "Eliminare la mia lettura", recoveryPending: "La tua lettura è in scrittura. Ricarica la pagina tra un istante.", recoveryFailed: "La scrittura non è riuscita. Puoi riavviarla senza pagare di nuovo.", recoveryRetry: "Riavvia la scrittura", recoveryUnknown: "Questo link è sconosciuto o scaduto.", testCodeToggle: "Ho un codice di test", testCodeLabel: "Codice di test", testCodePlaceholder: "Incolla il codice", testCodeHint: "Questo codice sostituisce il pagamento (solo uso interno).", testCodeApplied: "Lettura gratuita con il codice di test.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
     payConfirmed: "Pagamento confermato ✓ — stiamo creando la tua lettura…", payContinue: "Pagamento fatto? Continua →",
     payNote: "Pagamento sicuro con Stripe. I dati della carta non passano mai dai nostri server; la lettura viene creata alla conferma del pagamento. La tua lettura è conservata 30 giorni, poi eliminata." },
-  pt: { backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe",
+  pt: {
+    pdfHint: "Abre a janela de impressão: escolha «Guardar como PDF». Desmarque «Cabeçalhos e rodapés» para remover a data e o endereço.", backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe",
     payTitle: "Pagar a sua leitura", payText: "Escolha livremente o valor e pague aqui mesmo: cartão, Apple Pay ou Google Pay.",
     payAmount: "Valor livre", payRange: "O valor mínimo é de 5 €.", payHint: "Mínimo 5 € — pode dar mais se quiser.", findSummary: "Já pagou? Recuperar a minha leitura", findReferenceLabel: "Número do pedido", findEmailLabel: "E-mail usado no pagamento", findSubmit: "Reenviar o link", findSent: "Se um pedido corresponder a estes dados, o link acabou de ser enviado por e-mail.", deliveryKeep: "A sua leitura é conservada 30 dias: guarde este link para a encontrar depois.", deliveryCopy: "Copiar o link", deliveryCopied: "Link copiado ✓", deliveryOrderLabel: "Número do pedido", deliveryEmailed: "O link também foi enviado por e-mail.", deliveryDelete: "Eliminar a minha leitura", recoveryPending: "A sua leitura está a ser escrita. Recarregue a página dentro de instantes.", recoveryFailed: "A escrita falhou. Pode reiniciá-la sem pagar de novo.", recoveryRetry: "Reiniciar a escrita", recoveryUnknown: "Este link é desconhecido ou expirou.", testCodeToggle: "Tenho um código de teste", testCodeLabel: "Código de teste", testCodePlaceholder: "Cole o seu código", testCodeHint: "Este código substitui o pagamento (uso interno).", testCodeApplied: "Leitura gratuita com o código de teste.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
     payConfirmed: "Pagamento confirmado ✓ — a gerar a sua leitura…", payContinue: "Pagamento feito? Continuar →",
     payNote: "Pagamento seguro pela Stripe. Os dados do cartão nunca passam pelos nossos servidores; a leitura é gerada quando o pagamento é confirmado. A sua leitura é conservada 30 dias e depois eliminada." },
-  no: { backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord",
+  no: {
+    pdfHint: "Åpner utskriftsvinduet: velg «Lagre som PDF». Fjern haken for «Topp- og bunntekst» for å fjerne dato og adresse.", backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord",
     payTitle: "Betal for lesningen din", payText: "Velg beløpet fritt og betal her: kort, Apple Pay eller Google Pay.",
     payAmount: "Fritt beløp", payRange: "Minimumsbeløpet er 5 €.", payHint: "Minimum 5 € — du kan gjerne gi mer.", findSummary: "Har du allerede betalt? Finn lesningen min", findReferenceLabel: "Ordrenummer", findEmailLabel: "E-post brukt ved betaling", findSubmit: "Send lenken på nytt", findSent: "Hvis en ordre samsvarer med disse opplysningene, er lenken nettopp sendt på e-post.", deliveryKeep: "Lesningen din oppbevares i 30 dager: ta vare på denne lenken for å finne den igjen.", deliveryCopy: "Kopier lenken", deliveryCopied: "Lenke kopiert ✓", deliveryOrderLabel: "Ordrenummer", deliveryEmailed: "Lenken er også sendt deg på e-post.", deliveryDelete: "Slett lesningen min", recoveryPending: "Lesningen din skrives nå. Last siden på nytt om litt.", recoveryFailed: "Skrivingen mislyktes. Du kan starte den på nytt uten å betale.", recoveryRetry: "Start skrivingen på nytt", recoveryUnknown: "Denne lenken er ukjent eller utløpt.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Lim inn koden", testCodeHint: "Denne koden erstatter betalingen (kun internt bruk).", testCodeApplied: "Lesningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekreftet ✓ — lesningen din lages …", payContinue: "Betalt? Fortsett →",
     payNote: "Sikker betaling via Stripe. Kortopplysningene går aldri via våre servere; lesningen lages så snart betalingen er bekreftet. Lesningen din oppbevares i 30 dager og slettes deretter." },
-  da: { backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode",
+  da: {
+    pdfHint: "Åbner udskriftsvinduet: vælg «Gem som PDF». Fjern markeringen i «Sidehoved og sidefod» for at fjerne dato og adresse.", backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode",
     payTitle: "Betal for din læsning", payText: "Vælg beløbet frit og betal her: kort, Apple Pay eller Google Pay.",
     payAmount: "Frit beløb", payRange: "Minimumsbeløbet er 5 €.", payHint: "Minimum 5 € — du er velkommen til at give mere.", findSummary: "Har du allerede betalt? Find min læsning", findReferenceLabel: "Ordrenummer", findEmailLabel: "E-mail brugt ved betaling", findSubmit: "Send linket igen", findSent: "Hvis en ordre matcher disse oplysninger, er linket netop sendt på e-mail.", deliveryKeep: "Din læsning opbevares i 30 dage: gem dette link for at finde den igen.", deliveryCopy: "Kopiér linket", deliveryCopied: "Link kopieret ✓", deliveryOrderLabel: "Ordrenummer", deliveryEmailed: "Linket er også sendt til dig på e-mail.", deliveryDelete: "Slet min læsning", recoveryPending: "Din læsning skrives lige nu. Genindlæs siden om et øjeblik.", recoveryFailed: "Skrivningen mislykkedes. Du kan starte den igen uden at betale.", recoveryRetry: "Start skrivningen igen", recoveryUnknown: "Dette link er ukendt eller udløbet.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Indsæt din kode", testCodeHint: "Denne kode erstatter betalingen (kun intern brug).", testCodeApplied: "Læsningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekræftet ✓ — din læsning laves …", payContinue: "Betalt? Fortsæt →",
     payNote: "Sikker betaling via Stripe. Dine kortoplysninger går aldrig gennem vores servere; læsningen laves, så snart betalingen er bekræftet. Din læsning opbevares i 30 dage og slettes derefter." },
-  nl: { backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord",
+  nl: {
+    pdfHint: "Opent het afdrukvenster: kies ‘Opslaan als pdf’. Vink ‘Kop- en voetteksten’ uit om datum en adres te verwijderen.", backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord",
     payTitle: "Jouw lezing betalen", payText: "Kies vrij het bedrag en betaal hier: kaart, Apple Pay of Google Pay.",
     payAmount: "Vrij bedrag", payRange: "Het minimumbedrag is € 5.", payHint: "Minimaal € 5 — je mag gerust meer geven.", findSummary: "Al betaald? Mijn lezing terugvinden", findReferenceLabel: "Ordernummer", findEmailLabel: "E-mailadres gebruikt bij betaling", findSubmit: "Link opnieuw versturen", findSent: "Als een bestelling overeenkomt met deze gegevens, is de link zojuist per e-mail verzonden.", deliveryKeep: "Je lezing wordt 30 dagen bewaard: bewaar deze link om haar terug te vinden.", deliveryCopy: "Link kopiëren", deliveryCopied: "Link gekopieerd ✓", deliveryOrderLabel: "Ordernummer", deliveryEmailed: "De link is ook per e-mail naar je verzonden.", deliveryDelete: "Mijn lezing verwijderen", recoveryPending: "Je lezing wordt geschreven. Herlaad de pagina zo meteen.", recoveryFailed: "Het schrijven is mislukt. Je kunt het opnieuw starten zonder te betalen.", recoveryRetry: "Schrijven opnieuw starten", recoveryUnknown: "Deze link is onbekend of verlopen.", testCodeToggle: "Ik heb een testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Plak je code", testCodeHint: "Deze code vervangt de betaling (alleen intern gebruik).", testCodeApplied: "Lezing gratis met de testcode.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
     payConfirmed: "Betaling bevestigd ✓ — je lezing wordt gemaakt …", payContinue: "Betaald? Doorgaan →",
@@ -727,6 +736,10 @@ function applyUITranslations() {
   setNodeText("#guest-download-html", t.dlHtml);
   setNodeText("#guest-download-md", t.dlMd);
   setNodeText("#guest-download-pdf", t.dlPdf);
+  const pdfButton = $("#guest-download-pdf");
+  if (pdfButton) {
+    pdfButton.title = t.pdfHint;
+  }
   setNodeText("#guest-pro-link", t.proLink);
   setNodeText("#guest-back", t.backShort);
   setNodeText("#auth-back", t.backToReading);
@@ -2217,18 +2230,14 @@ async function exportDeliverablePdf(id) {
     throw new Error(payload.error ?? "Export PDF impossible.");
   }
   const html = await response.text();
-  const printWindow = window.open("", "_blank", "width=900,height=1000");
-  if (!printWindow) {
-    throw new Error("Autorisez les fenêtres pop-up pour exporter en PDF.");
+  // Même chemin que le parcours public : impression depuis un cadre invisible,
+  // donc pas de fenêtre surgissante à autoriser.
+  try {
+    printHtmlInWindow(html);
+  } catch (error) {
+    throw new Error(error.message || "Impression impossible. Utilisez le bouton HTML.");
   }
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-  }, 500);
-  showMessage("Choisissez « Enregistrer au format PDF » dans la fenêtre d'impression.");
+  showMessage(uiStrings().pdfHint);
 }
 
 async function toggleDeliverableReview() {
@@ -2294,7 +2303,7 @@ async function downloadDeliverable(id, format) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `dossier-${id}.${extension}`;
+  link.download = nomDeFichier(titreDuDocument(text), extension, `dossier-${id}`);
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -2459,6 +2468,25 @@ async function refreshDossier() {
   updateNav();
 }
 
+// Le titre du document imprimé sert de nom de fichier proposé par le navigateur :
+// on le lit dans le HTML pour que le PDF s'appelle « Lecture symbolique — Caro »
+// et non « Lastro — Lecture symbolique … ».
+function titreDuDocument(html) {
+  const trouve = String(html ?? "").match(/<title>([^<]*)<\/title>/i);
+  return trouve ? trouve[1].trim() : "";
+}
+
+function nomDeFichier(titre, extension, defaut = "lecture-astrologique") {
+  const base = String(titre ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return `${base || defaut}.${extension}`;
+}
+
 // Impression du document pour l'enregistrer en PDF.
 //
 // On imprime depuis un cadre invisible de la page courante, et non depuis une
@@ -2466,6 +2494,20 @@ async function refreshDossier() {
 // enregistrer en PDF. Si le cadre échoue (navigateur restrictif), on retombe
 // sur l'ouverture d'un onglet, seul cas où l'autorisation peut être demandée.
 function printHtmlInWindow(html) {
+  // Le navigateur propose comme nom de fichier le titre du document imprimé :
+  // on aligne le titre de la page hôte le temps de l'impression, puis on le
+  // remet. Sans cela, le PDF enregistré portait le titre de l'application.
+  const titre = titreDuDocument(html);
+  const titrePage = document.title;
+  if (titre) {
+    document.title = titre;
+  }
+  const restaurerTitre = () => {
+    if (titre) {
+      document.title = titrePage;
+    }
+  };
+
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.position = "fixed";
@@ -2489,6 +2531,7 @@ function printHtmlInWindow(html) {
     frame.addEventListener("load", () => {
       frame.contentWindow.focus();
       frame.contentWindow.print();
+      restaurerTitre();
       cleanup();
     });
     // Certains navigateurs ne déclenchent pas « load » sur un document écrit
@@ -2497,12 +2540,14 @@ function printHtmlInWindow(html) {
       if (document.body.contains(frame)) {
         frame.contentWindow.focus();
         frame.contentWindow.print();
+        restaurerTitre();
         cleanup();
       }
     }, 700);
     return;
   } catch {
     frame.remove();
+    restaurerTitre();
   }
 
   const printWindow = window.open("", "_blank", "width=900,height=1000");
@@ -2933,7 +2978,7 @@ function bindExpressForm() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "lecture-astrologique.html";
+    link.download = nomDeFichier(titreDuDocument(state.guestReading.html), "html");
     link.click();
     URL.revokeObjectURL(url);
   });
@@ -2943,7 +2988,7 @@ function bindExpressForm() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "lecture-astrologique.md";
+    link.download = nomDeFichier(titreDuDocument(state.guestReading.html), "md");
     link.click();
     URL.revokeObjectURL(url);
   });
@@ -2951,7 +2996,7 @@ function bindExpressForm() {
     if (!state.guestReading) return;
     try {
       printHtmlInWindow(state.guestReading.html);
-      showMessage("Choisissez « Enregistrer au format PDF » dans la fenêtre d'impression.");
+      showMessage(uiStrings().pdfHint);
     } catch (error) {
       showMessage(error.message, true);
     }

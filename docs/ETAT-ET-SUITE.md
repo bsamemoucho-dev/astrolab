@@ -147,6 +147,21 @@ faits calculés, sans aucune règle nouvelle.
 - **Habillage** : titres de section en petites capitales espacées avec marqueur,
   bandeau de couverture, tableaux, encadrés. Le `markdownToHtml` sait désormais
   rendre les tableaux `| … |` (l'export Markdown les porte aussi).
+- **L'annexe n'est plus repliable.** Elle était dans un `<details>` (repliée à
+  l'écran, censée se déplier à l'impression) : la règle CSS ne tenait pas dans le
+  navigateur du client, donc le PDF sortait **sans l'annexe**, et un document
+  payant ne doit de toute façon pas cacher de contenu derrière un clic. C'est
+  maintenant une section comme les autres, toujours visible. La chaîne
+  `annexShow` (« Voir les données astronomiques utilisées ») est supprimée des
+  neuf langues : une chaîne morte finit par faire croire que le repli existe.
+- **Export PDF** : le bouton ouvre la fenêtre d'impression (c'est le navigateur
+  qui décide, pas la page — un `.pdf` téléchargé directement demanderait une
+  génération côté serveur). En revanche le **nom de fichier proposé** est
+  maintenant celui du document (« Lecture symbolique — Caro ») au lieu du titre de
+  l'application, les fichiers HTML/Markdown téléchargés portent aussi ce nom, et
+  l'aide du bouton est traduite dans les neuf langues (« choisissez Enregistrer au
+  format PDF ; décochez En-têtes et pieds de page »). L'export du compte passe par
+  le même chemin : plus de fenêtre surgissante à autoriser.
 - **Fuite corrigée au passage** : l'export Markdown écrivait l'horodatage brut
   (`2026-09-11T09:29:18.661Z`) au lieu d'une date lisible, comme le HTML.
 - **Outil** : `tools/preview-document.mjs` fabrique un document complet avec des

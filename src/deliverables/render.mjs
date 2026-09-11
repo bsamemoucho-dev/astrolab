@@ -175,16 +175,14 @@ const CSS = `
   .annex p, .annex li { font-size:13px; line-height:1.6; color:#444; }
   footer { margin-top:46px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
   .ai-review { margin:16px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; font-weight:600; break-inside:avoid; page-break-inside:avoid; }
-  /* À l'impression (donc dans le PDF) : 2 cm de marge tout autour, l'annexe
-     VISIBLE (seule pièce qui permet de vérifier les positions et les aspects
-     utilisés), et des titres jamais seuls en bas de page. */
+  /* À l'impression (donc dans le PDF) : 2 cm de marge tout autour, et des titres
+     jamais seuls en bas de page. L'annexe n'a plus rien à déplier : elle est
+     visible partout, donc elle ne peut plus manquer au fichier. */
   @page { margin:2cm; }
   @media print {
     body { background:#fff; }
     .sheet { box-shadow:none; margin:0; max-width:none; padding:0; }
-    details.annex > summary { display:none; }
-    details.annex > .block-body { display:block !important; }
-    details.annex { border:0; background:none; padding:0; margin-top:40px; }
+    .annex { border:0; background:none; padding:0; margin-top:38px; }
     .caveat, .ai-review, .badge { break-inside:avoid; page-break-inside:avoid; }
     a { color:inherit; text-decoration:none; }
   }
@@ -207,16 +205,13 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   const body = sections
     .filter((section) => section.badgeCode !== "unavailable")
     .map((section) => {
-      const annex = section.kind === "annex";
-      const block = `<div class="block-body">${markdownToHtml(section.text)}</div>`;
-      return annex
-        ? `<details class="block annex">
-        <summary>${escapeHtml(t.annexShow)}</summary>
-        ${block}
-      </details>`
-        : `<section class="block">
+      // L'annexe est une section comme les autres : toujours visible, jamais
+      // repliée derrière un « détail » cliquable. Un document payant n'a pas de
+      // contenu caché, et le repli était la cause d'une annexe absente du PDF.
+      const classes = section.kind === "annex" ? "block annex" : "block";
+      return `<section class="${classes}">
         <h2>${escapeHtml(section.title)}</h2>
-        ${block}
+        <div class="block-body">${markdownToHtml(section.text)}</div>
       </section>`;
     })
     .join("\n");
