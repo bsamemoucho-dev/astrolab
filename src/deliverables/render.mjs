@@ -67,6 +67,19 @@ export function markdownToHtml(source) {
   return out.join("\n");
 }
 
+// « 2026-09-11T00:25:17.558Z » n'a rien à faire dans une lecture payante.
+function formatHumanDate(value, lang = "fr") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value ?? "");
+  }
+  try {
+    return new Intl.DateTimeFormat(lang || "fr", { day: "numeric", month: "long", year: "numeric" }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
 function statusLabel(status, t = null) {
   const strings = t ?? docStrings("fr");
   const labels = {
@@ -117,24 +130,23 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   const authorLine = author
     ? `<p>${escapeHtml(author)}</p>`
     : "";
+  // Document client : ni badge de classification, ni statut de validation, ni
+  // message interne. Ces informations servent à l'exploitation, pas au lecteur.
+  // Une section indisponible disparaît : on ne montre jamais « module non
+  // disponible » à quelqu'un qui vient de payer.
   const body = sections
+    .filter((section) => section.badgeCode !== "unavailable")
     .map((section) => {
-      const badgeClass = badges[section.badgeCode] ?? "badge-symbolic";
-      const status = section.status === "ok" ? t.statusOk : statusLabel(section.status, t);
-      const issues =
-        section.validation?.issues?.length > 0
-          ? `<div class="validation">${section.validation.issues
-              .map(
-                (issue) =>
-                  `<span class="${issue.severity === "error" ? "err" : "warn"}">• ${escapeHtml(issue.message)}</span><br>`
-              )
-              .join("")}</div>`
-          : "";
-      return `<section class="block">
+      const annex = section.kind === "annex";
+      const block = `<div class="block-body">${markdownToHtml(section.text)}</div>`;
+      return annex
+        ? `<details class="block annex">
+        <summary>${escapeHtml(t.annexShow)}</summary>
+        ${block}
+      </details>`
+        : `<section class="block">
         <h2>${escapeHtml(section.title)}</h2>
-        <span class="badge ${badgeClass}">${escapeHtml(section.badgeLabel)}</span>
-        <div class="block-body">${markdownToHtml(section.text)}</div>
-        <div class="validation">${escapeHtml(t.statusLabelPrefix)} : ${escapeHtml(status)}${issues}</div>
+        ${block}
       </section>`;
     })
     .join("\n");
@@ -155,7 +167,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   <header class="cover">
     <div class="brand">${escapeHtml(t.brand)}</div>
     <h1>${escapeHtml(title)}</h1>
-    <div class="cover-meta">${personLabel ? `${escapeHtml(t.person)} : ${escapeHtml(personLabel)} · ` : ""}${escapeHtml(t.generatedOn)} ${escapeHtml(createdAt)}</div>
+    <div class="cover-meta">${personLabel ? `${escapeHtml(t.person)} : ${escapeHtml(personLabel)} · ` : ""}${escapeHtml(t.generatedOn)} ${escapeHtml(formatHumanDate(createdAt, t.lang))}</div>
   </header>
   <div class="caveat">${escapeHtml(t.caveat)}</div>
   ${aiReview ? `<div class="ai-review">${escapeHtml(aiReview)}</div>` : ""}
