@@ -6,7 +6,7 @@ import { JsonStore } from "../src/db/jsonStore.mjs";
 import { validateSectionText } from "../src/deliverables/validator.mjs";
 import { writeSection } from "../src/deliverables/writers.mjs";
 import { DOSSIER_SECTIONS } from "../src/deliverables/plan.mjs";
-import { createPublicReading } from "../src/models/publicReadingService.mjs";
+import { createPublicReading, hasConvergentIndicators } from "../src/models/publicReadingService.mjs";
 
 async function startTestApp() {
   const { server, store } = createApp({ store: new JsonStore(null) });
@@ -288,10 +288,11 @@ test("public no-account reading works without authentication and stores nothing"
     assert.match(reading.payload.html, /socle de calcul vérifié/i);
     assert.ok(reading.payload.sections.some((section) => section.id === "lettre-ame"));
     assert.equal(reading.payload.verification.status, "skipped");
-    // 9 sections : la section transgénérationnelle disparaît sans données
-    // familiales (au lieu d'inventer une histoire d'ancêtres) et la conclusion
-    // éthique n'est plus une section : c'est une clôture fixe du document.
-    assert.equal(reading.payload.sections.length, 11);
+    // Sans données familiales, la section transgénérationnelle disparaît (au lieu
+    // d'inventer une histoire d'ancêtres) ; la conclusion éthique n'est plus une
+    // section mais une clôture fixe ; et « forces et tensions » n'apparaît que
+    // si des indicateurs convergent réellement (ici : oui).
+    assert.equal(reading.payload.sections.length, 12);
     assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
     // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
     assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
@@ -604,4 +605,51 @@ test("transgénérationnel fourni : la section revient, et la rédaction sait ce
   const derniere = contextes.at(-1);
   assert.equal(premiere.precedents, 0);
   assert.ok(derniere.precedents >= 8, `sections précédentes transmises : ${derniere.precedents}`);
+});
+
+test("« Vos forces et vos tensions » n'existe que si des indicateurs convergent réellement", async () => {
+  // Deux corps dans un même signe : matière suffisante.
+  assert.equal(
+    hasConvergentIndicators([
+      { body: "Sun", sign: "Gemini" },
+      { body: "Mercury", sign: "Gemini" },
+      { body: "Venus", sign: "Cancer" }
+    ]),
+    true
+  );
+  // Tous les signes différents : aucune convergence, donc pas de section.
+  assert.equal(
+    hasConvergentIndicators([
+      { body: "Sun", sign: "Gemini" },
+      { body: "Mercury", sign: "Cancer" },
+      { body: "Venus", sign: "Leo" }
+    ]),
+    false
+  );
+  // Un signe indéterminé (heure inconnue) ne compte pas comme convergence.
+  assert.equal(
+    hasConvergentIndicators([
+      { body: "Moon", sign: null },
+      { body: "Sun", sign: "Gemini" }
+    ]),
+    false
+  );
+
+  const contextes = [];
+  const reading = await createPublicReading(
+    {
+      firstName: "Test",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn: (section, context) => { contextes.push(context); return "Texte."; }, crossCheckFn: null }
+  );
+  assert.ok(reading.sections.some((section) => section.id === "forces-tensions"));
+  // Et la consigne interdit d'interpréter les aspects, encore inactifs.
+  assert.match(contextes[0].socle.warnings.join(" "), /inactive/i);
 });

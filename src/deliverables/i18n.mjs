@@ -69,7 +69,8 @@ const FR = {
     "cles-integration": "Clés d'intégration",
     "conclusion-ethique": "Conclusion éthique",
     "relations": "Vos relations",
-    "action": "Votre manière d'agir"
+    "action": "Votre manière d'agir",
+    "forces-tensions": "Vos forces et vos tensions"
   }
 };
 
@@ -114,7 +115,8 @@ const EN = {
     "cles-integration": "Keys to integration",
     "conclusion-ethique": "Ethical conclusion",
     "relations": "Your relationships",
-    "action": "How you take action"
+    "action": "How you take action",
+    "forces-tensions": "Your strengths and tensions"
   }
 };
 
@@ -159,7 +161,8 @@ const DE = {
     "cles-integration": "Schlüssel zur Integration",
     "conclusion-ethique": "Ethischer Abschluss",
     "relations": "Deine Beziehungen",
-    "action": "Wie du handelst"
+    "action": "Wie du handelst",
+    "forces-tensions": "Deine Stärken und Spannungen"
   }
 };
 
@@ -204,7 +207,8 @@ const ES = {
     "cles-integration": "Claves de integración",
     "conclusion-ethique": "Conclusión ética",
     "relations": "Tus relaciones",
-    "action": "Tu manera de actuar"
+    "action": "Tu manera de actuar",
+    "forces-tensions": "Tus fuerzas y tus tensiones"
   }
 };
 
@@ -249,7 +253,8 @@ const IT = {
     "cles-integration": "Chiavi di integrazione",
     "conclusion-ethique": "Conclusione etica",
     "relations": "Le tue relazioni",
-    "action": "Il tuo modo di agire"
+    "action": "Il tuo modo di agire",
+    "forces-tensions": "I tuoi punti di forza e le tue tensioni"
   }
 };
 
@@ -463,7 +468,8 @@ const PT = {
     "cles-integration": "Chaves de integração",
     "conclusion-ethique": "Conclusão ética",
     "relations": "As suas relações",
-    "action": "A sua maneira de agir"
+    "action": "A sua maneira de agir",
+    "forces-tensions": "As suas forças e tensões"
   }
 };
 
@@ -508,7 +514,8 @@ const NO = {
     "cles-integration": "Nøkler til integrasjon",
     "conclusion-ethique": "Etisk avslutning",
     "relations": "Relasjonene dine",
-    "action": "Måten du handler på"
+    "action": "Måten du handler på",
+    "forces-tensions": "Dine styrker og spenninger"
   }
 };
 
@@ -553,7 +560,8 @@ const DA = {
     "cles-integration": "Nøgler til integration",
     "conclusion-ethique": "Etisk afslutning",
     "relations": "Dine relationer",
-    "action": "Måden du handler på"
+    "action": "Måden du handler på",
+    "forces-tensions": "Dine styrker og spændinger"
   }
 };
 
@@ -690,7 +698,8 @@ const NL = {
     "cles-integration": "Sleutels tot integratie",
     "conclusion-ethique": "Ethische afsluiting",
     "relations": "Je relaties",
-    "action": "Hoe je handelt"
+    "action": "Hoe je handelt",
+    "forces-tensions": "Je krachten en spanningen"
   }
 };
 

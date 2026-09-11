@@ -37,6 +37,21 @@ function normalizeParents(input = {}) {
 // Une entrée « parent » sans aucun contenu (rôle seul) ne constitue pas une
 // donnée familiale : la section transgénérationnelle ne doit pas exister pour
 // un dossier où les parents sont vides.
+// « Forces et tensions » n'a de matière que si des indicateurs convergent
+// réellement. Aujourd'hui : plusieurs corps dans un même signe (les aspects
+// restent inactifs). Sans convergence, la section disparaît.
+export function hasConvergentIndicators(bodies = []) {
+  const counts = new Map();
+  for (const entry of Array.isArray(bodies) ? bodies : []) {
+    const sign = entry?.sign ?? null;
+    if (!sign) {
+      continue;
+    }
+    counts.set(sign, (counts.get(sign) ?? 0) + 1);
+  }
+  return [...counts.values()].some((count) => count >= 2);
+}
+
 function hasFamilyData(parents) {
   return (Array.isArray(parents) ? parents : []).some((entry) =>
     ["label", "birthDate", "birthPlace"].some((key) => String(entry?.[key] ?? "").trim() !== "")
@@ -122,6 +137,13 @@ export async function createPublicReading(input = {}, options = {}) {
     // Pas de données familiales : la section transgénérationnelle disparaît au
     // lieu d'inventer une histoire d'ancêtres.
     if (planSection.id === "transgenerationnel" && !hasFamilyData(parents)) {
+      continue;
+    }
+    // Section conditionnelle : pas de convergence calculée, pas de section.
+    if (
+      planSection.requiresConvergence &&
+      !hasConvergentIndicators(calculation.result.astronomicalCalculation?.bodies)
+    ) {
       continue;
     }
     // Ce qui a déjà été écrit, pour ne pas se répéter d'une section à l'autre.

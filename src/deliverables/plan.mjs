@@ -66,6 +66,12 @@ const DIRECTIVES = {
     "Parle de l'énergie et de la colère sans jugement moral et sans conseil directif.",
     "Pas d'affirmation sur un métier, un projet ou une décision à venir."
   ],
+  forcesTensions: [
+    "Appuie-toi uniquement sur les convergences réellement calculées : plusieurs corps dans un même signe ou un même élément.",
+    "Les aspects ne sont pas activés : n'en parle pas, ne les suppose pas, ne les invente pas.",
+    "Nomme ce qui soutient (une force qui revient) et ce qui met en tension (deux exigences qui tirent en sens opposés).",
+    "Reste descriptif et non prescriptif : pas de conseil, pas d'injonction, pas de pronostic."
+  ],
   past: [
     "Évoque la construction intérieure, les responsabilités précoces possibles, les renoncements silencieux.",
     "Utilise un langage projectif et respectueux (« il est possible que… », « cela a pu créer… »).",
@@ -168,6 +174,17 @@ export const DOSSIER_SECTIONS = Object.freeze([
     writer: "llm",
     requiresSocle: true,
     directives: DIRECTIVES.action
+  },
+  {
+    id: "forces-tensions",
+    rank: 6,
+    title: "Vos forces et vos tensions",
+    kind: "symbolic",
+    badge: BADGES.symbolic,
+    writer: "llm",
+    requiresSocle: true,
+    requiresConvergence: true,
+    directives: DIRECTIVES.forcesTensions
   },
   {
     id: "lecture-passe",
