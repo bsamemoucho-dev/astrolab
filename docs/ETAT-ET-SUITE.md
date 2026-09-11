@@ -54,6 +54,10 @@ détecteur.
 - **Placeholders non remplis**, **contradictions planète ↔ signe**,
   **inventions biographiques** : détectés, section réécrite, phrase retirée en
   dernier recours. Couverture limitée au français.
+- **Journal d'exploitation** : chaque réécriture, chaque défaut de style conservé
+  et chaque retrait de phrase est journalisé **avec ses motifs** (`unfilled_placeholder`,
+  `unhedged_angle_sign_assertion`, `biographical_invention`…). Un exploitant peut
+  savoir pourquoi une section a été reprise sans relire le texte.
 - **Qualité de langue (français)** : antécédents orphelins (« Cette position… »
   sans placement nommé), répétition d'un aspect ou d'une maison d'une section à
   l'autre, tutoiement, « trine » → détectés ; **réécriture demandée sans
@@ -103,9 +107,21 @@ détecteur.
 1. **« Vos périodes & cycles »** : module toujours indisponible (nécessite le
    calcul des transits/progressions). Il disparaît du document au lieu de dire
    « non disponible ».
-2. **Rédacteur IA réel** : les garde-fous sont éprouvés avec des rédacteurs
-   injectés ; la validation sur une vraie lecture complète (clé LLM configurée)
-   reste à faire, en particulier la mesure du taux de réécriture par section.
+2. **Rédacteur IA réel — mesuré.** Une lecture complète a été générée en local
+   avec le rédacteur IA configuré (2 janvier 1986, Courbevoie, heure
+   approximative ±30 min, 9 langues non testées ici) :
+   - **13 appels LLM pour 11 sections** : 3 sections ont déclenché une
+     réécriture, et une seule a été amputée d'une phrase ;
+   - motifs réels relevés : `unfilled_placeholder` (un gabarit non rempli dans le
+     coup d'œil), `unhedged_angle_sign_assertion` (signe d'Ascendant stable mais
+     affirmé sans nuance), `biographical_invention` (invention biographique) ;
+   - **aucun `contradiction_with_socle`** : le faux positif systématique est bien
+     éteint (avant correction, les 11 sections auraient été réécrites) ;
+   - le document livré ne contient ni placeholder, ni fuite interne, et publie la
+     marge et la convention d'aspects.
+   Reste à mesurer : le taux de réécriture sur un **tirage de plusieurs dizaines
+   de lectures**, langue par langue, pour régler les détecteurs au lieu de les
+   supposer bien calibrés.
 3. **Étendre les règles éditoriales aux huit autres langues** : les règles de
    sécurité factuelle sont désormais couvertes dans les 9 langues, mais la
    prédiction d'événement, l'affirmation médicale, l'invention biographique,
