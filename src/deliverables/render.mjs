@@ -182,7 +182,9 @@ const CSS = `
   @media print {
     body { background:#fff; }
     .sheet { box-shadow:none; margin:0; max-width:none; padding:0; }
-    .annex { border:0; background:none; padding:0; margin-top:38px; }
+    /* L'annexe commence toujours sur une nouvelle page : elle est d'une autre
+       nature que la lecture (des faits vérifiés, pas du texte rédigé). */
+    .annex { border:0; background:none; padding:0; margin-top:0; break-before:page; page-break-before:always; }
     .caveat, .ai-review, .badge { break-inside:avoid; page-break-inside:avoid; }
     a { color:inherit; text-decoration:none; }
   }

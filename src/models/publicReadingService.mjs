@@ -21,7 +21,8 @@ import {
   findSignContradictions,
   findTutoiement,
   findUnfilledPlaceholders,
-  findUnhedgedTimedAssertions
+  findUnhedgedTimedAssertions,
+  findVouvoiement
 } from "../deliverables/validator.mjs";
 import { validateSectionText } from "../deliverables/validator.mjs";
 import { writeSection } from "../deliverables/writers.mjs";
@@ -226,6 +227,8 @@ export async function createPublicReading(input = {}, options = {}) {
         ...findOrphanAntecedents(texte, context.socle),
         ...findRepeatedPlacements(texte, sections, context.socle),
         ...findTutoiement(texte, context.socle?.language, planSection.id),
+        // Sections adressées à la personne : c'est le vouvoiement qui est un défaut.
+        ...findVouvoiement(texte, context.socle?.language, planSection.id),
         ...(planSection.id === "introduction" && String(texte).length > PLAFOND_COUP_DOEIL
           ? [{ sentence: `ouverture trop longue (${String(texte).length} caractères)` }]
           : [])
@@ -238,7 +241,7 @@ export async function createPublicReading(input = {}, options = {}) {
         // section a été réécrite, puis éventuellement amputée, sans relire le texte.
         const motifs = [...new Set(contradictions.map((entry) => entry.code ?? "defaut"))].join(", ");
         console.warn(`[Lastro] texte fautif dans « ${planSection.id} » (${motifs}) — réécriture demandée`);
-        context.correctionNote = `Ta version précédente contenait des passages à ne jamais livrer : ${raisons} Réécris la section. N'attribue jamais à une planète un signe qui n'est pas le sien, n'invente aucune biographie (pas de responsabilités précoces, de renoncements, de sacrifices, de pression familiale : tu parles de dynamiques symboliques, jamais d'une histoire vécue), et n'écris aucun texte entre crochets, accolades ou chevrons : si tu signes la lettre, utilise le prénom fourni, ou termine sans signature inventée. Si l'heure de naissance est approximative, ne présente aucun angle, aucune maison et aucun degré comme exacts : un signe qui change dans la marge n'est pas décidable, et un signe d'angle est toujours une probabilité (« probablement en … »). Enfin, nomme une fois le placement (« votre Lune en Cancer », « en maison VII ») avant d'y faire référence : n'ouvre jamais une phrase par « cette position » ou « cette maison » sans l'avoir nommée dans la même section, et n'explique pas deux fois le même aspect ou la même maison. Vouvoie la personne du début à la fin (« vous », jamais « tu »), et écris « trigone », jamais « trine ».`;
+        context.correctionNote = `Ta version précédente contenait des passages à ne jamais livrer : ${raisons} Réécris la section. N'attribue jamais à une planète un signe qui n'est pas le sien, n'invente aucune biographie (pas de responsabilités précoces, de renoncements, de sacrifices, de pression familiale : tu parles de dynamiques symboliques, jamais d'une histoire vécue), et n'écris aucun texte entre crochets, accolades ou chevrons : si tu signes la lettre, utilise le prénom fourni, ou termine sans signature inventée. Si l'heure de naissance est approximative, ne présente aucun angle, aucune maison et aucun degré comme exacts : un signe qui change dans la marge n'est pas décidable, et un signe d'angle est toujours une probabilité (« probablement en … »). Enfin, nomme une fois le placement (« votre Lune en Cancer », « en maison VII ») avant d'y faire référence : n'ouvre jamais une phrase par « cette position » ou « cette maison » sans l'avoir nommée dans la même section, et n'explique pas deux fois le même aspect ou la même maison. Vouvoie la personne du début à la fin (« vous », jamais « tu »), et écris « trigone », jamais « trine ». Dans la partie transgénérationnelle et la lettre aux figures parentales, adresse-toi à la personne avec « tu » : le vouvoiement y est un défaut.`;
         written = await writeSection(planSection, context, options);
         context.correctionNote = null;
         contradictions = defauts(written.text);

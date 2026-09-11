@@ -382,6 +382,28 @@ export function findForbiddenVocabulary(text, language = "fr") {
 // lettre aux figures parentales s'adressent directement à la personne.
 export const TUTOIEMENT_SECTIONS = Object.freeze(["transgenerationnel", "lettre-miroir"]);
 
+// Dans les sections qui s'adressent directement à la personne, c'est le
+// VOUVOIEMENT qui est un défaut. Sans cette mesure, la consigne restait lettre
+// morte : sur un PDF réel, la lettre miroir continuait de vouvoyer.
+const VOUS_PATTERN = wordRegex("vous|votre|vos");
+
+export function findVouvoiement(text, language = "fr", sectionId = null) {
+  if (String(language ?? "fr").slice(0, 2).toLowerCase() !== "fr") {
+    return [];
+  }
+  if (!sectionId || !TUTOIEMENT_SECTIONS.includes(sectionId)) {
+    return [];
+  }
+  const found = [];
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    const trimmed = sentence.trim();
+    if (trimmed && VOUS_PATTERN.test(trimmed)) {
+      found.push({ sentence: trimmed, code: "vouvoiement_in_tutoiement_section" });
+    }
+  }
+  return found;
+}
+
 export function findTutoiement(text, language = "fr", sectionId = null) {
   if (String(language ?? "fr").slice(0, 2).toLowerCase() !== "fr") {
     return [];
@@ -582,6 +604,7 @@ export const DETECTOR_COVERAGE = Object.freeze({
     "deterministic_certainty",
     "biographical_invention",
     "tutoiement",
+    "vouvoiement_in_tutoiement_section",
     "forbidden_vocabulary",
     "orphan_antecedent"
   ])

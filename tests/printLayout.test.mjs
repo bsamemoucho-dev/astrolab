@@ -56,6 +56,13 @@ test("un titre ne peut plus rester seul en bas de page", () => {
   assert.match(css, /widows\s*:\s*3/);
 });
 
+test("l'annexe commence sur une nouvelle page à l'impression", () => {
+  assert.match(css, /@media print \{[\s\S]*\.annex \{[^}]*break-before:page/);
+  assert.match(css, /@media print \{[\s\S]*\.annex \{[^}]*page-break-before:always/);
+  // Elle ne doit pas non plus flotter en bas de page : rien ne la retient.
+  assert.match(css, /@media print \{[\s\S]*\.annex \{[^}]*margin-top:0/);
+});
+
 test("l'annexe est toujours visible : aucun détail cliquable", () => {
   // Le repli était la cause d'une annexe absente du PDF, et un document payant
   // ne doit pas avoir de contenu caché derrière un clic.

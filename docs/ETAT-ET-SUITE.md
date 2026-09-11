@@ -181,6 +181,30 @@ faits calculés, sans aucune règle nouvelle.
 - **roue du ciel** : faisable en SVG depuis nos longitudes, avec la fenêtre
   d'incertitude rendue visible — proposée, pas encore retenue.
 
+## Contrôle d'un PDF réel et suite (11/09/2026)
+
+Un PDF de 10 pages a été relu **sans navigateur** grâce à un nouvel outil,
+`tools/inspect-pdf.mjs` : il décompresse les flux de contenu et applique les
+tables `ToUnicode` des polices pour restituer le texte **page par page**. C'est
+désormais la façon de vérifier un fichier livré (Chrome sans interface est bloqué
+dans cet environnement).
+
+Ce que ce contrôle a établi :
+
+- l'**annexe est bien dans le fichier** (pages 8 à 10) : le repli supprimé était
+  la bonne correction ;
+- la **couverture porte les trois placements** et le **tableau des positions** est
+  présent (« Positions calculées ») ;
+- la date est écrite en clair (« Généré le 11 septembre 2026 »), pas d'horodatage
+  brut ;
+- l'annexe **ne commençait pas sur une nouvelle page** → corrigé :
+  `break-before:page` à l'impression (elle est d'une autre nature que la lecture) ;
+- **la lettre miroir vouvoyait encore** (« je souhaite vous inviter ») alors que la
+  consigne demandait le tutoiement depuis `e28c51c`. Une consigne non mesurée ne
+  tient pas : `findVouvoiement` fait maintenant du vouvoiement un **défaut** dans
+  `transgenerationnel` et `lettre-miroir` (réécriture demandée, jamais
+  d'amputation).
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -301,12 +325,13 @@ faits calculés, sans aucune règle nouvelle.
 | `tools/measure-readings.mjs` | tirage de lectures pour mesurer le taux de réécriture, par langue |
 | `tools/verify-production-reading.mjs` | vérification de bout en bout après déploiement |
 | `tools/preview-document.mjs` | aperçu du document (mise en page) sans réseau ni coût |
+| `tools/inspect-pdf.mjs` | lecture d'un PDF livré, page par page (texte extrait par les tables ToUnicode) |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 175 tests
+npm test                                   # 178 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

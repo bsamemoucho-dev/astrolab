@@ -12,11 +12,13 @@ import {
   dossierSectionsInOrder
 } from "../src/deliverables/plan.mjs";
 import {
+  TUTOIEMENT_SECTIONS,
   findBiographicalInvention,
   findForbiddenVocabulary,
   findOrphanAntecedents,
   findRepeatedPlacements,
   findTutoiement,
+  findVouvoiement,
   validateSectionText
 } from "../src/deliverables/validator.mjs";
 
@@ -193,4 +195,22 @@ test("les deux sections renommees le sont dans les neuf langues", () => {
     assert.doesNotMatch(titres["structure-psychologique"], /psycholog|psychisch|psicol|psico|psykolog/i, code);
     assert.doesNotMatch(titres["lecture-passe"], /approfondie|in-depth|vertieft|profunda|approfondita|aprofundada|dybde|diepgaand/i, code);
   }
+});
+
+test("dans les sections adressées à la personne, le vouvoiement est un défaut", () => {
+  // La consigne demandait le tutoiement, mais sur un PDF réel la lettre miroir
+  // continuait de vouvoyer : une consigne qui n'est pas mesurée ne tient pas.
+  const vouvoiement = "En cette lettre miroir, je souhaite vous inviter à contempler vos liens.";
+  const trouve = findVouvoiement(vouvoiement, "fr", "lettre-miroir");
+  assert.equal(trouve.length, 1);
+  assert.equal(trouve[0].code, "vouvoiement_in_tutoiement_section");
+
+  // Le tutoiement, lui, est ce qu'on veut : rien à signaler.
+  assert.deepEqual(findVouvoiement("Je te souhaite de déposer ce qui pèse.", "fr", "lettre-miroir"), []);
+  // Dans les autres sections, le vouvoiement reste la règle.
+  assert.deepEqual(findVouvoiement("Vous avancez avec prudence.", "fr", "structure-psychologique"), []);
+  assert.deepEqual(findVouvoiement("Vous avancez avec prudence.", "fr", null), []);
+  // Le français seulement : « you » n'est ni tu ni vous.
+  assert.deepEqual(findVouvoiement("You move forward carefully.", "en", "lettre-miroir"), []);
+  assert.ok(TUTOIEMENT_SECTIONS.includes("transgenerationnel"));
 });
