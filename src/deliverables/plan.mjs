@@ -15,7 +15,14 @@ export const FRAME_DIRECTIVES = Object.freeze([
   "Libre arbitre toujours respecté.",
   "Aucun fait astronomique inventé : utilise uniquement les faits calculés fournis.",
   "Si un fait calculé manque (heure inconnue, Ascendant non calculé), travaille en tendances symboliques explicites, sans affirmation technique.",
-  "Explique brièvement chaque terme astrologique la première fois que tu l'utilises ; évite tout jargon non expliqué."
+  "Explique brièvement chaque terme astrologique la première fois que tu l'utilises ; évite tout jargon non expliqué.",
+  // Anti-répétition (chantier 2) : un placement expliqué une fois, puis on avance.
+  "Chaque placement (planète, signe, aspect, maison) est expliqué UNE SEULE FOIS, dans la section où il sert le mieux. Les sections suivantes ne le réexpliquent pas : elles apportent un angle nouveau (le passé, la relation, l'action, l'intégration).",
+  "Les passages déjà rédigés te sont fournis dans « alreadyWritten » : appuie-toi dessus sans les redévelopper, et ne réutilise pas les mêmes formulations.",
+  // Ouverture éditoriale (chantier 3) : une première page qui donne envie.
+  "Dans la section d'introduction uniquement, ouvre par un court paragraphe « Votre ciel en un coup d'œil » : trois à cinq traits marquants, distincts et concrets, sans jargon.",
+  // Transgénérationnel (chantier 3) : jamais d'histoire familiale inventée.
+  "Pour tout passage transgénérationnel : parle uniquement de correspondances symboliques entre des thèmes, jamais d'un héritage, d'un rôle, d'un secret ou d'un événement familial que les données fournies ne contiennent pas. Si aucune donnée familiale n'est fournie, ce passage n'existe pas."
 ]);
 
 const BADGES = Object.freeze({

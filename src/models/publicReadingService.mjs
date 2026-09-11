@@ -13,6 +13,7 @@ import { aiReviewNote, docStrings, englishNameFor, normalizeLanguage } from "../
 import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
+import { provenanceSummary } from "../deliverables/provenance.mjs";
 import { validateSectionText } from "../deliverables/validator.mjs";
 import { writeSection } from "../deliverables/writers.mjs";
 
@@ -106,7 +107,19 @@ export async function createPublicReading(input = {}, options = {}) {
   const sections = [];
   const usage = { promptTokens: 0, completionTokens: 0, model: null };
 
+  const parents = normalizeParents(input);
+
   for (const planSection of DOSSIER_SECTIONS) {
+    // Pas de données familiales : la section transgénérationnelle disparaît au
+    // lieu d'inventer une histoire d'ancêtres.
+    if (planSection.id === "transgenerationnel" && parents.length === 0) {
+      continue;
+    }
+    // Ce qui a déjà été écrit, pour ne pas se répéter d'une section à l'autre.
+    context.previousSections = sections.map((written) => ({
+      title: written.title,
+      excerpt: String(written.text ?? "").slice(0, 240)
+    }));
     let section;
     if (planSection.writer === "none") {
       section = {
@@ -236,6 +249,7 @@ export async function createPublicReading(input = {}, options = {}) {
 
   return {
     schema: "astrolab.public_reading",
+    provenance: provenanceSummary(),
     status: writerMode === "llm" ? "ready_for_human_review" : "template_draft",
     writerMode,
     language,

@@ -283,7 +283,13 @@ test("public no-account reading works without authentication and stores nothing"
     assert.match(reading.payload.html, /socle de calcul vérifié/i);
     assert.ok(reading.payload.sections.some((section) => section.id === "lettre-ame"));
     assert.equal(reading.payload.verification.status, "skipped");
-    assert.equal(reading.payload.sections.length, 11); // 11 sections narratives ; l'annexe est dans le HTML
+    // 10 sections : la section transgénérationnelle disparaît sans données
+    // familiales, au lieu d'inventer une histoire d'ancêtres.
+    assert.equal(reading.payload.sections.length, 10);
+    assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
+    // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
+    assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
+    assert.equal(reading.payload.provenance.traditionalRules, null);
 
     const state = await app.store.load();
     assert.equal(state.users.length, 0);
@@ -561,4 +567,35 @@ test("heure de naissance inconnue : le rédacteur est prévenu que l'axe et les 
   const bodyValues = facts.filter((fact) => fact.id.startsWith("body.")).map((fact) => String(fact.value));
   assert.ok(bodyValues.length >= 7);
   assert.doesNotMatch(bodyValues.join(" | "), /maison|house|null|0°00/i);
+});
+
+test("transgénérationnel fourni : la section revient, et la rédaction sait ce qui a déjà été écrit", async () => {
+  const contextes = [];
+  const writerFn = (section, context) => {
+    contextes.push({ id: section.id, precedents: context.previousSections?.length ?? 0 });
+    return `Texte pour ${section.id}.`;
+  };
+  const reading = await createPublicReading(
+    {
+      firstName: "Test",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      parents: [{ role: "mother", firstName: "Marie", birthDate: "1945-02-03" }],
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn, crossCheckFn: null }
+  );
+
+  // Avec des données familiales, la section existe à nouveau.
+  assert.ok(reading.sections.some((section) => section.id === "transgenerationnel"));
+
+  // Dès la deuxième section, le rédacteur reçoit ce qui a déjà été produit.
+  const premiere = contextes[0];
+  const derniere = contextes.at(-1);
+  assert.equal(premiere.precedents, 0);
+  assert.ok(derniere.precedents >= 8, `sections précédentes transmises : ${derniere.precedents}`);
 });

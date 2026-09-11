@@ -111,6 +111,7 @@ function buildUserPayload(section, context) {
       parents: context.parents ?? [],
       intention: context.intention ?? null,
       socleFacts: context.socle?.facts ?? [],
+      alreadyWritten: context.previousSections ?? [],
       birthTimeKnown: context.uncertainty?.timeKnown ?? null,
       notCalculated: context.uncertainty?.indeterminable ?? [],
       calculationWarnings: context.uncertainty?.warnings ?? [],
