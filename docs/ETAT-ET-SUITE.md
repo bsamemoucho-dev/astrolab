@@ -129,6 +129,43 @@ de la section** (« Votre ciel en un coup d'œil : … ») parce que la consigne
 citait littéralement. La consigne demande maintenant un paragraphe de synthèse
 « sans reprendre le titre de la section ».
 
+## Habillage du document (comparaison concurrente, 11/09/2026)
+
+Après avoir vu ce qu'un concurrent produit (couverture à cartes, roue du ciel,
+tableau des planètes avec dignités, barres d'éléments et de « force des aspects »,
+encadrés, marqueurs), la **famille 1** a été retenue et livrée : de la redite de
+faits calculés, sans aucune règle nouvelle.
+
+- **Couverture** : trois cartes (Soleil, Lune, Ascendant) sous le titre. Un
+  Ascendant non décidable dans la marge affiche **les deux signes possibles** et
+  la mention « non décidable » ; un signe simplement stable affiche « probable ».
+  C'est exactement ce que la concurrence n'écrit pas.
+- **Tableau des positions** dans l'annexe : sept corps puis Ascendant et Milieu
+  du Ciel, colonnes Planète / Signe / Degré / Maison / Rétrograde, en-tête répété
+  à chaque page imprimée. La marge est écrite **dans la cellule du degré**
+  (« 25°03′ (±30 min) ») et une maison non décidable reste vide (—).
+- **Habillage** : titres de section en petites capitales espacées avec marqueur,
+  bandeau de couverture, tableaux, encadrés. Le `markdownToHtml` sait désormais
+  rendre les tableaux `| … |` (l'export Markdown les porte aussi).
+- **Fuite corrigée au passage** : l'export Markdown écrivait l'horodatage brut
+  (`2026-09-11T09:29:18.661Z`) au lieu d'une date lisible, comme le HTML.
+- **Outil** : `tools/preview-document.mjs` fabrique un document complet avec des
+  textes de remplacement, sans réseau ni coût, pour juger la mise en page à
+  l'impression — c'est le seul moyen de l'itérer sans payer une lecture.
+
+**Délibérément NON fait**, faute de convention écrite ou de décision :
+
+- barres « éléments » et « modalités » en **pourcentages** : un pourcentage suppose
+  une règle de pondération. Un simple comptage serait calculé ; un score exige une
+  convention `LASTRO_RULE` versionnée. Les pourcentages du concurrent n'ont aucune
+  convention visible dans son document ;
+- « force de vos aspects » : le mot *force* est une interprétation. Nous avons
+  l'orbe et l'écart, donc une barre de **serrage** serait honnête (à faire si
+  voulu) ;
+- colonne **Dignité** : les dignités sont inactives (aucune `TRADITIONAL_RULE`) ;
+- **roue du ciel** : faisable en SVG depuis nos longitudes, avec la fenêtre
+  d'incertitude rendue visible — proposée, pas encore retenue.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -248,12 +285,13 @@ citait littéralement. La consigne demande maintenant un paragraphe de synthèse
 | `.github/workflows/tests.yml` | `npm test` + contrôle de syntaxe à chaque push |
 | `tools/measure-readings.mjs` | tirage de lectures pour mesurer le taux de réécriture, par langue |
 | `tools/verify-production-reading.mjs` | vérification de bout en bout après déploiement |
+| `tools/preview-document.mjs` | aperçu du document (mise en page) sans réseau ni coût |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 170 tests
+npm test                                   # 175 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

@@ -139,6 +139,38 @@ function angleFact(name, angle, details, window = null, marginMinutes = null) {
 // Aspects retenus par la convention Lastro. Ce ne sont plus des « candidats
 // géométriques » : l'orbe appliqué est écrit, et un aspect qui ne tient pas sur
 // toute la marge d'incertitude n'est pas retenu.
+// Les trois placements mis en couverture : Soleil, Lune, Ascendant. Aucun n'est
+// affirme au-delà de ce que le calcul permet : un signe non établi, un signe non
+// décidable ou un signe simplement probable sont écrits comme tels. C'est ce qui
+// nous distingue d'une couverture qui annonce un Ascendant unique.
+function coverFrom(bodyFacts, ascendant, details) {
+  const V = details?.values ?? {};
+  const placements = [];
+  for (const body of ["Sun", "Moon"]) {
+    const fact = bodyFacts.find((entry) => entry.body === body);
+    if (!fact) {
+      continue;
+    }
+    placements.push({
+      label: fact.label,
+      value: fact.signFr,
+      precision: fact.signStableWithinMargin === false ? V.signNotEstablished ?? null : null
+    });
+  }
+  if (ascendant) {
+    // Les signes de la fenêtre sont des clés canoniques anglaises : on les nomme
+    // dans la langue du document, comme partout ailleurs.
+    const signs = (ascendant.signsInWindow ?? []).map((sign) => localizedSignName(sign, details));
+    const notDecidable = ascendant.decidableWithinMargin === false;
+    placements.push({
+      label: ascendant.label,
+      value: notDecidable && signs.length > 1 ? signs.join(" / ") : ascendant.signFr,
+      precision: notDecidable ? V.signNotDecidableShort ?? null : ascendant.marginMinutes ? V.probable ?? null : null
+    });
+  }
+  return { placements };
+}
+
 function aspectName(type, details) {
   return details?.aspects?.[type] ?? type ?? "";
 }
@@ -338,6 +370,8 @@ export function buildSocle(payload, strings = null) {
 
   return {
     schema: "astrolab.western_natal.socle_livrable",
+    // Données de couverture : les trois placements clés, prêts à rendre.
+    cover: coverFrom(bodyFacts, ascendant, details),
     // La langue du document : les détecteurs de sécurité factuelle s'y adaptent
     // (noms de planètes, de signes, d'aspects, vocabulaire d'incertitude).
     language: details.lang ?? "fr",
@@ -405,6 +439,72 @@ export function buildSocle(payload, strings = null) {
   };
 }
 
+// Tableau des positions : sept corps traditionnels, puis les angles. La marge
+// d'incertitude est écrite DANS la cellule du degré (« ±30 min ») et l'angle non
+// décidable porte ses deux signes possibles : le tableau ne peut pas être plus
+// affirmatif que le calcul.
+function positionsTable(socle, t) {
+  const L = t?.labels ?? {};
+  const V = t?.values ?? {};
+  const cap = socle.timeLanguageCap ?? null;
+  const suffixeMarge = cap?.marginMinutes ? ` (±${cap.marginMinutes} min)` : "";
+  const lignes = [];
+  for (const body of Array.isArray(socle.bodies) ? socle.bodies : []) {
+    const degree = Number.isFinite(body.degreeInSign) ? formatDegreeInSign(body.degreeInSign) : "—";
+    const signe =
+      body.signStableWithinMargin === false && body.marginWindow
+        ? `${localizedSignName(body.marginWindow.signAtWindowStart, t)} / ${localizedSignName(body.marginWindow.signAtWindowEnd, t)}`
+        : body.signFr;
+    const precision = body.signStableWithinMargin === false ? ` (${V.signNotDecidableShort ?? "non décidable"})` : "";
+    lignes.push([
+      body.label,
+      `${signe}${precision}`,
+      Number.isFinite(body.degreeInSign) ? `${degree}${suffixeMarge}` : degree,
+      body.house ? String(body.house) : "—",
+      body.retrograde ? (L.retro ?? "rétrograde") : "—"
+    ]);
+  }
+  for (const angle of [socle.ascendant, socle.midheaven]) {
+    if (!angle) {
+      continue;
+    }
+    const signes = (angle.signsInWindow ?? []).map((sign) => localizedSignName(sign, t));
+    const nonDecidable = angle.decidableWithinMargin === false;
+    const signe = nonDecidable && signes.length > 1 ? signes.join(" / ") : angle.signFr;
+    const precision = nonDecidable
+      ? ` (${V.signNotDecidableShort ?? "non décidable"})`
+      : angle.marginMinutes
+        ? ` (${V.probable ?? "probable"})`
+        : "";
+    lignes.push([
+      angle.label,
+      `${signe}${precision}`,
+      Number.isFinite(angle.degreeInSign) ? `${formatDegreeInSign(angle.degreeInSign)}${suffixeMarge}` : "—",
+      "—",
+      "—"
+    ]);
+  }
+  if (lignes.length === 0) {
+    return [];
+  }
+  const capitaliser = (mot) => String(mot).charAt(0).toUpperCase() + String(mot).slice(1);
+  const entetes = [
+    L.planet ?? "Planète",
+    L.sign ?? "Signe",
+    L.degree ?? "Degré",
+    capitaliser(L.house ?? "maison"),
+    capitaliser(L.retro ?? "rétrograde")
+  ];
+  return [
+    `## ${t?.positions ?? "Positions calculées"}`,
+    "",
+    `| ${entetes.join(" | ")} |`,
+    `|${entetes.map(() => "---").join("|")}|`,
+    ...lignes.map((cellules) => `| ${cellules.join(" | ")} |`),
+    ""
+  ];
+}
+
 export function renderSocleAnnex(socle, strings = null) {
   const t = strings ?? {
     annexTitle: "Annexe technique — socle de calcul vérifié",
@@ -419,8 +519,20 @@ export function renderSocleAnnex(socle, strings = null) {
   if (socle.person?.firstName) {
     lines.push(`${t.person} : ${socle.person.firstName}`, "");
   }
-  for (const fact of socle.facts) {
-    lines.push(`- **${fact.label}** : ${fact.value}`);
+  // Les positions sont rendues en tableau (corps puis angles), plus lisible
+  // qu'une liste de puces et plus proche de ce que le lecteur attend.
+  const positions = positionsTable(socle, strings);
+  const estIdentite = (fact) => /^(identity|method)\./.test(fact.id) || fact.id === "uncertainty.margin";
+  const rendu = (fact) => `- **${fact.label}** : ${fact.value}`;
+  const restants = socle.facts.filter((fact) => !fact.id.startsWith("body.") && !fact.id.startsWith("angle."));
+  for (const fact of restants.filter(estIdentite)) {
+    lines.push(rendu(fact));
+  }
+  if (positions.length > 0) {
+    lines.push("", ...positions);
+  }
+  for (const fact of restants.filter((fact) => !estIdentite(fact))) {
+    lines.push(rendu(fact));
   }
   if (socle.uncertaintyNotes.length > 0) {
     lines.push("", `${t.uncertaintyLimits} :`, "");

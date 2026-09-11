@@ -277,6 +277,8 @@ const MARGIN_STRINGS = {
     signStable: "signe stable sur toute la marge",
     signNotDecidable: "signe non décidable : la frontière est franchie dans la marge",
     signNotEstablished: "signe non établi sans heure précise",
+    probable: "probable",
+    signNotDecidableShort: "non décidable",
     withinMargin: "sur la marge ±{n} min",
     approximate:
       "Heure de naissance approximative : l'Ascendant, le Milieu du Ciel, les maisons et la secte ont été calculés sur la marge déclarée {margin}.",
@@ -295,6 +297,8 @@ const MARGIN_STRINGS = {
     signStable: "sign stable across the whole margin",
     signNotDecidable: "sign not decidable: the boundary is crossed within the margin",
     signNotEstablished: "sign not established without a precise time",
+    probable: "likely",
+    signNotDecidableShort: "not decidable",
     withinMargin: "over the ±{n} min margin",
     approximate:
       "Approximate birth time: the Ascendant, the Midheaven, the houses and the sect were computed over the declared margin {margin}.",
@@ -312,6 +316,8 @@ const MARGIN_STRINGS = {
     signStable: "Zeichen über die gesamte Spanne stabil",
     signNotDecidable: "Zeichen nicht entscheidbar: die Grenze wird innerhalb der Spanne überschritten",
     signNotEstablished: "Zeichen ohne genaue Geburtszeit nicht bestimmbar",
+    probable: "wahrscheinlich",
+    signNotDecidableShort: "nicht entscheidbar",
     withinMargin: "über die Spanne von ±{n} Min.",
     approximate:
       "Ungefähre Geburtszeit: Aszendent, Medium Coeli, Häuser und Sekte wurden über die angegebene Spanne {margin} berechnet.",
@@ -329,6 +335,8 @@ const MARGIN_STRINGS = {
     signStable: "signo estable en todo el margen",
     signNotDecidable: "signo no decidible: se cruza la frontera dentro del margen",
     signNotEstablished: "signo no establecido sin hora precisa",
+    probable: "probable",
+    signNotDecidableShort: "no decidible",
     withinMargin: "sobre el margen de ±{n} min",
     approximate:
       "Hora de nacimiento aproximada: el Ascendente, el Medio Cielo, las casas y la secta se han calculado sobre el margen declarado {margin}.",
@@ -346,6 +354,8 @@ const MARGIN_STRINGS = {
     signStable: "segno stabile su tutto il margine",
     signNotDecidable: "segno non decidibile: il confine viene superato entro il margine",
     signNotEstablished: "segno non stabilito senza ora precisa",
+    probable: "probabile",
+    signNotDecidableShort: "non decidibile",
     withinMargin: "sul margine di ±{n} min",
     approximate:
       "Ora di nascita approssimativa: l'Ascendente, il Medio Cielo, le case e la setta sono stati calcolati sul margine dichiarato {margin}.",
@@ -362,6 +372,8 @@ const MARGIN_STRINGS = {
     signStable: "signo estável em toda a margem",
     signNotDecidable: "signo não decidível: a fronteira é ultrapassada dentro da margem",
     signNotEstablished: "signo não estabelecido sem hora precisa",
+    probable: "provável",
+    signNotDecidableShort: "não decidível",
     withinMargin: "sobre a margem de ±{n} min",
     approximate:
       "Hora de nascimento aproximada: o Ascendente, o Meio do Céu, as casas e a seita foram calculados sobre a margem declarada {margin}.",
@@ -378,6 +390,8 @@ const MARGIN_STRINGS = {
     signStable: "tegnet stabilt over hele marginen",
     signNotDecidable: "tegnet ikke avgjørbart: grensen krysses innenfor marginen",
     signNotEstablished: "tegnet ikke fastslått uten presis tid",
+    probable: "sannsynlig",
+    signNotDecidableShort: "ikke avgjørbart",
     withinMargin: "over marginen på ±{n} min",
     approximate:
       "Omtrentlig fødselstid: Ascendanten, Midtheaven, husene og sekten er beregnet over den oppgitte marginen {margin}.",
@@ -395,6 +409,8 @@ const MARGIN_STRINGS = {
     signStable: "tegnet stabilt over hele marginen",
     signNotDecidable: "tegnet ikke afgørbart: grænsen overskrides inden for marginen",
     signNotEstablished: "tegnet ikke fastslått uden præcis tid",
+    probable: "sandsynlig",
+    signNotDecidableShort: "ikke afgørbart",
     withinMargin: "over marginen på ±{n} min",
     approximate:
       "Omtrentligt fødselstidspunkt: Ascendanten, Midterhimlen, husene og sekten er beregnet over den oplyste margin {margin}.",
@@ -412,6 +428,8 @@ const MARGIN_STRINGS = {
     signStable: "teken stabiel over de hele marge",
     signNotDecidable: "teken niet te bepalen: de grens wordt binnen de marge overschreden",
     signNotEstablished: "teken niet vastgesteld zonder precieze tijd",
+    probable: "waarschijnlijk",
+    signNotDecidableShort: "niet te bepalen",
     withinMargin: "over de marge van ±{n} min",
     approximate:
       "Geboortetijd bij benadering: de Ascendant, de Midhemel, de huizen en de sekte zijn berekend over de opgegeven marge {margin}.",
@@ -522,19 +540,39 @@ const ASPECT_STRINGS = {
   }
 };
 
+
+// En-tetes du tableau des positions. Les colonnes « maison » et « rétrograde »
+// réutilisent les libellés existants : l'habillage les passe en majuscules.
+const TABLE_STRINGS = {
+  fr: { positions: "Positions calculées", planet: "Planète", sign: "Signe", degree: "Degré" },
+  en: { positions: "Calculated positions", planet: "Planet", sign: "Sign", degree: "Degree" },
+  de: { positions: "Berechnete Positionen", planet: "Planet", sign: "Zeichen", degree: "Grad" },
+  es: { positions: "Posiciones calculadas", planet: "Planeta", sign: "Signo", degree: "Grado" },
+  it: { positions: "Posizioni calcolate", planet: "Pianeta", sign: "Segno", degree: "Grado" },
+  pt: { positions: "Posições calculadas", planet: "Planeta", sign: "Signo", degree: "Grau" },
+  no: { positions: "Beregnede posisjoner", planet: "Planet", sign: "Tegn", degree: "Grad" },
+  da: { positions: "Beregnede positioner", planet: "Planet", sign: "Tegn", degree: "Grad" },
+  nl: { positions: "Berekende posities", planet: "Planeet", sign: "Teken", degree: "Graad" },
+};
+
 export function docStrings(code) {
   const language = normalizeLanguage(code);
   const table = DOCS[language] ?? FR;
   const details = DETAILS[language] ?? DETAILS.fr;
   const margin = MARGIN_STRINGS[language] ?? MARGIN_STRINGS.fr;
   const aspect = ASPECT_STRINGS[language] ?? ASPECT_STRINGS.fr;
+  const tableStrings = TABLE_STRINGS[language] ?? TABLE_STRINGS.fr;
   const labels = {
     ...details.labels,
     margin: margin.margin,
     marginRange: margin.marginRange,
     aspects: aspect.aspects,
+    positions: tableStrings.positions,
     aspectGeometry: aspect.aspectGeometry,
-    orb: aspect.orb
+    orb: aspect.orb,
+    planet: tableStrings.planet,
+    sign: tableStrings.sign,
+    degree: tableStrings.degree
   };
   const values = {
     ...details.values,
@@ -543,6 +581,8 @@ export function docStrings(code) {
     signStable: margin.signStable,
     signNotDecidable: margin.signNotDecidable,
     signNotEstablished: margin.signNotEstablished,
+    probable: margin.probable,
+    signNotDecidableShort: margin.signNotDecidableShort,
     withinMargin: margin.withinMargin,
     withLuminaries: aspect.withLuminaries,
     aspectsSummary: aspect.aspectsSummary

@@ -15,8 +15,10 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { calculateWesternNatalChart } from "../src/astro/westernNatal.mjs";
 import { docStrings } from "../src/deliverables/i18n.mjs";
-import { annexSections, renderDossierHtml } from "../src/deliverables/render.mjs";
+import { annexSections, markdownToHtml, renderDossierHtml, renderDossierMarkdown } from "../src/deliverables/render.mjs";
+import { buildSocle, renderSocleAnnex } from "../src/deliverables/socle.mjs";
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const html = renderDossierHtml({
@@ -81,4 +83,133 @@ test("tout champ de lieu du parcours public est branché sur la reconnaissance",
       `l'encadré ${entree[1]} de ${champ} n'existe pas dans la page`
     );
   }
+});
+
+test("la couverture porte les trois placements, avec leur fragilité", () => {
+  const socle = buildSocle(
+    calculateWesternNatalChart({
+      birthDate: "1990-01-15",
+      timeValue: "12:30",
+      timePrecision: "approximate",
+      timeMarginMinutes: 30,
+      latitude: 48.8566,
+      longitude: 2.3522,
+      timeZone: "Europe/Paris"
+    }).result,
+    docStrings("fr")
+  );
+  const document = renderDossierHtml({
+    title: "Lecture de test",
+    personLabel: "Caro",
+    createdAt: "2026-09-11T00:00:00.000Z",
+    writerMode: "llm",
+    sections: [],
+    strings: docStrings("fr"),
+    cover: socle.cover
+  });
+  // Les trois placements sont là…
+  assert.match(document, /class="cover-card-label">Soleil</);
+  assert.match(document, /class="cover-card-label">Lune</);
+  assert.match(document, /class="cover-card-label">Ascendant</);
+  // …et l'Ascendant n'est pas affirmé : la frontière est franchie dans la marge,
+  // donc les deux signes possibles sont écrits, avec la mention.
+  assert.match(document, /class="cover-card-value">Bélier \/ Taureau</);
+  assert.match(document, /class="cover-card-precision">non décidable</);
+  // Une couverture sans données ne doit pas produire de cartes vides.
+  const sansCover = renderDossierHtml({
+    title: "Lecture",
+    personLabel: null,
+    createdAt: "2026-09-11T00:00:00.000Z",
+    writerMode: "llm",
+    sections: [],
+    strings: docStrings("fr")
+  });
+  // On regarde le CORPS : la CSS contient forcément les règles .cover-cards.
+  assert.doesNotMatch(sansCover.slice(sansCover.indexOf("<body>")), /cover-cards/);
+});
+
+test("le tableau des positions est un vrai tableau, avec en-tête répétable", () => {
+  const socle = buildSocle(
+    calculateWesternNatalChart({
+      birthDate: "1990-01-15",
+      timeValue: "12:30",
+      timePrecision: "exact",
+      latitude: 48.8566,
+      longitude: 2.3522,
+      timeZone: "Europe/Paris"
+    }).result,
+    docStrings("fr")
+  );
+  const annexe = renderSocleAnnex(socle, docStrings("fr"));
+  // Sept corps, plus l'Ascendant et le Milieu du Ciel.
+  const lignes = annexe.split("\n").filter((ligne) => /^\| [^|]+ \|/.test(ligne) && !/^\|[-: ]+\|/.test(ligne));
+  assert.equal(lignes.length, 10, `lignes de tableau : ${lignes.length}`);
+  assert.match(annexe, /\| Planète \| Signe \| Degré \| Maison \| Rétrograde \|/);
+
+  const document = renderDossierHtml({
+    title: "Lecture",
+    personLabel: null,
+    createdAt: "2026-09-11T00:00:00.000Z",
+    writerMode: "llm",
+    sections: annexSections(socle, docStrings("fr"))
+  });
+  assert.match(document, /<table><thead><tr><th>Planète<\/th>/);
+  assert.match(document, /<tbody>.*<td>Soleil<\/td>/);
+  // L'en-tête doit se répéter si le tableau se poursuit page suivante.
+  assert.match(document, /thead \{ display:table-header-group/);
+});
+
+test("une heure approximative écrit la marge dans la cellule du degré", () => {
+  const socle = buildSocle(
+    calculateWesternNatalChart({
+      birthDate: "1990-01-15",
+      timeValue: "12:30",
+      timePrecision: "approximate",
+      timeMarginMinutes: 30,
+      latitude: 48.8566,
+      longitude: 2.3522,
+      timeZone: "Europe/Paris"
+    }).result,
+    docStrings("fr")
+  );
+  const annexe = renderSocleAnnex(socle, docStrings("fr"));
+  assert.match(annexe, /\| Soleil \| Capricorne \| [^|]*\(±30 min\) \|/);
+  // Les maisons ne sont pas décidables dans cette marge : la cellule reste vide.
+  assert.match(annexe, /\| Soleil \| Capricorne \| [^|]+\| — \| — \|/);
+});
+
+test("l'export Markdown ne contient ni horodatage brut ni carte", () => {
+  const socle = buildSocle(
+    calculateWesternNatalChart({
+      birthDate: "1990-01-15",
+      timeValue: "12:30",
+      timePrecision: "exact",
+      latitude: 48.8566,
+      longitude: 2.3522,
+      timeZone: "Europe/Paris"
+    }).result,
+    docStrings("fr")
+  );
+  const markdown = renderDossierMarkdown({
+    title: "Lecture",
+    personLabel: "Caro",
+    createdAt: "2026-09-11T09:29:18.661Z",
+    sections: [],
+    strings: docStrings("fr"),
+    cover: socle.cover
+  });
+  assert.doesNotMatch(markdown, /2026-09-11T09:29:18/);
+  assert.match(markdown, /\*\*Ascendant\*\* : Taureau/);
+});
+
+test("le rendu Markdown des tableaux n'avale pas ce qui suit", () => {
+  const html = markdownToHtml(
+    ["| A | B |", "|---|---|", "| 1 | 2 |", "", "Un paragraphe.", "", "- une puce", "", "## Un titre"].join("\n")
+  );
+  assert.match(html, /<table><thead><tr><th>A<\/th><th>B<\/th><\/tr><\/thead><tbody><tr><td>1<\/td><td>2<\/td><\/tr><\/tbody><\/table>/);
+  assert.match(html, /<p>Un paragraphe\.<\/p>/);
+  assert.match(html, /<ul><li>une puce<\/li><\/ul>/);
+  assert.match(html, /<h3>Un titre<\/h3>/);
+  // La ligne de séparation ne doit pas devenir une ligne du tableau.
+  assert.doesNotMatch(html, /<td>-{2,}<\/td>/);
 });

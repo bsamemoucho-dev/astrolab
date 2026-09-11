@@ -375,8 +375,10 @@ export async function createPublicReading(input = {}, options = {}) {
         ? "Vérification croisée indisponible pour cette lecture."
         : null;
   const aiReview = aiReviewNote(language, reviewPasses, false);
-  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings, verificationNote, aiReview });
-  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings, verificationNote, aiReview });
+  // `cover` : les trois placements clés, avec leur fragilité éventuelle.
+  const cover = socle.cover ?? null;
+  const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings, verificationNote, aiReview, cover });
+  const html = renderDossierHtml({ title, personLabel, createdAt, writerMode, sections: fullSections, author, strings, verificationNote, aiReview, cover });
 
   return {
     schema: "astrolab.public_reading",

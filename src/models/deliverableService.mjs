@@ -320,8 +320,9 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
     const status = overallStatus(sections, writerMode);
     const title = `Dossier de lecture — ${payload.personLabel}`;
     const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
-    const markdown = renderDossierMarkdown({ title, personLabel: payload.personLabel, createdAt, sections: fullSections, author });
-    const html = renderDossierHtml({ title, personLabel: payload.personLabel, createdAt, writerMode, sections: fullSections, author });
+    const cover = context.socle?.cover ?? null;
+    const markdown = renderDossierMarkdown({ title, personLabel: payload.personLabel, createdAt, sections: fullSections, author, cover });
+    const html = renderDossierHtml({ title, personLabel: payload.personLabel, createdAt, writerMode, sections: fullSections, author, cover });
     const costEstimate =
       usage.promptTokens > 0 || usage.completionTokens > 0
         ? estimateUsageCost(usage.model, usage.promptTokens, usage.completionTokens)
@@ -345,6 +346,7 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
         createdAt,
         title,
         person: personInfo,
+        cover,
         resultHash: payload.calculationRunHash ?? null,
         intention: context.intention,
         parents: context.parents,
@@ -463,12 +465,14 @@ export function markDeliverableReviewed(store, userId, deliverableId, input = {}
     if (version) {
       const aiReview = aiReviewNote("fr", 2, deliverable.reviewedByHuman);
       version.aiReview = aiReview;
+      const cover = version.cover ?? null;
       version.markdown = renderDossierMarkdown({
         title: version.title,
         personLabel: deliverable.personLabel,
         createdAt: version.createdAt,
         sections: version.sections,
-        aiReview
+        aiReview,
+        cover
       });
       version.html = renderDossierHtml({
         title: version.title,
@@ -476,7 +480,8 @@ export function markDeliverableReviewed(store, userId, deliverableId, input = {}
         createdAt: version.createdAt,
         writerMode: deliverable.writerMode ?? "llm",
         sections: version.sections,
-        aiReview
+        aiReview,
+        cover
       });
     }
     return publicDeliverable(deliverable, version);
