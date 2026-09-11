@@ -1143,6 +1143,25 @@ button.pay-button {
   background: var(--panel-glass);
 }
 .recovery-message { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+
+/* ---------- « Vous avez déjà payé ? » ---------- */
+.recover-entry {
+  margin: 0 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-glass);
+}
+.recover-entry > summary {
+  cursor: pointer;
+  padding: 13px 16px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+.recover-entry > summary:hover { color: var(--gold); }
+.recover-form { display: grid; gap: 10px; padding: 4px 16px 16px; }
+.recover-form label { font-size: 0.72rem; }
+.recover-form button { justify-self: start; }
 body.recovery #express-viewer { margin-top: 10px; }
 
 /* ---------- accès gratuit de test (exploitant) ---------- */

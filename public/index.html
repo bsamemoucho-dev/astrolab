@@ -466,6 +466,18 @@
               <p class="hint" id="express-progress" hidden>Génération en cours — calcul puis rédaction (1 à 2 minutes environ).</p>
             </form>
           </div>
+          <details class="recover-entry" id="recover-entry">
+            <summary id="recover-summary">Vous avez déjà payé ? Retrouver ma lecture</summary>
+            <form id="recover-form" class="recover-form">
+              <label for="recover-reference"><span id="recover-reference-label">Numéro de commande</span>
+                <input id="recover-reference" name="reference" type="text" autocomplete="off" spellcheck="false" placeholder="L-2026-XXXXXX-XXXX" required></label>
+              <label for="recover-email"><span id="recover-email-label">E-mail utilisé au paiement</span>
+                <input id="recover-email" name="email" type="email" autocomplete="email" required></label>
+              <button type="submit" class="secondary" id="recover-submit">Renvoyer le lien</button>
+              <p class="hint" id="recover-status" hidden></p>
+            </form>
+          </details>
+
           <div class="panel wide" id="express-viewer" hidden>
             <div class="panel-heading">
               <div>
