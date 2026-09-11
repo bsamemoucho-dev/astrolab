@@ -9,7 +9,7 @@
 import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { crossCheckReading } from "../deliverables/crossCheck.mjs";
-import { aiReviewNote, docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
+import { aiNotice, docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
 import { dossierSectionsInOrder } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
@@ -377,7 +377,10 @@ export async function createPublicReading(input = {}, options = {}) {
       : verification.status === "failed"
         ? "Vérification croisée indisponible pour cette lecture."
         : null;
-  const aiReview = aiReviewNote(language, reviewPasses, false);
+  // Un seul texte de transparence : la note IA et la promesse de relecture humaine
+  // se contredisaient dans le pied de page (« non relu par un humain » d'un côté,
+  // « avant relecture humaine » de l'autre).
+  const aiReview = aiNotice(language);
   // `cover` : les trois placements clés, avec leur fragilité éventuelle.
   const cover = socle.cover ?? null;
   const markdown = renderDossierMarkdown({ title, personLabel, createdAt, sections: fullSections, author, strings, verificationNote, aiReview, cover });

@@ -36,8 +36,9 @@ async function invitesEnvoyees(input, { language = "fr", birthDate = "1970-06-15
       })
     };
   };
+  let reading = null;
   try {
-    await createPublicReading(
+    reading = await createPublicReading(
       { firstName: "Test", language, birthDate, resolvedPlace, ...input },
       { crossCheck: false, config: { apiKey: "test", baseUrl: "https://exemple.invalid/v1", model: "test" } }
     );
@@ -45,6 +46,7 @@ async function invitesEnvoyees(input, { language = "fr", birthDate = "1970-06-15
     globalThis.fetch = fetchOriginal;
   }
   return {
+    reading,
     systemes: captures.map((capture) => capture.body.messages.find((message) => message.role === "system").content),
     utilisateurs: captures.map((capture) => JSON.parse(capture.body.messages.find((message) => message.role === "user").content))
   };
@@ -136,5 +138,40 @@ test("l'annexe publiée porte la marge dans la langue du document", async () => 
     const fait = socle.facts.find((entry) => entry.id === "uncertainty.margin");
     assert.ok(fait, `${language} : fait de marge absent`);
     assert.equal(fait.label, libelle, `${language} : libellé de marge non localisé`);
+  }
+});
+
+test("la dernière page ne se contredit pas sur la relecture humaine", async () => {
+  // Un PDF réel portait, dans le même pied de page : « non relu par un humain »
+  // puis « sections validées par la machine avant relecture humaine ». Les deux ne
+  // peuvent pas être vrais en même temps.
+  const { reading } = await invitesEnvoyees({ timePrecision: "unknown" });
+  assert.equal(reading.writerMode, "llm");
+  const pied = reading.html.slice(reading.html.indexOf("<footer>"));
+
+  // Le texte de transparence est là, une seule fois.
+  assert.match(pied, /générée par une intelligence artificielle/);
+  assert.match(pied, /ne constituent ni des prédictions ni des vérités absolues/);
+  // Et plus aucune promesse de relecture humaine, ni son démenti.
+  assert.doesNotMatch(pied, /relecture humaine/i);
+  assert.doesNotMatch(pied, /non relu par un humain/i);
+  assert.doesNotMatch(pied, /before human review/i);
+  // La clôture n'ajoute que le libre arbitre : elle ne répète plus l'avis.
+  assert.match(pied, /Vous restez seul juge de ce qui vous correspond/);
+  // L'avis de transparence lui-même n'apparaît qu'une fois (le mot « symbolique »
+  // revient aussi dans la signature de marque, c'est voulu).
+  assert.equal((pied.match(/générée par une intelligence artificielle/gi) ?? []).length, 1, "l'avis ne doit pas être répété");
+});
+
+test("la note de rédaction ne promet une relecture humaine dans aucune langue", () => {
+  const promesses = {
+    fr: /relecture humaine/i, en: /human review/i, de: /menschlichen Prüfung/i,
+    es: /revisión humana/i, it: /revisione umana/i, pt: /revisão humana/i,
+    no: /menneskelig gjennomgang/i, da: /menneskelig gennemlæsning/i, nl: /menselijke controle/i
+  };
+  for (const { code } of LANGUAGES) {
+    const note = docStrings(code).writerNoteLlm;
+    assert.ok(note && note.length > 20, `${code} : note manquante`);
+    assert.doesNotMatch(note, promesses[code], `${code} : la note promet une relecture humaine`);
   }
 });

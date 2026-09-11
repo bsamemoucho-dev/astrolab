@@ -246,6 +246,45 @@ dédiée**, servie en HTML statique avec son propre contenu, plutôt qu'une vue 
 de l'application (aujourd'hui seule la vue de connexion est active dans le HTML
 livré, le visiteur voit la bonne vue après exécution du JavaScript).
 
+## Contradiction du pied de page (corrigée)
+
+Un relecteur a relevé, sur la dernière page, deux phrases inconciliables :
+
+- « Texte rédigé par une IA — 2 relectures et corrections automatiques — **non relu
+  par un humain** » ;
+- « Rédaction : rédacteur IA configuré, sections validées par la machine **avant
+  relecture humaine** ».
+
+Les deux venaient du même pied de page : la seconde promettait une relecture que la
+première démentait. Corrigé ainsi :
+
+- **un seul texte de transparence**, dans les neuf langues : « Cette lecture est
+  générée par une intelligence artificielle à partir de données astronomiques
+  calculées et vérifiées automatiquement. Les interprétations sont symboliques et ne
+  constituent ni des prédictions ni des vérités absolues. »
+- la **note de rédaction** ne promet plus de relecture : elle décrit ce qui est
+  réellement fait (production par un rédacteur IA, puis contrôle automatique de la
+  cohérence avec les données calculées, des répétitions et du vocabulaire) ;
+- la **clôture éthique** est réduite au libre arbitre (« Vous restez seul juge de ce
+  qui vous correspond ») : elle répétait mot pour mot l'avis qui la précède ;
+- le dossier du compte, lui, **garde** l'état de relecture réel
+  (`aiReviewNote(…, reviewedByHuman)`) : c'est un fait de workflow, pas une
+  promesse, et il ne contredit plus rien.
+
+Détail assumé : « spécialisée » a été retiré de la phrase proposée — le rédacteur
+est un modèle généraliste piloté par des consignes strictes, pas un modèle
+spécialisé ; l'affirmer serait exactement le genre de mention non vérifiable que le
+projet s'interdit.
+
+**Point relevé au passage, à trancher** : si la clé du rédacteur IA manque ou
+expire, le parcours public livre une lecture en mode gabarit qui porte la mention
+« Ce document n'est pas prêt pour la livraison » — chez un client qui a payé. Deux
+correctifs possibles : refuser la vente quand `llmConfigured` est faux (le plus
+simple, visible dans `/api/config`), ou faire échouer la rédaction pour que le
+client récupère « rédaction échouée, relancez sans repayer ». Aujourd'hui le risque
+est théorique (la clé est configurée), mais il se réalisera le jour d'une rotation
+ratée.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -373,7 +412,7 @@ livré, le visiteur voit la bonne vue après exécution du JavaScript).
 ## Commandes utiles
 
 ```bash
-npm test                                   # 183 tests
+npm test                                   # 185 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

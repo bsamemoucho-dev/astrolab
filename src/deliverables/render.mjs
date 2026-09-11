@@ -174,7 +174,7 @@ const CSS = `
   .annex { background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin-top:44px; }
   .annex p, .annex li { font-size:13px; line-height:1.6; color:#444; }
   footer { margin-top:46px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
-  .ai-review { margin:16px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; font-weight:600; break-inside:avoid; page-break-inside:avoid; }
+  .ai-review { margin:16px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; line-height:1.55; font-weight:500; break-inside:avoid; page-break-inside:avoid; }
   /* À l'impression (donc dans le PDF) : 2 cm de marge tout autour, et des titres
      jamais seuls en bas de page. L'annexe n'a plus rien à déplier : elle est
      visible partout, donc elle ne peut plus manquer au fichier. */
