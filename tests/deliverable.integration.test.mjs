@@ -5,7 +5,8 @@ import { createApp } from "../src/http/app.mjs";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { validateSectionText } from "../src/deliverables/validator.mjs";
 import { writeSection } from "../src/deliverables/writers.mjs";
-import { DOSSIER_SECTIONS } from "../src/deliverables/plan.mjs";
+import { docStrings } from "../src/deliverables/i18n.mjs";
+import { DOSSIER_SECTIONS, dossierSectionsInOrder } from "../src/deliverables/plan.mjs";
 import { createPublicReading, hasConvergentIndicators } from "../src/models/publicReadingService.mjs";
 
 async function startTestApp() {
@@ -299,6 +300,19 @@ test("public no-account reading works without authentication and stores nothing"
     // La convention d'aspects est active : la section conditionnelle revient
     // dès que des indicateurs convergent (ici Soleil et Mercure en Gemeaux).
     assert.equal(reading.payload.sections.some((section) => section.id === "forces-tensions"), true);
+    // L'ordre du document suit le rang déclaré, jamais l'ordre de déclaration.
+    const attendu = dossierSectionsInOrder()
+      .map((section) => section.id)
+      .filter((id) => reading.payload.sections.some((section) => section.id === id));
+    assert.deepEqual(reading.payload.sections.map((section) => section.id), attendu);
+    // Et le HTML livré respecte cet ordre (les modules indisponibles, comme
+    // « Périodes & Cycles », ne sont jamais rendus au client).
+    const positions = attendu
+      .filter((id) => id !== "periodes-cycles")
+      .map((id) => reading.payload.html.indexOf(docStrings("fr").sectionTitles[id]));
+    assert.ok(positions.every((index) => index >= 0));
+    assert.deepEqual(positions, [...positions].sort((first, second) => first - second));
+    assert.equal(reading.payload.html.includes(docStrings("fr").sectionTitles["periodes-cycles"]), false);
     // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
     assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
     assert.equal(reading.payload.provenance.traditionalRules, null);

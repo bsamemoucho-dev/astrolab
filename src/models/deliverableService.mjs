@@ -5,7 +5,7 @@
 // section, and finally stores the full versioned artefact (HTML + Markdown).
 // The client polls GET /api/deliverables/:id while status is "generating".
 
-import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
+import { dossierSectionsInOrder } from "../deliverables/plan.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { aiReviewNote } from "../deliverables/i18n.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
@@ -16,7 +16,7 @@ import { hasConvergentIndicators } from "./publicReadingService.mjs";
 import { calculateWesternNatalForUser } from "./natalCalculationService.mjs";
 
 const GENERATION_STALE_AFTER_MS = 10 * 60 * 1000;
-const TOTAL_STEPS = DOSSIER_SECTIONS.length + 1; // sections + annexe socle
+const TOTAL_STEPS = dossierSectionsInOrder().length + 1; // sections + annexe socle
 
 function nowIso() {
   return new Date().toISOString();
@@ -251,7 +251,7 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
       ["label", "birthDate", "birthPlace"].some((key) => String(entry?.[key] ?? "").trim() !== "")
     );
 
-    for (const planSection of DOSSIER_SECTIONS) {
+    for (const planSection of dossierSectionsInOrder()) {
       // Mêmes règles que la lecture publique : sans données familiales, la
       // section transgénérationnelle disparaît au lieu d'inventer des ancêtres.
       if (planSection.id === "transgenerationnel" && !proHasFamily) {

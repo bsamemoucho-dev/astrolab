@@ -10,7 +10,7 @@ import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { crossCheckReading } from "../deliverables/crossCheck.mjs";
 import { aiReviewNote, docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
-import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
+import { dossierSectionsInOrder } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
 import { provenanceSummary } from "../deliverables/provenance.mjs";
@@ -161,7 +161,7 @@ export async function createPublicReading(input = {}, options = {}) {
 
   const parents = normalizeParents(input);
 
-  for (const planSection of DOSSIER_SECTIONS) {
+  for (const planSection of dossierSectionsInOrder()) {
     // Pas de données familiales : la section transgénérationnelle disparaît au
     // lieu d'inventer une histoire d'ancêtres.
     if (planSection.id === "transgenerationnel" && !hasFamilyData(parents)) {

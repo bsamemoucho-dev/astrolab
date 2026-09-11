@@ -144,14 +144,14 @@ export function findSignContradictions(text, socle) {
     if (!sentence.trim()) {
       continue;
     }
-    const mentioned = BODY_NAMES.filter(([fr]) => new RegExp(`\\b${fr}\\b`, "i").test(sentence)).map(([, en]) => en);
+    const mentioned = BODY_NAMES.filter(([fr]) => containsWord(sentence, fr)).map(([, en]) => en);
     if (mentioned.length === 0) {
       continue;
     }
     // Signes cités dans la phrase, via la table française déjà utilisée ailleurs.
     const signsInSentence = new Set();
     for (const [fr, en] of SIGN_WORDS) {
-      if (new RegExp(`\\b${fr}\\b`, "i").test(sentence)) {
+      if (containsWord(sentence, fr)) {
         // La comparaison se fait sur le nom anglais, celui des faits calculés.
         signsInSentence.add(normalizeSignWord(en));
       }
@@ -165,6 +165,23 @@ export function findSignContradictions(text, socle) {
     }
   }
   return contradictions;
+}
+
+// Frontières de mot tenant compte des accents.
+//
+// `\b` considère « é », « è » ou « ê » comme des NON-lettres : dans « complète »
+// ou « quête », il voit un mot « te » isolé. Résultat : un détecteur de
+// tutoiement qui accuse un texte vouvoyé. On encadre donc les motifs par
+// l'absence de lettre ou de chiffre, pas par `\b`.
+const NOT_LETTER_BEFORE = "(?<![\\p{L}\\p{N}])";
+const NOT_LETTER_AFTER = "(?![\\p{L}\\p{N}])";
+
+export function wordRegex(word, flags = "iu") {
+  return new RegExp(`${NOT_LETTER_BEFORE}(?:${word})${NOT_LETTER_AFTER}`, flags);
+}
+
+function containsWord(text, word) {
+  return wordRegex(word).test(text);
 }
 
 // Plafond de langage quand l'heure de naissance est approximative.
@@ -214,7 +231,7 @@ function hasHedge(sentence) {
 function signsInSentenceFr(sentence) {
   const signs = new Set();
   for (const [fr, en] of SIGN_WORDS) {
-    if (new RegExp(`\\b${fr}\\b`, "i").test(sentence)) {
+    if (containsWord(sentence, fr)) {
       signs.add(en);
     }
   }
@@ -233,7 +250,7 @@ export function findUnhedgedTimedAssertions(text, socle) {
       continue;
     }
     const signs = signsInSentenceFr(trimmed);
-    const mentionedAngles = [...new Set(ANGLE_WORDS.filter(([word]) => new RegExp(`\\b${word}\\b`, "i").test(trimmed)).map(([, key]) => key))];
+    const mentionedAngles = [...new Set(ANGLE_WORDS.filter(([word]) => containsWord(trimmed, word)).map(([, key]) => key))];
     const hedged = hasHedge(trimmed);
 
     // 1. Degré précis sur un angle : interdit tant que la marge n'est pas nulle.
@@ -292,7 +309,7 @@ export function findUnhedgedTimedAssertions(text, socle) {
     if (unstableBodies.length > 0 && signs.size > 0) {
       const named = unstableBodies.filter((body) => {
         const fr = BODY_NAMES.find(([, en]) => en === body)?.[0];
-        return fr ? new RegExp(`\\b${fr}\\b`, "i").test(trimmed) : false;
+        return fr ? containsWord(trimmed, fr) : false;
       });
       if (named.length > 0) {
         found.push({ sentence: trimmed, code: "undecidable_body_sign_asserted", bodies: named });
@@ -361,7 +378,10 @@ export function findForbiddenVocabulary(text) {
 }
 
 // Vouvoiement constant en français : le texte ne doit pas basculer au tutoiement.
-const TU_PATTERNS = [/\b(tu|ton|ta|tes|toi|t'|te)\b/i];
+// Attention aux faux positifs : « complète », « quête », « secrète » contiennent
+// « te »/« ta » pour un `\b` naïf, pas pour un lecteur.
+const TU_PATTERN = wordRegex("tu|ton|ta|tes|toi|te|t'");
+export const TU_WORDS = Object.freeze(["tu", "ton", "ta", "tes", "toi", "te", "t'"]);
 
 export function findTutoiement(text) {
   const found = [];
@@ -370,7 +390,7 @@ export function findTutoiement(text) {
     if (!trimmed) {
       continue;
     }
-    if (TU_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    if (TU_PATTERN.test(trimmed)) {
       found.push({ sentence: trimmed, code: "tutoiement" });
     }
   }
@@ -394,8 +414,8 @@ const ASPECT_WORDS = [
 
 function signatureFromSentence(sentence) {
   const signatures = [];
-  const bodies = [...new Set(BODY_NAMES.filter(([fr]) => new RegExp(`\\b${fr}\\b`, "i").test(sentence)).map(([, en]) => en))];
-  const aspect = ASPECT_WORDS.find(([fr]) => new RegExp(`\\b${fr}\\b`, "i").test(sentence));
+  const bodies = [...new Set(BODY_NAMES.filter(([fr]) => containsWord(sentence, fr)).map(([, en]) => en))];
+  const aspect = ASPECT_WORDS.find(([fr]) => containsWord(sentence, fr));
   if (bodies.length === 2 && aspect) {
     signatures.push(`aspect:${[...bodies].sort().join("-")}:${aspect[1]}`);
   }

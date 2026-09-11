@@ -119,7 +119,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "position-naissance-axe",
-    rank: 2,
+    rank: 3,
     title: "Position de naissance & axe de vie",
     kind: "symbolic",
     badge: BADGES.symbolic,
@@ -133,8 +133,8 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "structure-psychologique",
-    rank: 3,
-    title: "Structure psychologique & émotionnelle",
+    rank: 4,
+    title: "Vos émotions",
     kind: "symbolic",
     badge: BADGES.symbolic,
     writer: "llm",
@@ -143,7 +143,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "transgenerationnel",
-    rank: 4,
+    rank: 9,
     title: "Lecture transgénérationnelle",
     kind: "symbolic",
     badge: BADGES.symbolic,
@@ -153,7 +153,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "grandes-lignes",
-    rank: 5,
+    rank: 2,
     title: "Vos grandes lignes",
     kind: "symbolic",
     badge: BADGES.symbolic,
@@ -163,7 +163,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "relations",
-    rank: 4,
+    rank: 5,
     title: "Vos relations",
     kind: "symbolic",
     badge: BADGES.symbolic,
@@ -173,7 +173,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "action",
-    rank: 5,
+    rank: 6,
     title: "Votre manière d'agir",
     kind: "symbolic",
     badge: BADGES.symbolic,
@@ -197,8 +197,8 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "lecture-passe",
-    rank: 6,
-    title: "Lecture approfondie du passé",
+    rank: 8,
+    title: "Votre passé",
     kind: "symbolic",
     badge: BADGES.symbolic,
     writer: "llm",
@@ -207,7 +207,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "lettre-miroir",
-    rank: 8,
+    rank: 10,
     title: "Lettre miroir",
     kind: "letter",
     badge: BADGES.letter,
@@ -217,7 +217,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "periodes-cycles",
-    rank: 9,
+    rank: 11,
     title: "Périodes & Cycles",
     kind: "unavailable",
     badge: BADGES.unavailable,
@@ -226,7 +226,7 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
   {
     id: "cles-integration",
-    rank: 10,
+    rank: 7,
     title: "Clés d'intégration",
     kind: "symbolic",
     badge: BADGES.symbolic,
@@ -236,10 +236,17 @@ export const DOSSIER_SECTIONS = Object.freeze([
   },
 ]);
 
+// Ordre d'affichage du document : c'est le `rank` qui décide, jamais l'ordre de
+// déclaration dans ce fichier. Une seule fonction de tri, utilisée par les deux
+// services, pour que l'écran et le PDF ne puissent pas diverger.
+export function dossierSectionsInOrder(sections = DOSSIER_SECTIONS) {
+  return [...sections].sort((first, second) => first.rank - second.rank);
+}
+
 export function dossierSectionById(id) {
   return DOSSIER_SECTIONS.find((section) => section.id === id) ?? null;
 }
 
 export function dossierSectionTitles() {
-  return DOSSIER_SECTIONS.map((section) => ({ id: section.id, rank: section.rank, title: section.title }));
+  return dossierSectionsInOrder().map((section) => ({ id: section.id, rank: section.rank, title: section.title }));
 }
