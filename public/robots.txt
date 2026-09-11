@@ -1,0 +1,12 @@
+# Lastro — règles d'exploration
+#
+# Le site public tient sur une seule adresse : la page de lecture. Tout le reste
+# est privé :
+#   /r/<jeton>  lien de récupération d'une lecture achetée (le jeton est le secret)
+#   /api/       interface technique, y compris les lectures et le paiement
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /r/
+
+Sitemap: https://www.lastro.fr/sitemap.xml

@@ -584,6 +584,14 @@ export function createApp(options = {}) {
 
   const server = createServer(async (req, res) => {
     try {
+      // Aucune réponse d'API ni de lien de récupération ne doit être indexée :
+      // on le déclare avant tout routage, y compris pour les erreurs. Posé ici
+      // plutôt que dans sendStatic, sinon les réponses JSON y échappent.
+      const cheminDemande = new URL(req.url, "http://localhost").pathname;
+      if (cheminDemande.startsWith("/api/") || cheminDemande.startsWith("/r/")) {
+        res.setHeader("x-robots-tag", "noindex, nofollow");
+      }
+
       const matched = matchRoute(routes, req);
       if (matched) {
         await matched.handler(req, res, matched.params, matched.url);

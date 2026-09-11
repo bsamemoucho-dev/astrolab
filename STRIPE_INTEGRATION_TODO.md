@@ -1,8 +1,18 @@
-# Intégration Stripe Checkout — état et suite à faire
+# Intégration Stripe Checkout — décisions et historique
 
-Ce fichier est la **source de vérité** pour ce qui reste à faire côté paiement.
-Il complète l'intégration existante : **aucun fichier n'a été créé pour le paiement**,
-l'appel existant a seulement été mis à jour.
+> **Statut : terminée et en production.** Le paiement fonctionne sur
+> `https://www.lastro.fr` (Checkout embarqué, carte, Apple Pay et Google Pay).
+> Ce document est conservé pour l'**historique des décisions**, pas comme une liste
+> de travaux en cours. L'état réel du produit est dans `docs/ETAT-ET-SUITE.md`.
+> Un audit a déjà conclu de ce titre que le paiement était inachevé : ne pas
+> masquer ni désactiver le bouton d'achat sur cette base.
+
+## Décisions (historique)
+
+### Décision prise : paiement dans la page (pas de redirection)
+
+Ce document raconte comment l'intégration a été faite : **aucun fichier n'a été créé
+pour le paiement**, l'appel existant a seulement été mis à jour.
 
 ## Décision prise : paiement dans la page (pas de redirection)
 

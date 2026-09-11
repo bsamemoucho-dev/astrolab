@@ -8,7 +8,9 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8"
 };
 
 export function parseCookies(header = "") {
@@ -81,6 +83,16 @@ export async function readJson(req) {
   return JSON.parse(raw);
 }
 
+// Chemins qui ne doivent jamais être indexés : les liens de récupération portent
+// le secret d'une lecture personnelle, et l'API n'a rien à faire dans un moteur
+// de recherche. `robots.txt` demande déjà de ne pas les explorer ; cet en-tête le
+// garantit même si un lien est découvert autrement (robots.txt n'est qu'une
+// convention, pas une protection).
+function robotsHeader(pathname) {
+  const prive = pathname.startsWith("/r/") || pathname.startsWith("/api/");
+  return prive ? { "x-robots-tag": "noindex, nofollow" } : {};
+}
+
 export async function sendStatic(publicDir, req, res) {
   const url = new URL(req.url, "http://localhost");
   const requested = url.pathname === "/" ? "/index.html" : url.pathname;
@@ -97,6 +109,7 @@ export async function sendStatic(publicDir, req, res) {
     const content = await readFile(filePath);
     res.writeHead(200, {
       ...securityHeaders(),
+      ...robotsHeader(url.pathname),
       "content-type": MIME_TYPES[extname(filePath)] ?? "application/octet-stream"
     });
     res.end(content);
@@ -104,8 +117,14 @@ export async function sendStatic(publicDir, req, res) {
     if (error.code !== "ENOENT") {
       throw error;
     }
+    // Repli monopage : un chemin inconnu rend l'application. Il ne doit pas pour
+    // autant devenir une page indexable (« soft 404 »).
     const fallback = await readFile(join(publicDir, "index.html"));
-    res.writeHead(200, { ...securityHeaders(), "content-type": "text/html; charset=utf-8" });
+    res.writeHead(200, {
+      ...securityHeaders(),
+      ...robotsHeader(url.pathname),
+      "content-type": "text/html; charset=utf-8"
+    });
     res.end(fallback);
   }
 }

@@ -205,6 +205,38 @@ Ce que ce contrôle a établi :
   `transgenerationnel` et `lettre-miroir` (réécriture demandée, jamais
   d'amputation).
 
+## Audit externe (SEO, SPA, Stripe) — ce qui a été suivi, et ce qui a été écarté
+
+Un audit a produit trois recommandations. Vérification faite :
+
+1. **« Pas de robots.txt ni de sitemap.xml » — exact, mais la raison importante
+   était ailleurs.** Le site n'a qu'une page publique ; en revanche il expose deux
+   familles de chemins **privés** : `/r/<jeton>` (le lien de récupération d'une
+   lecture achetée, dont le jeton est le seul secret) et `/api/`. Ajoutés :
+   `public/robots.txt` (Allow `/`, Disallow `/api/` et `/r/`), `public/sitemap.xml`
+   (une seule adresse), et surtout un en-tête **`X-Robots-Tag: noindex, nofollow`**
+   posé avant tout routage sur ces deux préfixes — `robots.txt` n'est qu'une
+   convention, l'en-tête tient même si un lien est découvert autrement.
+2. **« SPA : faites du pré-rendu ou du SSR » — recommandation écartée.** La page
+   publique est du HTML statique ; le contenu dynamique est le **document privé du
+   client**, qui ne doit surtout pas être indexé. Le SSR ajouterait une pile de
+   rendu serveur pour zéro gain. Les vrais manques étaient : une description
+   `<meta>` qui parlait de l'**outil d'exploitation** (« Dossier personnel
+   structuré pour analyses transversales documentées ») au lieu du service vendu,
+   aucune balise Open Graph (aucun aperçu lors d'un partage de lien), pas de
+   canonical, pas de favicon. Corrigés.
+3. **« L'intégration Stripe est inachevée, masquez le bouton d'achat » — faux et
+   dangereux.** Le paiement est **en production et encaisse** (Checkout embarqué,
+   carte, Apple Pay, Google Pay). Le fichier `STRIPE_INTEGRATION_TODO.md` est un
+   document d'**historique des décisions**, pas une liste de travaux en cours : un
+   bandeau de statut a été ajouté en tête pour couper court à cette lecture. Suivre
+   cette recommandation aurait coupé la seule source de revenus du produit.
+
+Reste, si le référencement devient un objectif : une **page d'accueil publique
+dédiée**, servie en HTML statique avec son propre contenu, plutôt qu'une vue cachée
+de l'application (aujourd'hui seule la vue de connexion est active dans le HTML
+livré, le visiteur voit la bonne vue après exécution du JavaScript).
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -326,12 +358,13 @@ Ce que ce contrôle a établi :
 | `tools/verify-production-reading.mjs` | vérification de bout en bout après déploiement |
 | `tools/preview-document.mjs` | aperçu du document (mise en page) sans réseau ni coût |
 | `tools/inspect-pdf.mjs` | lecture d'un PDF livré, page par page (texte extrait par les tables ToUnicode) |
+| `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` | exploration et partage |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 178 tests
+npm test                                   # 183 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test
