@@ -19,7 +19,11 @@ export const FRAME_DIRECTIVES = Object.freeze([
   "Accord et cohérence : garde le même genre grammatical du début à la fin du document (accords, adjectifs, participes). Si le genre n'est pas connu, choisis-en un une fois et ne change plus.", 
   // Anti-répétition (chantier 2) : un placement expliqué une fois, puis on avance.
   "Chaque placement (planète, signe, aspect, maison) est expliqué UNE SEULE FOIS, dans la section où il sert le mieux. Les sections suivantes ne le réexpliquent pas : elles apportent un angle nouveau (le passé, la relation, l'action, l'intégration).",
-  "Les passages déjà rédigés te sont fournis dans « alreadyWritten » : appuie-toi dessus sans les redévelopper, et ne réutilise pas les mêmes formulations.",
+  // Nommer l'antécédent (chantier 4) : la règle ci-dessus avait été comprise
+  // comme « ne nomme pas », d'où des sections qui commençaient par « Cette
+  // position… » sans que le lecteur sache de quoi on parle.
+  "Nomme une fois le placement en clair, au moment où il sert (« votre Lune en Cancer », « en maison VII »), puis n'y reviens pas pour l'expliquer. N'ouvre jamais une phrase par « cette position », « cette maison », « cet aspect » ou « cette énergie » si le placement n'a pas été nommé dans la même section.",
+  "Les passages déjà rédigés te sont fournis dans « alreadyWritten » : appuie-toi dessus sans les redévelopper, et ne réutilise pas les mêmes formulations. N'y répète ni le même aspect ni la même maison.",
   // Ouverture éditoriale (chantier 3) : une première page qui donne envie.
   "Dans la section d'introduction uniquement, ouvre par un court paragraphe « Votre ciel en un coup d'œil » : trois à cinq traits marquants, distincts et concrets, sans jargon.",
   // Transgénérationnel (chantier 3) : jamais d'histoire familiale inventée.

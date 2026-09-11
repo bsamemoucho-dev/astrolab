@@ -795,3 +795,33 @@ test("le coup d'œil trop long est réécrit, pas livré tel quel", async () => 
   assert.equal(appels.filter((id) => id === "introduction").length, 2);
   assert.doesNotMatch(reading.html, /Phrase numéro 40/);
 });
+
+test("un défaut de style est réécrit puis conservé, jamais amputé", async () => {
+  // L'antécédent orphelin est une maladresse, pas un mensonge : la réécriture
+  // est demandée, et si elle ne corrige rien le texte reste entier.
+  const appels = [];
+  const writerFn = (section) => {
+    appels.push(section.id);
+    if (section.id === "structure-psychologique") {
+      return "Cette position vous demande de tenir. Votre Lune en Cancer colore vos réactions.";
+    }
+    return `Texte pour ${section.id}.`;
+  };
+  const reading = await createPublicReading(
+    {
+      firstName: "Test",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn, crossCheckFn: null }
+  );
+  // Deux appels : la réécriture a bien été demandée.
+  assert.equal(appels.filter((id) => id === "structure-psychologique").length, 2);
+  // Et la phrase est conservée : on n'ampute pas un texte juste pour du style.
+  assert.match(reading.html, /Cette position vous demande de tenir/);
+});

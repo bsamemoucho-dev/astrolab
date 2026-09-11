@@ -302,6 +302,137 @@ export function findUnhedgedTimedAssertions(text, socle) {
   return found;
 }
 
+// ---------------------------------------------------------------------------
+// Défauts de style (réécriture demandée, jamais d'amputation) et vocabulaire.
+//
+// Un antécédent orphelin (« Cette position… », « Cette maison… ») n'est pas un
+// mensonge : c'est une phrase incompréhensible parce que le placement n'a jamais
+// été nommé dans la section. La règle correcte est de le nommer UNE FOIS, puis
+// de ne plus le réexpliquer — l'anti-répétition avait fait comprendre au modèle
+// « ne nomme pas ».
+// ---------------------------------------------------------------------------
+const DEMONSTRATIVE_OPENERS = [
+  /^(?:cette|cet|ce|ces)\s+(position|maison|place|placement|configuration|figure|structure|dynamique|énergie|energie|tension|planète|planete|thème|theme|axe|aspect|influence)\b/i,
+  /^(?:il|elle)\s+(s'agit|correspond|renvoie|traduit)\b/i
+];
+
+const PLACEMENT_MARKERS = [
+  /\b(soleil|lune|mercure|v[ée]nus|mars|jupiter|saturne)\b/i,
+  /\bmaison\s*(?:n[°o]\s*)?\d{1,2}\b/i,
+  /\bascendant\b/i,
+  /\bmilieu\s+du\s+ciel\b/i
+];
+
+export function findOrphanAntecedents(text) {
+  const found = [];
+  const sentences = String(text ?? "")
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  let namedSoFar = false;
+  for (const sentence of sentences) {
+    if (PLACEMENT_MARKERS.some((pattern) => pattern.test(sentence))) {
+      namedSoFar = true;
+      continue;
+    }
+    const orphan = DEMONSTRATIVE_OPENERS.find((pattern) => pattern.test(sentence));
+    if (orphan && !namedSoFar) {
+      found.push({ sentence, referent: sentence.split(/\s+/).slice(0, 2).join(" ").toLowerCase() });
+    }
+  }
+  return found;
+}
+
+// Vocabulaire imposé : en français, on écrit « trigone », jamais « trine ».
+const FORBIDDEN_VOCABULARY = [/\btrine\b/i];
+
+export function findForbiddenVocabulary(text) {
+  const found = [];
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    const trimmed = sentence.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (FORBIDDEN_VOCABULARY.some((pattern) => pattern.test(trimmed))) {
+      found.push({ sentence: trimmed, code: "forbidden_vocabulary" });
+    }
+  }
+  return found;
+}
+
+// Vouvoiement constant en français : le texte ne doit pas basculer au tutoiement.
+const TU_PATTERNS = [/\b(tu|ton|ta|tes|toi|t'|te)\b/i];
+
+export function findTutoiement(text) {
+  const found = [];
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    const trimmed = sentence.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (TU_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      found.push({ sentence: trimmed, code: "tutoiement" });
+    }
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// Anti-répétition entre sections : un même placement ne doit pas être expliqué
+// deux fois. On ne compare pas la formulation, on compare la SIGNATURE du
+// placement (corps concernés, aspect, maison), ce qui est mesurable.
+// ---------------------------------------------------------------------------
+const ASPECT_WORDS = [
+  ["conjonction", "conjunction"],
+  ["sextile", "sextile"],
+  ["carré", "square"],
+  ["carre", "square"],
+  ["trigone", "trine"],
+  ["trine", "trine"],
+  ["opposition", "opposition"]
+];
+
+function signatureFromSentence(sentence) {
+  const signatures = [];
+  const bodies = [...new Set(BODY_NAMES.filter(([fr]) => new RegExp(`\\b${fr}\\b`, "i").test(sentence)).map(([, en]) => en))];
+  const aspect = ASPECT_WORDS.find(([fr]) => new RegExp(`\\b${fr}\\b`, "i").test(sentence));
+  if (bodies.length === 2 && aspect) {
+    signatures.push(`aspect:${[...bodies].sort().join("-")}:${aspect[1]}`);
+  }
+  const house = sentence.match(/\bmaison\s*(?:n[°o]\s*)?(\d{1,2})\b/i);
+  if (house && bodies.length === 1) {
+    signatures.push(`house:${bodies[0]}:${Number(house[1])}`);
+  }
+  return signatures;
+}
+
+export function findRepeatedPlacements(text, previousSections = []) {
+  const alreadyExplained = new Set();
+  for (const section of Array.isArray(previousSections) ? previousSections : []) {
+    for (const signature of signatureFromSentence(String(section?.excerpt ?? section?.text ?? ""))) {
+      alreadyExplained.add(signature);
+    }
+  }
+  if (alreadyExplained.size === 0) {
+    return [];
+  }
+  const found = [];
+  const seenHere = new Set();
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    const trimmed = sentence.trim();
+    if (!trimmed) {
+      continue;
+    }
+    for (const signature of signatureFromSentence(trimmed)) {
+      if (alreadyExplained.has(signature) && !seenHere.has(signature)) {
+        seenHere.add(signature);
+        found.push({ sentence: trimmed, code: "repeated_placement", signature });
+      }
+    }
+  }
+  return found;
+}
+
 export function validateSectionText({ sectionId, text, socle }) {
   const issues = [];
   if (!text || !text.trim()) {
@@ -323,6 +454,16 @@ export function validateSectionText({ sectionId, text, socle }) {
               : violation.code === "undecidable_body_sign_asserted"
                 ? `Le texte affirme un signe pour un corps qui change de signe dans la marge : ${(violation.bodies ?? []).join(", ")}.`
                 : `Affirmation non nuancée alors que l'heure de naissance est approximative : « ${violation.sentence} ».`,
+      sentence: violation.sentence
+    });
+  }
+
+  // Vocabulaire imposé : « trigone », jamais « trine ».
+  for (const violation of findForbiddenVocabulary(text)) {
+    issues.push({
+      severity: "error",
+      code: "forbidden_vocabulary",
+      message: `Vocabulaire interdit : ${violation.sentence}`,
       sentence: violation.sentence
     });
   }

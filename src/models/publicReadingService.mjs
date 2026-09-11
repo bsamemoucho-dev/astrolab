@@ -16,7 +16,10 @@ import { buildSocle } from "../deliverables/socle.mjs";
 import { provenanceSummary } from "../deliverables/provenance.mjs";
 import {
   findBiographicalInvention,
+  findOrphanAntecedents,
+  findRepeatedPlacements,
   findSignContradictions,
+  findTutoiement,
   findUnfilledPlaceholders,
   findUnhedgedTimedAssertions
 } from "../deliverables/validator.mjs";
@@ -199,34 +202,55 @@ export async function createPublicReading(input = {}, options = {}) {
       // Le « coup d'œil » doit tenir en quelques lignes : au-delà, ce n'est plus
       // un résumé exécutif mais une seconde introduction.
       const PLAFOND_COUP_DOEIL = 900;
-      const defauts = (texte) => [
+      // Deux régimes distincts, parce qu'ils n'ont pas les mêmes conséquences :
+      //   - FATAL : le texte affirme quelque chose de faux ou de non livrable
+      //     (contradiction, placeholder, biographie inventée, angle non
+      //     décidable). Réécriture, puis retrait des phrases si elle échoue.
+      //   - STYLE : le texte est maladroit sans être faux (antécédent orphelin,
+      //     répétition d'un placement, tutoiement). Réécriture demandée, jamais
+      //     d'amputation : couper une phrase juste pour une maladresse abîmerait
+      //     la lecture.
+      const erreursFatales = (texte) => [
         ...findSignContradictions(texte, context.socle),
         ...findUnfilledPlaceholders(texte),
         ...findBiographicalInvention(texte),
-        ...findUnhedgedTimedAssertions(texte, context.socle),
+        ...findUnhedgedTimedAssertions(texte, context.socle)
+      ];
+      const defautsDeStyle = (texte) => [
+        ...findOrphanAntecedents(texte),
+        ...findRepeatedPlacements(texte, sections),
+        ...findTutoiement(texte),
         ...(planSection.id === "introduction" && String(texte).length > PLAFOND_COUP_DOEIL
           ? [{ sentence: `ouverture trop longue (${String(texte).length} caractères)` }]
           : [])
       ];
+      const defauts = (texte) => [...erreursFatales(texte), ...defautsDeStyle(texte)];
       let contradictions = defauts(written.text);
       if (contradictions.length > 0) {
         const raisons = contradictions.map((entry) => `« ${entry.sentence.trim()} »`).join(" ");
         console.warn(`[Lastro] texte fautif dans « ${planSection.id} » — réécriture demandée`);
-        context.correctionNote = `Ta version précédente contenait des passages à ne jamais livrer : ${raisons} Réécris la section. N'attribue jamais à une planète un signe qui n'est pas le sien, n'invente aucune biographie (pas de responsabilités précoces, de renoncements, de sacrifices, de pression familiale : tu parles de dynamiques symboliques, jamais d'une histoire vécue), et n'écris aucun texte entre crochets, accolades ou chevrons : si tu signes la lettre, utilise le prénom fourni, ou termine sans signature inventée. Si l'heure de naissance est approximative, ne présente aucun angle, aucune maison et aucun degré comme exacts : un signe qui change dans la marge n'est pas décidable, et un signe d'angle est toujours une probabilité (« probablement en … »).`;
+        context.correctionNote = `Ta version précédente contenait des passages à ne jamais livrer : ${raisons} Réécris la section. N'attribue jamais à une planète un signe qui n'est pas le sien, n'invente aucune biographie (pas de responsabilités précoces, de renoncements, de sacrifices, de pression familiale : tu parles de dynamiques symboliques, jamais d'une histoire vécue), et n'écris aucun texte entre crochets, accolades ou chevrons : si tu signes la lettre, utilise le prénom fourni, ou termine sans signature inventée. Si l'heure de naissance est approximative, ne présente aucun angle, aucune maison et aucun degré comme exacts : un signe qui change dans la marge n'est pas décidable, et un signe d'angle est toujours une probabilité (« probablement en … »). Enfin, nomme une fois le placement (« votre Lune en Cancer », « en maison VII ») avant d'y faire référence : n'ouvre jamais une phrase par « cette position » ou « cette maison » sans l'avoir nommée dans la même section, et n'explique pas deux fois le même aspect ou la même maison. Vouvoie la personne du début à la fin (« vous », jamais « tu »), et écris « trigone », jamais « trine ».`;
         written = await writeSection(planSection, context, options);
         context.correctionNote = null;
         contradictions = defauts(written.text);
         if (contradictions.length > 0) {
-          const fautives = contradictions.map((entry) => entry.sentence.trim());
-          written = {
-            ...written,
-            text: String(written.text)
-              .split(/(?<=[.!?])\s+/)
-              .filter((sentence) => !fautives.includes(sentence.trim()))
-              .join(" ")
-              .trim()
-          };
-          console.warn(`[Lastro] phrases contradictoires retirées de « ${planSection.id} »`);
+          // Seules les erreurs factuelles justifient un retrait de phrase.
+          const fatales = new Set(erreursFatales(written.text).map((entry) => entry.sentence.trim()));
+          const restantes = defautsDeStyle(written.text);
+          if (restantes.length > 0) {
+            console.warn(`[Lastro] défauts de style persistants dans « ${planSection.id} » (conservés, non amputés)`);
+          }
+          if (fatales.size > 0) {
+            written = {
+              ...written,
+              text: String(written.text)
+                .split(/(?<=[.!?])\s+/)
+                .filter((sentence) => !fatales.has(sentence.trim()))
+                .join(" ")
+                .trim()
+            };
+            console.warn(`[Lastro] phrases fautives retirées de « ${planSection.id} »`);
+          }
         }
       }
       if (written.usage) {
