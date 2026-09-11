@@ -60,12 +60,35 @@ const PARAGRAPHES = {
 };
 const textes = PARAGRAPHES[language] ?? PARAGRAPHES.en;
 
-// Un rédacteur de remplacement : aucun appel réseau, texte déterministe.
+// Deux sections s'écrivent en tutoiement (transgénérationnel, lettre miroir) : le
+// texte de remplacement doit le respecter, sinon l'aperçu affiche un avertissement
+// de style qui masquerait les vrais.
+const PARAGRAPHES_TU = {
+  fr: [
+    "Tu avances avec une prudence qui n'a rien d'une réserve : elle te permet de mesurer avant de t'engager, et de tenir ce que tu as commencé. Cette qualité se lit dans ta manière d'organiser ton quotidien, avec des repères stables et une préférence pour ce qui dure.",
+    "Ce qui te met en tension, ce sont les moments où l'on attend de toi une réaction immédiate. Tu as besoin d'un temps de maturation que les autres ne t'accordent pas toujours, et il t'arrive de confondre ce besoin de recul avec un manque d'élan.",
+    "Ton énergie se déploie mieux dans les projets au long cours que dans les élans soudains. Tu sais porter une intention pendant des mois sans te décourager, ce qui te distingue de ceux qui s'épuisent au premier obstacle."
+  ],
+  en: [
+    "You move forward with a caution that is not reserve: it lets you measure before committing, and to hold on to what you have started. This quality shows in the way you organise your daily life, with steady landmarks and a preference for what lasts.",
+    "What puts you under tension is the moment when people expect an immediate reaction. You need a maturation time that others do not always grant you, and you sometimes mistake that need for distance for a lack of momentum.",
+    "Your energy unfolds better in long projects than in sudden impulses. You can carry an intention for months without losing heart, which sets you apart from those who give up at the first obstacle."
+  ]
+};
+const SECTIONS_TUTOIEMENT = new Set(["transgenerationnel", "lettre-miroir"]);
+
+// Un rédacteur de remplacement : aucun appel réseau, texte déterministe. Il rend
+// du TEXTE BRUT (paragraphes séparés par une ligne vide), comme le rédacteur réel :
+// c'est la mise en forme qui transforme ce texte en HTML. Rendre du HTML ici faisait
+// passer chaque balise pour un trou à remplir, et l'aperçu sortait avec toutes ses
+// sections vidées par le détecteur.
 let index = 0;
-const writerFn = () => {
-  const texte = textes.map((paragraphe) => `<p>${paragraphe}</p>`).join(" ");
+const writerFn = (section) => {
   index += 1;
-  return `${texte}\n\n<p><em>(aperçu ${index} — texte de remplacement, aucune lecture réelle)</em></p>`;
+  const corps = SECTIONS_TUTOIEMENT.has(section?.id)
+    ? (PARAGRAPHES_TU[language] ?? PARAGRAPHES_TU.en)
+    : textes;
+  return `${corps.join("\n\n")}\n\n(aperçu ${index} — texte de remplacement, aucune lecture réelle)`;
 };
 
 const reading = await createPublicReading(

@@ -122,9 +122,13 @@ function annularSector(cx, cy, rInner, rOuter, fromLongitude, toLongitude, ancho
   const outerEnd = point(cx, cy, rOuter, end);
   const innerEnd = point(cx, cy, rInner, end);
   const innerStart = point(cx, cy, rInner, start);
+  // Rayons arrondis : les rayons relatifs produisent sinon des flottants du type
+  // 150.39999999999998 dans chaque tracé.
+  const rayonExterieur = round(rOuter);
+  const rayonInterieur = round(rInner);
   return (
-    `<path d="M ${outerStart.x} ${outerStart.y} A ${rOuter} ${rOuter} 0 ${large} ${outerSweep} ${outerEnd.x} ${outerEnd.y} ` +
-    `L ${innerEnd.x} ${innerEnd.y} A ${rInner} ${rInner} 0 ${large} ${innerSweep} ${innerStart.x} ${innerStart.y} Z" ` +
+    `<path d="M ${outerStart.x} ${outerStart.y} A ${rayonExterieur} ${rayonExterieur} 0 ${large} ${outerSweep} ${outerEnd.x} ${outerEnd.y} ` +
+    `L ${innerEnd.x} ${innerEnd.y} A ${rayonInterieur} ${rayonInterieur} 0 ${large} ${innerSweep} ${innerStart.x} ${innerStart.y} Z" ` +
     `fill="${fill}"${opacity < 1 ? ` fill-opacity="${opacity}"` : ""}/>`
   );
 }
@@ -241,13 +245,15 @@ export function zodiacWheelSvg(socle, strings = null, options = {}) {
     }
   }
 
-  // Centre : la légende de l'axe.
+  // Centre : le titre, réparti sur au plus trois lignes ÉQUILIBRÉES. Aucun mot n'est
+  // coupé : « Votre carte du ciel » réduit à « VOTRE CARTE DU » serait un titre
+  // tronqué dans les neuf langues (le français, l'espagnol, l'italien et le portugais
+  // font quatre mots ou plus).
   parts.push(`<circle cx="${cx}" cy="${cy}" r="${round(rCentre)}" fill="#ded3e8"/>`);
-  const mots = String(t.chartTitle ?? "Votre carte du ciel").split(" ").slice(0, 3);
-  mots.forEach((mot, index) => {
+  centreLines(t.chartTitle ?? "Votre carte du ciel").forEach((ligne, index, lignes) => {
     parts.push(
-      `<text x="${cx}" y="${round(cy + (index - (mots.length - 1) / 2) * 11 + 3)}" text-anchor="middle" ` +
-        `font-size="9.5" letter-spacing="0.6" fill="#4b3f57">${escapeXml(mot.toUpperCase())}</text>`
+      `<text x="${cx}" y="${round(cy + (index - (lignes.length - 1) / 2) * 11 + 3)}" text-anchor="middle" ` +
+        `font-size="9.5" letter-spacing="0.6" fill="#4b3f57">${escapeXml(ligne)}</text>`
     );
   });
 
@@ -268,6 +274,44 @@ export function chartFacts(socle, strings = null) {
 
 function share(count, total) {
   return total > 0 ? Math.round((count / total) * 100) : 0;
+}
+
+// Découpe le titre en au plus `maxLignes` lignes, sans perdre un seul mot, en
+// minimisant la largeur de la plus longue. Aucune dépendance à la langue : le
+// résultat est calculé sur le titre réellement fourni.
+export function centreLines(title, maxLignes = 3, largeurMax = 14) {
+  const mots = String(title ?? "").trim().split(/\s+/).filter(Boolean);
+  if (mots.length === 0) {
+    return [];
+  }
+  let repli = null;
+  for (let lignes = 1; lignes <= Math.min(maxLignes, mots.length); lignes += 1) {
+    let meilleur = null;
+    const explorer = (depart, restantes, accumule) => {
+      if (restantes === 1) {
+        const groupe = [...accumule, mots.slice(depart).join(" ")];
+        const largeur = Math.max(...groupe.map((ligne) => ligne.length));
+        if (!meilleur || largeur < meilleur.largeur) {
+          meilleur = { groupe, largeur };
+        }
+        return;
+      }
+      for (let fin = depart + 1; fin <= mots.length - restantes + 1; fin += 1) {
+        explorer(fin, restantes - 1, [...accumule, mots.slice(depart, fin).join(" ")]);
+      }
+    };
+    explorer(0, lignes, []);
+    if (!meilleur) {
+      continue;
+    }
+    if (meilleur.largeur <= largeurMax) {
+      return meilleur.groupe.map((ligne) => ligne.toUpperCase());
+    }
+    if (!repli || meilleur.largeur < repli.largeur) {
+      repli = meilleur;
+    }
+  }
+  return (repli?.groupe ?? [mots.join(" ")]).map((ligne) => ligne.toUpperCase());
 }
 
 function barRows(counts, order, labelOf, colourOf, total) {

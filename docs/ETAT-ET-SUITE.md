@@ -167,6 +167,18 @@ faits calculés, sans aucune règle nouvelle.
 - **Outil** : `tools/preview-document.mjs` fabrique un document complet avec des
   textes de remplacement, sans réseau ni coût, pour juger la mise en page à
   l'impression — c'est le seul moyen de l'itérer sans payer une lecture.
+- **Deux défauts trouvés en relisant l'aperçu, corrigés le 12 septembre** :
+  (1) le titre au centre de la roue était coupé à trois mots, donc « Votre carte du
+  ciel » s'imprimait « VOTRE CARTE DU » — le français, l'espagnol, l'italien et le
+  portugais perdaient un mot ; le titre est maintenant réparti sur des lignes
+  équilibrées, sans perdre un seul mot, dans les neuf langues.
+  (2) l'aperçu sortait avec **onze sections vides** : le texte de remplacement
+  rendait du HTML, et le détecteur de trous à remplir prenait chaque `<p>` pour un
+  placeholder non rempli — donc il retirait toutes les phrases. Les balises connues
+  ne sont plus confondues avec un trou (les vrais trous, `<VOTRE PRÉNOM>`,
+  `<à compléter>`, restent détectés), le texte de remplacement est du texte brut, et
+  `tests/previewTool.test.mjs` interdit désormais à l'aperçu de ressortir vide ou
+  avec un avertissement.
 
 **Délibérément NON fait**, faute de convention écrite ou de décision :
 
@@ -456,11 +468,12 @@ prêt pour cette étape ; c'est l'infrastructure qui demande un arbitrage.
 | `src/deliverables/chart.mjs` | roue du ciel en SVG et répartitions calculées |
 | `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` | exploration et partage |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
+| `tests/chart.test.mjs`, `tests/previewTool.test.mjs` | géométrie de la roue, titres non tronqués, aperçu jamais vide |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 196 tests
+npm test                                   # 202 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

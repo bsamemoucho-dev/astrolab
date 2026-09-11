@@ -13,6 +13,7 @@ import { calculateWesternNatalChart } from "../src/astro/westernNatal.mjs";
 import {
   ELEMENT_BY_SIGN,
   MODALITY_BY_SIGN,
+  centreLines,
   chartSection,
   signDistribution,
   zodiacWheelSvg
@@ -183,4 +184,40 @@ test("la carte du ciel ouvre le document, après la couverture et avant le texte
   assert.match(markdown, /Feu 1 · Terre 4 · Air 1 · Eau 1/);
   assert.match(markdown, /Cardinal 4 · Fixe 1 · Mutable 2/);
   assert.doesNotMatch(markdown, /<svg/);
+});
+
+// Le titre au centre de la roue était coupé à trois mots : « Votre carte du ciel »
+// s'affichait « VOTRE / CARTE / DU ». Le français, l'espagnol, l'italien et le
+// portugais perdent un mot avec cette règle.
+test("le titre de la roue n'est jamais tronqué, dans les neuf langues", () => {
+  const langues = ["fr", "en", "de", "es", "it", "pt", "no", "da", "nl"];
+  for (const langue of langues) {
+    const titre = docStrings(langue).chartTitle;
+    const lignes = centreLines(titre);
+    assert.ok(lignes.length <= 3, `${langue} : au plus trois lignes (${lignes.length})`);
+    // Aucun mot perdu, aucun mot ajouté, ordre conservé.
+    assert.deepEqual(
+      lignes.join(" ").split(/\s+/),
+      titre.toUpperCase().split(/\s+/),
+      `${langue} : le titre complet est rendu (${lignes.join(" | ")})`
+    );
+    const svg = zodiacWheelSvg(soclePour({ timePrecision: "exact", timeValue: "12:30" }, langue), docStrings(langue));
+    // Le texte du centre, recomposé à partir des seules lignes du centre (violet).
+    const centre = [...svg.matchAll(/fill="#4b3f57">([^<]+)<\/text>/g)].map((m) => m[1]).join(" ");
+    assert.equal(centre, titre.toUpperCase(), `${langue} : le centre porte le titre complet`);
+  }
+});
+
+test("le centre de la roue coupe sur des lignes équilibrées", () => {
+  assert.deepEqual(centreLines("Votre carte du ciel"), ["VOTRE CARTE", "DU CIEL"]);
+  assert.deepEqual(centreLines("Deine Himmelskarte"), ["DEINE", "HIMMELSKARTE"]);
+  assert.deepEqual(centreLines("La tua carta del cielo"), ["LA TUA CARTA", "DEL CIELO"]);
+  // Un titre d'un seul mot très long tient sur une ligne : rien n'est inventé.
+  assert.deepEqual(centreLines("Himmelskarte"), ["HIMMELSKARTE"]);
+  assert.deepEqual(centreLines(""), []);
+});
+
+test("la roue n'écrit pas de flottants bruts dans ses tracés", () => {
+  const svg = zodiacWheelSvg(EXACT(), docStrings("fr"));
+  assert.doesNotMatch(svg, /\d\.\d{5,}/, "aucun rayon du type 150.39999999999998");
 });

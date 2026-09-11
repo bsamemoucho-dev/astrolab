@@ -55,7 +55,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (196 tests) |
+| Do the guardrails hold? | `npm test` (202 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |

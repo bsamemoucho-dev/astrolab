@@ -175,6 +175,22 @@ test("un placeholder localisé est détecté dans les neuf langues", () => {
   }
 });
 
+test("une balise de mise en forme n'est pas prise pour un trou à remplir", () => {
+  // Le 12 septembre, l'aperçu est sorti avec ONZE sections vides : le rédacteur de
+  // remplacement rendait « <p>…</p> », et chaque phrase contenant une balise était
+  // retirée comme un placeholder non rempli.
+  const phrase = "<p>Vous avancez avec une prudence qui n'a rien d'une réserve.</p>";
+  assert.deepEqual(findUnfilledPlaceholders(phrase, { language: "fr" }), []);
+  for (const balise of ["<em>texte</em>", "<strong>texte</strong>", "<br>", "<ul><li>un</li></ul>", "<h2>Titre</h2>"]) {
+    assert.deepEqual(findUnfilledPlaceholders(balise, { language: "fr" }), [], `« ${balise} » est du balisage`);
+  }
+  // Les vrais trous écrits entre chevrons restent détectés : le nom de la balise
+  // n'appartient pas au balisage connu.
+  for (const trou of ["<VOTRE PRÉNOM>", "<à compléter>", "<insert here>", "<prénom du père>"]) {
+    assert.equal(findUnfilledPlaceholders(trou, { language: "fr" }).length, 1, `« ${trou} » doit être détecté`);
+  }
+});
+
 test("les règles françaises ne s'appliquent pas aux autres langues", () => {
   // « trine » est le mot juste en anglais : il ne doit jamais être refusé.
   assert.deepEqual(findForbiddenVocabulary("The trine between your Moon and Saturn.", "en"), []);

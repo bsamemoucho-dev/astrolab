@@ -223,10 +223,26 @@ export function findSignContradictions(text, socle) {
 // universelles ; les formulations « votre prénom » sont cherchées dans la langue
 // du document.
 // ---------------------------------------------------------------------------
+// Une balise de mise en forme n'est pas un trou à remplir. Sans cette liste, un
+// rédacteur qui renvoie « <p>…</p> » voyait TOUTES ses phrases retirées : le
+// document partait avec des sections vides. Les vrais trous (« <VOTRE PRÉNOM> »,
+// « <à compléter> ») ne sont pas dans la liste et restent détectés.
+const KNOWN_MARKUP_TAGS = new Set([
+  "p", "br", "em", "i", "b", "strong", "u", "small", "sup", "sub", "hr",
+  "div", "span", "ul", "ol", "li", "dl", "dt", "dd", "blockquote", "pre", "code",
+  "h1", "h2", "h3", "h4", "h5", "h6", "table", "thead", "tbody", "tr", "td", "th",
+  "figure", "figcaption", "section", "article", "mark", "abbr", "cite", "a"
+]);
+
+function isMarkupTag(inner) {
+  const nom = inner.replace(/^\//, "").split(/[\s/>]/, 1)[0];
+  return KNOWN_MARKUP_TAGS.has(nom.toLowerCase());
+}
+
 const UNIVERSAL_PLACEHOLDER_PATTERNS = [
   /\[[^\]\n]{1,80}\]/,
   /\{\{?[^}\n]{1,80}\}?\}/,
-  /<[^>\n]{1,80}>/
+  /<([^>\n]{1,80})>/
 ];
 
 export function findUnfilledPlaceholders(text, socle = null) {
@@ -243,11 +259,14 @@ export function findUnfilledPlaceholders(text, socle = null) {
   ];
   const found = [];
   for (const sentence of splitSentences(text)) {
-    if (UNIVERSAL_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(sentence))) {
+    // Les balises connues sont retirées avant l'analyse : elles ne comptent pas
+    // comme du texte, et ne peuvent donc pas être prises pour un trou.
+    const analysable = sentence.replace(/<([^>\n]{1,80})>/g, (entier, inner) => (isMarkupTag(inner) ? "" : entier));
+    if (UNIVERSAL_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(analysable))) {
       found.push({ sentence, code: "unfilled_placeholder" });
       continue;
     }
-    if (localized.some((pattern) => pattern.test(sentence))) {
+    if (localized.some((pattern) => pattern.test(analysable))) {
       found.push({ sentence, code: "unfilled_placeholder" });
     }
   }
