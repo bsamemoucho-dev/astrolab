@@ -98,6 +98,14 @@ détecteur.
   mot juste en anglais ; il était refusé comme vocabulaire interdit dans un
   document anglais. Les règles de langue sont désormais liées à la langue du
   document.
+- **Consigne et garde-fou se contredisaient (corrigé).** La consigne de
+  « Votre passé » demandait « les responsabilités précoces possibles, les
+  renoncements silencieux » — exactement ce que le détecteur d'invention
+  biographique retire. Le modèle obéissait à la consigne, puis le garde-fou
+  effaçait la phrase : deuxième cause directe des sections amputées. Les
+  consignes de rédaction ne nomment plus le vocabulaire interdit (le nommer
+  amorce le modèle) ; elles décrivent quoi faire. Un test vérifie désormais que
+  **tout terme refusé par un détecteur est absent des consignes**.
 - **`\b` et les lettres accentuées (corrigé).** « complète » contenait « te »
   pour le détecteur de tutoiement, et « carré » n'était jamais reconnu comme
   aspect. Frontières de mot Unicode.
@@ -174,7 +182,7 @@ détecteur.
 ## Commandes utiles
 
 ```bash
-npm test                                   # 158 tests
+npm test                                   # 159 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test
