@@ -33,7 +33,7 @@ import {
   queueDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
 import { emailEnabled, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
-import { checkoutLineLabel, publicPricing, quotePrice } from "../payments/pricing.mjs";
+import { checkoutLineLabel, checkoutSessionProblem, publicPricing, quotePrice, READING_PURPOSE } from "../payments/pricing.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
@@ -223,12 +223,30 @@ export function createApp(options = {}) {
         error.code = "unknown_promo_code";
         throw error;
       }
+      // On n'encaisse pas ce qu'on ne peut pas rédiger. Le site masque déjà le
+      // bouton, mais un appel direct à l'API le contournerait : le client serait
+      // débité pour une lecture qui ne peut pas être écrite.
+      if (!llmConfiguration()) {
+        const error = new Error(
+          "La rédaction est momentanément indisponible : le paiement n'est pas ouvert, vous ne serez pas débité. Merci de réessayer dans quelques minutes."
+        );
+        error.status = 503;
+        error.code = "writer_unavailable";
+        throw error;
+      }
       sendJson(
         res,
         201,
         await createEmbeddedCheckoutSession({
           amountCents: quote.totalCents,
-          label: checkoutLineLabel({ quote, language: body.language })
+          label: checkoutLineLabel({ quote, language: body.language }),
+          // Marque du produit : elle permet de refuser plus tard une session
+          // payée pour autre chose sur le même compte Stripe.
+          metadata: {
+            purpose: READING_PURPOSE,
+            pricing: quote.version,
+            promo_code: quote.valid ? quote.promoCode : "none"
+          }
         })
       );
     }),
@@ -285,6 +303,18 @@ export function createApp(options = {}) {
           throw error;
         }
 
+        // En production, l'absence de configuration de paiement n'est pas un mode
+        // gratuit : c'est une panne de configuration qui offrirait les lectures.
+        // On refuse de rédiger (et donc de donner) tant que ce n'est pas explicite.
+        if (!stripeConfiguration() && process.env.NODE_ENV === "production" && process.env.ASTROLAB_ALLOW_FREE_READINGS !== "1") {
+          const error = new Error(
+            "Le paiement n'est pas configuré sur ce service : aucune lecture ne peut être commandée pour l'instant. Vous ne serez pas débité. Merci de réessayer plus tard."
+          );
+          error.status = 503;
+          error.code = "payment_not_configured";
+          throw error;
+        }
+
         // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
         if (stripeConfiguration()) {
           if (!sessionId) {
@@ -311,6 +341,24 @@ export function createApp(options = {}) {
             const error = new Error("Le paiement n'est pas encore confirmé. Patientez quelques secondes puis réessayez.");
             error.status = 402;
             throw error;
+          }
+          // Payé ne suffit pas : encore faut-il que ce soit payé POUR cette
+          // lecture, au bon prix. Une session d'un autre produit sur le même
+          // compte Stripe ne doit pas ouvrir de lecture.
+          const probleme = checkoutSessionProblem(session);
+          if (probleme) {
+            console.warn(`[Lastro] session de paiement refusée (${probleme}) — ${sessionId}`);
+            const error = new Error(
+              "Cette session de paiement ne correspond pas à une lecture. Aucune lecture n'a été générée ; si vous avez été débité, contactez-nous avec votre numéro de commande."
+            );
+            error.status = 402;
+            error.code = probleme;
+            throw error;
+          }
+          if (!session.metadata?.purpose) {
+            // Sessions créées avant la marque produit : acceptées sur le montant,
+            // mais signalées, pour pouvoir serrer la vis quand elles auront expiré.
+            console.warn(`[Lastro] session payée sans marque produit (ancienne session) — ${sessionId}`);
           }
           payment = {
             sessionId,

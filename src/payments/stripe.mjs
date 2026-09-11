@@ -167,7 +167,7 @@ async function stripeRequest(config, path, { method = "GET", body = null } = {})
 // est épinglé à une version d'API antérieure.
 const EMBEDDED_UI_MODES = ["embedded_page", "embedded"];
 
-export async function createEmbeddedCheckoutSession({ amountCents, label }) {
+export async function createEmbeddedCheckoutSession({ amountCents, label, metadata = null }) {
   const config = stripeConfiguration();
   if (!config) {
     const error = new Error("Le paiement n'est pas configuré sur ce site.");
@@ -208,6 +208,13 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
     "line_items[0][price_data][unit_amount]": String(amount),
     "line_items[0][price_data][product_data][name]": label ?? "Lecture symbolique Lastro"
   };
+  // Marque du produit sur la session : c'est elle qui permet, côté serveur, de
+  // refuser une session payée pour autre chose sur le même compte Stripe.
+  for (const [cle, valeur] of Object.entries(metadata ?? {})) {
+    if (valeur !== null && valeur !== undefined && valeur !== "") {
+      common[`metadata[${cle}]`] = String(valeur).slice(0, 200);
+    }
+  }
 
   // Deux raisons de réessayer, jamais plus : le nom du mode d'affichage et le
   // paramètre d'exclusion, qui exigent une version d'API récente. Une clé ou un

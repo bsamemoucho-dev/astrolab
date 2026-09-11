@@ -38,6 +38,9 @@ const OFFER_LABELS = {
   nl: "introductieaanbieding"
 };
 
+// Marque apposée sur la session de paiement, et exigée pour la reconnaître.
+export const READING_PURPOSE = "lastro_lecture";
+
 export const LINE_LABEL = "Lecture symbolique personnalisée (Lastro)";
 
 function entier(valeur, defaut) {
@@ -108,6 +111,33 @@ export function quotePrice({ promoCode, env = process.env } = {}) {
     valid: applique,
     reason: applique ? "applied" : vide ? "empty" : "unknown"
   };
+}
+
+// Un paiement prouve qu'on a payé — pas qu'on a payé CETTE lecture. Stripe a une
+// seule clé pour tout le compte : une session payée pour un autre produit, ou un
+// lien de paiement créé à la main dans le tableau de bord, ne doit pas ouvrir une
+// lecture. On vérifie donc le montant, la devise, et la marque du produit.
+//
+// Renvoie `null` quand la session est acceptée, sinon le motif du refus.
+export function checkoutSessionProblem(session, env = process.env) {
+  const catalogue = pricingCatalogue(env);
+  const montant = Number(session?.amount_total);
+  const legitimes = new Set([catalogue.baseCents, catalogue.baseCents - (catalogue.promo?.discountCents ?? 0)]);
+  if (!Number.isFinite(montant) || !legitimes.has(montant)) {
+    return "amount_mismatch";
+  }
+  const devise = String(session?.currency ?? "").toLowerCase();
+  if (devise && devise !== catalogue.currency) {
+    return "currency_mismatch";
+  }
+  const marque = session?.metadata?.purpose ?? null;
+  // Absente : session créée avant cette vérification — le montant suffit à la
+  // reconnaître, et refuser casserait la reprise d'un client déjà débité.
+  // Présente et différente : c'est explicitement un autre produit, on refuse.
+  if (marque && marque !== READING_PURPOSE) {
+    return "foreign_session";
+  }
+  return null;
 }
 
 // Ligne de commande Stripe : le client doit lire, sur son reçu, ce qu'il a payé

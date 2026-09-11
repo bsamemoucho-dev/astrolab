@@ -107,8 +107,9 @@ test("paiement actif sans rédacteur, client déjà débité : commande conserv�
           json: async () => ({
             id: "cs_test_paye",
             payment_status: "paid",
-            amount_total: 2000,
+            amount_total: 2500,
             currency: "eur",
+            metadata: { purpose: "lastro_lecture" },
             customer_details: { email: "client@example.com" }
           })
         };

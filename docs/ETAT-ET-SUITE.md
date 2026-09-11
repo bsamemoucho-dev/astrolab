@@ -408,6 +408,55 @@ code inconnu, changement d'offre, libellés dans les neuf langues) et
 vue interne « Commercial » (9/29/79 €, « paiement réel non connecté ») n'ont pas été
 alignés sur ce prix — ce sont des tarifs de l'outil pro, pas de la lecture vendue.
 
+## Garde-fous du tunnel payant (12/09/2026)
+
+Question posée : « est-ce qu'il y a un garde-fou pour ne pas générer tant qu'il n'y a
+pas de règlement ». Réponse vérifiée dans le code, puis durcie sur trois points qui
+manquaient. Cinq verrous, dans l'ordre où ils s'appliquent :
+
+1. **Pas de session, pas de lecture.** Paiement configuré et aucune
+   `paymentSessionId` → `402 Le paiement est requis pour recevoir votre lecture`,
+   rien n'est enregistré, aucune rédaction n'est lancée.
+2. **Le paiement est vérifié chez Stripe, côté serveur.**
+   `retrieveCheckoutSession(sessionId)` puis `payment_status === "paid"`. Le
+   navigateur ne peut pas mentir : c'est le serveur qui interroge Stripe. Session
+   non payée → `402`, session inconnue → refus (vérifié : 502, 0 livraison
+   enregistrée).
+3. **Le paiement doit correspondre à CETTE lecture.** `checkoutSessionProblem()`
+   exige un `amount_total` égal à l'un des deux prix légitimes (25 € ou 15 €) et la
+   bonne devise, et refuse une session marquée pour un autre produit. La session
+   porte désormais `metadata[purpose]=lastro_lecture` et la version de prix. Sans ce
+   contrôle, une session payée pour n'importe quoi d'autre sur le même compte Stripe
+   ouvrait une lecture. Les sessions payées **avant** cette marque restent
+   acceptées sur le montant (sinon on cassait la reprise d'un client déjà débité)
+   et sont signalées dans les journaux.
+4. **Un paiement = une lecture, pour toujours.** Rejouer la même session relivre la
+   même lecture, sans régénérer et sans redemander de paiement ; la commande est
+   enregistrée **avant** la rédaction, donc un échec reste réparable sans repayer.
+5. **On n'encaisse pas ce qu'on ne peut pas rédiger.** Sans rédacteur configuré :
+   le paiement n'est **pas ouvert** (`503 writer_unavailable` — ajouté : la garde
+   n'existait que dans le navigateur, un appel direct à l'API la contournait) ; et
+   si le paiement a déjà eu lieu, la commande est conservée et aucun brouillon
+   n'est livré.
+6. **En production, pas de paiement configuré = pas de lecture gratuite**
+   (`503 payment_not_configured`). Avant, perdre les clés Stripe de l'environnement
+   transformait silencieusement le site payant en site gratuit. Le mode gratuit
+   reste possible, mais il faut l'écrire : `ASTROLAB_ALLOW_FREE_READINGS=1`. Le code
+   de test de l'exploitant, lui, reste utilisable.
+
+Vérifié par `tests/paidSession.test.mjs` (9 cas : sans session, session non payée,
+mauvais montant, mauvaise devise, session d'un autre produit, ancienne session,
+paiement non ouvert sans rédacteur, production sans clés, parcours payant complet
+avec rédacteur simulé — 200, `writerMode: "llm"`, lien de livraison, et rejeu de la
+même session sans régénération), plus `tests/paidPathGate.test.mjs` (4 cas).
+
+**Reste ouvert, assumé** : une session de paiement volée donne une copie d'une
+lecture **déjà payée** (aucun coût supplémentaire, aucun débit) — inhérent à tout
+tunnel à jeton. Et il n'y a pas encore de limitation de débit sur
+`/api/public/readings` : un identifiant de session bidon déclenche un appel à Stripe
+(et une ligne de journal). La parade serait un seau à jetons par adresse IP sur ce
+seul chemin.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -537,11 +586,12 @@ alignés sur ce prix — ce sont des tarifs de l'outil pro, pas de la lecture ve
 | `tests/chart.test.mjs`, `tests/previewTool.test.mjs` | géométrie de la roue, titres non tronqués, aperçu jamais vide |
 | `tests/pdfRenderer.test.mjs`, `tests/pdfRoutes.test.mjs` | contrat du moteur PDF (une conversion à la fois, délai, panne) et droits des routes |
 | `tests/pricing.test.mjs`, `tests/pricingRoutes.test.mjs` | prix calculé par le serveur, code de lancement, montant du client ignoré |
+| `tests/paidSession.test.mjs`, `tests/paidPathGate.test.mjs` | aucun lecture sans paiement vérifié, un paiement = une lecture |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 232 tests
+npm test                                   # 242 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

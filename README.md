@@ -18,8 +18,12 @@ structured result, a transversal inference, and an AI-written explanation.
   with the launch code `bessbousse10`, which is pre-filled in the form. The amount
   is computed server-side from the code alone (`lastro-pricing@1.0.0`): the browser
   never sends a price, and an unknown code is refused instead of being charged at
-  full price. The paid path refuses to sell when no AI writer is configured (and
-  keeps an already-paid order recoverable rather than delivering a draft).
+  full price. **No reading is generated without a payment verified server-side
+  against Stripe** — the session must be paid, at one of the two legitimate prices,
+  and marked as a reading; one payment always yields exactly one reading. The paid
+  path refuses to sell when no AI writer is configured, refuses free readings in
+  production when Stripe is not configured, and keeps an already-paid order
+  recoverable rather than delivering a draft.
 - **E-mail**: Brevo, used for recovery links (`BREVO_API_KEY`,
   `BREVO_SENDER_EMAIL`).
 - **The reading document**: full-page premium cover with the three key placements,
@@ -66,7 +70,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (232 tests) |
+| Do the guardrails hold? | `npm test` (242 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |

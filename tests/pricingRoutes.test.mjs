@@ -11,7 +11,10 @@ import test from "node:test";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
 
-const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", "ASTROLAB_PRICE_CENTS", "ASTROLAB_PROMO_CODE", "ASTROLAB_PROMO_DISCOUNT_CENTS"];
+const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", "ASTROLAB_PRICE_CENTS", "ASTROLAB_PROMO_CODE", "ASTROLAB_PROMO_DISCOUNT_CENTS", "ASTROLAB_LLM_API_KEY"];
+// Le paiement n est ouvert que si un redacteur est configure : les tests du
+// tunnel fournissent donc aussi cette cle.
+const WRITER_KEY = { ASTROLAB_LLM_API_KEY: "cle-de-test" };
 
 async function withKeys(values, run) {
   const saved = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
@@ -120,7 +123,7 @@ test("le devis est public : c'est le serveur qui calcule, le site affiche", asyn
 });
 
 test("le montant envoyé par le navigateur est ignoré", async () => {
-  await withKeys({ STRIPE_SECRET_KEY: "sk_test_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789" }, () =>
+  await withKeys({ STRIPE_SECRET_KEY: "sk_test_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789", ...WRITER_KEY }, () =>
     withFakeStripe(SESSION_OK, async (calls) => {
       const app = await startApp();
       try {
@@ -149,7 +152,7 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
 });
 
 test("un code inconnu ne fait pas payer et ne crée aucun paiement", async () => {
-  await withKeys({ STRIPE_SECRET_KEY: "sk_test_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789" }, () =>
+  await withKeys({ STRIPE_SECRET_KEY: "sk_test_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789", ...WRITER_KEY }, () =>
     withFakeStripe(SESSION_OK, async (calls) => {
       const app = await startApp();
       try {
@@ -169,6 +172,7 @@ test("le prix de l'offre peut être changé sans toucher au code", async () => {
     {
       STRIPE_SECRET_KEY: "sk_test_abc123456789",
       STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789",
+      ...WRITER_KEY,
       ASTROLAB_PRICE_CENTS: "3500",
       ASTROLAB_PROMO_CODE: "lancement2026",
       ASTROLAB_PROMO_DISCOUNT_CENTS: "1500"
