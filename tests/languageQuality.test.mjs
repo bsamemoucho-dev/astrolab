@@ -12,6 +12,7 @@ import {
   dossierSectionsInOrder
 } from "../src/deliverables/plan.mjs";
 import {
+  findBiographicalInvention,
   findForbiddenVocabulary,
   findOrphanAntecedents,
   findRepeatedPlacements,
@@ -108,6 +109,39 @@ test("le tutoiement et le vocabulaire interdit sont détectés en français", ()
   });
   assert.equal(report.ok, false);
   assert.ok(report.issues.some((issue) => issue.code === "forbidden_vocabulary"));
+});
+
+test("aucune consigne ne demande ce qu'un détecteur interdit", () => {
+  // Une consigne qui demande ce que le garde-fou retire fait écrire, puis
+  // amputer : le modèle obéit à la consigne, le détecteur efface la phrase.
+  // Ces termes ont été observés comme tels (« responsabilités précoces » dans la
+  // consigne du passé, retiré par le détecteur d'invention biographique).
+  // [terme cherché dans les consignes, phrase que le détecteur doit refuser]
+  const interdits = [
+    ["responsabilités précoces", "Il a connu des responsabilités précoces."],
+    ["renoncements", "Il a vécu des renoncements."],
+    ["sacrifices", "Il a fait des sacrifices personnels."],
+    ["pression de réussir", "Il a subi une pression de réussir."],
+    ["loyautés familiales", "Des loyautés familiales pèsent sur lui."],
+    ["secret de famille", "Un secret de famille traverse les générations."],
+    ["trine", "Le trine entre votre Lune et votre Saturne est net."]
+  ];
+  // Périmètre : les consignes de rédaction transmises AVANT écriture. Le message
+  // de correction, envoyé après détection d'un défaut, nomme l'erreur : c'est son rôle.
+  const texteDesConsignes = [
+    FRAME_DIRECTIVES.join(" "),
+    ...DOSSIER_SECTIONS.flatMap((section) => section.directives ?? []),
+    docStrings("fr").styleGuide
+  ].join(" ");
+  for (const [terme, sonde] of interdits) {
+    // Le terme est bien interdit par un détecteur…
+    const refuse =
+      findBiographicalInvention(sonde).length > 0 || findForbiddenVocabulary(sonde, "fr").length > 0;
+    assert.ok(refuse, `« ${terme} » devrait être refusé par un détecteur`);
+    // …et il ne doit donc pas être demandé par une consigne.
+    const demande = new RegExp(terme.replace(/ /g, "\\s+"), "i").test(texteDesConsignes);
+    assert.equal(demande, false, `la consigne demande « ${terme} », que le détecteur interdit`);
+  }
 });
 
 test("l'ordre des sections suit le rang, pas l'ordre de declaration", () => {

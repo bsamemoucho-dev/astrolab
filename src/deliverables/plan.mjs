@@ -78,10 +78,14 @@ const DIRECTIVES = {
     "Nomme ce qui soutient (une force qui revient) et ce qui met en tension (deux exigences qui tirent en sens opposés).",
     "Reste descriptif et non prescriptif : pas de conseil, pas d'injonction, pas de pronostic."
   ],
+  // Les consignes disent ce qu'il faut FAIRE, jamais le vocabulaire interdit :
+  // nommer « responsabilités précoces » ou « renoncements » invitait le modèle à
+  // écrire exactement ce que le détecteur d'invention biographique retire. La
+  // consigne et le garde-fou disaient le contraire l'un de l'autre.
   past: [
-    "Évoque la construction intérieure, les responsabilités précoces possibles, les renoncements silencieux.",
-    "Utilise un langage projectif et respectueux (« il est possible que… », « cela a pu créer… »).",
-    "N'invente aucun événement biographique."
+    "Évoque la construction intérieure : ce qui s'est forgé avec le temps (la patience, la réserve, le sens du devoir, l'attention portée aux autres).",
+    "Utilise un langage projectif et respectueux (« il est possible que… », « cela a pu créer… ») appliqué à des dynamiques intérieures, jamais à des faits vécus.",
+    "Ne nomme aucun événement, aucun rôle familial ni aucune histoire familiale : si la matière manque pour parler du passé sans reconstituer une vie, la section reste courte."
   ],
   letterSoul: [
     "Écris une lettre à la deuxième personne, douce, posée, intime.",
