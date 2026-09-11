@@ -185,15 +185,6 @@ export const DOSSIER_SECTIONS = Object.freeze([
     requiresSocle: true,
     directives: DIRECTIVES.integration
   },
-  {
-    id: "conclusion-ethique",
-    rank: 11,
-    title: "Conclusion éthique",
-    kind: "symbolic",
-    badge: BADGES.symbolic,
-    writer: "llm",
-    directives: DIRECTIVES.conclusion
-  }
 ]);
 
 export function dossierSectionById(id) {

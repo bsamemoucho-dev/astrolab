@@ -173,6 +173,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   ${aiReview ? `<div class="ai-review">${escapeHtml(aiReview)}</div>` : ""}
   ${body}
   <footer>
+    <p class="ethical-closing">${escapeHtml(t.ethicalClosing)}</p>
     ${authorLine}
     <p>${writerNote}</p>
     ${verificationNote ? `<p>${escapeHtml(verificationNote)}</p>` : ""}
