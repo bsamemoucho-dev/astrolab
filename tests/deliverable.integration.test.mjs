@@ -291,7 +291,7 @@ test("public no-account reading works without authentication and stores nothing"
     // 9 sections : la section transgénérationnelle disparaît sans données
     // familiales (au lieu d'inventer une histoire d'ancêtres) et la conclusion
     // éthique n'est plus une section : c'est une clôture fixe du document.
-    assert.equal(reading.payload.sections.length, 9);
+    assert.equal(reading.payload.sections.length, 11);
     assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
     // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
     assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
@@ -555,7 +555,7 @@ test("heure de naissance inconnue : le rédacteur est prévenu que l'axe et les 
 
   // Le rédacteur reçoit l'information, section par section (une section peut
   // être marquée « non disponible » et ne pas passer par le rédacteur).
-  assert.ok(contextes.length >= 8, `contextes reçus : ${contextes.length}`);
+  assert.ok(contextes.length >= 10, `contextes reçus : ${contextes.length}`);
   for (const context of contextes) {
     assert.equal(context.uncertainty.timeKnown, false);
     assert.ok(context.uncertainty.indeterminable.includes("ascendant"));

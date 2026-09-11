@@ -67,7 +67,9 @@ const FR = {
     "lettre-miroir": "Lettre miroir",
     "periodes-cycles": "Périodes & Cycles",
     "cles-integration": "Clés d'intégration",
-    "conclusion-ethique": "Conclusion éthique"
+    "conclusion-ethique": "Conclusion éthique",
+    "relations": "Vos relations",
+    "action": "Votre manière d'agir"
   }
 };
 
@@ -110,7 +112,9 @@ const EN = {
     "lettre-miroir": "Mirror letter",
     "periodes-cycles": "Periods & Cycles",
     "cles-integration": "Keys to integration",
-    "conclusion-ethique": "Ethical conclusion"
+    "conclusion-ethique": "Ethical conclusion",
+    "relations": "Your relationships",
+    "action": "How you take action"
   }
 };
 
@@ -153,7 +157,9 @@ const DE = {
     "lettre-miroir": "Spiegelbrief",
     "periodes-cycles": "Phasen & Zyklen",
     "cles-integration": "Schlüssel zur Integration",
-    "conclusion-ethique": "Ethischer Abschluss"
+    "conclusion-ethique": "Ethischer Abschluss",
+    "relations": "Deine Beziehungen",
+    "action": "Wie du handelst"
   }
 };
 
@@ -196,7 +202,9 @@ const ES = {
     "lettre-miroir": "Carta espejo",
     "periodes-cycles": "Períodos y ciclos",
     "cles-integration": "Claves de integración",
-    "conclusion-ethique": "Conclusión ética"
+    "conclusion-ethique": "Conclusión ética",
+    "relations": "Tus relaciones",
+    "action": "Tu manera de actuar"
   }
 };
 
@@ -239,7 +247,9 @@ const IT = {
     "lettre-miroir": "Lettera specchio",
     "periodes-cycles": "Periodi e cicli",
     "cles-integration": "Chiavi di integrazione",
-    "conclusion-ethique": "Conclusione etica"
+    "conclusion-ethique": "Conclusione etica",
+    "relations": "Le tue relazioni",
+    "action": "Il tuo modo di agire"
   }
 };
 
@@ -451,7 +461,9 @@ const PT = {
     "lettre-miroir": "Carta espelho",
     "periodes-cycles": "Períodos e ciclos",
     "cles-integration": "Chaves de integração",
-    "conclusion-ethique": "Conclusão ética"
+    "conclusion-ethique": "Conclusão ética",
+    "relations": "As suas relações",
+    "action": "A sua maneira de agir"
   }
 };
 
@@ -494,7 +506,9 @@ const NO = {
     "lettre-miroir": "Speilbrev",
     "periodes-cycles": "Perioder og sykluser",
     "cles-integration": "Nøkler til integrasjon",
-    "conclusion-ethique": "Etisk avslutning"
+    "conclusion-ethique": "Etisk avslutning",
+    "relations": "Relasjonene dine",
+    "action": "Måten du handler på"
   }
 };
 
@@ -537,7 +551,9 @@ const DA = {
     "lettre-miroir": "Spejlbrev",
     "periodes-cycles": "Perioder og cyklusser",
     "cles-integration": "Nøgler til integration",
-    "conclusion-ethique": "Etisk afslutning"
+    "conclusion-ethique": "Etisk afslutning",
+    "relations": "Dine relationer",
+    "action": "Måden du handler på"
   }
 };
 
@@ -672,7 +688,9 @@ const NL = {
     "lettre-miroir": "Spiegelbrief",
     "periodes-cycles": "Periodes en cycli",
     "cles-integration": "Sleutels tot integratie",
-    "conclusion-ethique": "Ethische afsluiting"
+    "conclusion-ethique": "Ethische afsluiting",
+    "relations": "Je relaties",
+    "action": "Hoe je handelt"
   }
 };
 

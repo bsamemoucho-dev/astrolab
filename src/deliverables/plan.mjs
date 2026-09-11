@@ -54,6 +54,18 @@ const DIRECTIVES = {
     "Tu peux nommer un archétype uniquement lorsqu'il apporte une synthèse utile (plusieurs éléments qui convergent). Jamais de liste d'archétypes, jamais d'archétype décoratif.",
     "Si aucun archétype ne s'impose, n'en parle pas : la section reste une synthèse des lignes de force."
   ],
+  relations: [
+    "Pars de Vénus, et de la maison VII uniquement si elle est utilisable : sinon, reste sur Vénus et les aspects robustes.",
+    "Décris une manière d'entrer en relation (ce que tu recherches, ce qui te rassure, ce qui te met en retrait), jamais une rencontre à venir.",
+    "Aucune affirmation sur un couple réel : parle de tendances relationnelles, pas de la personne avec qui l'on vit.",
+    "Si la matière manque (peu d'indicateurs exploitables), dis-le simplement et reste court."
+  ],
+  action: [
+    "Pars de Mars : comment tu initiés, tu tiens, tu défends, tu t'arrêtes.",
+    "Relie la manière d'agir aux éléments déjà établis plutôt que de la décrire isolément.",
+    "Parle de l'énergie et de la colère sans jugement moral et sans conseil directif.",
+    "Pas d'affirmation sur un métier, un projet ou une décision à venir."
+  ],
   past: [
     "Évoque la construction intérieure, les responsabilités précoces possibles, les renoncements silencieux.",
     "Utilise un langage projectif et respectueux (« il est possible que… », « cela a pu créer… »).",
@@ -136,6 +148,26 @@ export const DOSSIER_SECTIONS = Object.freeze([
     writer: "llm",
     requiresSocle: true,
     directives: DIRECTIVES.grandesLignes
+  },
+  {
+    id: "relations",
+    rank: 4,
+    title: "Vos relations",
+    kind: "symbolic",
+    badge: BADGES.symbolic,
+    writer: "llm",
+    requiresSocle: true,
+    directives: DIRECTIVES.relations
+  },
+  {
+    id: "action",
+    rank: 5,
+    title: "Votre manière d'agir",
+    kind: "symbolic",
+    badge: BADGES.symbolic,
+    writer: "llm",
+    requiresSocle: true,
+    directives: DIRECTIVES.action
   },
   {
     id: "lecture-passe",
