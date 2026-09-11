@@ -34,6 +34,7 @@ import {
   queueDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
 import { emailEnabled, emailVerificationMode, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
+import { registerResend, resendRateLimited, resendVerification } from "../auth/verification.mjs";
 import { checkoutLineLabel, checkoutSessionProblem, publicPricing, quotePrice, READING_PURPOSE } from "../payments/pricing.mjs";
 import {
   createEmbeddedCheckoutSession,
@@ -586,6 +587,37 @@ export function createApp(options = {}) {
     route("POST", /^\/api\/auth\/verify$/, async (req, res) => {
       const result = await verifyEmail(store, await readJson(req));
       sendJson(res, 200, result);
+    }),
+    // Renvoi du code de vérification. Réponse NEUTRE : la même que l'adresse
+    // corresponde à un compte non vérifié ou non — sinon ce point d'entrée
+    // dirait qui possède un compte chez nous.
+    route("POST", /^\/api\/auth\/resend$/, async (req, res) => {
+      const body = await readJson(req);
+      const email = String(body.email ?? "").trim();
+      if (!email) {
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+      if (resendRateLimited(email)) {
+        const error = new Error("Trop de demandes de code pour cette adresse. Réessayez dans une heure.");
+        error.status = 429;
+        error.code = "verification_resend_rate_limited";
+        throw error;
+      }
+      registerResend(email);
+      const resultat = await resendVerification(store, { email, language: body.language });
+      if (emailVerificationMode() === "email") {
+        // Un échec d'envoi ne dit rien de plus au client : le message reste dans
+        // la file, et l'exploitant peut le renvoyer.
+        const envoi = await flushQueuedEmails(store, { types: ["email_verification"] }).catch((error) => {
+          console.warn(`[Lastro] code de vérification non envoyé — ${error.message}`);
+          return { sent: 0, failed: 1, skipped: false };
+        });
+        sendJson(res, 200, { ok: true, ...(resultat.sent ? { verificationEmailSent: envoi.sent > 0 } : {}) });
+        return;
+      }
+      // Développement : le code reste affiché, comme à l'inscription.
+      sendJson(res, 200, { ok: true, ...(resultat.sent ? { devVerificationCode: resultat.code } : {}) });
     }),
     route("POST", /^\/api\/auth\/login$/, async (req, res) => {
       const result = await login(store, await readJson(req));

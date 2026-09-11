@@ -7,6 +7,7 @@ import {
   verifyPassword
 } from "./security.mjs";
 import { verificationEmail } from "../notifications/mailer.mjs";
+import { MAX_VERIFICATION_ATTEMPTS, verificationCheck, verificationFailure } from "./verification.mjs";
 
 function now() {
   return new Date().toISOString();
@@ -21,9 +22,14 @@ function publicUser(user) {
   };
 }
 
-function authError(message, status = 400) {
+function authError(message, status = 400, code = null) {
   const error = new Error(message);
   error.status = status;
+  // Code stable, indépendant de la langue : le navigateur s'en sert pour
+  // afficher sa propre phrase.
+  if (code) {
+    error.code = code;
+  }
   return error;
 }
 
@@ -76,16 +82,38 @@ export async function verifyEmail(store, input) {
   const email = normalizeEmail(input.email);
   const code = String(input.code ?? "").trim();
 
-  return store.transact((state) => {
+  // La transaction est annulée si l'on lève une erreur à l'intérieur : le
+  // compteur d'essais fautifs serait donc perdu à chaque échec, et la limite ne
+  // limiterait rien. On enregistre d'abord, on refuse ensuite.
+  const resultat = await store.transact((state) => {
     const user = state.users.find((entry) => entry.email === email);
-    if (!user || user.verificationCode !== code) {
-      throw authError("Invalid verification code", 401);
+    if (!user) {
+      return { ok: false, reason: "missing" };
     }
-
-    user.emailVerifiedAt = user.emailVerifiedAt ?? now();
-    user.verificationCode = null;
-    return { user: publicUser(user) };
+    const controle = verificationCheck(user, code);
+    if (controle.ok) {
+      user.emailVerifiedAt = user.emailVerifiedAt ?? now();
+      user.verificationCode = null;
+      user.verificationAttempts = 0;
+      return { ok: true, user: publicUser(user) };
+    }
+    if (controle.reason === "invalid") {
+      user.verificationAttempts = (user.verificationAttempts ?? 0) + 1;
+      if (user.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
+        // Le code est mort : il faut en demander un nouveau (bouton « renvoyer »).
+        user.verificationCode = null;
+      }
+    }
+    return { ok: false, reason: controle.reason };
   });
+
+  if (!resultat.ok) {
+    const echec = verificationFailure(resultat.reason);
+    // Le motif précis ne sort pas de la réponse : il est journalisé ici.
+    console.warn(`[Lastro] vérification refusée (${echec.reason}) — ${email}`);
+    throw authError(echec.message, 401, echec.code);
+  }
+  return { user: resultat.user };
 }
 
 export async function login(store, input) {

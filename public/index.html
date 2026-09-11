@@ -123,7 +123,7 @@
               <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
               <label>Mot de passe <input name="password" type="password" autocomplete="new-password" minlength="10" required></label>
               <button type="submit">Créer</button>
-              <p class="hint">En développement, le code de vérification est affiché après création et conservé dans la boîte d’envoi locale.</p>
+              <p class="hint" id="register-hint">En développement, le code de vérification est affiché après création ; en production, il est envoyé par e-mail.</p>
             </form>
 
             <form id="verify-form" class="panel">
@@ -131,6 +131,8 @@
               <label>E-mail <input name="email" type="email" autocomplete="email" required></label>
               <label>Code <input name="code" inputmode="numeric" required></label>
               <button type="submit">Vérifier</button>
+              <button id="resend-code" class="secondary" type="button">Renvoyer le code</button>
+              <p class="hint" id="resend-status" hidden></p>
             </form>
 
             <form id="login-form" class="panel">

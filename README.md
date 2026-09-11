@@ -70,7 +70,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (250 tests) |
+| Do the guardrails hold? | `npm test` (256 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | Which version is really deployed? | `curl -s https://www.lastro.fr/healthz` (`release`), compared with `node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
@@ -297,7 +297,10 @@ part par Brevo et n'est jamais renvoyé). **En production, avec les inscriptions
 ouvertes, il faut `email`** : en `dev_code`, n'importe qui peut créer un compte sur
 l'adresse d'un autre et le valider aussitôt. Toute valeur explicite autre que
 `dev_code` est traitée comme `email` — une faute de frappe ferme la faille au lieu
-de la rouvrir.
+de la rouvrir. Le code vit 24 h, cinq essais fautifs l'invalident, et un bouton
+« Renvoyer le code » (trois renvois par adresse et par heure) permet d'en obtenir un
+autre sans se réinscrire ; la réponse de ce bouton est la même que l'adresse
+corresponde à un compte ou non.
 
 ## Recommended next steps
 

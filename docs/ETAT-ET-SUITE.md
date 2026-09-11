@@ -483,7 +483,36 @@ Ce qui change :
   ne traitait que les liens de lecture payée.
 
 **Action requise côté Render** : poser `ASTROLAB_EMAIL_MODE=email`. Sans cela, la
-production garde le comportement de développement (défaut inchangé).
+production garde le comportement de développement (défaut inchangé). **Fait le
+12/09** : `emailVerificationMode: "email"` en production.
+
+**Le renvoi de code, ajouté dans la foulée** (`src/auth/verification.mjs`). Fermer
+la fuite du code affiché a rendu visible un manque : un client qui ne reçoit rien
+était bloqué — il ne pouvait ni vérifier, ni se réinscrire (`409 Email is already
+registered`), et aucune route ne permettait de renvoyer. Trois choses, qui n'ont de
+sens qu'ensemble :
+
+- **un bouton « Renvoyer le code »** sous le formulaire de vérification, dans les
+  neuf langues ;
+- **un nouveau code remplace l'ancien** (un code intercepté cesse de fonctionner) et
+  remet le compteur d'essais à zéro ;
+- **un code vit 24 h et meurt après cinq essais fautifs.** Le compteur est
+  enregistré *avant* le refus : `store.transact` annule tout si le mutateur lève une
+  erreur, donc incrémenter puis lever n'aurait rien limité — 900 000 combinaisons se
+  devinaient sans limite. C'est le test « cinq essais faux » qui verrouille ce
+  détail ;
+- **la réponse du renvoi est neutre** : identique que l'adresse corresponde à un
+  compte non vérifié, à un compte déjà vérifié, ou à personne. Et tous les échecs de
+  vérification renvoient la **même** réponse (`verification_code_rejected`) : distinguer
+  « code faux » de « code expiré » dirait à un inconnu si l'adresse a un compte ici.
+  Le motif précis reste dans les journaux du serveur ;
+- **trois renvois par adresse et par heure**, cinquante par heure pour le service,
+  pour qu'un bouton « renvoyer » ne devienne pas un outil à inonder les boîtes. La
+  limitation vit en mémoire du processus : un redémarrage la remet à zéro.
+
+Vérifié par `tests/verificationCode.test.mjs` (6 cas) et par une exécution complète
+sur un serveur local : inscription → e-mail → renvoi → code reçu → vérification,
+avec la réponse neutre pour une adresse inconnue.
 
 **2. Rien ne disait quelle version tournait en production.** Plusieurs
 vérifications ont été faites « au feeling » après déploiement — et les protections
@@ -639,11 +668,12 @@ pas eu lieu).
 | `tests/pricing.test.mjs`, `tests/pricingRoutes.test.mjs` | prix calculé par le serveur, code de lancement, montant du client ignoré |
 | `tests/paidSession.test.mjs`, `tests/paidPathGate.test.mjs` | aucun lecture sans paiement vérifié, un paiement = une lecture |
 | `src/http/release.mjs`, `tests/emailVerification.test.mjs` | empreinte du code servi, vérification d'adresse réellement appliquée |
+| `src/auth/verification.mjs`, `tests/verificationCode.test.mjs` | durée de vie du code, limite d'essais, renvoi limité |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 250 tests
+npm test                                   # 256 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test
