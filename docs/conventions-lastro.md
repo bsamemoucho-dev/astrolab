@@ -172,6 +172,15 @@ ce qui est affiché au client et ce qui est débité. Elle vit dans
 | Remise du code | **−10 €** (`ASTROLAB_PROMO_DISCOUNT_CENTS=1000`) | variable d'environnement |
 | Prix payé avec le code | **15 €** | calculé, jamais écrit à la main |
 
+Codes **privés**, facultatifs, définis uniquement par l'environnement
+(`ASTROLAB_PROMO_CODES=CODE=montant`, plusieurs codes séparés par des virgules) :
+un montant **positif** est le prix payé avec ce code (`CODE=100` → 1 €), un montant
+**négatif** est une remise (`CODE=-1000` → 10 € de moins). Ils ne figurent ni dans
+la page, ni dans `/api/config`, ni dans le dépôt — qui est public. Un montant qui
+descendrait sous 0,50 € (minimum Stripe) est ramené à 0,50 €, et **tous** ces tarifs
+sont reconnus comme légitimes au moment de vérifier un paiement : une lecture payée
+1 € avec un code ne doit pas être refusée comme « montant inattendu ».
+
 Règles de la convention :
 
 - le **montant est calculé par le serveur**, jamais envoyé par le navigateur : le

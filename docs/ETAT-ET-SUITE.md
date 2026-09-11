@@ -537,6 +537,44 @@ impossible sans fuite, valeurs inconnues, neuf langues, empreinte stable, emprei
 qui change quand un fichier change, et le site qui n'annonce jamais un envoi qui n'a
 pas eu lieu).
 
+## Codes privés : un code qui facture 1 € (12/09/2026)
+
+Demande : « un code `KDMjf87Gh` qui facture 1 € ». Le mécanisme précédent ne
+connaissait qu'**un** code de lancement, avec une remise en euros — insuffisant pour
+un prix imposé, et impossible à tenir secret dans un dépôt public.
+
+Ce qui a été construit (`src/payments/pricing.mjs`) :
+
+- **plusieurs codes**, publics et privés, chacun avec son effet ;
+- un code privé s'écrit `CODE=montant` : **positif = le prix payé**
+  (`KDMjf87Gh=100` → 1 €), **négatif = une remise** (`AUTRE=-1000` → 10 € de moins),
+  plusieurs codes séparés par des virgules ;
+- les codes privés vivent **uniquement dans l'environnement**
+  (`ASTROLAB_PROMO_CODES`) : jamais dans la page, jamais dans `/api/config`, jamais
+  dans le dépôt, qui est public. Un test le vérifie sur la réponse réelle de
+  `/api/config` et sur le devis ;
+- le point d'entrée public du devis ne renvoie plus `appliedCode` : il aurait
+  confirmé un code qu'on veut discret (le test l'a attrapé avant livraison) ;
+- **tous** les tarifs atteignables (plein tarif, offre publique, chaque code privé)
+  sont reconnus comme légitimes à la vérification du paiement. Sans cela, un client
+  qui payait 1 € avec son code recevait « montant inattendu » et **aucune lecture
+  après avoir payé** ;
+- le plancher du transport n'est plus 5 € (ancien prix libre) mais **0,50 €**, le
+  minimum de Stripe : sans ce changement, un code à 1 € était refusé au paiement.
+  Le plancher produit, lui, vit dans `pricing.mjs` ;
+- le reçu Stripe distingue la nature du code : « 25,00 € moins 10,00 € (offre de
+  lancement) » pour le code public, « … (code promotionnel) » pour un code privé —
+  dans les neuf langues, et sans jamais nommer le code privé.
+
+**Action côté Render** : `ASTROLAB_PROMO_CODES=KDMjf87Gh=100`. Sans cette variable,
+le code n'existe pas (il est refusé comme inconnu) — c'est le prix à payer pour
+qu'il ne soit pas dans le dépôt.
+
+Vérifié par `tests/pricing.test.mjs` (4 cas : prix imposé, remise négative, plancher
+Stripe, absence de fuite, libellés du reçu) et `tests/pricingRoutes.test.mjs`
+(le code n'apparaît nulle part côté client, le devis annonce 1 €, Stripe reçoit bien
+100 centimes).
+
 ## Retours sur le PDF livré (12/09/2026) — quatre corrections
 
 Le client a envoyé le PDF réel (« Lecture symbolique88.pdf », 11 pages) et quatre
@@ -713,7 +751,7 @@ marges par défaut : le document gère les siennes.
 | `tools/inspect-pdf.mjs` | lecture d'un PDF livré, page par page (texte extrait par les tables ToUnicode) |
 | `src/deliverables/chart.mjs` | roue du ciel en SVG et répartitions calculées |
 | `src/deliverables/pdfRenderer.mjs` | rendu PDF côté serveur, derrière le drapeau `ASTROLAB_PDF_RENDERER` |
-| `src/payments/pricing.mjs` | prix de la lecture et offre de lancement (`lastro-pricing@1.0.0`) |
+| `src/payments/pricing.mjs` | prix de la lecture, offre de lancement et codes privés (`lastro-pricing@1.0.0`) |
 | `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` | exploration et partage |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 | `tests/chart.test.mjs`, `tests/previewTool.test.mjs` | géométrie de la roue, titres non tronqués, aperçu jamais vide |
@@ -726,7 +764,7 @@ marges par défaut : le document gère les siennes.
 ## Commandes utiles
 
 ```bash
-npm test                                   # 259 tests
+npm test                                   # 264 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

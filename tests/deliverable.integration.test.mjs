@@ -424,7 +424,10 @@ test("public checkout session reports that payments are not configured yet", asy
     assert.equal(config.payments.configured, false);
     assert.equal(config.payments.publishableKey, null);
     // L'offre publiée au navigateur : montant libre à partir de 5 €, sans plafond produit.
-    assert.equal(config.payments.minAmountCents, 500);
+    // Plancher technique de Stripe (0,50 €), et non un prix produit : le prix de
+    // la lecture est décidé par pricing.mjs, un code promotionnel peut donc
+    // facturer 1 €.
+    assert.equal(config.payments.minAmountCents, 50);
     assert.equal(config.payments.maxAmountCents, 99999999);
   } finally {
     await app.close();

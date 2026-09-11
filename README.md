@@ -18,7 +18,9 @@ structured result, a transversal inference, and an AI-written explanation.
   with the launch code `bessbousse10`, which is pre-filled in the form. The amount
   is computed server-side from the code alone (`lastro-pricing@1.0.0`): the browser
   never sends a price, and an unknown code is refused instead of being charged at
-  full price. **No reading is generated without a payment verified server-side
+  full price. **Private codes** (`ASTROLAB_PROMO_CODES=CODE=montant`, positive = the
+  price paid, negative = a discount) live only in the environment — never in the
+  page, never in `/api/config`, never in this public repository. **No reading is generated without a payment verified server-side
   against Stripe** — the session must be paid, at one of the two legitimate prices,
   and marked as a reading; one payment always yields exactly one reading. The paid
   path refuses to sell when no AI writer is configured, refuses free readings in
@@ -70,7 +72,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (259 tests) |
+| Do the guardrails hold? | `npm test` (264 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | Which version is really deployed? | `curl -s https://www.lastro.fr/healthz` (`release`), compared with `node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |

@@ -35,7 +35,14 @@ import {
 } from "../models/publicDeliveryService.mjs";
 import { emailEnabled, emailVerificationMode, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
 import { registerResend, resendRateLimited, resendVerification } from "../auth/verification.mjs";
-import { checkoutLineLabel, checkoutSessionProblem, publicPricing, quotePrice, READING_PURPOSE } from "../payments/pricing.mjs";
+import {
+  checkoutLineLabel,
+  checkoutSessionProblem,
+  publicPricing,
+  publicQuote,
+  quotePrice,
+  READING_PURPOSE
+} from "../payments/pricing.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
@@ -215,7 +222,7 @@ export function createApp(options = {}) {
     // Devis public : le site affiche le prix calculé par le serveur, jamais le sien.
     route("POST", /^\/api\/public\/price-quote$/, async (req, res) => {
       const body = await readJson(req);
-      sendJson(res, 200, { quote: quotePrice({ promoCode: body.promoCode }) });
+      sendJson(res, 200, { quote: publicQuote(quotePrice({ promoCode: body.promoCode })) });
     }),
     // Le montant n'est JAMAIS lu dans la requête : seul un code promo l'est. Un
     // montant glissé par le client est ignoré, pas négocié.

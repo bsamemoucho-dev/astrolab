@@ -11,7 +11,7 @@ import test from "node:test";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
 
-const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", "ASTROLAB_PRICE_CENTS", "ASTROLAB_PROMO_CODE", "ASTROLAB_PROMO_DISCOUNT_CENTS", "ASTROLAB_LLM_API_KEY"];
+const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", "ASTROLAB_PRICE_CENTS", "ASTROLAB_PROMO_CODE", "ASTROLAB_PROMO_DISCOUNT_CENTS", "ASTROLAB_PROMO_CODES", "ASTROLAB_LLM_API_KEY"];
 // Le paiement n est ouvert que si un redacteur est configure : les tests du
 // tunnel fournissent donc aussi cette cle.
 const WRITER_KEY = { ASTROLAB_LLM_API_KEY: "cle-de-test" };
@@ -257,4 +257,48 @@ test("chaque élément de prix manipulé par le site existe dans la page", () =>
   for (const id of prix) {
     assert.match(page, new RegExp(`id="${id}"`), `#${id} doit exister dans la page`);
   }
+});
+
+test("un code privé facture 1 € sans jamais apparaître dans la page", async () => {
+  await withKeys(
+    {
+      STRIPE_SECRET_KEY: "sk_test_abc123456789",
+      STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789",
+      ...WRITER_KEY,
+      ASTROLAB_PROMO_CODES: "KDMjf87Gh=100"
+    },
+    () =>
+      withFakeStripe(SESSION_OK, async (calls) => {
+        const app = await startApp();
+        try {
+          // Le code privé ne doit sortir nulle part côté client.
+          const config = await (await fetch(`${app.baseUrl}/api/config`)).json();
+          const publique = JSON.stringify(config);
+          assert.doesNotMatch(publique, /kdmjf87gh/i);
+          assert.equal(config.pricing.promoCode, "bessbousse10");
+          assert.equal(config.pricing.totalCents, 1500);
+
+          // Le devis le reconnaît et annonce 1 €.
+          const devis = await post(app.baseUrl, "/api/public/price-quote", { promoCode: "KDMjf87Gh" });
+          assert.equal(devis.payload.quote.totalCents, 100);
+          assert.equal(devis.payload.quote.valid, true);
+          // Ni le code appliqué, ni sa nature : le devis public ne confirme rien.
+          assert.equal("appliedCode" in devis.payload.quote, false);
+          assert.equal("appliedIsPublic" in devis.payload.quote, false);
+          assert.doesNotMatch(JSON.stringify(devis.payload), /kdmjf87gh/i);
+
+          // Et le paiement part bien à 1 €.
+          const session = await post(app.baseUrl, "/api/public/checkout-session", {
+            promoCode: "KDMjf87Gh",
+            language: "fr"
+          });
+          assert.equal(session.status, 201);
+          assert.equal(calls.length, 1);
+          assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "100");
+          assert.match(calls[0].body["line_items[0][price_data][product_data][name]"], /code promotionnel/);
+        } finally {
+          await app.close();
+        }
+      })
+  );
 });

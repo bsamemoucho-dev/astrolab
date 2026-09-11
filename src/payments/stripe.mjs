@@ -12,10 +12,11 @@
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
-// Bornes techniques de Stripe pour un paiement unique : en dessous, Stripe
-// refuse ; au-dessus, c'est le plafond de l'API. Le prix de la lecture, lui, est
-// fixé dans `pricing.mjs`.
-export const MIN_AMOUNT_CENTS = 500;
+// Bornes techniques de Stripe pour un paiement unique : en dessous, Stripe refuse
+// (0,50 € est le minimum pour l'euro) ; au-dessus, c'est le plafond de l'API. Le
+// prix de la lecture, lui, est fixé dans `pricing.mjs` — cette borne n'est plus un
+// prix plancher produit, sinon un code promotionnel à 1 € serait refusé.
+export const MIN_AMOUNT_CENTS = 50;
 export const MAX_AMOUNT_CENTS = 99999999; // 999 999,99 € — plafond technique de Stripe
 
 const SECRET_PREFIXES = ["sk_live_", "sk_test_", "rk_live_", "rk_test_"];
@@ -176,7 +177,7 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
   }
   const amount = Math.round(Number(amountCents));
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT_CENTS) {
-    const error = new Error("Montant invalide : la lecture se règle à partir de 5 €.");
+    const error = new Error("Montant invalide : Stripe accepte à partir de 0,50 €.");
     error.status = 400;
     throw error;
   }
