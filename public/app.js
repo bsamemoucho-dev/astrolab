@@ -5,7 +5,9 @@ const state = {
   language: null,
   currentView: "auth",
   // Lecture relue depuis un lien de récupération (/r/<jeton>).
-  recovery: null
+  recovery: null,
+  // Jeton de la livraison affichée : c'est lui qui ouvre le PDF côté serveur.
+  readingToken: null
 };
 
 // Offre de prix : montant libre à partir de 5 €, sans plafond. Les pastilles
@@ -2233,6 +2235,36 @@ async function refreshDeliverables() {
 }
 
 async function exportDeliverablePdf(id) {
+  // Rendu serveur quand il est actif : un vrai fichier, sans la date ni l'adresse
+  // que la fenêtre d'impression ajoute. Sinon, on garde l'impression.
+  if (state.config?.pdfRenderer === "chromium") {
+    try {
+      const reponse = await fetch(`/api/deliverables/${id}/export?format=pdf`, {
+        headers: { accept: "application/pdf" },
+        credentials: "same-origin"
+      });
+      if (reponse.ok) {
+        const blob = await reponse.blob();
+        const lien = document.createElement("a");
+        const adresse = URL.createObjectURL(blob);
+        lien.href = adresse;
+        // Le serveur nomme le fichier d'après le titre du document.
+        lien.download = nomDepuisDisposition(reponse.headers.get("content-disposition")) ?? `dossier-${id}.pdf`;
+        lien.click();
+        URL.revokeObjectURL(adresse);
+        return;
+      }
+      if (reponse.status !== 502 && reponse.status !== 503) {
+        const payload = await reponse.json().catch(() => ({}));
+        throw new Error(payload.error ?? "Export PDF impossible.");
+      }
+    } catch (error) {
+      if (!/réseau|network|fetch/i.test(error.message ?? "")) {
+        throw error;
+      }
+      // Panne réseau : on retombe sur l'impression plutôt que d'échouer.
+    }
+  }
   const response = await fetch(`/api/deliverables/${id}/export?format=html`);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
@@ -2494,6 +2526,55 @@ function nomDeFichier(titre, extension, defaut = "lecture-astrologique") {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
   return `${base || defaut}.${extension}`;
+}
+
+// Nom de fichier proposé par le serveur (`Content-Disposition`).
+function nomDepuisDisposition(entete) {
+  const correspondance = /filename="([^"]+)"/i.exec(String(entete ?? ""));
+  return correspondance ? correspondance[1] : null;
+}
+
+// Le jeton de livraison se lit dans le lien de récupération (.../r/<jeton>).
+function tokenFromDeliveryLink(link) {
+  const valeur = String(link ?? "").trim();
+  if (!valeur) return null;
+  const correspondance = /\/r\/([A-Za-z0-9]+)\/?$/.exec(valeur);
+  return correspondance ? correspondance[1] : null;
+}
+
+// Adresse du PDF produit par le serveur, quand il sait le produire.
+//
+// Le jeton de la livraison est le même secret que la lecture : sans lui, ou sans
+// moteur PDF côté serveur, on ne propose pas de rendu automatique.
+function pdfUrlForReading() {
+  if (state.config?.pdfRenderer !== "chromium") return null;
+  const token = state.recovery?.token ?? state.readingToken ?? null;
+  if (!token) return null;
+  return `/api/public/deliveries/${encodeURIComponent(token)}/pdf`;
+}
+
+// Télécharge le PDF du serveur. Renvoie `false` quand le serveur dit qu'il ne
+// peut pas le produire (moteur absent ou panne) : l'appelant retombe alors sur
+// l'impression du navigateur, sans rien dire de plus au client.
+async function telechargerPdf(url) {
+  const reponse = await fetch(url, { headers: { accept: "application/pdf" }, credentials: "same-origin" });
+  if (reponse.status === 503 || reponse.status === 502) {
+    return false;
+  }
+  if (!reponse.ok) {
+    const payload = await reponse.json().catch(() => null);
+    throw new Error(payload?.error ?? "Le PDF n'a pas pu être téléchargé.");
+  }
+  const blob = await reponse.blob();
+  const lien = document.createElement("a");
+  const adresse = URL.createObjectURL(blob);
+  lien.href = adresse;
+  lien.download =
+    nomDepuisDisposition(reponse.headers.get("content-disposition")) ??
+    nomDeFichier(titreDuDocument(state.guestReading?.html ?? ""), "pdf");
+  lien.click();
+  URL.revokeObjectURL(adresse);
+  return true;
 }
 
 // Impression du document pour l'enregistrer en PDF.
@@ -2913,6 +2994,7 @@ function bindExpressForm() {
         body: { ...body, paymentSessionId, ...(testCode ? { testCode } : {}) }
       });
       state.guestReading = { html: reading.html, markdown: reading.markdown };
+      state.readingToken = tokenFromDeliveryLink(reading.delivery?.link) ?? state.readingToken;
       $("#express-viewer").hidden = false;
       $("#express-frame").srcdoc = reading.html;
       $("#express-progress").hidden = true;
@@ -3007,8 +3089,22 @@ function bindExpressForm() {
     link.click();
     URL.revokeObjectURL(url);
   });
-  $("#guest-download-pdf").addEventListener("click", () => {
+  $("#guest-download-pdf").addEventListener("click", async () => {
     if (!state.guestReading) return;
+    // Rendu serveur quand le moteur est actif : un vrai fichier, sans la date ni
+    // l'adresse que la fenêtre d'impression ajoute. Sinon — ou si le rendu échoue
+    // — on garde exactement le comportement d'avant : la fenêtre d'impression.
+    const url = pdfUrlForReading();
+    if (url) {
+      try {
+        if (await telechargerPdf(url)) {
+          return;
+        }
+      } catch (error) {
+        showMessage(error.message, true);
+        return;
+      }
+    }
     try {
       printHtmlInWindow(state.guestReading.html);
       showMessage(uiStrings().pdfHint);
@@ -3043,6 +3139,7 @@ function bindExpressForm() {
     try {
       await api(`/api/public/deliveries/${encodeURIComponent(token)}`, { method: "DELETE" });
       state.guestReading = null;
+      state.readingToken = null;
       $("#delivery-box").hidden = true;
       $("#express-viewer").hidden = true;
       showMessage(uiStrings().deliveryDelete + " ✓");
@@ -3073,6 +3170,7 @@ function bindExpressForm() {
   // Affiche une livraison : la lecture si elle est prête, sinon l'état en cours.
   const showDelivery = (delivery, { token } = {}) => {
     state.recovery = delivery ? { token: token ?? delivery.token ?? null, reference: delivery.reference } : null;
+    state.readingToken = delivery ? token ?? delivery.token ?? null : null;
     $("#express-payment").hidden = true;
     $("#express-progress").hidden = true;
     if (!delivery) {

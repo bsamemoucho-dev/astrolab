@@ -23,6 +23,12 @@ structured result, a transversal inference, and an AI-written explanation.
   a **computed birth-chart wheel** (SVG) and computed element/modality
   distributions, narrative sections, and a technical annex (the verified
   calculation base) that starts on its own page when printed. Nine languages.
+- **PDF**: by default the browser print dialog (the document sets the file name,
+  2 cm margins and the page breaks). An **opt-in server-side renderer** produces a
+  real file instead — `GET /api/public/deliveries/<token>/pdf`, one conversion at
+  a time, built only with `--build-arg WITH_PDF_RENDERER=true` and enabled with
+  `ASTROLAB_PDF_RENDERER=chromium`. When it is off or fails, the site silently
+  falls back to the print dialog.
 - **Honesty about uncertainty**: an approximate birth time is bounded by a written
   margin (`lastro-time-margin@1.0.0`); an angle sign that changes inside that
   margin is written as *not decidable*, never asserted. Aspect orbs are a written,
@@ -40,8 +46,9 @@ structured result, a transversal inference, and an AI-written explanation.
 ## What is NOT implemented yet
 
 - the "Périodes & Cycles" module (needs transit and progression calculations);
-- a server-side PDF export: the PDF comes from the browser print dialog (the
-  document sets the proposed file name, 2 cm margins and the page break);
+- the server-side PDF renderer is written and tested but **never run against a
+  real Chromium**: the image has not been built with `WITH_PDF_RENDERER=true`, so
+  the memory cost and the Linux font rendering are still unverified;
 - a dedicated public landing page — the visitor's view is revealed by JavaScript
   and a single URL is indexable;
 - editorial detectors beyond French: event prediction, medical claims, biographical
@@ -55,7 +62,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (202 tests) |
+| Do the guardrails hold? | `npm test` (220 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |

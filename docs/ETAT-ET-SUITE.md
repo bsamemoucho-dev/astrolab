@@ -336,13 +336,36 @@ Ce qui est maintenant livré, et mesuré par `tests/chart.test.mjs` :
   de feuille (le template en mettait 17 mm ; la demande initiale était 2 cm). La
   carte du ciel et l'annexe commencent chacune sur une page.
 
-**Ce qui reste, et qui demande une décision** : la « conversion automatique en
-PDF ». Aujourd'hui le PDF sort du dialogue d'impression du navigateur. Une
-conversion automatique impose un **moteur de rendu HTML côté serveur**
-(Chromium sans interface) : +300 Mo d'image Docker (ou ~60 Mo avec un build
-dédié), et surtout une empreinte mémoire de plusieurs centaines de Mo par rendu —
-à comparer aux 512 Mo d'une instance Render Starter. Le document HTML/CSS est
-prêt pour cette étape ; c'est l'infrastructure qui demande un arbitrage.
+**Décidé et implémenté le 12 septembre : rendu PDF côté serveur, derrière un
+drapeau.** Le choix retenu est Chromium dans le service, activé explicitement,
+avec la fenêtre d'impression en secours.
+
+- Le moteur vit dans `src/deliverables/pdfRenderer.mjs` : une seule conversion à la
+  fois, délai maximum, navigateur fermé après une panne (jamais réutilisé) et
+  fermé après inactivité. Il suit le CSS du document (`preferCSSPageSize`,
+  `printBackground`) et n'ajoute **ni date, ni URL, ni numéro de page** — c'est la
+  fenêtre d'impression du navigateur qui les ajoutait.
+- Deux routes, et aucune n'accepte de HTML venu du client : le PDF d'une lecture
+  livrée (`GET /api/public/deliveries/<jeton>/pdf`, même secret que la lecture) et
+  `GET /api/deliverables/<id>/export?format=pdf` (session obligatoire). Les deux
+  rendent le document **stocké**. Sans moteur, elles répondent 503 avec
+  `pdf_renderer_unavailable`, et le site retombe silencieusement sur l'impression.
+- Activation : `docker build --build-arg WITH_PDF_RENDERER=true`, puis
+  `ASTROLAB_PDF_RENDERER=chromium`. Sans les deux, l'image reste légère et rien
+  n'est chargé : `puppeteer-core` n'est pas une dépendance du dépôt, il est
+  installé à version figée dans l'image seulement (voir `Dockerfile`).
+- **Ce qui n'est pas vérifié, et qu'il faut vérifier avant d'y compter** : le
+  moteur n'a jamais tourné contre un vrai Chromium (il n'y en a pas ici). Le coût
+  mémoire par conversion, le poids réel de l'image et le rendu des polices sous
+  Linux restent à mesurer sur un déploiement de test. Georgia n'existe pas sous
+  Linux : le rendu serveur utilisera DejaVu Serif (les polices DejaVu et Liberation
+  sont installées dans l'image, et l'étoile décorative comme la marque de
+  rétrogradation ont été dessinées en SVG pour ne dépendre d'aucune police).
+  Première vérification à faire : un PDF réel produit par le serveur, glyphes de la
+  roue compris.
+- Le bouton PDF côté site n'affiche plus de message d'attente : il demande le
+  fichier au serveur, et ne retombe sur la fenêtre d'impression que si le serveur
+  ne peut pas le produire.
 
 ## Corrections marquantes (contexte pour la suite)
 
@@ -466,14 +489,16 @@ prêt pour cette étape ; c'est l'infrastructure qui demande un arbitrage.
 | `tools/preview-document.mjs` | aperçu du document (mise en page) sans réseau ni coût |
 | `tools/inspect-pdf.mjs` | lecture d'un PDF livré, page par page (texte extrait par les tables ToUnicode) |
 | `src/deliverables/chart.mjs` | roue du ciel en SVG et répartitions calculées |
+| `src/deliverables/pdfRenderer.mjs` | rendu PDF côté serveur, derrière le drapeau `ASTROLAB_PDF_RENDERER` |
 | `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` | exploration et partage |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 | `tests/chart.test.mjs`, `tests/previewTool.test.mjs` | géométrie de la roue, titres non tronqués, aperçu jamais vide |
+| `tests/pdfRenderer.test.mjs`, `tests/pdfRoutes.test.mjs` | contrat du moteur PDF (une conversion à la fois, délai, panne) et droits des routes |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 202 tests
+npm test                                   # 220 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

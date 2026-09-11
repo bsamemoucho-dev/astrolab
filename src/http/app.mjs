@@ -3,6 +3,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { deleteAccount, getUserForSession, login, logout, register, verifyEmail } from "../auth/authService.mjs";
+import {
+  defaultPdfRenderer,
+  PDF_BUSY_CODE,
+  PDF_FAILED_CODE,
+  PDF_UNAVAILABLE_CODE,
+  pdfFileNameFromHtml
+} from "../deliverables/pdfRenderer.mjs";
 import { llmConfiguration } from "../deliverables/writers.mjs";
 import { JsonStore } from "../db/jsonStore.mjs";
 import { resolvePlaceForEntry, searchPlacesForEntryDetailed } from "../geo/placeResolver.mjs";
@@ -131,6 +138,48 @@ export function createApp(options = {}) {
   const publicDir = options.publicDir ?? DEFAULT_PUBLIC_DIR;
   const commerceEnabled = options.commerceEnabled ?? process.env.ASTROLAB_ENABLE_COMMERCE !== "0";
   const allowRegistration = options.allowRegistration ?? process.env.ASTROLAB_ALLOW_REGISTRATION !== "0";
+  // Rendu PDF automatique : `null` quand le drapeau n'est pas posé, et l'option
+  // permet d'en injecter un autre dans les tests.
+  const pdfRenderer = "pdfRenderer" in options ? options.pdfRenderer : defaultPdfRenderer();
+
+  // Une conversion à la fois, et jamais de HTML arbitraire : on ne rend que le
+  // document déjà stocké, retrouvé par son jeton ou son identifiant.
+  const sendPdf = async (res, html) => {
+    if (!pdfRenderer) {
+      const error = new Error(
+        "La génération automatique du PDF n'est pas activée sur ce site. Utilisez l'impression du navigateur (Enregistrer au format PDF)."
+      );
+      error.status = 503;
+      error.code = PDF_UNAVAILABLE_CODE;
+      // État de configuration, pas incident : un site sans moteur PDF répond
+      // toujours cela, et le journal ne doit pas s'en remplir.
+      error.expected = true;
+      throw error;
+    }
+    let document;
+    try {
+      document = await pdfRenderer.render(html);
+    } catch (cause) {
+      const indisponible = cause?.code === PDF_UNAVAILABLE_CODE || cause?.code === PDF_BUSY_CODE;
+      const error = new Error(
+        indisponible
+          ? "Le moteur de PDF n'est pas disponible sur ce serveur. Utilisez l'impression du navigateur (Enregistrer au format PDF)."
+          : "Le PDF n'a pas pu être produit. Utilisez l'impression du navigateur (Enregistrer au format PDF)."
+      );
+      error.status = indisponible ? 503 : 502;
+      error.code = cause?.code ?? PDF_FAILED_CODE;
+      error.cause = cause;
+      throw error;
+    }
+    const corps = Buffer.isBuffer(document) ? document : Buffer.from(document);
+    res.writeHead(200, {
+      "content-type": "application/pdf",
+      "content-length": corps.length,
+      "content-disposition": `attachment; filename="${pdfFileNameFromHtml(html)}"`,
+      "cache-control": "no-store"
+    });
+    res.end(corps);
+  };
 
   const routes = [
     route("GET", /^\/healthz$/, async (_req, res) => {
@@ -373,6 +422,23 @@ export function createApp(options = {}) {
     route("DELETE", /^\/api\/public\/deliveries\/(?<token>[^/]+)$/, async (_req, res, params) => {
       sendJson(res, 200, { deleted: await deleteDeliveryByToken(store, params.token) });
     }),
+    // Le PDF du document livré : même secret que la lecture elle-même (le jeton),
+    // et rendu à partir du HTML stocké — jamais d'un HTML envoyé par le client.
+    route("GET", /^\/api\/public\/deliveries\/(?<token>[^/]+)\/pdf$/, async (_req, res, params) => {
+      const delivery = await getDeliveryByToken(store, params.token);
+      if (!delivery) {
+        const error = new Error("Ce lien de lecture est inconnu ou a expiré.");
+        error.status = 404;
+        throw error;
+      }
+      if (delivery.status !== "ready" || !delivery.reading?.html) {
+        const error = new Error("Cette lecture n'est pas prête : il n'y a pas encore de document à convertir.");
+        error.status = 409;
+        error.code = "reading_not_ready";
+        throw error;
+      }
+      await sendPdf(res, delivery.reading.html);
+    }),
     // Reprise d'une rédaction qui avait échoué : le client a déjà payé, on ne
     // lui redemande jamais de payer.
     route("POST", /^\/api\/public\/deliveries\/(?<token>[^/]+)\/regenerate$/, async (_req, res, params) => {
@@ -418,6 +484,9 @@ export function createApp(options = {}) {
         },
         llmConfigured: Boolean(llmConfiguration()),
         llmModel: llmConfiguration()?.model ?? null,
+        // « chromium » quand le rendu PDF automatique est actif ; sinon le bouton
+        // du site garde la fenêtre d'impression du navigateur.
+        pdfRenderer: pdfRenderer ? pdfRenderer.renderer : null,
         emailVerificationMode: process.env.ASTROLAB_EMAIL_MODE ?? "dev_code",
         production: process.env.NODE_ENV === "production"
       });
@@ -593,7 +662,11 @@ export function createApp(options = {}) {
         sendJson(res, 200, version);
         return;
       }
-      sendJson(res, 400, { error: "Unsupported export format. Use html, md or json." });
+      if (format === "pdf") {
+        await sendPdf(res, version.html);
+        return;
+      }
+      sendJson(res, 400, { error: "Unsupported export format. Use html, md, json or pdf." });
     }),
     route("PATCH", /^\/api\/deliverables\/(?<id>[^/]+)\/review$/, async (req, res, params) => {
       const user = await requireUser(store, req);
@@ -629,14 +702,17 @@ export function createApp(options = {}) {
       sendJson(res, 404, { error: "Not found" });
     } catch (error) {
       const status = error.status ?? (error instanceof SyntaxError ? 400 : 500);
-      if (status >= 500) {
+      if (status >= 500 && !error.expected) {
         // Journalisé tel quel côté serveur : c'est là qu'on lit la vraie cause
         // (Render → Logs), jamais dans la réponse au navigateur.
         console.error(`[Lastro] ${status} ${req.method} ${req.url ?? ""} — ${error.message}`, error.cause ?? "");
       }
       const masked = status === 500 || status === 502;
       const message = error.publicMessage ?? (masked ? "Une erreur interne est survenue. Merci de réessayer dans un instant." : error.message);
-      sendJson(res, status, { error: message });
+      // Le code est une information de contrat, pas un détail d'implémentation :
+      // le bouton PDF du site s'en sert pour retomber sur l'impression du
+      // navigateur plutôt que d'afficher une erreur au client.
+      sendJson(res, status, error.code ? { error: message, code: error.code } : { error: message });
     }
   });
 

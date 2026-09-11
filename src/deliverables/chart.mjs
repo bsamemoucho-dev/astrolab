@@ -233,8 +233,12 @@ export function zodiacWheelSvg(socle, strings = null, options = {}) {
         `<text x="${position.x}" y="${position.y + 4.5}" text-anchor="middle" font-size="13" fill="#292534">${BODY_GLYPHS[body.body] ?? "•"}</text>`
       );
       if (body.retrograde) {
+        // Marque de rétrogradation dessinée avec un « R » ASCII : le glyphe
+        // astronomique ℞ (U+211E) n'est pas garanti dans les polices du serveur de
+        // rendu, où il s'imprimerait en carré vide.
         parts.push(
-          `<text x="${position.x + 10}" y="${position.y + 10}" text-anchor="middle" font-size="8" fill="#8a7f8e">℞</text>`
+          `<circle cx="${round(position.x + 10)}" cy="${round(position.y + 10)}" r="5" fill="#ffffff" stroke="#c9bed2"/>`,
+          `<text x="${round(position.x + 10)}" y="${round(position.y + 12.6)}" text-anchor="middle" font-size="7.5" fill="#8a7f8e">R</text>`
         );
       }
     } else {

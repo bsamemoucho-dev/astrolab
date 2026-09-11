@@ -133,7 +133,7 @@ const CSS = `
   *{box-sizing:border-box}
   body{
     margin:0; background:#ece7e3; color:var(--ink);
-    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "DejaVu Sans", sans-serif;
     line-height:1.55;
   }
   /* La feuille fait exactement une page A4 : les marges viennent de son
@@ -160,17 +160,20 @@ const CSS = `
   .cover-page .brand{color:#f1e9f1}
   .kicker{text-transform:uppercase;letter-spacing:.24em;font-size:10px;font-weight:800;color:var(--gold);margin-bottom:8px}
   .cover-page .kicker{color:#dfcfa8}
-  .sparkle{font-size:20px;color:#d8c083;margin-top:24px}
-  .cover-name{font-family:Georgia,"Times New Roman",serif;font-size:38px;margin-top:16px;line-height:1.1}
+  /* Étoile dessinée, pas un glyphe de police : « ✦ » n'est pas garanti sous
+     Linux (rendu PDF serveur), où il s'imprimerait en carré vide. */
+  .sparkle{margin-top:24px;line-height:0}
+  .sparkle svg{width:20px;height:20px}
+  .cover-name{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;font-size:38px;margin-top:16px;line-height:1.1}
   .cover-note{margin:4px auto 0;color:#dfd7e2;font-size:11px;max-width:430px}
   .big-three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:32px auto 16px;width:78%}
   .big-card{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);border-radius:14px;padding:15px 10px 13px}
   .big-card small{display:block;text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:#dfd3e6;margin-bottom:5px}
-  .big-card b{display:block;font-family:Georgia,"Times New Roman",serif;font-size:18px;font-weight:600}
+  .big-card b{display:block;font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;font-size:18px;font-weight:600}
   .big-card i{display:block;font-size:10px;font-style:italic;color:#cfc3d8;margin-top:4px}
 
   /* --- Corps du document --- */
-  h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:600}
+  h1,h2,h3,h4{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;margin:0;font-weight:600}
   h2{font-size:26px;line-height:1.2;margin:0 0 .5em}
   h3{font-size:18px;line-height:1.25;margin:1.5em 0 .4em}
   p{line-height:1.6;font-size:14.5px;margin:0 0 1.05em}
@@ -218,7 +221,7 @@ const CSS = `
   .annex p,.annex li{font-size:12.5px;line-height:1.6;color:#444}
   footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
   .ai-review{margin:16px 0 4px;padding:12px 16px;border:1px solid #e6d6a8;border-left:4px solid var(--gold);border-radius:10px;background:#fdf9f0;color:#6b5320;font-size:12.5px;line-height:1.55;break-inside:avoid;page-break-inside:avoid}
-  .ethical-closing{font-family:Georgia,"Times New Roman",serif;font-size:13px}
+  .ethical-closing{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;font-size:13px}
 
   /* Chaque grande pièce commence sur sa page : la carte du ciel, puis l'annexe. */
   section.block.chart-page{break-before:page;page-break-before:always;break-after:page;page-break-after:always;margin-top:0}
@@ -304,12 +307,12 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 <div class="cover-page">
   <div class="cover-inner">
     <div class="brand">${escapeHtml(marque)}</div>
-    <div class="sparkle">✦</div>
+    <div class="sparkle"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 0 L14.4 9.6 L24 12 L14.4 14.4 L12 24 L9.6 14.4 L0 12 L9.6 9.6 Z" fill="#d8c083"/></svg></div>
     <div class="kicker">${escapeHtml(t.titlePrefix)}</div>
     ${personLabel ? `<div class="cover-name">${escapeHtml(personLabel)}</div>` : `<div class="cover-name">${escapeHtml(title)}</div>`}
     ${coverCards}
     <div class="cover-note">${escapeHtml(t.coverNote ?? "")}</div>
-    <div class="sparkle">✦</div>
+    <div class="sparkle"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 0 L14.4 9.6 L24 12 L14.4 14.4 L12 24 L9.6 14.4 L0 12 L9.6 9.6 Z" fill="#d8c083"/></svg></div>
   </div>
 </div>
 <div class="sheet">
