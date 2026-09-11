@@ -70,8 +70,9 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (242 tests) |
+| Do the guardrails hold? | `npm test` (250 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
+| Which version is really deployed? | `curl -s https://www.lastro.fr/healthz` (`release`), compared with `node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |
 | Did the last push pass? | the *Tests* workflow, in GitHub Actions |
@@ -290,9 +291,13 @@ Au démarrage, le serveur affiche `Lastro — stockage : <chemin>` : si le chemi
 Un disque persistant empêche le déploiement sans coupure (quelques secondes d'indisponibilité à
 chaque mise en ligne) et interdit de faire tourner plusieurs instances en parallèle.
 
-La vérification d'adresse à l'inscription reste en mode « code affiché dans la
-réponse » (`ASTROLAB_EMAIL_MODE=dev_code`) : elle ne dépend pas de Brevo, qui sert
-à l'envoi du **lien de récupération** des lectures payées.
+La vérification d'adresse à l'inscription suit `ASTROLAB_EMAIL_MODE` : `dev_code`
+(le code est renvoyé dans la réponse, pour le développement) ou `email` (le code
+part par Brevo et n'est jamais renvoyé). **En production, avec les inscriptions
+ouvertes, il faut `email`** : en `dev_code`, n'importe qui peut créer un compte sur
+l'adresse d'un autre et le valider aussitôt. Toute valeur explicite autre que
+`dev_code` est traitée comme `email` — une faute de frappe ferme la faille au lieu
+de la rouvrir.
 
 ## Recommended next steps
 

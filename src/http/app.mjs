@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { deleteAccount, getUserForSession, login, logout, register, verifyEmail } from "../auth/authService.mjs";
+import { releaseInfo } from "./release.mjs";
 import {
   defaultPdfRenderer,
   PDF_BUSY_CODE,
@@ -32,7 +33,7 @@ import {
   publicDelivery,
   queueDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
-import { emailEnabled, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
+import { emailEnabled, emailVerificationMode, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
 import { checkoutLineLabel, checkoutSessionProblem, publicPricing, quotePrice, READING_PURPOSE } from "../payments/pricing.mjs";
 import {
   createEmbeddedCheckoutSession,
@@ -187,6 +188,9 @@ export function createApp(options = {}) {
       sendJson(res, 200, {
         ok: true,
         service: "astrolab",
+        // Empreinte du code réellement servi : comparer avec l'empreinte locale
+        // répond à « le déploiement est-il passé ? » sans deviner.
+        release: releaseInfo().fingerprint,
         production: process.env.NODE_ENV === "production",
         time: new Date().toISOString()
       });
@@ -551,7 +555,9 @@ export function createApp(options = {}) {
         // « chromium » quand le rendu PDF automatique est actif ; sinon le bouton
         // du site garde la fenêtre d'impression du navigateur.
         pdfRenderer: pdfRenderer ? pdfRenderer.renderer : null,
-        emailVerificationMode: process.env.ASTROLAB_EMAIL_MODE ?? "dev_code",
+        // Mode EFFECTIF : une valeur inconnue est traitée comme « email », donc
+        // l'annonce ne peut pas mentir sur le comportement réel.
+        emailVerificationMode: emailVerificationMode(),
         production: process.env.NODE_ENV === "production"
       });
     }),
@@ -562,6 +568,19 @@ export function createApp(options = {}) {
         throw error;
       }
       const result = await register(store, await readJson(req));
+      if (emailVerificationMode() === "email") {
+        // Le code part par e-mail et n'est PAS renvoyé dans la réponse : sans
+        // cela, n'importe qui validerait l'adresse d'un autre en s'inscrivant
+        // avec. Si l'envoi échoue, le message reste dans la file et le code
+        // n'est pas divulgué pour autant (le client peut redemander un envoi).
+        const envoi = await flushQueuedEmails(store, { types: ["email_verification"] }).catch((error) => {
+          console.warn(`[Lastro] code de vérification non envoyé — ${error.message}`);
+          return { sent: 0, failed: 1, skipped: false };
+        });
+        const { devVerificationCode: _ignore, ...reste } = result;
+        sendJson(res, 201, { ...reste, verificationEmailSent: envoi.sent > 0 });
+        return;
+      }
       sendJson(res, 201, result);
     }),
     route("POST", /^\/api\/auth\/verify$/, async (req, res) => {

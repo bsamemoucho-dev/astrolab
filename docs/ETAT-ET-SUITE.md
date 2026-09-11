@@ -457,6 +457,57 @@ tunnel à jeton. Et il n'y a pas encore de limitation de débit sur
 (et une ligne de journal). La parade serait un seau à jetons par adresse IP sur ce
 seul chemin.
 
+## Version en ligne et vérification d'adresse (12/09/2026)
+
+Deux constats faits en lisant la configuration de production, pas le code.
+
+**1. `ASTROLAB_EMAIL_MODE` ne faisait rien.** La variable était annoncée dans
+`/api/config`, mais la route d'inscription renvoyait **toujours** le code de
+vérification dans la réponse (`src/auth/authService.mjs`), et le site l'affichait à
+l'écran. Avec `allowRegistration: true` en production, n'importe qui pouvait créer
+un compte sur l'adresse de quelqu'un d'autre et le valider immédiatement — compte
+vide, aucune donnée exposée, mais l'adresse était squatée.
+
+Ce qui change :
+
+- la variable est **réelle** : `dev_code` renvoie le code (développement), `email`
+  l'envoie par Brevo et ne le renvoie **jamais** ;
+- une valeur explicite inconnue est traitée comme `email` : une faute de frappe
+  ferme la faille au lieu de la rouvrir ;
+- si l'envoi échoue, le code n'est **pas** divulgué « pour rendre service », le
+  message reste dans la file, et le site le dit (`registerEmailFailed`) au lieu
+  d'annoncer un envoi qui n'a pas eu lieu ;
+- l'objet et le corps de l'e-mail sont rédigés dans la langue du client (neuf
+  langues, `verificationEmail()`), la langue étant transmise à l'inscription ;
+- le vidage de la file sait maintenant filtrer par type (`flushQueuedEmails`) : il
+  ne traitait que les liens de lecture payée.
+
+**Action requise côté Render** : poser `ASTROLAB_EMAIL_MODE=email`. Sans cela, la
+production garde le comportement de développement (défaut inchangé).
+
+**2. Rien ne disait quelle version tournait en production.** Plusieurs
+vérifications ont été faites « au feeling » après déploiement — et les protections
+du tunnel payant ne se déclenchent que dans des situations qu'on ne provoque pas en
+production, donc rien d'observable ne permettait de deviner la version.
+`GET /healthz` porte maintenant `release` : une empreinte de douze caractères des
+fichiers qui portent les décisions visibles depuis l'extérieur (`src/http/app.mjs`,
+`src/payments/pricing.mjs`, `public/app.js`, `public/index.html`). Comparer avec
+l'empreinte locale répond à la question en une commande :
+
+```bash
+curl -s https://www.lastro.fr/healthz
+node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"
+```
+
+L'empreinte ne révèle aucun secret : ces fichiers sont publics, le dépôt l'est
+aussi. Un fichier absent est marqué « absent » dans le calcul, pour ne pas produire
+une empreinte qui aurait l'air valide.
+
+Vérifié par `tests/emailVerification.test.mjs` (8 cas : défaut, mode e-mail, envoi
+impossible sans fuite, valeurs inconnues, neuf langues, empreinte stable, empreinte
+qui change quand un fichier change, et le site qui n'annonce jamais un envoi qui n'a
+pas eu lieu).
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -587,11 +638,12 @@ seul chemin.
 | `tests/pdfRenderer.test.mjs`, `tests/pdfRoutes.test.mjs` | contrat du moteur PDF (une conversion à la fois, délai, panne) et droits des routes |
 | `tests/pricing.test.mjs`, `tests/pricingRoutes.test.mjs` | prix calculé par le serveur, code de lancement, montant du client ignoré |
 | `tests/paidSession.test.mjs`, `tests/paidPathGate.test.mjs` | aucun lecture sans paiement vérifié, un paiement = une lecture |
+| `src/http/release.mjs`, `tests/emailVerification.test.mjs` | empreinte du code servi, vérification d'adresse réellement appliquée |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 242 tests
+npm test                                   # 250 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

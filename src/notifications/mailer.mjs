@@ -28,6 +28,48 @@ export function emailEnabled() {
   return Boolean(emailConfiguration());
 }
 
+// Vérification d'adresse à l'inscription.
+//
+//   ASTROLAB_EMAIL_MODE=dev_code (défaut) : le code est renvoyé dans la réponse
+//     HTTP et affiché à l'écran — pratique en développement, inacceptable en
+//     production : n'importe qui validerait l'adresse d'un autre.
+//   ASTROLAB_EMAIL_MODE=email : le code part par e-mail et n'est JAMAIS renvoyé
+//     dans la réponse.
+//
+// Toute valeur explicite autre que `dev_code` est traitée comme `email` : une
+// faute de frappe ne doit pas rouvrir la faille en silence. Non renseignée, la
+// variable garde le comportement de développement.
+export function emailVerificationMode() {
+  const brut = process.env.ASTROLAB_EMAIL_MODE;
+  if (brut === undefined) {
+    return "dev_code";
+  }
+  return String(brut).trim().toLowerCase() === "dev_code" ? "dev_code" : "email";
+}
+
+export function verificationCodeIsReturned() {
+  return emailVerificationMode() === "dev_code";
+}
+
+// Objet et corps de l'e-mail de vérification, dans la langue du client.
+const VERIFICATION_EMAILS = {
+  fr: { subject: "Votre code de vérification Lastro", body: (code) => `Votre code de vérification Lastro est ${code}.` },
+  en: { subject: "Your Lastro verification code", body: (code) => `Your Lastro verification code is ${code}.` },
+  de: { subject: "Dein Lastro-Bestätigungscode", body: (code) => `Dein Lastro-Bestätigungscode lautet ${code}.` },
+  es: { subject: "Tu código de verificación de Lastro", body: (code) => `Tu código de verificación de Lastro es ${code}.` },
+  it: { subject: "Il tuo codice di verifica Lastro", body: (code) => `Il tuo codice di verifica Lastro è ${code}.` },
+  pt: { subject: "O seu código de verificação Lastro", body: (code) => `O seu código de verificação Lastro é ${code}.` },
+  no: { subject: "Din bekreftelseskode for Lastro", body: (code) => `Bekreftelseskoden din for Lastro er ${code}.` },
+  da: { subject: "Din bekræftelseskode til Lastro", body: (code) => `Din bekræftelseskode til Lastro er ${code}.` },
+  nl: { subject: "Je Lastro-verificatiecode", body: (code) => `Je Lastro-verificatiecode is ${code}.` }
+};
+
+export function verificationEmail(language, code) {
+  const langue = String(language ?? "fr").slice(0, 2).toLowerCase();
+  const modele = VERIFICATION_EMAILS[langue] ?? VERIFICATION_EMAILS.en;
+  return { subject: modele.subject, body: modele.body(String(code ?? "")) };
+}
+
 export async function sendEmail({ to, subject, text, html = null }) {
   const config = emailConfiguration();
   if (!config) {
@@ -79,9 +121,10 @@ export async function sendEmail({ to, subject, text, html = null }) {
 
 // Vide la file d'envoi : chaque message est marqué comme envoyé, ou conservé
 // avec la raison de l'échec pour être renvoyé plus tard.
-export async function flushQueuedEmails(store, { send = sendEmail } = {}) {
+export async function flushQueuedEmails(store, { send = sendEmail, types = ["public_reading_link"] } = {}) {
   const state = await store.load();
-  const pending = state.outbox.filter((mail) => mail.type === "public_reading_link" && !mail.sentAt);
+  const attendus = new Set(types);
+  const pending = state.outbox.filter((mail) => attendus.has(mail.type) && !mail.sentAt);
   if (pending.length === 0) {
     return { sent: 0, failed: 0, skipped: !emailEnabled() };
   }

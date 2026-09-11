@@ -6,6 +6,7 @@ import {
   normalizeEmail,
   verifyPassword
 } from "./security.mjs";
+import { verificationEmail } from "../notifications/mailer.mjs";
 
 function now() {
   return new Date().toISOString();
@@ -57,12 +58,13 @@ export async function register(store, input) {
     };
 
     state.users.push(user);
+    const courriel = verificationEmail(input.language, verificationCode);
     state.outbox.push({
       id: store.id("mail"),
       to: email,
       type: "email_verification",
-      subject: "Lastro verification code",
-      body: `Your Lastro verification code is ${verificationCode}.`,
+      subject: courriel.subject,
+      body: courriel.body,
       createdAt: now()
     });
 
