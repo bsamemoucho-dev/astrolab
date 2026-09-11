@@ -34,6 +34,15 @@ function normalizeParents(input = {}) {
     }));
 }
 
+// Une entrée « parent » sans aucun contenu (rôle seul) ne constitue pas une
+// donnée familiale : la section transgénérationnelle ne doit pas exister pour
+// un dossier où les parents sont vides.
+function hasFamilyData(parents) {
+  return (Array.isArray(parents) ? parents : []).some((entry) =>
+    ["label", "birthDate", "birthPlace"].some((key) => String(entry?.[key] ?? "").trim() !== "")
+  );
+}
+
 function normalizePlace(input) {
   const resolvedPlace = input.resolvedPlace ?? null;
   if (resolvedPlace?.normalizedForCalculation) {
@@ -112,7 +121,7 @@ export async function createPublicReading(input = {}, options = {}) {
   for (const planSection of DOSSIER_SECTIONS) {
     // Pas de données familiales : la section transgénérationnelle disparaît au
     // lieu d'inventer une histoire d'ancêtres.
-    if (planSection.id === "transgenerationnel" && parents.length === 0) {
+    if (planSection.id === "transgenerationnel" && !hasFamilyData(parents)) {
       continue;
     }
     // Ce qui a déjà été écrit, pour ne pas se répéter d'une section à l'autre.

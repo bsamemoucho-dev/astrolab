@@ -211,6 +211,8 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
   const { person, personInfo, context, createdAt } = payload;
   try {
     const sections = [];
+    // Sections réellement rédigées, pour l'anti-répétition d'une section à l'autre.
+    const writtenSections = [];
     const currentStep = { completed: 0 };
     const usage = { promptTokens: 0, completionTokens: 0, model: null };
 
@@ -240,7 +242,23 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
       });
     };
 
+    // Les parents normalisés sont déjà dans le contexte : `input` n'existe plus
+    // à ce niveau (la génération tourne en arrière-plan).
+    const proParents = Array.isArray(context.parents) ? context.parents : [];
+    const proHasFamily = proParents.some((entry) =>
+      ["label", "birthDate", "birthPlace"].some((key) => String(entry?.[key] ?? "").trim() !== "")
+    );
+
     for (const planSection of DOSSIER_SECTIONS) {
+      // Mêmes règles que la lecture publique : sans données familiales, la
+      // section transgénérationnelle disparaît au lieu d'inventer des ancêtres.
+      if (planSection.id === "transgenerationnel" && !proHasFamily) {
+        continue;
+      }
+      context.previousSections = writtenSections.map((written) => ({
+        title: written.title,
+        excerpt: String(written.text ?? "").slice(0, 240)
+      }));
       let section;
       if (planSection.writer === "none") {
         section = {
@@ -281,6 +299,10 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
         };
       }
       sections.push(section);
+      // Les sections « non disponibles » ne comptent pas comme déjà écrites.
+      if (planSection.writer !== "none") {
+        writtenSections.push(section);
+      }
       await publishProgress(currentStep.completed + 1, null);
     }
 

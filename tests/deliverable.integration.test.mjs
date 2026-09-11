@@ -114,6 +114,11 @@ test("client dossier is created end-to-end from saved birth data (template write
     assert.ok(sectionIds.includes("position-naissance-axe"));
     assert.ok(sectionIds.includes("periodes-cycles"));
     assert.ok(sectionIds.includes("annexe-socle"));
+    // Ce dossier fournit des données familiales (Micheline, Bouillante) : la
+    // section transgénérationnelle est donc présente. Le cas inverse — aucun
+    // parent renseigné, section supprimée — est vérifié par le test de la
+    // lecture publique, qui partage la même condition.
+    assert.ok(sectionIds.includes("transgenerationnel"));
 
     const intro = completed.version.sections.find((section) => section.id === "introduction");
     assert.equal(intro.status, "template_draft");
