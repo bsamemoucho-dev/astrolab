@@ -7,8 +7,13 @@ tests
 .gitignore
 .DS_Store
 *.log
-tools
 .github
+
+# `tools/` EST copié dans l'image, volontairement : l'exploitant n'a pas d'autre
+# moyen de fabriquer ses codes à usage unique que de lancer `access-codes.mjs`
+# là où se trouve le fichier d'état, c'est-à-dire dans le Shell du conteneur. Un
+# outil exclu de l'image rend la fonctionnalité inutilisable en production.
+# Aucun de ces outils ne contient de secret : ils lisent l'environnement.
 
 # Secrets et variantes d'environnement. Seul `.env` était exclu : `.env.local`,
 # `.env.production` et les clés privées entraient dans l'image.
