@@ -6,7 +6,21 @@ import { JsonStore } from "../src/db/jsonStore.mjs";
 import { resetTestCodeFailures } from "../src/payments/freeAccess.mjs";
 
 const CODE = "test-code-1234567890";
-const KEYS = ["TEST_KEYS", "ASTROLAB_TEST_CODE", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY"];
+const KEYS = [
+  "TEST_KEYS",
+  "ASTROLAB_TEST_CODE",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_PUBLISHABLE_KEY",
+  "ASTROLAB_LLM_API_KEY"
+];
+// Un site qui encaisse doit pouvoir rédiger : ces scénarios de paiement ne sont
+// atteignables qu'avec un rédacteur configuré (sinon le service refuse AVANT tout
+// débit, voir le test suivant).
+const STRIPE_ON_WITH_WRITER = {
+  STRIPE_SECRET_KEY: "sk_live_abc123456789",
+  STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789",
+  ASTROLAB_LLM_API_KEY: "cle-de-test"
+};
 
 async function startApp() {
   const { server, store } = createApp({ store: new JsonStore(null) });
@@ -86,7 +100,7 @@ test("un code trop court est refusé à la configuration", async () => {
 });
 
 test("le code de test remplace le paiement obligatoire", async () => {
-  await withEnv({ ...STRIPE_ON, ASTROLAB_TEST_CODE: CODE }, async () => {
+  await withEnv({ ...STRIPE_ON_WITH_WRITER, ASTROLAB_TEST_CODE: CODE }, async () => {
     const app = await startApp();
     try {
       const config = await fetch(`${app.baseUrl}/api/config`).then((r) => r.json());

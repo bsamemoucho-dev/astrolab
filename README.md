@@ -14,7 +14,9 @@ structured result, a transversal inference, and an AI-written explanation.
   paying again.
 - **Payment**: Stripe Checkout embedded in the page (card, Apple Pay, Google Pay;
   Link excluded). **Live and taking payments** — verify with
-  `curl -s https://www.lastro.fr/api/config`.
+  `curl -s https://www.lastro.fr/api/config`. The paid path refuses to sell when no
+  AI writer is configured (and keeps an already-paid order recoverable rather than
+  delivering a draft).
 - **E-mail**: Brevo, used for recovery links (`BREVO_API_KEY`,
   `BREVO_SENDER_EMAIL`).
 - **The reading document**: cover with the three key placements, narrative
@@ -52,7 +54,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (185 tests) |
+| Do the guardrails hold? | `npm test` (189 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |

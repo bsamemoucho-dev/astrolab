@@ -199,6 +199,7 @@ export function createApp(options = {}) {
 
       let payment = null;
       let existingDelivery = null;
+      const sessionId = String(body.paymentSessionId ?? "").trim();
       if (!freeAccess) {
         // Clés Stripe présentes mais inutilisables (recopie incomplète, modes
         // mélangés…) : on refuse la lecture plutôt que de l'offrir par accident.
@@ -208,9 +209,20 @@ export function createApp(options = {}) {
           throw error;
         }
 
+        // On ne vend pas ce qu'on ne peut pas rédiger : avec le paiement actif et
+        // sans rédacteur IA, un client paierait pour recevoir un brouillon portant
+        // « ce document n'est pas prêt pour la livraison ». Tant qu'aucune session
+        // de paiement n'est fournie, on refuse AVANT tout débit.
+        if (stripeConfiguration() && !llmConfiguration() && !sessionId) {
+          const error = new Error(
+            "La rédaction est momentanément indisponible : aucune lecture ne peut être commandée pour l'instant. Vous ne serez pas débité."
+          );
+          error.status = 503;
+          throw error;
+        }
+
         // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
         if (stripeConfiguration()) {
-          const sessionId = String(body.paymentSessionId ?? "").trim();
           if (!sessionId) {
             const error = new Error("Le paiement est requis pour recevoir votre lecture.");
             error.status = 402;
@@ -268,6 +280,17 @@ export function createApp(options = {}) {
       const readingInput = existingDelivery ? (existingDelivery.input ?? body) : body;
 
       try {
+        // Client déjà débité et rédacteur indisponible : la commande reste
+        // enregistrée (lien conservé, relance sans repayer) mais on ne livre pas un
+        // brouillon technique à quelqu'un qui a payé. L'échec passe par le chemin
+        // habituel : la livraison est marquée en échec et le client peut relancer.
+        if (stripeConfiguration() && !llmConfiguration()) {
+          const error = new Error(
+            "La rédaction est momentanément indisponible. Votre commande est enregistrée : vous pourrez relancer la rédaction sans repayer."
+          );
+          error.status = 503;
+          throw error;
+        }
         const reading = await createPublicReading(readingInput);
         await markDeliveryReady(store, delivery.id, reading);
         const link = deliveryLink(delivery.token, publicBaseUrl(req));

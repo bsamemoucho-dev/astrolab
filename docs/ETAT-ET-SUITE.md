@@ -276,14 +276,23 @@ est un modèle généraliste piloté par des consignes strictes, pas un modèle
 spécialisé ; l'affirmer serait exactement le genre de mention non vérifiable que le
 projet s'interdit.
 
-**Point relevé au passage, à trancher** : si la clé du rédacteur IA manque ou
-expire, le parcours public livre une lecture en mode gabarit qui porte la mention
-« Ce document n'est pas prêt pour la livraison » — chez un client qui a payé. Deux
-correctifs possibles : refuser la vente quand `llmConfigured` est faux (le plus
-simple, visible dans `/api/config`), ou faire échouer la rédaction pour que le
-client récupère « rédaction échouée, relancez sans repayer ». Aujourd'hui le risque
-est théorique (la clé est configurée), mais il se réalisera le jour d'une rotation
-ratée.
+**Et corrigé** : si la clé du rédacteur IA manque ou expire, le parcours public
+livrait une lecture en mode gabarit portant « Ce document n'est pas prêt pour la
+livraison » — chez un client qui a payé. Décision : **on ne vend pas ce qu'on ne
+peut pas rédiger**, et la règle ne s'applique que là où l'argent circule.
+
+- **avant tout débit** (aucune session de paiement fournie) : refus `503` avec un
+  message explicite (« vous ne serez pas débité »), et **aucune commande créée** ;
+  le formulaire n'ouvre même pas le panneau de paiement (`llmConfigured` est
+  public dans `/api/config`) ;
+- **client déjà débité** (session fournie et payée) : la commande est **enregistrée
+  puis marquée en échec** — le lien de récupération existe, la relance se fait sans
+  repayer, et **aucun brouillon n'est livré** ;
+- **sans paiement configuré** (développement, démonstration, auto-hébergement) :
+  rien ne change, le parcours public continue de produire un brouillon étiqueté.
+
+Mesuré par `tests/paidPathGate.test.mjs` (4 cas, dont le client déjà débité avec
+Stripe simulé).
 
 ## Corrections marquantes (contexte pour la suite)
 
@@ -412,7 +421,7 @@ ratée.
 ## Commandes utiles
 
 ```bash
-npm test                                   # 185 tests
+npm test                                   # 189 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test
