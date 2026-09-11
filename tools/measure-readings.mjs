@@ -55,9 +55,17 @@ function parseArgs(argv) {
 
 function plan(args) {
   const langues = args.languages ?? LANGUAGES.map((entry) => entry.code);
+  // Produit CARTÉSIEN cas × langues : une simple rotation répétait les mêmes
+  // couples et ne couvrait pas, par exemple, « heure inconnue » en anglais.
+  const couples = [];
+  for (const cas of CAS) {
+    for (const language of langues) {
+      couples.push({ cas, language });
+    }
+  }
   const lectures = [];
   for (let index = 0; index < args.count; index += 1) {
-    lectures.push({ cas: CAS[index % CAS.length], language: langues[index % langues.length] });
+    lectures.push(couples[index % couples.length]);
   }
   return lectures;
 }
@@ -172,6 +180,7 @@ if (!args.yes) {
   console.log(`  lectures prévues : ${lectures.length}`);
   console.log(`  langues          : ${[...new Set(lectures.map((entree) => entree.language))].join(", ")}`);
   console.log(`  cas              : ${[...new Set(lectures.map((entree) => entree.cas.id))].join(", ")}`);
+  console.log(`  couples uniques  : ${new Set(lectures.map((entree) => `${entree.cas.id}/${entree.language}`)).size} sur ${lectures.length}`);
   console.log(`  relecture croisée: ${args.crossCheck ? "activée" : "désactivée"}`);
   console.log(`  coût estimé      : ≈ ${lectures.length * 11} appels au rédacteur IA configuré (gpt-4o-mini par défaut)`);
   console.log("\nRelancez avec --yes pour exécuter.");
