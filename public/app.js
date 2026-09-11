@@ -2451,10 +2451,55 @@ async function refreshDossier() {
   updateNav();
 }
 
+// Impression du document pour l'enregistrer en PDF.
+//
+// On imprime depuis un cadre invisible de la page courante, et non depuis une
+// fenêtre pop-up : les pop-up bloquées laissaient une page HTML impossible à
+// enregistrer en PDF. Si le cadre échoue (navigateur restrictif), on retombe
+// sur l'ouverture d'un onglet, seul cas où l'autorisation peut être demandée.
 function printHtmlInWindow(html) {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "1px";
+  frame.style.height = "1px";
+  frame.style.opacity = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+
+  const cleanup = () => {
+    setTimeout(() => frame.remove(), 60000);
+  };
+
+  try {
+    const frameDocument = frame.contentWindow.document;
+    frameDocument.open();
+    frameDocument.write(html);
+    frameDocument.close();
+    frame.addEventListener("load", () => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      cleanup();
+    });
+    // Certains navigateurs ne déclenchent pas « load » sur un document écrit
+    // à la main : on imprime quand même après un court délai.
+    setTimeout(() => {
+      if (document.body.contains(frame)) {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+        cleanup();
+      }
+    }, 700);
+    return;
+  } catch {
+    frame.remove();
+  }
+
   const printWindow = window.open("", "_blank", "width=900,height=1000");
   if (!printWindow) {
-    throw new Error("Autorisez les fenêtres pop-up pour imprimer/enregistrer en PDF.");
+    throw new Error("Impossible d'ouvrir l'aperçu d'impression. Utilisez le bouton HTML pour télécharger le document.");
   }
   printWindow.document.open();
   printWindow.document.write(html);
