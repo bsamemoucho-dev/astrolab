@@ -79,20 +79,24 @@ export function stripeKeyNotice() {
   return null;
 }
 
-// Diagnostic sans secret : longueurs et identifiant de compte (déjà public via
-// la clé publiable), pour distinguer une clé tronquée d'une clé d'un autre
-// compte sans jamais exposer la clé secrète elle-même.
+// Diagnostic sans secret, et désormais sans description de la clé secrète.
+//
+// Ce résultat part dans `GET /api/config`, donc vers n'importe qui. Il annonçait
+// la longueur exacte de la clé secrète, son préfixe (`sk_live_`) et sa longueur
+// publiable : de quoi confirmer à un inconnu quel format et quel mode sont
+// configurés, sans rien apporter au diagnostic. La question posée est « la clé
+// est-elle utilisable ? » — un booléen y répond. L'identifiant de compte, lui,
+// est déjà public par la clé publiable, et sert à distinguer deux comptes.
 export function stripeKeyDiagnostics() {
   const secret = cleanKey(rawSecret());
   const publishable = cleanKey(rawPublishable());
   if (!secret && !publishable) {
-    return { secretLength: 0, publishableLength: 0, accountMatches: null };
+    return { secretConfigured: false, publishableConfigured: false, accountMatches: null };
   }
   const accountOf = (key) => key.slice(8, 24);
   return {
-    secretLength: secret.length,
-    publishableLength: publishable.length,
-    secretPrefix: secret.slice(0, 8) || null,
+    secretConfigured: Boolean(secret),
+    publishableConfigured: Boolean(publishable),
     // Une clé live complète : 109 caractères (sk_live_ + 101).
     secretLooksComplete: secret.length >= 100,
     accountMatches: secret.length >= 24 && publishable.length >= 24 ? accountOf(secret) === accountOf(publishable) : null

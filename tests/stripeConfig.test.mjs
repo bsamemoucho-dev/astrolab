@@ -103,11 +103,28 @@ test("diagnostic : repère une clé secrète tronquée", () => {
   const publishable = `pk_live_${account}${"y".repeat(83)}`;
   withKeys({ STRIPE_SECRET_KEY: secret, STRIPE_PUBLISHABLE_KEY: publishable }, () => {
     const diagnostics = stripeKeyDiagnostics();
-    assert.equal(diagnostics.secretLength, secret.length);
+    assert.equal(diagnostics.secretConfigured, true);
+    assert.equal(diagnostics.publishableConfigured, true);
     assert.equal(diagnostics.secretLooksComplete, false);
     assert.equal(diagnostics.accountMatches, true);
-    assert.equal(diagnostics.secretPrefix, "sk_live_");
   });
+});
+
+test("le diagnostic public ne décrit jamais la clé secrète", () => {
+  // Ce résultat part dans GET /api/config, donc vers n'importe qui. Il annonçait
+  // la longueur exacte de la clé secrète et son préfixe : de quoi confirmer à un
+  // inconnu le mode et le format configurés. Plus un seul chiffre ne doit
+  // sortir — les booléens suffisent à répondre à « la clé est-elle utilisable ? ».
+  const account = "51UE4C2RsIRc7hIlD";
+  withKeys(
+    { STRIPE_SECRET_KEY: `sk_live_${account}${"x".repeat(85)}`, STRIPE_PUBLISHABLE_KEY: `pk_live_${account}${"y".repeat(83)}` },
+    () => {
+      const serialise = JSON.stringify(stripeKeyDiagnostics());
+      assert.doesNotMatch(serialise, /sk_live|pk_live/);
+      assert.doesNotMatch(serialise, /secretLength|secretPrefix|publishableLength/);
+      assert.doesNotMatch(serialise, /\d/, "une longueur ou un identifiant s'est glissé dans le diagnostic");
+    }
+  );
 });
 
 test("diagnostic : repère deux clés de comptes différents", () => {

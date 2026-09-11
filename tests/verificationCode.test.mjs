@@ -11,6 +11,7 @@ import test from "node:test";
 
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
+import { createVerificationCode } from "../src/auth/security.mjs";
 import {
   CODE_TTL_MS,
   MAX_RESENDS_PER_ADDRESS_PER_HOUR,
@@ -218,5 +219,36 @@ test("le site porte le bouton de renvoi, dans les neuf langues", () => {
   for (const cle of ["verifyCodeRejected", "resendCode", "resendCodeSent", "resendCodeTooMany"]) {
     const occurrences = (source.match(new RegExp(`${cle}:`, "g")) ?? []).length;
     assert.equal(occurrences, 9, `${cle} doit être traduit dans les neuf langues (${occurrences})`);
+  }
+});
+
+test("le code de vérification ne vient pas de Math.random", () => {
+  // Un code prévisible vaut un code partagé : il valide l'adresse d'un compte,
+  // donc en prend le contrôle tant qu'elle n'est pas vérifiée. La suite de
+  // Math.random() se devine à partir de quelques sorties, et un inscrit peut en
+  // observer autant qu'il veut. Tout le reste de security.mjs utilisait déjà
+  // node:crypto : c'était le seul appel non cryptographique, et il était recopié
+  // à la main dans le renvoi.
+  // Les commentaires expliquent le choix et citent donc « Math.random() » : on
+  // les retire avant de chercher un appel, sinon le test se piège lui-même.
+  const sansCommentaires = (source) =>
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .filter((ligne) => !ligne.trim().startsWith("//"))
+      .join("\n");
+  const security = sansCommentaires(readFileSync(new URL("../src/auth/security.mjs", import.meta.url), "utf8"));
+  const verification = sansCommentaires(readFileSync(new URL("../src/auth/verification.mjs", import.meta.url), "utf8"));
+  assert.match(security, /randomInt\(/, "createVerificationCode doit tirer son code de node:crypto");
+  assert.doesNotMatch(security, /Math\.random\(\)/, "aucun code ne doit venir de Math.random()");
+  assert.doesNotMatch(verification, /Math\.random\(\)/, "le renvoi ne doit pas recalculer un code à la main");
+});
+
+test("les codes produits restent à six chiffres, dans la plage annoncée", () => {
+  for (let essai = 0; essai < 200; essai += 1) {
+    const code = createVerificationCode();
+    assert.match(code, /^\d{6}$/, `code mal formé : ${code}`);
+    const valeur = Number(code);
+    assert.ok(valeur >= 100000 && valeur <= 999999, `code hors plage : ${code}`);
   }
 });

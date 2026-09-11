@@ -16,7 +16,7 @@
 // La limitation vit en mémoire du processus : un redémarrage la remet à zéro.
 // C'est suffisant ici (elle borne un abus, elle ne facture rien) et documenté.
 
-import { normalizeEmail } from "./security.mjs";
+import { createVerificationCode, normalizeEmail } from "./security.mjs";
 import { verificationEmail } from "../notifications/mailer.mjs";
 
 export const CODE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -113,7 +113,9 @@ export async function resendVerification(store, { email, language } = {}) {
     if (!user || user.emailVerifiedAt) {
       return { sent: false };
     }
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    // Même générateur que l'inscription : deux formules recopiées pour le même
+    // code, c'est une occasion de laisser l'une des deux en `Math.random()`.
+    const code = createVerificationCode();
     user.verificationCode = code;
     user.verificationCodeCreatedAt = new Date().toISOString();
     // Un nouveau code remet le compteur à zéro : l'ancien est mort, le nouveau

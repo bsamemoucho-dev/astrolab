@@ -1,10 +1,35 @@
+# Ce qui n'a rien à faire dans l'image. `COPY . .` copie tout ce qui n'est PAS
+# listé ici : un fichier oublié dans cette liste part chez l'hébergeur.
 node_modules
 data
 tests
 .git
 .gitignore
-.env
 .DS_Store
 *.log
 tools
 .github
+
+# Secrets et variantes d'environnement. Seul `.env` était exclu : `.env.local`,
+# `.env.production` et les clés privées entraient dans l'image.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# Copies de travail locales, que .gitignore déclare « ne jamais commiter » : le
+# dossier `lastroVgpt/` peut contenir un vrai .env et des données clients.
+lastroVgpt
+
+# Fichiers de travail à la racine (captures d'écran, brouillons). `*.png` ne
+# couvre que la racine : `public/*.png` reste servi.
+*.png
+*.jpg
+*.jpeg
+*.psd
+*.sketch
+
+# Documentation : utile au dépôt, inutile au conteneur.
+docs
+*.md

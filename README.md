@@ -64,7 +64,11 @@ structured result, a transversal inference, and an AI-written explanation.
 - editorial detectors beyond French: event prediction, medical claims, biographical
   invention, orphan antecedents and tutoiement are detected in French only (the
   factual safety rules cover all nine languages);
-- rate limiting outside the test-code path, and CSRF tokens;
+- CSRF tokens — the session cookie is `HttpOnly; SameSite=Lax; Secure`, which
+  already blocks cross-site POST/PUT/DELETE; a token would add defence in depth;
+- rate limiting that survives a restart or spans instances: the counters for
+  registration, login, delivery recovery and public place search live in the
+  process memory (see `src/http/rateLimit.mjs`);
 - Apple/Google login (e-mail + verification code only);
 - a relational database: persistence is a single JSON file on a mounted disk.
 
@@ -72,7 +76,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (266 tests) |
+| Do the guardrails hold? | `npm test` (318 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | Which version is really deployed? | `curl -s https://www.lastro.fr/healthz` (`release` — fingerprint of **all** server code and served files), compared with `node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
@@ -194,6 +198,7 @@ tools/
   verify-production-reading.mjs  End-to-end check after a deployment
   preview-document.mjs  Layout preview with placeholder text, no network, no cost
   inspect-pdf.mjs       Reads a delivered PDF page by page (ToUnicode text extraction)
+  access-codes.mjs      Mints, lists and revokes single-use free-reading codes
 .github/workflows/
   tests.yml             npm test + syntax check on every push
 docs/conventions-lastro.md  Versioned Lastro conventions (LASTRO_RULE) and their discipline
@@ -315,4 +320,4 @@ corresponde à un compte ou non.
 4. Build the "Périodes & Cycles" module once transit methods leave the research
    backlog.
 5. Replace local JSON persistence with a relational database and migrations.
-6. Rate limiting, CSRF protection, Apple/Google login.
+6. Shared rate limiting (Redis or the database), CSRF tokens, Apple/Google login.

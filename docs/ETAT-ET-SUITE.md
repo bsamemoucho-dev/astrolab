@@ -663,6 +663,277 @@ client le trouvait trop juste. À noter pour être exact : ce rembourrage était
 d'écran, seulement le rendu papier. C'est le réglage qui est relevé, pas une
 régression réparée.
 
+## Audit de sécurité des points d'entrée (12/09/2026)
+
+Un audit des 52 routes, de l'authentification, des sessions et de la propriété des
+ressources a produit huit correctifs. Ce qui suit dit aussi ce qui a été **vérifié
+comme solide** : un audit qui ne liste que des problèmes fait douter de tout.
+
+**Vérifié solide, sans changement nécessaire.**
+
+- **Aucun IDOR.** Les services filtrent par `ownerUserId === userId`
+  (`analysisService`, `deliverableService`, `requireOwnerPerson`), et les
+  identifiants sont des `randomUUID()` — ni devinables, ni énumérables.
+- **Routes d'administration** : `requireAdmin` refuse tout `primaryRole` autre que
+  `admin`, et `register` force `"user"` — impossible de s'auto-promouvoir.
+- **Sessions** : jeton de 32 octets aléatoires, cookie `HttpOnly; SameSite=Lax;
+  Secure` en production. Le README annonçait « CSRF non implémenté » : c'est
+  inexact pour les POST, que `SameSite=Lax` couvre déjà.
+- **Mots de passe** : PBKDF2 210 000 itérations, comparaison à temps constant.
+- **Nom de fichier PDF** réduit à `[A-Za-z0-9-]` : pas d'injection d'en-tête
+  `Content-Disposition`.
+
+**Corrigé.**
+
+1. **Crédits de développement ouverts en production**
+   (`POST /api/commerce/dev-credit-order`). N'importe quel compte connecté
+   s'attribuait 10, 50 ou 150 crédits. Inoffensif tant que les crédits n'ouvrent
+   rien — porte ouverte le jour où ils ouvriront quelque chose. Désormais refusé
+   en production, avec `ASTROLAB_ALLOW_DEV_CREDITS=1` comme seule porte de sortie.
+2. **`POST /api/public/test-email` écrivait à n'importe qui.** Le code de test
+   étant fait pour être partagé (lectures offertes), son détenteur pouvait envoyer
+   du courrier illimité vers n'importe quelle adresse depuis notre domaine. Le
+   destinataire est maintenant restreint à `BREVO_SENDER_EMAIL`, plus
+   `ASTROLAB_TEST_EMAIL_ALLOWLIST`.
+3. **Code de vérification tiré de `Math.random()`** (`security.mjs`, et la même
+   formule recopiée dans `verification.mjs`). Un code prévisible valide l'adresse
+   d'un compte, donc en prend le contrôle : `randomInt` de `node:crypto`, et le
+   renvoi réutilise `createVerificationCode()` au lieu de recalculer à la main.
+4. **Inscription sans limitation** : elle déclenchait un e-mail vers une adresse
+   arbitraire, autant de fois qu'il existe d'adresses distinctes. Dix par heure et
+   par client, cent par heure pour tout le service. Dix et non cinq : une annonce
+   fait s'inscrire plusieurs personnes derrière la même adresse (bureau, wifi
+   public), et bloquer une inscription légitime coûte plus cher que la poignée
+   d'e-mails qu'un client peut déclencher.
+5. **Connexion sans limitation** : dix échecs par compte et par quart d'heure,
+   trente par client. La clé est le **compte visé**, pas la source — un attaquant
+   change d'adresse IP, pas le compte dont il cherche le mot de passe. Un compte
+   non vérifié ne consomme pas ce quota (403, pas 401 : ce n'est pas une
+   intrusion), et une connexion réussie remet le compteur à zéro.
+6. **`GET /api/config` publiait la longueur et le préfixe de la clé secrète
+   Stripe.** La réponse part vers n'importe qui ; il ne reste que des booléens.
+   Un test vérifie qu'**aucun chiffre** ne sort du diagnostic.
+7. **Géocodage public sans cache ni limite** : chaque frappe relayait un appel
+   vers un service gratuit. Cache mémoire de six heures (500 entrées, réponses
+   utiles seulement — mémoriser un échec figerait une panne passagère) et
+   limitation par client.
+8. **`POST /api/public/deliveries/recover`** déclenchait un e-mail sans limite :
+   dix par heure et par client. La réponse reste neutre et identique.
+
+**Ce que ces limitations ne protègent pas** : elles vivent en mémoire du
+processus — un redémarrage les remet à zéro et deux instances ne les partagent
+pas ; elles bornent un abus depuis un client, elles ne facturent rien. Même
+compromis assumé que la limitation de renvoi de code. Le nouvel en-tête
+`Retry-After` accompagne les réponses 429, sinon un client bloqué insiste et
+prolonge sa propre limitation.
+
+**Non couvert par cet audit** : test dynamique du site, vérification en profondeur
+du montant Stripe, isolation du rendu PDF quand `WITH_PDF_RENDERER` sera activé,
+vulnérabilités de dépendances, concurrence du store JSON.
+
+## Second audit — surfaces non couvertes par le premier (12/09/2026)
+
+Le premier audit portait sur les routes, l'authentification, les sessions et la
+propriété des ressources. Le second couvre ce qu'il laissait de côté :
+dépendances, conteneur, CI, stockage, et l'échappement HTML du client.
+
+**Vérifié solide.**
+
+- **Dépendances** : une seule dépendance directe (`astronomy-engine`), épinglée à
+  la version exacte, sans transitive, à jour et sans avis de sécurité. Stripe,
+  Brevo et le LLM passent par `fetch` natif — aucun SDK à surveiller.
+- **CI** : pas de `pull_request_target`, aucun secret référencé, `permissions:
+  contents: read`. Une PR de fork ne peut rien exfiltrer.
+- **Secrets** : `.env` non suivi par git, exclu de l'image, absent de l'historique
+  (88 commits vérifiés). Aucune clé réelle dans les fichiers suivis.
+- **Paiement** : montant calculé côté serveur (jamais lu dans la requête), statut
+  `paid` vérifié, finalité et prix recontrôlés par `checkoutSessionProblem`, et un
+  paiement ne produit qu'une lecture.
+- **Document livré** : `escapeHtml` et `markdownToHtml` échappent avant toute
+  construction HTML ; le seul insert brut (`section.html`) ne reçoit qu'un SVG
+  calculé et échappé. `pdfFileNameFromHtml` réduit le titre à `[A-Za-z0-9-]`.
+- **Traversée de répertoires** : `/../x` est normalisé par le lecteur d'URL, et
+  les chemins encodés (`..%2f`) sont refusés en 403. Verrouillé par un test.
+
+**Corrigé.**
+
+1. **XSS stocké inter-utilisateurs — le plus grave de cet audit.** La validation
+   d'adresse se limitait à `includes("@")` : `<svg/onload=…>@x.co` créait donc un
+   compte. `public/app.js` affichait ensuite cette adresse **sans échappement**
+   dans le panneau d'administration, et la charge s'exécutait dans le navigateur
+   de l'exploitant avec sa session. Corrigé des deux côtés : `escapeHtml` sur les
+   seize expressions de données serveur du client (dont l'e-mail), et validation
+   de forme `isValidEmail` à l'inscription. Le premier point est la protection, le
+   second ferme la porte en amont. `tests/clientEscaping.test.mjs` interdit la
+   régression en refusant toute interpolation brute de ces expressions.
+2. **Écriture du stockage ni atomique ni sérialisée** (`jsonStore.mjs`).
+   `writeFile` ouvrait en mode « w », donc tronquait d'abord : une coupure pendant
+   l'écriture laissait un fichier invalide, et comme `load()` ne rattrape que
+   l'absence de fichier, toutes les requêtes échouaient ensuite définitivement.
+   L'annulation sur erreur rétablissait de plus un instantané partagé, ce qui
+   pouvait effacer une transaction concurrente. Désormais : écriture dans un
+   fichier temporaire puis `rename` (atomique), et transactions sérialisées par
+   une file. **Mesuré** : avec l'ancienne transaction, un échec concurrent laissait
+   l'état en mémoire **vide** alors que le fichier contenait deux entrées — la
+   divergence entre ce que l'application croit et ce qui est enregistré était donc
+   réelle. En revanche, je n'ai pas réussi à reproduire une corruption du fichier
+   par écritures directes concurrentes sur cette charge : le `rename` protège
+   d'abord contre une interruption pendant l'écriture, ce que je n'ai pas pu
+   provoquer en processus.
+3. **Fichier d'état lisible par tous** : 0644 sur un fichier qui contient les
+   hachés de mots de passe, les jetons de session et les données de naissance.
+   Passé en 0600, dossier en 0700.
+4. **Sessions jamais purgées** : chaque connexion en ajoutait une pour toujours, et
+   comme `load()` charge tout le fichier à chaque requête, le coût de chaque
+   requête croissait avec l'historique des connexions. Purge sur écriture, comme
+   les lectures publiques expirées.
+5. **Liens envoyés par e-mail construits depuis l'en-tête `Host`**, fourni par le
+   client. Il suffisait de forger `X-Forwarded-Host` pour que l'e-mail envoyé à un
+   client pointe vers le domaine de l'attaquant : au clic, le jeton de sa lecture
+   — seul secret du document — partait chez lui. La base vient maintenant de
+   `ASTROLAB_PUBLIC_URL`, sinon de l'hôte de la requête **hors production
+   seulement**, sinon du domaine connu. Au passage, le protocole par défaut en
+   développement passe de `https` à `http` : le serveur local écoute en clair, les
+   liens générés étaient morts.
+6. **`.dockerignore` désaligné de `.gitignore`** : `lastroVgpt/` (que `.gitignore`
+   décrit comme « ne jamais commiter : contient .env et données »), `.env.local`,
+   `.env.production`, `*.pem` et les fichiers de travail de la racine entraient
+   dans l'image par `COPY . .`.
+
+**Signalé, non corrigé — décision d'exploitation.**
+
+Ces points touchent le déploiement et ne se vérifient pas depuis le dépôt ; les
+corriger à l'aveugle casserait plus qu'ils ne protègent.
+
+- **Le conteneur tourne en root** (aucune directive `USER`). Passer à `USER node`
+  exige que le disque persistant monté par Render appartienne à cet utilisateur :
+  sinon l'application ne peut plus écrire son fichier d'état, et la persistance
+  tombe **silencieusement** — exactement la panne que le README demande de
+  surveiller. À faire en vérifiant les droits du disque.
+- **Image de base non épinglée par digest** (`node:22-alpine`) et **actions GitHub
+  épinglées à un tag** (`@v4`) plutôt qu'à un SHA. Impact faible (jeton en lecture
+  seule, aucun secret), mais un tag peut être re-pointé.
+- **Pas de CSP** dans `securityHeaders()`. Elle devrait autoriser Stripe
+  (`js.stripe.com`) et le script en ligne de `index.html` : une CSP écrite sans
+  pouvoir tester le tunnel de paiement casserait l'encaissement. À poser avec un
+  test sur le parcours réel.
+- **La file d'envoi conserve indéfiniment les corps d'e-mails**, y compris les
+  liens de récupération. Le jeton devient inutilisable à l'expiration de la
+  lecture (30 jours), donc ce n'est pas exploitable — mais c'est de la rétention
+  sans raison. À purger avec les lectures expirées.
+- **`puppeteer-core` installé hors lockfile** dans le Dockerfile (chemin
+  `WITH_PDF_RENDERER`) : version figée, sans intégrité vérifiée.
+
+## Codes à usage unique (12/09/2026)
+
+Demande : distribuer des lectures offertes à des personnes nommées, avec un code
+qui ne serve qu'une fois — là où `ASTROLAB_TEST_CODE` est unique, partagé et
+illimité, et où les codes privés `ASTROLAB_PROMO_CODES` sont eux aussi illimités.
+
+**Ce qui a été ajouté.** Une collection `accessCodes` dans le stockage, un service
+(`src/models/accessCodeService.mjs`), un outil en ligne de commande
+(`tools/access-codes.mjs`), et le branchement dans le parcours de lecture. Le
+champ du site, qui s'appelait « J'ai un code de test » avec la mention « usage
+interne uniquement » dans les neuf langues, devient « J'ai un code » — il sert
+aux deux sources.
+
+**Les trois décisions qui comptent.**
+
+1. **La consommation a lieu dans la transaction qui crée la livraison**, pas
+   avant. Un contrôle fait à côté laisserait deux requêtes simultanées portant le
+   même code passer toutes les deux, et une seule personne obtiendrait deux
+   lectures gratuites. C'est exactement la course que la sérialisation des
+   transactions (corrigée plus haut dans ce document) permet de fermer. Un test
+   lance deux créations en parallèle et exige **une seule** livraison.
+2. **La saisie est validée AVANT de consommer.** Sans cela, une demande
+   incomplète (date de naissance manquante) créait la livraison, brûlait le code,
+   puis échouait — le client perdait son code pour une lecture qui ne pouvait pas
+   être écrite. `assertPublicReadingInput` est donc appelé avant, et il est
+   partagé avec `createPublicReading` pour que les deux ne divergent pas.
+3. **Seule l'empreinte SHA-256 est enregistrée.** Les codes font 16 caractères sur
+   un alphabet de 32 sans caractères confondables (I, O, 0, 1), soit 80 bits :
+   l'empreinte n'a pas besoin d'être salée, il n'y a rien à deviner. Un stockage
+   qui fuite ne distribue donc pas de lectures gratuites. Contrepartie assumée :
+   les codes en clair ne sont affichés **qu'à la création**.
+
+**Deux limites à connaître.**
+
+- **Le serveur garde l'état en mémoire et réécrit le fichier entier à chaque
+  transaction.** Créer des codes pendant qu'il tourne, c'est risquer qu'il les
+  écrase à son prochain enregistrement. L'outil le rappelle : il faut redémarrer
+  le service après (`create` comme `revoke`). Il ne relit pas le fichier tout
+  seul.
+- **Une demande perdue après consommation ne se rejoue pas** : le code est
+  consommé, et une nouvelle tentative répond 409. C'est le prix de « une seule
+  fois ». La sortie de secours est l'outil : `list` montre la référence de la
+  lecture ouverte par chaque code. Pour la retrouver entièrement, il faudrait le
+  lien `/r/<jeton>`, qui n'est pas conservé dans le registre des codes.
+
+```bash
+node tools/access-codes.mjs create --count 20 --label "Lancement" --expires 90
+node tools/access-codes.mjs list
+node tools/access-codes.mjs revoke code_<identifiant>
+```
+
+## Empêcher l'abus des lectures gratuites (12/09/2026)
+
+Question posée : comment garantir que personne — ni un script, ni une IA — ne
+parvienne à produire des lectures gratuites. Ce qui suit distingue ce qui tient
+déjà par construction, ce qui a été corrigé, et ce qui relève de l'exploitation.
+
+**Ce qui tient déjà, et qu'aucun agent ne contourne.**
+
+- Le code de test n'est ni dans la page, ni dans le JavaScript, ni dans
+  `/api/config`, ni dans le dépôt : il vit dans une variable d'environnement, et
+  la comparaison est à temps constant (pas de fuite caractère par caractère).
+- Un code à usage unique ne sert **qu'une fois**, même avec deux requêtes
+  simultanées : la consommation est dans la transaction. Partager un code, même
+  en le collant dans une IA, ne donne donc qu'une lecture.
+- Aucun point d'entrée public n'énumère les codes ; l'outil est local. Les codes
+  ne sont jamais journalisés, et le stockage ne contient que des empreintes.
+- En production, sans code ni paiement vérifié : `402`. Montant, finalité et
+  statut `paid` sont recontrôlés chez Stripe.
+- `/api/config` dit seulement qu'un code existe, jamais combien.
+
+**Corrigé.**
+
+1. **Le compteur d'échecs du code de test était global.** Vingt mauvais codes
+   envoyés depuis n'importe où bloquaient le code de l'exploitant pendant une
+   heure, **pour tout le monde** : un déni de service sur son propre accès, pas
+   une protection. Il est désormais **par client**, avec un plafond de service en
+   second rideau pour borner une attaque distribuée. Un test vérifie qu'un
+   attaquant limité garde son blocage pendant que l'exploitant garde le sien.
+2. **`POST /api/public/readings` n'était limité par rien** — c'est pourtant le
+   point qui déclenche la dépense. Il faut distinguer les deux sources : un code
+   à usage unique est déjà borné à une lecture, alors qu'un plafond par IP
+   punirait un atelier où dix personnes légitimes partagent un réseau. Le plafond
+   (5 par jour et par poste) porte donc **uniquement sur le code de test
+   partagé**, seul illimité par construction.
+3. **Les lectures offertes ne laissaient aucune trace exploitable.** Chacune
+   écrit maintenant une ligne avec l'identifiant du code (jamais le code) et
+   l'adresse **réduite à son préfixe réseau** (/24 en IPv4, /48 en IPv6) : assez
+   pour voir « un poste insiste », pas assez pour conserver l'adresse complète
+   d'un client.
+4. **Le mode sans paiement était un libre-service hors production.** Sans Stripe
+   et avec `NODE_ENV` non renseigné, n'importe qui obtenait une lecture : une
+   préversion oubliée devenait un site offert. Le mode gratuit sans Stripe est
+   maintenant réservé aux appels **venus de la machine elle-même**, sauf
+   `ASTROLAB_ALLOW_FREE_READINGS=1` écrit explicitement. Le développement local
+   n'est pas touché.
+
+**Ce qui relève de l'exploitation, pas du code.**
+
+- **Ne jamais distribuer `ASTROLAB_TEST_CODE`** : il est illimité par
+  construction. Distribuer des codes à usage unique, avec expiration. S'il a déjà
+  circulé, le changer dans Render.
+- **Le vrai risque n'est pas l'IA qui devine, c'est le code qui fuite.** Une IA
+  n'a rien à deviner sur 80 bits, et il n'y a aucun code à lire dans le HTML.
+  Partager un code à usage unique reste sans danger : il ne vaut qu'une lecture.
+- Pas de CAPTCHA : il pénaliserait les clients pour un risque que les codes à
+  usage unique couvrent déjà. La ceinture et les bretelles serait d'exiger une
+  adresse vérifiée pour une lecture offerte, mais le parcours public est sans
+  compte — ce serait un changement de produit, pas un réglage.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -799,7 +1070,7 @@ régression réparée.
 ## Commandes utiles
 
 ```bash
-npm test                                   # 266 tests
+npm test                                   # 318 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

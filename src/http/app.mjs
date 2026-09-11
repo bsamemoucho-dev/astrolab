@@ -18,7 +18,7 @@ import { getAdminSummary, listAdminAuditLogs } from "../models/adminService.mjs"
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
-import { createPublicReading } from "../models/publicReadingService.mjs";
+import { assertPublicReadingInput, createPublicReading } from "../models/publicReadingService.mjs";
 import {
   createPaidDelivery,
   deleteDeliveryByToken,
@@ -55,12 +55,14 @@ import {
   stripeKeyProblem
 } from "../payments/stripe.mjs";
 import {
-  registerTestCodeFailure,
+  FAILURE_WINDOW_MS,
+  MAX_FAILURES_PER_WINDOW,
   testCodeEnabled,
-  testCodeMatches,
-  testCodeRateLimited
+  testCodeMatches
 } from "../payments/freeAccess.mjs";
 import { generateDailyHoroscope } from "../models/horoscopeService.mjs";
+import { accessCodeError, checkAccessCode, countUsableAccessCodes } from "../models/accessCodeService.mjs";
+import { clientAddress, createRateLimiter, isLoopbackAddress, maskClientAddress, retryAfterSeconds } from "./rateLimit.mjs";
 import { createReport, listReports } from "../models/reportService.mjs";
 import {
   deleteDeliverable,
@@ -101,13 +103,42 @@ function route(method, pattern, handler) {
   return { method, pattern, handler };
 }
 
-// Adresse publique du site, pour construire les liens de récupération : on se
-// fie à l'hôte de la requête (fonctionne sur le domaine final comme sur une
-// préversion), jamais à une valeur codée en dur.
+// Base des liens envoyés par e-mail.
+//
+// Elle ne vient PAS de l'en-tête Host de la requête, qui est fourni par le
+// client. Le raisonnement d'origine (« fonctionne sur le domaine final comme sur
+// une préversion ») avait un coût qu'on n'avait pas vu : il suffisait de forger
+// `X-Forwarded-Host` pour que l'e-mail envoyé à un client pointe vers le domaine
+// de l'attaquant. Le client cliquait, et le jeton de sa lecture — seul secret du
+// document — partait chez lui. Il fallait connaître le numéro de commande et
+// l'adresse, mais ces deux valeurs circulent (support, capture d'écran,
+// transfert d'e-mail).
+//
+// L'ordre est donc : configuration explicite, puis l'hôte de la requête
+// UNIQUEMENT hors production (confort du développement local), puis le domaine
+// de production. Le défaut est le domaine déjà publié (canonical de la page,
+// sitemap) : s'il change, c'est la configuration qui change, pas le code.
+const DEFAULT_PUBLIC_BASE_URL = "https://www.lastro.fr";
+
 function publicBaseUrl(req) {
-  const proto = String(req.headers["x-forwarded-proto"] ?? "").split(",")[0].trim() || "https";
-  const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost").split(",")[0].trim();
-  return `${proto}://${host}`;
+  const configure = String(process.env.ASTROLAB_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
+  if (configure) {
+    // Une valeur mal formée produirait des liens morts dans les e-mails : on
+    // retombe sur le domaine connu plutôt que d'envoyer n'importe quoi.
+    if (/^https?:\/\/[^\s/]+/i.test(configure)) {
+      return configure;
+    }
+    console.warn(`[Lastro] ASTROLAB_PUBLIC_URL ignorée (URL absolue attendue) : ${configure.slice(0, 60)}`);
+  }
+  if (process.env.NODE_ENV !== "production") {
+    // `http` par défaut : le serveur de développement écoute en clair, et
+    // supposer `https` produisait des liens morts en local. Derrière un proxy
+    // qui termine le TLS, l'en-tête transmis fait foi.
+    const proto = String(req.headers["x-forwarded-proto"] ?? "").split(",")[0].trim() || "http";
+    const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost").split(",")[0].trim();
+    return `${proto}://${host}`;
+  }
+  return DEFAULT_PUBLIC_BASE_URL;
 }
 
 // Seules les données nécessaires à une reprise de rédaction sont conservées :
@@ -126,6 +157,36 @@ function storableInput(body) {
     intention: body.intention ?? null,
     parents: body.parents ?? null
   };
+}
+
+// Crédits « de développement » : ce point d'entrée existe pour les essais, pas
+// pour la production. Sans ce refus, n'importe quel compte connecté s'attribue
+// 10, 50 ou 150 crédits — sans conséquence tant que les crédits n'ouvrent rien,
+// porte grande ouverte le jour où ils ouvriront quelque chose. Le drapeau
+// explicite permet un essai assumé, comme ASTROLAB_ALLOW_FREE_READINGS.
+function developmentCreditsAllowed() {
+  if (process.env.NODE_ENV !== "production") {
+    return true;
+  }
+  return process.env.ASTROLAB_ALLOW_DEV_CREDITS === "1";
+}
+
+// Destinataires autorisés pour le test d'envoi.
+//
+// Ce point d'entrée sert à vérifier que l'envoi fonctionne, pas à écrire à
+// n'importe qui. Il était ouvert à quiconque détient le code de test : celui-ci
+// étant fait pour être partagé, son détenteur pouvait envoyer du courrier
+// illimité vers n'importe quelle adresse depuis notre domaine (quota Brevo,
+// délivrabilité, réputation). Par défaut on n'écrit donc qu'à l'expéditeur
+// lui-même ; ASTROLAB_TEST_EMAIL_ALLOWLIST ajoute des adresses, séparées par des
+// virgules, pour les essais qui ont besoin d'une autre boîte.
+function testEmailAllowedRecipients() {
+  const expediteur = String(process.env.BREVO_SENDER_EMAIL ?? "").trim().toLowerCase();
+  const supplement = String(process.env.ASTROLAB_TEST_EMAIL_ALLOWLIST ?? "")
+    .split(",")
+    .map((adresse) => adresse.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set([expediteur, ...supplement].filter(Boolean));
 }
 
 function matchRoute(routes, req) {
@@ -151,6 +212,49 @@ export function createApp(options = {}) {
   // Rendu PDF automatique : `null` quand le drapeau n'est pas posé, et l'option
   // permet d'en injecter un autre dans les tests.
   const pdfRenderer = "pdfRenderer" in options ? options.pdfRenderer : defaultPdfRenderer();
+
+  // Compteurs des points d'entrée non authentifiés, créés par application et non
+  // au niveau du module : deux applications (les tests en montent plusieurs) ne
+  // doivent pas partager leurs compteurs, sinon un cas de test hérite de l'état
+  // laissé par le précédent. Les valeurs sont commentées à chaque usage.
+  const limites = {
+    // Inscrire envoie un e-mail : la borne protège la boîte visée et le quota.
+    // Dix par heure et par client plutôt que cinq : une annonce de lancement fait
+    // s'inscrire plusieurs personnes derrière la même adresse (bureau, wifi
+    // public), et bloquer des inscriptions légitimes coûte plus cher que la
+    // poignée d'e-mails qu'un client peut déclencher. C'est le plafond de
+    // service, cent par heure, qui protège réellement le quota d'envoi.
+    inscriptionParClient: createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 }),
+    inscriptionService: createRateLimiter({ windowMs: 60 * 60 * 1000, max: 100 }),
+    // Se connecter : la clé est le compte visé, pas la source — un attaquant peut
+    // changer d'adresse, pas changer le compte qu'il essaie d'ouvrir.
+    connexionParCompte: createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 }),
+    connexionParClient: createRateLimiter({ windowMs: 15 * 60 * 1000, max: 30 }),
+    // Redemander un lien de lecture envoie un e-mail à l'adresse enregistrée.
+    recuperationParClient: createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 }),
+    // Chercher un lieu relaie vers un service externe gratuit.
+    lieuxParClient: createRateLimiter({ windowMs: 10 * 60 * 1000, max: 120 }),
+    // Tentatives de code de test. PAR CLIENT d'abord : un compteur global
+    // permettait à n'importe qui de bloquer le code de l'exploitant pour tout le
+    // monde en envoyant vingt mauvais codes. Le plafond de service reste, en
+    // second rideau, pour borner une attaque distribuée.
+    codeTestParClient: createRateLimiter({ windowMs: FAILURE_WINDOW_MS, max: MAX_FAILURES_PER_WINDOW }),
+    codeTestService: createRateLimiter({ windowMs: FAILURE_WINDOW_MS, max: 100 }),
+    // Lectures offertes par le code de test PARTAGÉ : lui seul est illimité par
+    // construction, donc lui seul a besoin d'un plafond. Les codes à usage unique
+    // sont déjà bornés à une lecture — les plafonner par client punirait un
+    // atelier où dix personnes légitimes se connectent du même réseau.
+    lecturesOffertesParClient: createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 5 })
+  };
+
+  // Réponse unique de limitation : le client sait quand réessayer, et on ne dit
+  // jamais si la ressource visée existe.
+  const refuseTropDeRequetes = (limite, message) => {
+    const error = new Error(message);
+    error.status = 429;
+    error.retryAfterSeconds = retryAfterSeconds(limite.retryAfterMs);
+    throw error;
+  };
 
   // Une conversion à la fois, et jamais de HTML arbitraire : on ne rend que le
   // document déjà stocké, retrouvé par son jeton ou son identifiant.
@@ -205,7 +309,13 @@ export function createApp(options = {}) {
     }),
     // Parcours public « sans compte » : résolution de lieu et lecture, aucune
     // inscription, aucune donnée personnelle persistée.
-    route("GET", /^\/api\/public\/places\/search$/, async (_req, res, _params, url) => {
+    route("GET", /^\/api\/public\/places\/search$/, async (req, res, _params, url) => {
+      const client = clientAddress(req);
+      const limite = limites.lieuxParClient.check(client);
+      if (limite.limited) {
+        refuseTropDeRequetes(limite, "Trop de recherches de lieux en peu de temps. Réessayez dans un instant.");
+      }
+      limites.lieuxParClient.hit(client);
       sendJson(res, 200, await searchPlacesForEntryDetailed(url.searchParams.get("q")));
     }),
     route("POST", /^\/api\/public\/places\/resolve$/, async (req, res) => {
@@ -265,30 +375,99 @@ export function createApp(options = {}) {
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
       const body = await readJson(req);
 
-      // Accès gratuit de test : code d'exploitant, comparé côté serveur.
+      // Accès gratuit : deux sources, un seul chemin.
+      //
+      //   - le code de test de l'exploitant, partagé et illimité (variable
+      //     d'environnement) ;
+      //   - les codes à usage unique, distribués à des personnes et consommés à
+      //     la première lecture.
+      //
+      // Ce bloc ne fait que DÉCIDER du chemin. La consommation d'un code à usage
+      // unique a lieu dans la transaction qui crée la livraison (voir
+      // `createPaidDelivery`) : c'est le seul endroit où vérifier et consommer ne
+      // peuvent pas être séparés par une autre requête.
       let freeAccess = false;
-      const testCode = String(body.testCode ?? "").trim();
-      if (testCode) {
-        if (!testCodeEnabled()) {
-          const error = new Error("Aucun code de test n'est configuré sur ce site.");
-          error.status = 400;
-          throw error;
-        }
-        if (!testCodeMatches(testCode)) {
-          // La limite ne porte que sur les codes invalides : un code correct
-          // reste utilisable même si quelqu'un a essayé de le deviner.
-          if (testCodeRateLimited()) {
-            const error = new Error("Trop de codes de test invalides. Réessayez dans une heure.");
-            error.status = 429;
+      let accessCode = null;
+      // Le quota ne compte que les lectures réellement accordées : une demande
+      // incomplète ne doit pas consommer le quota de quelqu'un.
+      let compteQuotaPartage = false;
+      const client = clientAddress(req);
+      const codeSaisi = String(body.accessCode ?? body.testCode ?? "").trim();
+      if (codeSaisi) {
+        if (testCodeEnabled() && testCodeMatches(codeSaisi)) {
+          // Le code de test est partagé et illimité par construction : c'est la
+          // seule source qu'un plafond doit borner. S'il fuite, il ne peut pas
+          // servir à produire des lectures en série depuis un même poste.
+          const quota = limites.lecturesOffertesParClient.check(client);
+          if (quota.limited) {
+            refuseTropDeRequetes(
+              quota,
+              "Trop de lectures offertes depuis ce poste aujourd'hui. Réessayez demain, ou utilisez votre code personnel."
+            );
+          }
+          freeAccess = true;
+          compteQuotaPartage = true;
+          console.log(
+            `[Lastro] lecture offerte (code de test) — ${maskClientAddress(client)} — ${new Date().toISOString()}`
+          );
+        } else {
+          // Pas le code de test : peut-être un code à usage unique. Le contrôle
+          // ci-dessous est en LECTURE SEULE — il choisit le message, il n'autorise
+          // rien. Seule la transaction de création fait autorité.
+          const controle = checkAccessCode(await store.load(), codeSaisi);
+          if (controle.ok) {
+            freeAccess = true;
+            accessCode = codeSaisi;
+            // Journalisé avec l'identifiant du registre, jamais avec le code.
+            console.log(
+              `[Lastro] lecture offerte (code à usage unique ${controle.entry.id}) — ${maskClientAddress(client)} — ${new Date().toISOString()}`
+            );
+          } else if (controle.reason !== "inconnu") {
+            // Connu mais déjà consommé ou expiré : message et statut propres, sinon
+            // le client croirait s'être trompé de code.
+            throw accessCodeError(controle.reason);
+          } else {
+            // Valeur reconnue par aucune source.
+            //
+            // Le compteur d'échecs est incrémenté DÈS QU'un code de test est
+            // configuré, quelle que soit l'origine de la saisie : sans cela, le
+            // champ du site permettrait de deviner le code de test partagé sans
+            // jamais déclencher la limitation.
+            if (testCodeEnabled()) {
+              const parClient = limites.codeTestParClient.check(client);
+              const parService = limites.codeTestService.check("service");
+              if (parClient.limited || parService.limited) {
+                refuseTropDeRequetes(
+                  parClient.limited ? parClient : parService,
+                  "Trop de codes de test invalides. Réessayez dans une heure."
+                );
+              }
+              limites.codeTestParClient.hit(client);
+              limites.codeTestService.hit("service");
+            }
+            if (body.accessCode) {
+              const error = new Error("Ce code n'est pas valide.");
+              error.status = 403;
+              throw error;
+            }
+            if (!testCodeEnabled()) {
+              const error = new Error("Aucun code de test n'est configuré sur ce site.");
+              error.status = 400;
+              throw error;
+            }
+            const error = new Error("Code de test invalide.");
+            error.status = 403;
             throw error;
           }
-          registerTestCodeFailure();
-          const error = new Error("Code de test invalide.");
-          error.status = 403;
-          throw error;
         }
-        freeAccess = true;
-        console.log(`[Lastro] lecture offerte (code de test) — ${new Date().toISOString()}`);
+      }
+
+      // Validation AVANT de consommer : une demande incomplète (date manquante)
+      // ne doit pas brûler le code de quelqu'un. La livraison serait de toute
+      // façon enregistrée avant la rédaction, donc le code serait consommé pour
+      // une lecture qui ne peut pas être écrite.
+      if (freeAccess) {
+        assertPublicReadingInput(body);
       }
 
       let payment = null;
@@ -315,16 +494,22 @@ export function createApp(options = {}) {
           throw error;
         }
 
-        // En production, l'absence de configuration de paiement n'est pas un mode
-        // gratuit : c'est une panne de configuration qui offrirait les lectures.
-        // On refuse de rédiger (et donc de donner) tant que ce n'est pas explicite.
-        if (!stripeConfiguration() && process.env.NODE_ENV === "production" && process.env.ASTROLAB_ALLOW_FREE_READINGS !== "1") {
-          const error = new Error(
-            "Le paiement n'est pas configuré sur ce service : aucune lecture ne peut être commandée pour l'instant. Vous ne serez pas débité. Merci de réessayer plus tard."
-          );
-          error.status = 503;
-          error.code = "payment_not_configured";
-          throw error;
+        // L'absence de paiement configuré n'est pas un mode gratuit implicite.
+        //
+        //   - en production : refus, sauf ASTROLAB_ALLOW_FREE_READINGS=1 ;
+        //   - ailleurs (développement, préversion) : refus SAUF si l'appel vient de
+        //     la machine elle-même. Une préversion oubliée, joignable depuis
+        //     Internet et sans Stripe, offrait sinon des lectures à n'importe qui.
+        if (!stripeConfiguration() && process.env.ASTROLAB_ALLOW_FREE_READINGS !== "1") {
+          const local = isLoopbackAddress(clientAddress(req));
+          if (process.env.NODE_ENV === "production" || !local) {
+            const error = new Error(
+              "Le paiement n'est pas configuré sur ce service : aucune lecture ne peut être commandée pour l'instant. Vous ne serez pas débité. Merci de réessayer plus tard."
+            );
+            error.status = 503;
+            error.code = "payment_not_configured";
+            throw error;
+          }
         }
 
         // Paiement obligatoire dès que Stripe est configuré (sinon mode test/dev).
@@ -393,7 +578,8 @@ export function createApp(options = {}) {
           currency: payment?.currency ?? null,
           language: body.language ?? null,
           input: storableInput(body),
-          freeAccess
+          freeAccess,
+          accessCode
         });
         delivery = created.delivery;
       }
@@ -417,6 +603,11 @@ export function createApp(options = {}) {
         }
         const reading = await createPublicReading(readingInput);
         await markDeliveryReady(store, delivery.id, reading);
+        // Le quota ne compte que les lectures RÉELLEMENT accordées : une demande
+        // incomplète ou une rédaction en échec ne consomme rien.
+        if (compteQuotaPartage) {
+          limites.lecturesOffertesParClient.hit(client);
+        }
         const link = deliveryLink(delivery.token, publicBaseUrl(req));
         await queueDeliveryEmail(store, delivery, { link });
         // L'envoi ne doit jamais faire échouer la livraison : en cas d'échec,
@@ -445,7 +636,19 @@ export function createApp(options = {}) {
       const body = await readJson(req);
       if (!testCodeEnabled() || !testCodeMatches(String(body.testCode ?? ""))) {
         if (testCodeEnabled()) {
-          registerTestCodeFailure();
+          // Mêmes compteurs que la route des lectures : ce point d'entrée est une
+          // autre porte sur le même secret, elle ne doit pas être plus permissive.
+          const client = clientAddress(req);
+          const parClient = limites.codeTestParClient.check(client);
+          const parService = limites.codeTestService.check("service");
+          if (parClient.limited || parService.limited) {
+            refuseTropDeRequetes(
+              parClient.limited ? parClient : parService,
+              "Trop de codes de test invalides. Réessayez dans une heure."
+            );
+          }
+          limites.codeTestParClient.hit(client);
+          limites.codeTestService.hit("service");
         }
         const error = new Error("Code de test invalide.");
         error.status = 403;
@@ -457,6 +660,15 @@ export function createApp(options = {}) {
         throw error;
       }
       const to = String(body.to ?? "").trim();
+      // Le code de test est fait pour être partagé : il ne doit pas devenir un
+      // droit d'écrire à n'importe qui depuis notre domaine.
+      if (!testEmailAllowedRecipients().has(to.toLowerCase())) {
+        const error = new Error(
+          "Cette adresse n'est pas autorisée pour le test d'envoi. Ajoutez-la à ASTROLAB_TEST_EMAIL_ALLOWLIST pour l'utiliser."
+        );
+        error.status = 403;
+        throw error;
+      }
       await sendEmail({
         to,
         subject: "Test d'envoi Lastro",
@@ -471,6 +683,14 @@ export function createApp(options = {}) {
     // au paiement, et reçoit le lien à cette adresse. La réponse est identique
     // que la commande existe ou non, pour ne rien révéler à un curieux.
     route("POST", /^\/api\/public\/deliveries\/recover$/, async (req, res) => {
+      // Ce point d'entrée envoie un e-mail à l'adresse enregistrée : sans borne,
+      // il sert à inonder la boîte d'un client dont on connaît la référence.
+      const client = clientAddress(req);
+      const limite = limites.recuperationParClient.check(client);
+      if (limite.limited) {
+        refuseTropDeRequetes(limite, "Trop de demandes de récupération en peu de temps. Réessayez plus tard.");
+      }
+      limites.recuperationParClient.hit(client);
       const body = await readJson(req);
       const reference = String(body.reference ?? "").trim().toUpperCase().replace(/\s+/g, "");
       const email = String(body.email ?? "").trim().toLowerCase();
@@ -540,10 +760,16 @@ export function createApp(options = {}) {
     }),
     route("GET", /^\/api\/config$/, async (_req, res) => {
       const stripe = stripeConfiguration();
+      // Le site n'affiche le champ « J'ai un code » que si une source de code
+      // existe : un code de test configuré, ou au moins un code à usage unique
+      // disponible. On n'annonce jamais COMBIEN il en reste : le nombre de codes
+      // non utilisés est une information d'exploitation.
+      const codesEnabled = testCodeEnabled() || countUsableAccessCodes(await store.load()) > 0;
       sendJson(res, 200, {
         commerceEnabled,
         allowRegistration,
         testCodeEnabled: testCodeEnabled(),
+        codesEnabled,
         emailConfigured: emailEnabled(),
         payments: {
           provider: stripe ? "stripe" : null,
@@ -575,6 +801,22 @@ export function createApp(options = {}) {
         error.status = 403;
         throw error;
       }
+      // S'inscrire envoie un e-mail à l'adresse fournie : c'est le seul point du
+      // site qui écrit à quelqu'un qui n'a rien demandé. La limite par client
+      // borne l'inondation d'une boîte tierce, la limite de service borne le
+      // quota d'envoi et la réputation du domaine. Le corps de la requête n'est
+      // pas encore lu : refuser avant coûte moins cher.
+      const client = clientAddress(req);
+      const parClient = limites.inscriptionParClient.check(client);
+      const parService = limites.inscriptionService.check("service");
+      if (parClient.limited || parService.limited) {
+        refuseTropDeRequetes(
+          parClient.limited ? parClient : parService,
+          "Trop d'inscriptions en peu de temps. Réessayez dans un moment."
+        );
+      }
+      limites.inscriptionParClient.hit(client);
+      limites.inscriptionService.hit("service");
       const result = await register(store, await readJson(req));
       if (emailVerificationMode() === "email") {
         // Le code part par e-mail et n'est PAS renvoyé dans la réponse : sans
@@ -627,7 +869,36 @@ export function createApp(options = {}) {
       sendJson(res, 200, { ok: true, ...(resultat.sent ? { devVerificationCode: resultat.code } : {}) });
     }),
     route("POST", /^\/api\/auth\/login$/, async (req, res) => {
-      const result = await login(store, await readJson(req));
+      const body = await readJson(req);
+      // La clé est le compte visé, pas la source : un attaquant peut changer
+      // d'adresse IP, pas le compte dont il cherche le mot de passe. La limite
+      // par client attrape en plus le bourrage sur beaucoup de comptes.
+      const compte = String(body.email ?? "").trim().toLowerCase();
+      const client = clientAddress(req);
+      const parCompte = limites.connexionParCompte.check(compte);
+      const parClient = limites.connexionParClient.check(client);
+      if (parCompte.limited || parClient.limited) {
+        refuseTropDeRequetes(
+          parCompte.limited ? parCompte : parClient,
+          "Trop de tentatives de connexion. Réessayez dans quelques minutes."
+        );
+      }
+      let result;
+      try {
+        result = await login(store, body);
+      } catch (error) {
+        // Seul un mot de passe faux compte comme un échec : un compte non vérifié
+        // n'est pas une tentative d'intrusion, et le refuser ne doit pas
+        // consommer le quota de connexion de quelqu'un qui a oublié de valider.
+        if (error.status === 401) {
+          limites.connexionParCompte.hit(compte);
+          limites.connexionParClient.hit(client);
+        }
+        throw error;
+      }
+      // Connexion réussie : le compteur du compte repart à zéro, sinon dix
+      // erreurs de frappe étalées dans la journée finiraient par le bloquer.
+      limites.connexionParCompte.reset(compte);
       sendJson(res, 200, { user: result.user }, { "set-cookie": setSessionCookie(result.token) });
     }),
     route("POST", /^\/api\/auth\/logout$/, async (req, res) => {
@@ -736,6 +1007,11 @@ export function createApp(options = {}) {
       sendJson(res, 200, await getCommerceSummary(store, user.id));
     }),
     route("POST", /^\/api\/commerce\/dev-credit-order$/, async (req, res) => {
+      if (!developmentCreditsAllowed()) {
+        const error = new Error("L'attribution de crédits de développement est désactivée sur ce site.");
+        error.status = 403;
+        throw error;
+      }
       const user = await requireUser(store, req);
       sendJson(res, 201, await createDevelopmentCreditOrder(store, user.id, await readJson(req)));
     }),
@@ -831,6 +1107,11 @@ export function createApp(options = {}) {
       }
       const masked = status === 500 || status === 502;
       const message = error.publicMessage ?? (masked ? "Une erreur interne est survenue. Merci de réessayer dans un instant." : error.message);
+      // Une limitation n'est pas une erreur : le client doit savoir QUAND
+      // réessayer, sinon il insiste et la limitation se prolonge.
+      if (error.retryAfterSeconds) {
+        res.setHeader("retry-after", error.retryAfterSeconds);
+      }
       // Le code est une information de contrat, pas un détail d'implémentation :
       // le bouton PDF du site s'en sert pour retomber sur l'impression du
       // navigateur plutôt que d'afficher une erreur au client.

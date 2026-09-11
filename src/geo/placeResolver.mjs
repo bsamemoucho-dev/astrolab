@@ -187,9 +187,52 @@ function fromOpenMeteoResult(result) {
   };
 }
 
+// Cache mémoire des réponses du géocodage externe.
+//
+// Sans lui, chaque frappe de chaque visiteur relançait un appel sortant vers un
+// service gratuit : « Paris » était redemandé des milliers de fois pour la même
+// réponse, et `/api/public/places/search` étant ouvert à tous, n'importe qui
+// pouvait s'en servir de relais. On ne met en cache que les réponses utiles et
+// non vides : mémoriser un échec ou une absence de résultat figerait une panne
+// passagère du service pour des heures.
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const CACHE_MAX_ENTREES = 500;
+const cacheLieux = new Map();
+
+function cacheLire(cle) {
+  const entree = cacheLieux.get(cle);
+  if (!entree) {
+    return null;
+  }
+  if (Date.now() - entree.at > CACHE_TTL_MS) {
+    cacheLieux.delete(cle);
+    return null;
+  }
+  return entree.valeur;
+}
+
+function cacheEcrire(cle, valeur) {
+  cacheLieux.delete(cle);
+  cacheLieux.set(cle, { at: Date.now(), valeur });
+  while (cacheLieux.size > CACHE_MAX_ENTREES) {
+    cacheLieux.delete(cacheLieux.keys().next().value);
+  }
+}
+
+// Utilisée par les tests : sans cela, un cas de test hériterait du cache d'un autre.
+export function resetPlaceCache() {
+  cacheLieux.clear();
+}
+
 async function searchOpenMeteoPlaces(query) {
   if (process.env.ASTROLAB_DISABLE_EXTERNAL_PLACE_RESOLUTION === "1") {
     return [];
+  }
+
+  const cle = String(query ?? "").trim().toLowerCase();
+  const enCache = cacheLire(cle);
+  if (enCache) {
+    return enCache.map((lieu) => ({ ...lieu }));
   }
 
   const url = new URL(OPEN_METEO_ENDPOINT);
@@ -205,7 +248,11 @@ async function searchOpenMeteoPlaces(query) {
     throw error;
   }
   const payload = await response.json();
-  return (payload.results ?? []).filter((result) => result.latitude && result.longitude && result.timezone).map(fromOpenMeteoResult);
+  const lieux = (payload.results ?? []).filter((result) => result.latitude && result.longitude && result.timezone).map(fromOpenMeteoResult);
+  if (lieux.length) {
+    cacheEcrire(cle, lieux);
+  }
+  return lieux;
 }
 
 // Requêtes de secours utilisées quand la saisie exacte ne donne rien : on

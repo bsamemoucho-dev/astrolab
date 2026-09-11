@@ -3,7 +3,11 @@ import test from "node:test";
 
 import { createApp } from "../src/http/app.mjs";
 import { JsonStore } from "../src/db/jsonStore.mjs";
-import { resetTestCodeFailures } from "../src/payments/freeAccess.mjs";
+
+// Plus de réinitialisation de compteur ici : la limitation des tentatives vivait
+// dans un tableau au niveau du module (donc partagée entre les tests, d'où le
+// `resetTestCodeFailures`). Elle est maintenant portée par l'application, et
+// chaque test monte la sienne — l'isolement est gratuit.
 
 const CODE = "test-code-1234567890";
 const KEYS = [
@@ -39,7 +43,6 @@ async function withEnv(values, run) {
     delete process.env[key];
   }
   Object.assign(process.env, values);
-  resetTestCodeFailures();
   try {
     // `await` est indispensable : sinon la configuration serait restaurée avant
     // que le corps asynchrone du test n'ait lu les variables d'environnement.
@@ -52,8 +55,7 @@ async function withEnv(values, run) {
         process.env[key] = saved[key];
       }
     }
-    resetTestCodeFailures();
-  }
+    }
 }
 
 async function post(baseUrl, path, body) {

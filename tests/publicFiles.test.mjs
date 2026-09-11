@@ -100,3 +100,43 @@ test("le favicon est servi", async () => {
     await app.close();
   }
 });
+
+test("le service de fichiers ne sort jamais du dossier public", async () => {
+  // La traversée est déjà neutralisée par le lecteur d'URL (`/../x` devient `/x`)
+  // et par le contrôle `relative()` de `sendStatic`. Ce test le verrouille : une
+  // réécriture du service statique ne doit pas transformer le repli monopage en
+  // lecture de fichier arbitraire.
+  const app = await startApp();
+  try {
+    // Chaque tentative vise un fichier précis, avec un marqueur qui n'existe que
+    // dans ce fichier : c'est la seule preuve utile (« la réponse ne contient pas
+    // le code source »), le repli monopage répondant 200 par construction.
+    const cibles = [
+      { chemin: "/../.env", marqueur: "ASTROLAB_LLM_API_KEY" },
+      { chemin: "/../../etc/passwd", marqueur: "root:" },
+      { chemin: "/%2e%2e%2f%2e%2e%2fetc%2fpasswd", marqueur: "root:" },
+      { chemin: "/..%2f..%2fetc%2fpasswd", marqueur: "root:" },
+      { chemin: "/....//....//etc/passwd", marqueur: "root:" },
+      { chemin: "/../src/http/app.mjs", marqueur: "createApp" },
+      { chemin: "/../src/db/jsonStore.mjs", marqueur: "class JsonStore" },
+      { chemin: "/../package.json", marqueur: "\"astronomy-engine\"" },
+      { chemin: "/../data/astrolab.json", marqueur: "passwordHash" }
+    ];
+    for (const { chemin, marqueur } of cibles) {
+      const reponse = await fetch(`${app.baseUrl}${chemin}`);
+      const corps = await reponse.text();
+      assert.ok(
+        !corps.includes(marqueur),
+        `fuite de fichier via ${chemin} (marqueur « ${marqueur} » trouvé)`
+      );
+      // Deux issues acceptables, et seulement deux : le garde-fou de traversée
+      // répond 403 (cas des chemins encodés, comme `/..%2f..%2f`), ou l'adresse
+      // inconnue retombe sur la page de l'application. Jamais un fichier.
+      const bloque = reponse.status === 403;
+      const pageApplication = reponse.status === 200 && /<title>Lastro/.test(corps);
+      assert.ok(bloque || pageApplication, `réponse inattendue pour ${chemin} : ${reponse.status}`);
+    }
+  } finally {
+    await app.close();
+  }
+});

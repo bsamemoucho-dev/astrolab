@@ -14,6 +14,8 @@
 
 import { randomBytes } from "node:crypto";
 
+import { consumeAccessCode, markAccessCodeUsed } from "./accessCodeService.mjs";
+
 // Alphabet de 32 caractères (ni I, ni O, ni 0, ni 1 : illisibles au téléphone).
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -106,7 +108,12 @@ export async function purgeExpiredDeliveries(store, now = Date.now()) {
 
 // Idempotent par paiement : un même paiement ne peut produire qu'une commande,
 // même si le navigateur renvoie la demande plusieurs fois.
-export async function createPaidDelivery(store, { paymentSessionId, email, amountCents, currency, language, input, freeAccess = false } = {}, now = Date.now()) {
+//
+// `accessCode` (code à usage unique) est vérifié ET consommé ici, dans la même
+// transaction que la création. C'est la seule façon de tenir « un code = une
+// lecture » : un contrôle fait avant, hors transaction, laisserait deux requêtes
+// simultanées passer toutes les deux.
+export async function createPaidDelivery(store, { paymentSessionId, email, amountCents, currency, language, input, freeAccess = false, accessCode = null } = {}, now = Date.now()) {
   return store.transact((state) => {
     const session = String(paymentSessionId ?? "").trim();
     const existing = session
@@ -115,6 +122,7 @@ export async function createPaidDelivery(store, { paymentSessionId, email, amoun
     if (existing) {
       return { created: false, delivery: existing };
     }
+    const entreeCode = accessCode ? consumeAccessCode(state, accessCode, now) : null;
     const createdAt = nowIso(now);
     const delivery = {
       id: store.id("reading"),
@@ -126,6 +134,8 @@ export async function createPaidDelivery(store, { paymentSessionId, email, amoun
       currency: currency ?? null,
       language: language ?? null,
       freeAccess: Boolean(freeAccess),
+      // Traçabilité : on saura quelle source a ouvert cette lecture gratuite.
+      accessCodeId: entreeCode?.id ?? null,
       status: "paid",
       input: input ?? null,
       reading: null,
@@ -135,6 +145,7 @@ export async function createPaidDelivery(store, { paymentSessionId, email, amoun
       expiresAt: expiresAt(createdAt)
     };
     state.publicReadings.push(delivery);
+    markAccessCodeUsed(entreeCode, { reference: delivery.reference, now });
     purgeExpired(state, now);
     return { created: true, delivery };
   });

@@ -5,12 +5,14 @@
 // envoyé au navigateur : le navigateur ne fait que transmettre ce que
 // l'utilisateur tape, la décision est prise ici.
 //
-// Un code court serait devinable : en dessous de 12 caractères il est refusé,
-// et les échecs répétés sont limités dans le temps.
+// Un code court serait devinable : en dessous de 12 caractères il est refusé, et
+// les échecs répétés sont limités dans le temps (voir `createApp`).
 
 const MIN_CODE_LENGTH = 12;
-const FAILURE_WINDOW_MS = 60 * 60 * 1000;
-const MAX_FAILURES_PER_WINDOW = 20;
+// Bornes de la limitation des tentatives, exportées pour que la route et ce
+// module ne divergent pas sur les valeurs.
+export const FAILURE_WINDOW_MS = 60 * 60 * 1000;
+export const MAX_FAILURES_PER_WINDOW = 20;
 
 export function testCodeConfiguration() {
   const code = String(process.env.ASTROLAB_TEST_CODE ?? "").trim();
@@ -42,27 +44,10 @@ export function testCodeMatches(value) {
   return difference === 0;
 }
 
-const failures = [];
-
-function pruneFailures() {
-  const now = Date.now();
-  while (failures.length > 0 && now - failures[0] > FAILURE_WINDOW_MS) {
-    failures.shift();
-  }
-}
-
-export function testCodeRateLimited() {
-  pruneFailures();
-  return failures.length >= MAX_FAILURES_PER_WINDOW;
-}
-
-export function registerTestCodeFailure() {
-  pruneFailures();
-  failures.push(Date.now());
-  return failures.length;
-}
-
-// Utilisé par les tests automatisés.
-export function resetTestCodeFailures() {
-  failures.length = 0;
-}
+// La limitation des tentatives ne vit plus ici.
+//
+// Elle était portée par un tableau au niveau du module, donc GLOBALE : vingt
+// mauvais codes envoyés depuis n'importe où bloquaient le code de l'exploitant
+// pendant une heure, pour tout le monde. C'était un déni de service sur son propre
+// accès, pas une protection. Elle est maintenant par client (et plafonnée pour le
+// service) dans `createApp`, avec les autres limites.

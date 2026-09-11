@@ -105,16 +105,23 @@ function normalizePlace(input) {
   };
 }
 
-export async function createPublicReading(input = {}, options = {}) {
-  const startedAt = Date.now();
-  const language = normalizeLanguage(input.language);
-  const strings = docStrings(language);
-  const birthDate = cleanString(input.birthDate);
-  if (!birthDate) {
+// Validation minimale de l'entrée, exportée pour pouvoir être appelée AVANT de
+// consommer un code à usage unique : une demande incomplète ne doit pas brûler le
+// code de quelqu'un. `createPublicReading` l'applique de toute façon.
+export function assertPublicReadingInput(input = {}) {
+  if (!cleanString(input?.birthDate)) {
     const error = new Error("La date de naissance est requise.");
     error.status = 400;
     throw error;
   }
+}
+
+export async function createPublicReading(input = {}, options = {}) {
+  const startedAt = Date.now();
+  const language = normalizeLanguage(input.language);
+  const strings = docStrings(language);
+  assertPublicReadingInput(input);
+  const birthDate = cleanString(input.birthDate);
   const place = normalizePlace(input);
 
   const calculation = calculateWesternNatalChart({

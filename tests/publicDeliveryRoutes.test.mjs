@@ -183,7 +183,12 @@ test("l'exploitant peut tester l'envoi d'un e-mail sans passer par un paiement",
     }
     return originalFetch(url, options);
   };
-  const previous = { key: process.env.BREVO_API_KEY, sender: process.env.BREVO_SENDER_EMAIL, code: process.env.ASTROLAB_TEST_CODE };
+  const previous = {
+    key: process.env.BREVO_API_KEY,
+    sender: process.env.BREVO_SENDER_EMAIL,
+    code: process.env.ASTROLAB_TEST_CODE,
+    allowlist: process.env.ASTROLAB_TEST_EMAIL_ALLOWLIST
+  };
   process.env.BREVO_API_KEY = "xkeysib-test";
   process.env.BREVO_SENDER_EMAIL = "contact@lastro.fr";
   process.env.ASTROLAB_TEST_CODE = "mon-code-de-test-2026";
@@ -191,27 +196,50 @@ test("l'exploitant peut tester l'envoi d'un e-mail sans passer par un paiement",
     // Sans le bon code, rien ne part.
     const refused = await request(app.baseUrl, "/api/public/test-email", {
       method: "POST",
-      body: { testCode: "mauvais-code-123456", to: "bassam@example.com" }
+      body: { testCode: "mauvais-code-123456", to: "contact@lastro.fr" }
     });
     assert.equal(refused.status, 403);
     assert.equal(sent.length, 0);
 
+    // Le code de test est fait pour être partagé : le détenir ne donne pas le
+    // droit d'écrire à n'importe qui depuis notre domaine.
+    const horsListe = await request(app.baseUrl, "/api/public/test-email", {
+      method: "POST",
+      body: { testCode: "mon-code-de-test-2026", to: "inconnu@example.com" }
+    });
+    assert.equal(horsListe.status, 403);
+    assert.match(horsListe.payload.error, /autorisée/i);
+    assert.equal(sent.length, 0);
+
+    // L'expéditeur lui-même reste joignable, sans tenir compte de la casse.
     const ok = await request(app.baseUrl, "/api/public/test-email", {
       method: "POST",
-      body: { testCode: "mon-code-de-test-2026", to: "Bassam@Example.com" }
+      body: { testCode: "mon-code-de-test-2026", to: "Contact@Lastro.fr" }
     });
     assert.equal(ok.status, 200);
     assert.equal(ok.payload.sent, true);
-    assert.equal(ok.payload.to, "b***@example.com");
+    assert.equal(ok.payload.to, "c***@lastro.fr");
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].to[0].email, "Bassam@Example.com");
+    assert.equal(sent[0].to[0].email, "Contact@Lastro.fr");
     assert.match(sent[0].subject, /Test d'envoi Lastro/);
+
+    // Une adresse explicitement autorisée passe : les essais ont besoin d'une
+    // autre boîte que celle de l'expéditeur.
+    process.env.ASTROLAB_TEST_EMAIL_ALLOWLIST = "bassam@example.com, autre@example.com";
+    const autorise = await request(app.baseUrl, "/api/public/test-email", {
+      method: "POST",
+      body: { testCode: "mon-code-de-test-2026", to: "Bassam@Example.com" }
+    });
+    assert.equal(autorise.status, 200);
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1].to[0].email, "Bassam@Example.com");
   } finally {
     globalThis.fetch = originalFetch;
     for (const [name, value] of [
       ["BREVO_API_KEY", previous.key],
       ["BREVO_SENDER_EMAIL", previous.sender],
-      ["ASTROLAB_TEST_CODE", previous.code]
+      ["ASTROLAB_TEST_CODE", previous.code],
+      ["ASTROLAB_TEST_EMAIL_ALLOWLIST", previous.allowlist]
     ]) {
       if (value === undefined) {
         delete process.env[name];

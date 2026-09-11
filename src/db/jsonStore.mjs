@@ -1,6 +1,13 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
+
+// Le fichier d'état contient des hachés de mots de passe, des jetons de session
+// et des données de naissance : il n'a aucune raison d'être lisible par un autre
+// utilisateur de la machine. Ces modes sont soumis à l'umask, qui ne peut que
+// restreindre davantage.
+const FILE_MODE = 0o600;
+const DIR_MODE = 0o700;
 
 export function createEmptyState() {
   return {
@@ -22,6 +29,7 @@ export function createEmptyState() {
     deliverableVersions: [],
     orders: [],
     publicReadings: [],
+    accessCodes: [],
     creditLedger: [],
     auditLogs: [],
     methods: [
@@ -77,6 +85,8 @@ export class JsonStore {
     this.initialState = initialState;
     this.state = structuredClone(initialState);
     this.loaded = false;
+    // File d'attente des transactions : voir `transact`.
+    this.queue = Promise.resolve();
   }
 
   async load() {
@@ -111,21 +121,55 @@ export class JsonStore {
       return;
     }
 
-    await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, `${JSON.stringify(this.state, null, 2)}\n`, "utf8");
+    const contenu = `${JSON.stringify(this.state, null, 2)}\n`;
+    await mkdir(dirname(this.filePath), { recursive: true, mode: DIR_MODE });
+
+    // Écriture atomique : on écrit à côté, puis on renomme. `rename` sur le même
+    // système de fichiers est atomique — un lecteur voit soit l'ancien fichier
+    // entier, soit le nouveau, jamais un JSON tronqué. L'écriture directe
+    // précédente ouvrait en mode « w », donc tronquait d'abord : une coupure
+    // (SIGKILL, OOM, redéploiement) pendant l'écriture laissait un fichier
+    // invalide, et comme `load()` ne rattrape que l'absence de fichier, toutes
+    // les requêtes échouaient ensuite, définitivement.
+    const temporaire = `${this.filePath}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
+    try {
+      await writeFile(temporaire, contenu, { encoding: "utf8", mode: FILE_MODE });
+      await rename(temporaire, this.filePath);
+    } catch (error) {
+      // Ne pas laisser de fichier temporaire derrière soi : ils s'accumuleraient
+      // à chaque échec d'écriture.
+      await unlink(temporaire).catch(() => {});
+      throw error;
+    }
   }
 
   async transact(mutator) {
     await this.load();
-    const before = structuredClone(this.state);
-    try {
-      const result = await mutator(this.state);
-      await this.save();
-      return result;
-    } catch (error) {
-      this.state = before;
-      throw error;
-    }
+    // Les transactions sont sérialisées. Sans cela, deux requêtes simultanées
+    // partageaient le même objet `state` et pouvaient écrire le fichier en même
+    // temps ; pire, l'annulation sur erreur (`this.state = before`) pouvait
+    // rétablir un instantané antérieur et effacer une transaction concurrente
+    // déjà enregistrée. Le mutateur est synchrone dans tout le dépôt, donc
+    // attendre la transaction précédente suffit à garantir que chacune voit
+    // l'état laissé par la précédente.
+    const execution = this.queue.then(async () => {
+      const before = structuredClone(this.state);
+      try {
+        const result = await mutator(this.state);
+        await this.save();
+        return result;
+      } catch (error) {
+        this.state = before;
+        throw error;
+      }
+    });
+    // La file ne doit jamais rester rejetée : une transaction en échec ne bloque
+    // pas les suivantes, et l'appelant reçoit quand même l'erreur (`execution`).
+    this.queue = execution.then(
+      () => undefined,
+      () => undefined
+    );
+    return execution;
   }
 
   id(prefix) {

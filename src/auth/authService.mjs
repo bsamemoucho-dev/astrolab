@@ -3,6 +3,7 @@ import {
   createVerificationCode,
   hashPassword,
   isStrongEnoughPassword,
+  isValidEmail,
   normalizeEmail,
   verifyPassword
 } from "./security.mjs";
@@ -37,7 +38,7 @@ export async function register(store, input) {
   const email = normalizeEmail(input.email);
   const password = String(input.password ?? "");
 
-  if (!email.includes("@")) {
+  if (!isValidEmail(email)) {
     throw authError("Valid email is required");
   }
 
@@ -138,6 +139,12 @@ export async function login(store, input) {
       createdAt: now(),
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString()
     };
+    // Les sessions expirées n'étaient jamais retirées : chaque connexion en
+    // ajoutait une, pour toujours, et comme `load()` charge tout le fichier en
+    // mémoire à chaque requête, le coût de chaque requête grandissait avec
+    // l'historique des connexions. On purge donc sur écriture, comme les
+    // lectures publiques expirées.
+    state.sessions = state.sessions.filter((entry) => entry.expiresAt > now());
     state.sessions.push(session);
     return { user: publicUser(user), token };
   });
