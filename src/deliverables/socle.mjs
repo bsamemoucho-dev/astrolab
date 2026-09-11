@@ -20,6 +20,10 @@ function marginLabel(margin, details) {
   return fillTemplate(template ?? fallback, { n: margin?.marginMinutes ?? "?" });
 }
 
+// La convention de marge est versionnée comme celle des aspects : ce n'est pas
+// un réglage caché, c'est une décision de produit écrite.
+const TIME_MARGIN_RULE_VERSION = "lastro-time-margin@1.0.0";
+
 function houseNumberForBody(body, houses) {
   if (!Array.isArray(houses) || houses.length === 0 || body.signIndex === null || body.signIndex === undefined) {
     return null;
@@ -202,7 +206,13 @@ export function buildSocle(payload, strings = null) {
     // La marge retenue est écrite noir sur blanc : c'est elle qui borne tout ce
     // qui est calculé à partir de l'heure, et elle doit rester vérifiable.
     ...(margin
-      ? [{ id: "uncertainty.margin", label: L.margin ?? "Marge d'incertitude retenue", value: marginLabel(margin, details) }]
+      ? [
+          {
+            id: "uncertainty.margin",
+            label: L.margin ?? "Marge d'incertitude retenue",
+            value: `${marginLabel(margin, details)} — ${TIME_MARGIN_RULE_VERSION}`
+          }
+        ]
       : [])
   ];
 

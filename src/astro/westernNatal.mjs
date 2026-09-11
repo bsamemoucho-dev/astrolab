@@ -10,6 +10,7 @@ import {
   TRADITIONAL_RULERS,
   UNCERTAINTY_MARGIN_DEFAULT_MINUTES,
   UNCERTAINTY_MARGIN_MAX_MINUTES,
+  LASTRO_TIME_MARGIN_RULE_VERSION,
   WESTERN_NATAL_METHOD_VERSION
 } from "./constants.mjs";
 import { calculateBodyPositions } from "./ephemeris.mjs";
@@ -660,7 +661,7 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
       astronomyEngineVersion: ASTRONOMY_ENGINE_VERSION,
       ephemerisStatus: "astronomy_engine_2_1_19_validated_against_jpl_horizons_reference_fixtures",
       internetUsedAtRuntime: false,
-      ruleVersionsCreated: [aspectConvention.ruleVersionId],
+      ruleVersionsCreated: [LASTRO_TIME_MARGIN_RULE_VERSION, aspectConvention.ruleVersionId],
       interpretiveRuleVersionsCreated: false
     },
     astronomicalCalculation: {

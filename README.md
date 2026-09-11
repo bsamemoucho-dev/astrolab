@@ -127,15 +127,22 @@ src/models/
   reportService.mjs     Guarded deterministic report artifacts
   transversalEngine.mjs Initial transversal findings
 src/deliverables/
-  plan.mjs              Eleven-section client dossier plan (badges, directives)
-  socle.mjs             Verified factual socle from a Western Natal result
+  plan.mjs              Sections, ranks and writing directives (single ordering source)
+  socle.mjs             Verified factual socle + technical annex
   writers.mjs           LLM writer adapter + deterministic template fallback
-  validator.mjs         Machine validation of generated text
+  validator.mjs         All detectors: fatal errors and style defects
+  i18n.mjs              Nine languages (interface, annex, versioned conventions)
   render.mjs            HTML/Markdown dossier rendering
+src/astro/rules/
+  lastroAspects.mjs     Versioned convention lastro-aspects@1.0.0 (orbs, retained aspects)
 src/server.mjs          Local app entrypoint
+docs/conventions-lastro.md  Versioned Lastro conventions (LASTRO_RULE) and their discipline
 tests/
   app.integration.test.mjs
   core.test.mjs         Structural tests for domain invariants
+  timeMargin.test.mjs   Uncertainty margin: engine, socle, detectors, nine languages
+  lastroAspects.test.mjs  Aspect convention: orbs, provenance, annex, nine languages
+  languageQuality.test.mjs  Orphan antecedents, repetition, vouvoiement, vocabulary, order
 ```
 
 ## Run Tests

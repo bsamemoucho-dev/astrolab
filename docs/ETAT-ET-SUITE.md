@@ -1,8 +1,8 @@
 # État du projet et suite — brief de reprise
 
 Ce fichier sert à reprendre le travail dans une nouvelle conversation sans
-reconstituer le contexte. Il décrit **ce qui est fait, ce qui est décidé, ce qui
-reste**, et les constats techniques vérifiés.
+reconstituer le contexte. Il décrit **ce qui est fait**, **ce qui est décidé**,
+**ce qui reste**, et les constats techniques vérifiés.
 
 ## Où en est le produit
 
@@ -17,56 +17,73 @@ récupération** (`/r/<jeton>`, valable 30 jours) + e-mail. Une commande est
 enregistrée **avant** la rédaction : un échec ou une page fermée reste
 récupérable, sans jamais repayer.
 
+## Décisions prises (elles ne sont plus en attente)
+
+1. **Marge sur l'heure approximative — tranché.** Le formulaire demande « vers
+   quelle heure » et propose ± 15 / ± 30 / ± 60 minutes ; **± 30 min par
+   défaut**. Convention versionnée `lastro-time-margin@1.0.0`.
+2. **Doctrine des aspects — tranché : activés.** Convention versionnée
+   `lastro-aspects@1.0.0` avec **orbes écrits**, publiée dans l'annexe. « Vos
+   forces et vos tensions » est réactivée, **conditionnelle** à des indicateurs
+   robustes.
+
+Le détail doctrinal des deux conventions est dans
+[`docs/conventions-lastro.md`](conventions-lastro.md). Toute nouvelle convention
+suit la même discipline : versionnée, écrite dans l'annexe, mesurée par un
+détecteur.
+
 ## Comportements vérifiés dans le moteur (à ne pas re-supposer)
 
-- **Heure inconnue** : angles, maisons et secte ne sont pas calculés ; les
-  degrés ne sont plus affichés (plus de « 0°00′ » ni de signe « null »).
-- **Heure approximative** : l'heure est traitée comme un **instant de
-  référence** (ex. 10:00). Aucune marge n'est capturée — le moteur le dit :
-  *« No uncertainty margin was supplied »*. L'Ascendant sort comme une valeur
-  unique, marquée `depends_on_approximate_birth_time`, et `exact_angles_without_uncertainty_margin`
-  figure dans les indéterminables. **Le langage ne reflète pas cette fragilité :
-  c'est le défaut le plus grave identifié.**
-- **Aspects** : ils sont **calculés et transmis au rédacteur** dès qu'une heure
-  est fournie (le socle contient des faits `aspect.*`). Mais l'annexe les
-  déclare encore « inactive structures » : **incohérence doctrinale à trancher**.
-- **Placeholders non remplis** et **contradictions planète ↔ signe** et
+- **Heure inconnue** : angles, maisons et secte ne sont pas calculés ; les degrés
+  ne sont plus affichés (plus de « 0°00′ » ni de signe « null »).
+- **Heure approximative** : la marge est **toujours connue et écrite**. Angles,
+  maisons et secte sont calculés aux deux bornes de la fenêtre.
+  - signe stable dans la marge → donné comme **probable**, jamais exact ;
+  - signe qui change dans la marge → **non décidable**, aucun signe affirmé, et
+    les maisons ne sont plus transmises ;
+  - secte qui bascule (lever/coucher du Soleil) → non affichée ;
+  - corps dont le signe change dans la marge → jamais affirmé dans un signe.
+- **Plafond de langage mesuré** : `findUnhedgedTimedAssertions` détecte dans le
+  texte réel un degré précis sur un angle, un signe d'angle non nuancé, un signe
+  d'angle non décidable, une maison non décidable, un signe de corps instable.
+  Réécriture demandée, puis phrases fautives retirées.
+- **Aspects** : convention `lastro-aspects@1.0.0` (conjonction et opposition 8°,
+  trigone 7°, carré 6°, sextile 4°, élargis à 10/8/8/6° avec un luminaire). Un
+  aspect qui sort de l'orbe sur la marge est **écarté**, motif écrit, et la liste
+  des écartés figure dans l'annexe.
+- **Placeholders non remplis**, **contradictions planète ↔ signe**,
   **inventions biographiques** : détectés, section réécrite, phrase retirée en
-  dernier recours. Couverture limitée au français pour les deux derniers.
+  dernier recours. Couverture limitée au français.
+- **Qualité de langue (français)** : antécédents orphelins (« Cette position… »
+  sans placement nommé), répétition d'un aspect ou d'une maison d'une section à
+  l'autre, tutoiement, « trine » → détectés ; **réécriture demandée sans
+  amputation** (contrairement aux erreurs factuelles).
+- **Ordre des sections** : imposé par le `rank`, une seule fonction de tri
+  (`dossierSectionsInOrder`) partagée par les deux services — coup d'œil 1,
+  grandes lignes 2, identité 3, émotions 4, relations 5, action 6, forces et
+  tensions 6.5 (conditionnelle), clés 7, passé 8, famille 9, lettre miroir 10,
+  périodes 11.
+- **Annexe** : repliée à l'écran, dépliée à l'impression. Elle publie la marge
+  retenue et son origine, la convention d'aspects et sa table d'orbes, les
+  aspects retenus avec orbe et écart, et la note de méthode localisée. Elle
+  n'expose plus les avertissements bruts du moteur (anglais, statut interne,
+  langage de préproduction).
 
-## Décisions en attente (elles bloquent la suite)
+## Ce qui reste
 
-1. **Marge sur l'heure approximative** — recommandation : proposer « vers 10h »
-   + marge optionnelle (15/30/60 min), **± 30 min par défaut**, et plafonner le
-   langage des angles et maisons (« probablement en Lion ») tant que la marge
-   n'est pas connue.
-2. **Doctrine des aspects** — recommandation : les **activer** sous convention
-   Lastro documentée (`lastro-aspects@1.0.0`) qui écrit les **orbes retenus**,
-   et cesser de les déclarer inactifs dans l'annexe. Sans cette décision,
-   « Vos forces et vos tensions » ne peut pas revenir.
-
-## Chantiers ouverts, dans l'ordre
-
-1. **Annexe visible dans le PDF** — fait (repliée à l'écran, dépliée à
-   l'impression). Sans elle, aucune lecture n'est auditable.
-2. **Marge horaire + plafond de langage** (décision 1).
-3. **Doctrine des aspects** (décision 2), puis réactivation de « Vos forces et
-   vos tensions », qui doit rester **conditionnelle** à des indicateurs robustes.
-4. **Antécédents orphelins** : plusieurs sections commencent par « Cette
-   position… », « Cette maison… » sans nommer la planète ou la maison. La règle
-   correcte : **nommer une fois** le placement en début de section, puis ne pas
-   le réexpliquer. L'anti-répétition a surcorrigé (consigne actuelle : ne
-   réexplique pas → le modèle a compris « ne nomme pas »).
-5. **Anti-répétition étendue aux aspects et maisons** (un même aspect est
-   aujourd'hui répété dans deux sections).
-6. **Vouvoiement constant** en français (le texte mélange « vous » et « tu ») et
-   vocabulaire : « trigone », jamais « trine ».
-7. **Ordre des sections (tranche E)** : corriger les `rank` (coup d'œil 1,
-   grandes lignes 2, identité 3, émotions 4, relations 5, action 6, clés 7,
-   passé 8, famille 9, lettre miroir 10, périodes 11), trier par rang dans les
-   deux services, renommer « Structure psychologique & émotionnelle » →
-   « Vos émotions » et « Lecture approfondie du passé » → « Votre passé » dans
-   les 9 langues.
+1. **« Vos périodes & cycles »** : module toujours indisponible (nécessite le
+   calcul des transits/progressions). Il disparaît du document au lieu de dire
+   « non disponible ».
+2. **Rédacteur IA réel** : les garde-fous sont éprouvés avec des rédacteurs
+   injectés ; la validation sur une vraie lecture complète (clé LLM configurée)
+   reste à faire, en particulier la mesure du taux de réécriture par section.
+3. **Étendre les détecteurs aux huit autres langues** : tous les détecteurs de
+   langue (placeholders, contradictions, biographie, marge, antécédents,
+   répétition, tutoiement) ne couvrent que le français.
+4. **Exemple de référence** : régénérer un dossier « Caroline »
+   (1986-01-02, Courbevoie) et le comparer au modèle conversation.
+5. **Antécédents orphelins** : la consigne et le détecteur sont en place ; il
+   reste à vérifier le taux réel de correction sur un tirage de lectures réelles.
 
 ## Invariants à respecter
 
@@ -74,20 +91,38 @@ récupérable, sans jamais repayer.
   **mesurée** (détecteur) puis **réécrite**, pas seulement demandée au modèle.
 - **Rien d'affirmé qui ne soit calculé** : pas d'angle, de maison ou d'aspect
   inventés ; le plafond de langage dépend de la **qualité des données**.
-- **Quatre natures** de provenance : `CALCULATED`, `TRADITIONAL_RULE` (aucune
-  active), `LASTRO_RULE` (conventions versionnées), `LLM_SYNTHESIS`.
+- **Quatre natures** de provenance : `CALCULATED`, `TRADITIONAL_RULE`
+  (aucune active), `LASTRO_RULE` (conventions versionnées), `LLM_SYNTHESIS`. Une
+  convention ne porte que sur la structure, jamais sur la signification.
 - Une section sans matière fiable **disparaît** : jamais de « module
   indisponible » ni de remplissage dans un document vendu.
 - Ne jamais exposer : statuts internes, badges de classification, horodatage
-  brut, placeholders, langage de préproduction.
-- **Sécurité** : secrets uniquement dans les variables d'environnement
-  (jamais dans le dépôt) ; le code de test et les clés Stripe/Brevo ne sont pas
-  dans le code.
+  brut, placeholders, langage de préproduction, avertissements bruts du moteur.
+- Deux régimes de correction : **fatal** (affirmation fausse → réécriture puis
+  retrait de la phrase) et **style** (maladresse → réécriture, jamais
+  d'amputation).
+- **Sécurité** : secrets uniquement dans les variables d'environnement (jamais
+  dans le dépôt) ; le code de test et les clés Stripe/Brevo ne sont pas dans le
+  code.
+
+## Cartographie utile
+
+| Fichier | Rôle |
+|---|---|
+| `src/astro/westernNatal.mjs` | calcul astronomique, marge d'incertitude, angles, maisons, secte |
+| `src/astro/rules/lastroAspects.mjs` | convention `lastro-aspects@1.0.0` (orbes, aspects retenus) |
+| `src/deliverables/socle.mjs` | socle vérifié + annexe technique |
+| `src/deliverables/validator.mjs` | tous les détecteurs (fatal et style) |
+| `src/deliverables/plan.mjs` | sections, rangs, directives de rédaction |
+| `src/deliverables/i18n.mjs` | 9 langues (interface, annexe, conventions) |
+| `src/models/publicReadingService.mjs` | parcours public vendu (réécriture, sections conditionnelles) |
+| `src/http/app.mjs` | routes publiques, paiement, livraison |
+| `public/app.js`, `public/index.html` | formulaire public (heure, marge, paiement) |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 124 tests
+npm test                                   # 149 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

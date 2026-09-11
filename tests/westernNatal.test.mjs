@@ -53,8 +53,8 @@ test("western natal calculation creates deterministic structured development res
   assert.equal(first.result.methodId, "western-natal");
   assert.equal(first.result.productionEligible, false);
   assert.equal(first.result.parameters.internetUsedAtRuntime, false);
-  assert.equal(first.result.parameters.ruleVersionsCreated.length, 1);
-  assert.equal(first.result.parameters.ruleVersionsCreated[0], "lastro-aspects@1.0.0");
+  assert.ok(first.result.parameters.ruleVersionsCreated.includes("lastro-aspects@1.0.0"));
+  assert.ok(first.result.parameters.ruleVersionsCreated.includes("lastro-time-margin@1.0.0"));
   assert.equal(first.result.parameters.interpretiveRuleVersionsCreated, false);
   assert.equal(first.calculationRun.inputDataHash, second.calculationRun.inputDataHash);
   assert.equal(first.calculationRun.resultHash, second.calculationRun.resultHash);

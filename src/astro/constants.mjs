@@ -8,6 +8,7 @@ export const EPHEMERIS_VERSION = "astronomy-engine-built-in-ephemeris@2.1.19";
 // rien, et le client peut élargir ou resserrer (15/30/60 min). La marge est
 // TOUJOURS écrite dans l'annexe : sans elle, un angle calculé sur un instant de
 // référence deviendrait une affirmation exacte, ce qu'il n'est pas.
+export const LASTRO_TIME_MARGIN_RULE_VERSION = "lastro-time-margin@1.0.0";
 export const UNCERTAINTY_MARGIN_DEFAULT_MINUTES = 30;
 export const UNCERTAINTY_MARGIN_OPTIONS_MINUTES = Object.freeze([15, 30, 60]);
 export const UNCERTAINTY_MARGIN_MAX_MINUTES = 720;
