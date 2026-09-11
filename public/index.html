@@ -478,6 +478,21 @@
                 <button id="guest-download-pdf" class="secondary" type="button">PDF</button>
               </div>
             </div>
+            <div class="delivery-box" id="delivery-box" hidden>
+              <p class="delivery-keep" id="delivery-keep"></p>
+              <p class="delivery-link-line">
+                <a id="delivery-link" href="#" target="_blank" rel="noopener"></a>
+                <button type="button" class="secondary" id="delivery-copy">Copier le lien</button>
+              </p>
+              <p class="delivery-order"><span id="delivery-order-label">Numéro de commande</span>
+                <code id="delivery-order-value"></code></p>
+              <p class="delivery-emailed hint" id="delivery-emailed" hidden></p>
+              <button type="button" class="secondary" id="delivery-delete">Supprimer ma lecture</button>
+            </div>
+            <div class="recovery-box" id="recovery-box" hidden>
+              <p class="recovery-message" id="recovery-message"></p>
+              <button type="button" class="secondary" id="recovery-retry" hidden>Relancer</button>
+            </div>
             <iframe id="express-frame" class="deliverable-frame" title="Votre lecture"></iframe>
           </div>
         </section>
