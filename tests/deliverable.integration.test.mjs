@@ -286,13 +286,15 @@ test("public no-account reading works without authentication and stores nothing"
     assert.equal(reading.payload.status, "template_draft");
     assert.match(reading.payload.html, /<!doctype html>/);
     assert.match(reading.payload.html, /socle de calcul vérifié/i);
-    assert.ok(reading.payload.sections.some((section) => section.id === "lettre-ame"));
+    // Une seule lettre, en bonus : « Lettre d'âme » a été retirée.
+    assert.equal(reading.payload.sections.some((section) => section.id === "lettre-ame"), false);
+    assert.ok(reading.payload.sections.some((section) => section.id === "lettre-miroir"));
     assert.equal(reading.payload.verification.status, "skipped");
     // Sans données familiales, la section transgénérationnelle disparaît (au lieu
     // d'inventer une histoire d'ancêtres) ; la conclusion éthique n'est plus une
     // section mais une clôture fixe ; et « forces et tensions » n'apparaît que
     // si des indicateurs convergent réellement (ici : oui).
-    assert.equal(reading.payload.sections.length, 12);
+    assert.equal(reading.payload.sections.length, 11);
     assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
     // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
     assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");

@@ -197,16 +197,6 @@ export const DOSSIER_SECTIONS = Object.freeze([
     directives: DIRECTIVES.past
   },
   {
-    id: "lettre-ame",
-    rank: 7,
-    title: "Lettre d'âme",
-    kind: "letter",
-    badge: BADGES.letter,
-    writer: "llm",
-    requiresSocle: true,
-    directives: DIRECTIVES.letterSoul
-  },
-  {
     id: "lettre-miroir",
     rank: 8,
     title: "Lettre miroir",
