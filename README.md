@@ -14,9 +14,12 @@ structured result, a transversal inference, and an AI-written explanation.
   paying again.
 - **Payment**: Stripe Checkout embedded in the page (card, Apple Pay, Google Pay;
   Link excluded). **Live and taking payments** — verify with
-  `curl -s https://www.lastro.fr/api/config`. The paid path refuses to sell when no
-  AI writer is configured (and keeps an already-paid order recoverable rather than
-  delivering a draft).
+  `curl -s https://www.lastro.fr/api/config`. **One fixed price: 25 €**, and 15 €
+  with the launch code `bessbousse10`, which is pre-filled in the form. The amount
+  is computed server-side from the code alone (`lastro-pricing@1.0.0`): the browser
+  never sends a price, and an unknown code is refused instead of being charged at
+  full price. The paid path refuses to sell when no AI writer is configured (and
+  keeps an already-paid order recoverable rather than delivering a draft).
 - **E-mail**: Brevo, used for recovery links (`BREVO_API_KEY`,
   `BREVO_SENDER_EMAIL`).
 - **The reading document**: full-page premium cover with the three key placements,
@@ -32,7 +35,8 @@ structured result, a transversal inference, and an AI-written explanation.
 - **Honesty about uncertainty**: an approximate birth time is bounded by a written
   margin (`lastro-time-margin@1.0.0`); an angle sign that changes inside that
   margin is written as *not decidable*, never asserted. Aspect orbs are a written,
-  versioned convention (`lastro-aspects@1.0.0`) — see
+  versioned convention (`lastro-aspects@1.0.0`), like the price and the launch
+  offer (`lastro-pricing@1.0.0`) — see
   [`docs/conventions-lastro.md`](docs/conventions-lastro.md).
 - **Guardrails are measured, not requested**: one detector per important rule
   (invented facts, planet ↔ sign contradictions, unfilled placeholders,
@@ -62,7 +66,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (220 tests) |
+| Do the guardrails hold? | `npm test` (232 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |

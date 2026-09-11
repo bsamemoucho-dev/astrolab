@@ -33,6 +33,7 @@ import {
   queueDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
 import { emailEnabled, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
+import { checkoutLineLabel, publicPricing, quotePrice } from "../payments/pricing.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
@@ -206,14 +207,28 @@ export function createApp(options = {}) {
         throw error;
       }
     }),
+    // Devis public : le site affiche le prix calculé par le serveur, jamais le sien.
+    route("POST", /^\/api\/public\/price-quote$/, async (req, res) => {
+      const body = await readJson(req);
+      sendJson(res, 200, { quote: quotePrice({ promoCode: body.promoCode }) });
+    }),
+    // Le montant n'est JAMAIS lu dans la requête : seul un code promo l'est. Un
+    // montant glissé par le client est ignoré, pas négocié.
     route("POST", /^\/api\/public\/checkout-session$/, async (req, res) => {
       const body = await readJson(req);
+      const quote = quotePrice({ promoCode: body.promoCode });
+      if (quote.reason === "unknown") {
+        const error = new Error("Ce code promo n'est pas valide : le prix reste à son tarif normal.");
+        error.status = 400;
+        error.code = "unknown_promo_code";
+        throw error;
+      }
       sendJson(
         res,
         201,
         await createEmbeddedCheckoutSession({
-          amountCents: body.amountCents,
-          label: body.label ?? "Lecture symbolique Lastro"
+          amountCents: quote.totalCents,
+          label: checkoutLineLabel({ quote, language: body.language })
         })
       );
     }),
@@ -482,6 +497,7 @@ export function createApp(options = {}) {
           diagnostics: stripeKeyDiagnostics(),
           lastError: lastStripeFailure()
         },
+        pricing: publicPricing(),
         llmConfigured: Boolean(llmConfiguration()),
         llmModel: llmConfiguration()?.model ?? null,
         // « chromium » quand le rendu PDF automatique est actif ; sinon le bouton

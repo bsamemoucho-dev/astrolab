@@ -424,19 +424,19 @@
               <div id="express-payment" class="pay-panel" hidden>
                 <div class="pay-head">
                   <strong id="pay-title">Régler votre lecture</strong>
-                  <span id="pay-text">Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.</span>
+                  <span id="pay-text">Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay. Le code de lancement est déjà pré-rempli, retirez-le pour payer le prix courant.</span>
                 </div>
-                <div class="price-chips" id="pay-presets">
-                  <button type="button" class="chip" data-amount="500">5 €</button>
-                  <button type="button" class="chip" data-amount="1000">10 €</button>
-                  <button type="button" class="chip active" data-amount="2000">20 €</button>
-                  <button type="button" class="chip" data-amount="3000">30 €</button>
-                  <button type="button" class="chip" data-amount="5000">50 €</button>
+                <div class="fix-price">
+                  <div class="fix-price-line">
+                    <span class="fix-price-base" id="pay-price-base">25 €</span>
+                    <span class="fix-price-total" id="pay-price-total">15 €</span>
+                  </div>
+                  <p class="pay-hint" id="pay-price-note">Offre de lancement : −10 € avec le code bessbousse10.</p>
                 </div>
-                <label class="pay-amount"><span id="pay-amount-label">Montant libre</span>
-                  <span class="pay-amount-field"><input id="pay-amount" type="number" min="5" step="1" value="20"> €</span>
+                <label class="pay-promo"><span id="pay-promo-label">Code promo</span>
+                  <input id="pay-promo" type="text" autocomplete="off" spellcheck="false" placeholder="bessbousse10">
                 </label>
-                <p class="pay-hint" id="pay-hint">Minimum 5 € — vous pouvez donner plus si vous le souhaitez.</p>
+                <p class="pay-hint" id="pay-promo-status"></p>
                 <div class="ai-notice">
                   <strong id="ai-notice-title">Texte généré par une intelligence artificielle</strong>
                   <span id="ai-notice-text">Votre lecture est rédigée automatiquement à partir de vos données de naissance, dont le calcul est vérifié. Malgré les contrôles automatiques (dont une vérification par un second modèle), une IA peut se tromper, mal interpréter ou inventer une nuance : c'est un outil de réflexion, pas une vérité, ni un diagnostic, ni une prédiction d'événements.</span>
@@ -536,54 +536,20 @@
           <div class="panel wide">
             <div class="panel-heading">
               <div>
-                <h3>Offre & prix libre</h3>
-                <p class="hint">Démo visuelle — aucun paiement réel pour le moment.</p>
+                <h3>Offre &amp; prix</h3>
+                <p class="hint">Une seule formule, un prix fixe. Le montant est calculé par le serveur.</p>
               </div>
             </div>
             <div class="price-card">
-              <div class="price-hero">
-                <span id="price-amount">10 €</span>
-                <strong id="price-tier">Merci pour votre confiance 🙏</strong>
+              <div class="offre-lignes">
+                <p><span>Lecture symbolique personnalisée</span><strong id="offre-base">25 €</strong></p>
+                <p id="offre-remise-line"><span id="offre-promo-label">Offre de lancement — code bessbousse10</span><strong id="offre-remise">−10 €</strong></p>
+                <p class="offre-total"><span>Total à payer</span><strong id="offre-total">15 €</strong></p>
               </div>
-              <div class="price-chips" id="price-chips">
-                <button type="button" class="chip" data-price="5">5 €</button>
-                <button type="button" class="chip active" data-price="10">10 €</button>
-                <button type="button" class="chip" data-price="25">25 €</button>
-                <button type="button" class="chip" data-price="50">50 €</button>
-                <button type="button" class="chip" data-price="100">100 €</button>
-              </div>
-              <input id="price-slider" type="range" min="1" max="500" step="1" value="10" aria-label="Choisissez le prix de votre lecture">
-              <div class="slider-scale">
-                <span>1 €</span>
-                <span>prix suggéré : 10 €</span>
-                <span>500 €</span>
-              </div>
-
-              <div class="share-box">
-                <p class="hint">Une part peut être reversée à une association :</p>
-                <div class="price-chips" id="share-chips">
-                  <button type="button" class="chip active" data-share="0">0 % — tout pour la lecture</button>
-                  <button type="button" class="chip" data-share="50">50 % max — la moitié pour l'association</button>
-                </div>
-                <p class="hint" id="price-split"></p>
-              </div>
-
-              <div class="split-actions">
-                <button id="price-validate" type="button">Valider ce prix</button>
-                <button class="secondary" type="button" id="price-reset">Revenir à 10 €</button>
-              </div>
-              <div id="price-confirm" class="note note-accent" hidden>
-                <strong>Confirmez-vous vraiment ce montant ?</strong>
-                <span id="price-confirm-text"></span>
-                <div class="split-actions">
-                  <button id="price-confirm-yes" type="button">Oui, je confirme</button>
-                  <button class="secondary" type="button" id="price-confirm-no">Non</button>
-                </div>
-              </div>
-              <p class="hint" id="price-result"></p>
-              <small class="fiscal-note">
-                Note : démo sans paiement. Tout montant réellement encaissé constitue un revenu à déclarer ; seule la part
-                effectivement reversée à un organisme éligible peut ouvrir droit à un reçu fiscal pour le client.
+              <p class="hint" id="offre-texte">Le code de lancement est pré-rempli dans le formulaire de paiement : vous n'avez rien à faire pour en bénéficier. Sans lui, le prix est de 25 €.</p>
+              <p class="hint">Paiement sécurisé par Stripe (carte bancaire, Apple Pay, Google Pay). La lecture est rédigée dès la confirmation du paiement, puis conservée 30 jours derrière un lien privé.</p>
+              <small class="fiscal-note" id="offre-fiscal">
+                Tout montant encaissé constitue un revenu à déclarer. Le prix affiché est le prix payé : aucune remise n'est appliquée sans le code.
               </small>
             </div>
           </div>

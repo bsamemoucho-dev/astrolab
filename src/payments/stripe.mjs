@@ -1,4 +1,8 @@
-// Paiement Stripe — Checkout intégré (Embedded), montant libre.
+// Paiement Stripe — Checkout intégré (Embedded).
+//
+// Ce module ne décide pas du prix : il transporte le montant qu'on lui donne,
+// déjà calculé par le serveur (`src/payments/pricing.mjs`). Les bornes ci-dessous
+// sont celles de Stripe, pas une offre commerciale.
 //
 // Aucune dépendance npm : on appelle directement l'API REST Stripe avec fetch.
 // Configuration par variables d'environnement :
@@ -8,8 +12,9 @@
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
-// Offre de prix : montant libre à partir de 5 € (en centimes). Aucun plafond
-// produit : la seule limite haute est celle de Stripe pour un paiement unique.
+// Bornes techniques de Stripe pour un paiement unique : en dessous, Stripe
+// refuse ; au-dessus, c'est le plafond de l'API. Le prix de la lecture, lui, est
+// fixé dans `pricing.mjs`.
 export const MIN_AMOUNT_CENTS = 500;
 export const MAX_AMOUNT_CENTS = 99999999; // 999 999,99 € — plafond technique de Stripe
 
@@ -182,7 +187,7 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
   }
   // Paramètres configurés dans Checkout Studio (valeurs fixées par l'interface).
   // `mode` et les lignes de commande restent ceux du produit : paiement unique,
-  // montant libre choisi par le client.
+  // montant calculé par le serveur.
   const common = {
     mode: "payment",
     redirect_on_completion: "never",

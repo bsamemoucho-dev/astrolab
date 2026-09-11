@@ -521,10 +521,6 @@ details.parent-fieldset summary::marker { color: var(--gold); }
 .price-hero { display: grid; gap: 6px; text-align: center; }
 .price-hero span { font-family: var(--serif); font-size: clamp(2.6rem, 6vw, 4.6rem); font-weight: 700; line-height: 1; background: linear-gradient(90deg, var(--gold), #f6dfae, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
 .price-hero strong { color: var(--muted); font-size: 0.95rem; font-weight: 700; }
-.price-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-.price-chips .chip { min-height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink-soft); font-size: 0.88rem; font-weight: 700; box-shadow: none; }
-.price-chips .chip:hover { border-color: var(--gold); color: var(--gold); transform: none; box-shadow: none; }
-.price-chips .chip.active { background: linear-gradient(135deg, var(--gold), var(--gold-deep)); border-color: transparent; color: #241a06; box-shadow: var(--glow-gold); }
 #price-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; border-radius: 999px; background: linear-gradient(90deg, rgba(139,124,240,.5), var(--gold)); outline: none; cursor: pointer; }
 #price-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #241a06; border: 5px solid var(--gold); box-shadow: 0 6px 18px -4px rgba(0,0,0,0.7); cursor: grab; }
 #price-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #241a06; border: 5px solid var(--gold); box-shadow: 0 6px 18px -4px rgba(0,0,0,0.7); cursor: grab; }
@@ -645,8 +641,6 @@ body.guest .note-accent { display: none; }
 
   #express-view .express-wrap .panel { padding: 18px; }
   #express-payment { padding: 14px; }
-  .price-chips { gap: 6px; }
-  .price-chips .chip { min-height: 36px; padding: 0 11px; font-size: 0.82rem; }
   .ai-notice { padding: 12px; }
   #pay-start { font-size: 0.86rem; }
 }
@@ -899,6 +893,39 @@ body.guest #express-view .express-wrap .panel {
 .pay-button:hover { filter: brightness(1.06); }
 .pay-panel small { color: var(--faint); font-size: 0.74rem; line-height: 1.5; }
 
+/* ---------- prix fixe et code promo ---------- */
+
+.fix-price { display: grid; gap: 6px; }
+.fix-price-line { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+/* Le prix de base est barré : il n'est pas le prix payé, et il ne doit pas être
+   confondu avec lui. */
+.fix-price-base { color: var(--faint); font-size: 1rem; text-decoration: line-through; font-variant-numeric: tabular-nums; }
+.fix-price-total { font-family: var(--serif); font-size: 2rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.pay-promo { display: grid; gap: 6px; }
+.pay-promo span { color: var(--ink-soft); font-size: 0.85rem; font-weight: 700; }
+.pay-promo input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+.pay-promo input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+#pay-promo-status.ok { color: var(--gold); }
+#pay-promo-status.ko { color: #ffb4a8; }
+
+/* ---------- vue Offre & prix ---------- */
+
+.offre-lignes { display: grid; gap: 8px; }
+.offre-lignes p { display: flex; justify-content: space-between; gap: 16px; margin: 0; color: var(--ink-soft); font-size: 0.95rem; }
+.offre-lignes strong { color: #fff; font-variant-numeric: tabular-nums; }
+.offre-lignes .offre-total { padding-top: 10px; border-top: 1px solid var(--line); font-size: 1.05rem; }
+.offre-lignes .offre-total strong { font-family: var(--serif); font-size: 1.5rem; }
+
+
 /* ---------- sélecteur de langue (accueil visiteur) ---------- */
 
 .guest-topbar-actions {
@@ -1081,30 +1108,6 @@ button.pay-button {
 
 /* ---------- étape de paiement Stripe (dans la page) ---------- */
 
-.pay-amount {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.pay-amount-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--ink);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
 .pay-hint { margin: 0 0 12px; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
 
 /* ---------- lien de récupération de la lecture ---------- */
@@ -1186,16 +1189,6 @@ button.link-button:hover { color: var(--gold); background: transparent; }
 #test-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0.02em;
-}
-
-.pay-amount-field input {
-  width: 96px;
-  min-height: 42px;
-  text-align: center;
-  border-radius: 12px;
-  background: rgba(10, 15, 38, 0.85);
-  border: 1px solid var(--line-strong);
-  color: var(--ink);
 }
 
 .checkout-container {

@@ -367,6 +367,47 @@ avec la fenêtre d'impression en secours.
   fichier au serveur, et ne retombe sur la fenêtre d'impression que si le serveur
   ne peut pas le produire.
 
+## Prix fixe et offre de lancement (12/09/2026)
+
+Décision : **une seule formule, 25 €**, avec un code de lancement **`bessbousse10`**
+qui enlève **10 €** — soit **15 €**, le code étant **pré-rempli** dans le formulaire
+pour que l'offre s'applique sans rien faire.
+
+Ce qui a changé, et pourquoi ce n'est pas qu'un texte :
+
+- le **prix libre disparaît** : plus de pastilles 5/10/20/30/50 €, plus de champ de
+  montant, plus de curseur. La vue interne « Offre & prix » (qui proposait un
+  curseur de 1 à 500 € et une part pour une association) est réécrite : elle
+  contredisait le prix fixe, et une part d'association calculée nulle part relevait
+  du décor.
+- Le **montant est calculé par le serveur** (`src/payments/pricing.mjs`, convention
+  versionnée `lastro-pricing@1.0.0`) : le navigateur n'envoie qu'un **code**. Un
+  `amountCents` glissé dans la requête n'est pas corrigé, il n'est pas lu — vérifié
+  par un test qui envoie 1 € et constate que Stripe reçoit 15 €.
+- Le site **ne calcule jamais un prix** : il demande un devis
+  (`POST /api/public/price-quote`) et affiche la réponse. Si le devis échoue, il
+  réaffiche le tarif sans remise et n'annonce aucune promotion.
+- Un code **inconnu** est refusé (400, `unknown_promo_code`) au lieu d'être facturé
+  au plein tarif sans que le client l'ait vu ; le message dit le prix qui reste dû.
+- Le code se compare **sans casse ni espaces** (`Bess Bousse-10` fonctionne), la
+  remise est bornée (jamais plus que le prix, jamais sous le minimum Stripe), et
+  l'offre se change par variables d'environnement sans toucher au code.
+- Le **reçu Stripe** porte la remise : la ligne de commande s'intitule
+  « Lecture symbolique personnalisée (Lastro) — 25,00 € moins 10,00 € (offre de
+  lancement) », dans la langue du client (neuf langues).
+- Le prestataire de paiement annoncé côté client était **SumUp** dans les neuf
+  langues alors que le paiement est **Stripe** : corrigé. Le libellé de bouton
+  mort (`payButton`) a été retiré.
+
+Vérifié par `tests/pricing.test.mjs` (prix, normalisation du code, bornes, libellés
+du reçu), `tests/pricingRoutes.test.mjs` (devis public, montant du client ignoré,
+code inconnu, changement d'offre, libellés dans les neuf langues) et
+`tests/noSecrets.test.mjs` (le code est public, il n'est pas traité comme un secret).
+
+**Ce qui n'est pas fait, et qui reste une décision** : les paquets de crédits de la
+vue interne « Commercial » (9/29/79 €, « paiement réel non connecté ») n'ont pas été
+alignés sur ce prix — ce sont des tarifs de l'outil pro, pas de la lecture vendue.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -490,15 +531,17 @@ avec la fenêtre d'impression en secours.
 | `tools/inspect-pdf.mjs` | lecture d'un PDF livré, page par page (texte extrait par les tables ToUnicode) |
 | `src/deliverables/chart.mjs` | roue du ciel en SVG et répartitions calculées |
 | `src/deliverables/pdfRenderer.mjs` | rendu PDF côté serveur, derrière le drapeau `ASTROLAB_PDF_RENDERER` |
+| `src/payments/pricing.mjs` | prix de la lecture et offre de lancement (`lastro-pricing@1.0.0`) |
 | `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` | exploration et partage |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 | `tests/chart.test.mjs`, `tests/previewTool.test.mjs` | géométrie de la roue, titres non tronqués, aperçu jamais vide |
 | `tests/pdfRenderer.test.mjs`, `tests/pdfRoutes.test.mjs` | contrat du moteur PDF (une conversion à la fois, délai, panne) et droits des routes |
+| `tests/pricing.test.mjs`, `tests/pricingRoutes.test.mjs` | prix calculé par le serveur, code de lancement, montant du client ignoré |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 220 tests
+npm test                                   # 232 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

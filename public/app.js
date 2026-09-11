@@ -1,3 +1,5 @@
+import { fillTemplate, promoMessageKey, promoMessageState } from "./pricing-ui.js";
+
 const state = {
   user: null,
   dossier: null,
@@ -7,14 +9,14 @@ const state = {
   // Lecture relue depuis un lien de récupération (/r/<jeton>).
   recovery: null,
   // Jeton de la livraison affichée : c'est lui qui ouvre le PDF côté serveur.
-  readingToken: null
+  readingToken: null,
+  // Dernier devis de prix reçu du serveur (prix fixe et code promo).
+  quote: null
 };
 
-// Offre de prix : montant libre à partir de 5 €, sans plafond. Les pastilles
-// (5/10/20/30/50) ne sont que des suggestions ; celui qui veut donner plus le peut.
-// 20 € est le montant proposé par défaut.
-const MIN_PAYMENT_EUROS = 5;
-const DEFAULT_PAYMENT_EUROS = 20;
+// Prix de la lecture : une seule formule à prix fixe, avec un code de lancement.
+// Le montant n'est jamais calculé ici : il vient du serveur (voir `refreshQuote`),
+// et c'est exactement celui qui est débité.
 
 const LANGUAGES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
@@ -59,9 +61,8 @@ const UI_STRINGS = {
     submit: "Recevoir ma lecture",
     progress: "Génération en cours — calcul puis rédaction (1 à 2 minutes environ).",
     payTitle: "Pendant que votre lecture se prépare…",
-    payText: "Vous pouvez régler dès maintenant, au montant que vous voulez : le prix est libre.",
-    payButton: "Régler par SumUp →",
-    payNote: "Paiement sécurisé SumUp. Votre lecture continue de se générer en parallèle — rien n'est bloqué.",
+    payText: "Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay. Le code de lancement est déjà pré-rempli, retirez-le pour payer le prix courant.",
+    payNote: "Paiement sécurisé Stripe. Votre lecture continue de se générer en parallèle — rien n'est bloqué.",
     viewerTitle: "Votre lecture",
     viewerHint: "Elle est prête : téléchargez-la. Elle reste accessible 30 jours avec votre lien.",
     dlHtml: "HTML",
@@ -106,9 +107,8 @@ const UI_STRINGS = {
     submit: "Get my reading",
     progress: "Generating — calculation then writing (about 1–2 minutes).",
     payTitle: "While your reading is being prepared…",
-    payText: "You can pay right now, whatever amount you want: the price is up to you.",
-    payButton: "Pay with SumUp →",
-    payNote: "Secure SumUp payment. Your reading keeps generating in parallel — nothing is blocked.",
+    payText: "One fixed price: pay right here by card, Apple Pay or Google Pay. The launch code is already pre-filled; remove it to pay the regular price.",
+    payNote: "Secure Stripe payment. Your reading keeps generating in parallel — nothing is blocked.",
     viewerTitle: "Your reading",
     viewerHint: "It is ready: download it. It stays available for 30 days with your link.",
     dlHtml: "HTML",
@@ -153,9 +153,8 @@ const UI_STRINGS = {
     submit: "Deutung erhalten",
     progress: "Wird erstellt — Berechnung, dann Text (etwa 1–2 Minuten).",
     payTitle: "Während deine Deutung entsteht …",
-    payText: "Du kannst jetzt bezahlen, in der Höhe, die dir passt: der Preis ist frei.",
-    payButton: "Mit SumUp bezahlen →",
-    payNote: "Sichere Zahlung über SumUp. Deine Deutung wird parallel weiter erstellt — nichts wird blockiert.",
+    payText: "Ein Festpreis: zahle direkt hier per Karte, Apple Pay oder Google Pay. Der Einführungscode ist bereits eingetragen; entferne ihn, um den regulären Preis zu zahlen.",
+    payNote: "Sichere Zahlung über Stripe. Deine Deutung wird parallel weiter erstellt — nichts wird blockiert.",
     viewerTitle: "Deine Deutung",
     viewerHint: "Sie ist fertig: Lade sie herunter. Mit deinem Link bleibt sie 30 Tage abrufbar.",
     dlHtml: "HTML",
@@ -200,9 +199,8 @@ const UI_STRINGS = {
     submit: "Recibir mi lectura",
     progress: "Generando — cálculo y redacción (1 a 2 minutos).",
     payTitle: "Mientras se prepara tu lectura…",
-    payText: "Puedes pagar ahora, el importe que quieras: el precio es libre.",
-    payButton: "Pagar con SumUp →",
-    payNote: "Pago seguro con SumUp. Tu lectura sigue generándose en paralelo — nada se bloquea.",
+    payText: "Precio fijo, una sola fórmula: paga aquí mismo con tarjeta, Apple Pay o Google Pay. El código de lanzamiento ya está rellenado; bórralo para pagar el precio normal.",
+    payNote: "Pago seguro con Stripe. Tu lectura sigue generándose en paralelo — nada se bloquea.",
     viewerTitle: "Tu lectura",
     viewerHint: "Está lista: descárgala. Sigue disponible 30 días con tu enlace.",
     dlHtml: "HTML",
@@ -247,9 +245,8 @@ const UI_STRINGS = {
     submit: "Ricevi la mia lettura",
     progress: "Generazione in corso — calcolo e scrittura (1–2 minuti).",
     payTitle: "Mentre la tua lettura si prepara…",
-    payText: "Puoi pagare subito, l'importo che vuoi: il prezzo è libero.",
-    payButton: "Paga con SumUp →",
-    payNote: "Pagamento sicuro SumUp. La lettura continua in parallelo — nulla si blocca.",
+    payText: "Prezzo fisso, una sola formula: paga qui con carta, Apple Pay o Google Pay. Il codice di lancio è già inserito; rimuovilo per pagare il prezzo normale.",
+    payNote: "Pagamento sicuro Stripe. La lettura continua in parallelo — nulla si blocca.",
     viewerTitle: "La tua lettura",
     viewerHint: "È pronta: scaricala. Resta disponibile 30 giorni con il tuo link.",
     dlHtml: "HTML",
@@ -294,9 +291,8 @@ const UI_STRINGS = {
     submit: "Receber a minha leitura",
     progress: "A gerar — cálculo e redação (1 a 2 minutos).",
     payTitle: "Enquanto a sua leitura é preparada…",
-    payText: "Pode pagar agora, o valor que quiser: o preço é livre.",
-    payButton: "Pagar com SumUp →",
-    payNote: "Pagamento seguro SumUp. A sua leitura continua a ser gerada em paralelo — nada fica bloqueado.",
+    payText: "Preço fixo, uma só fórmula: pague aqui mesmo com cartão, Apple Pay ou Google Pay. O código de lançamento já está preenchido; remova-o para pagar o preço normal.",
+    payNote: "Pagamento seguro Stripe. A sua leitura continua a ser gerada em paralelo — nada fica bloqueado.",
     viewerTitle: "A sua leitura",
     viewerHint: "Está pronta: descarregue-a. Fica disponível 30 dias com o seu link.",
     dlHtml: "HTML",
@@ -341,9 +337,8 @@ const UI_STRINGS = {
     submit: "Få lesningen min",
     progress: "Genererer — beregning og tekst (1–2 minutter).",
     payTitle: "Mens lesningen din forberedes …",
-    payText: "Du kan betale nå, med det beløpet du ønsker: prisen er fri.",
-    payButton: "Betal med SumUp →",
-    payNote: "Sikker betaling via SumUp. Lesningen fortsetter i bakgrunnen — ingenting blokkeres.",
+    payText: "Fast pris, én formel: betal her med kort, Apple Pay eller Google Pay. Lanseringstilbudet er allerede fylt inn; fjern koden for å betale ordinær pris.",
+    payNote: "Sikker betaling via Stripe. Lesningen fortsetter i bakgrunnen — ingenting blokkeres.",
     viewerTitle: "Lesningen din",
     viewerHint: "Den er klar: last den ned. Den er tilgjengelig i 30 dager med lenken din.",
     dlHtml: "HTML",
@@ -388,9 +383,8 @@ const UI_STRINGS = {
     submit: "Få min læsning",
     progress: "Genererer — beregning og tekst (1–2 minutter).",
     payTitle: "Mens din læsning forberedes …",
-    payText: "Du kan betale nu, med det beløb du ønsker: prisen er fri.",
-    payButton: "Betal med SumUp →",
-    payNote: "Sikker betaling via SumUp. Din læsning fortsætter i baggrunden — intet blokeres.",
+    payText: "Fast pris, én formel: betal her med kort, Apple Pay eller Google Pay. Lanceringstilbuddet er allerede udfyldt; fjern koden for at betale den normale pris.",
+    payNote: "Sikker betaling via Stripe. Din læsning fortsætter i baggrunden — intet blokeres.",
     viewerTitle: "Din læsning",
     viewerHint: "Den er klar: download den. Den er tilgængelig i 30 dage med dit link.",
     dlHtml: "HTML",
@@ -435,9 +429,8 @@ const UI_STRINGS = {
     submit: "Mijn lezing ontvangen",
     progress: "Bezig met genereren — berekening en tekst (1–2 minuten).",
     payTitle: "Terwijl jouw lezing wordt voorbereid …",
-    payText: "Je kunt nu betalen, het bedrag dat je wilt: de prijs is vrij.",
-    payButton: "Betalen met SumUp →",
-    payNote: "Veilige betaling via SumUp. Jouw lezing wordt op de achtergrond verder gemaakt — niets wordt geblokkeerd.",
+    payText: "Vaste prijs, één formule: betaal hier met kaart, Apple Pay of Google Pay. De introductiecode is al ingevuld; verwijder hem om de normale prijs te betalen.",
+    payNote: "Veilige betaling via Stripe. Jouw lezing wordt op de achtergrond verder gemaakt — niets wordt geblokkeerd.",
     viewerTitle: "Jouw lezing",
     viewerHint: "Ze is klaar: download ze. Met je link blijft ze 30 dagen beschikbaar.",
     dlHtml: "HTML",
@@ -455,64 +448,64 @@ const UI_EXTRA = {
   fr: {
     pdfHint: "Ouvre la fenêtre d'impression : choisissez « Enregistrer au format PDF ». Décochez « En-têtes et pieds de page » pour retirer la date et l'adresse.", backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", emailLabel: "E-mail", passwordLabel: "Mot de passe",
     llmUnavailable: "La rédaction est momentanément indisponible : aucune lecture ne peut être commandée pour l'instant, et vous ne serez pas débité. Merci de réessayer dans quelques minutes.",
-    payTitle: "Régler votre lecture", payText: "Choisissez librement le montant, puis payez ici même : carte bancaire, Apple Pay ou Google Pay.",
-    payAmount: "Montant libre", payRange: "Le montant minimum est de 5 €.", payHint: "Minimum 5 € — vous pouvez donner plus si vous le souhaitez.", findSummary: "Vous avez déjà payé ? Retrouver ma lecture", findReferenceLabel: "Numéro de commande", findEmailLabel: "E-mail utilisé au paiement", findSubmit: "Renvoyer le lien", findSent: "Si une commande correspond à ces informations, le lien vient d'être envoyé par e-mail.", deliveryKeep: "Votre lecture est conservée 30 jours : gardez ce lien pour la retrouver ensuite.", deliveryCopy: "Copier le lien", deliveryCopied: "Lien copié ✓", deliveryOrderLabel: "Numéro de commande", deliveryEmailed: "Le lien vous a aussi été envoyé par e-mail.", deliveryDelete: "Supprimer ma lecture", recoveryPending: "Votre lecture est en cours de rédaction. Rechargez la page dans un instant.", recoveryFailed: "La rédaction a échoué. Vous pouvez la relancer sans repayer.", recoveryRetry: "Relancer la rédaction", recoveryUnknown: "Ce lien est inconnu ou a expiré.", testCodeToggle: "J'ai un code de test", testCodeLabel: "Code de test", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement (usage interne uniquement).", testCodeApplied: "Lecture offerte avec le code de test.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
+    payTitle: "Régler votre lecture", payText: "Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay. Le code de lancement est déjà pré-rempli, retirez-le pour payer le prix courant.",
+    payPromoLabel: "Code promo", payOfferNote: "Offre de lancement — code {code}.", payPromoApplied: "Code appliqué : −{discount}.", payPromoUnknown: "Ce code n'est pas valide. Prix sans remise : {total}.", payPromoEmpty: "Prix sans remise : {total}.", findSummary: "Vous avez déjà payé ? Retrouver ma lecture", findReferenceLabel: "Numéro de commande", findEmailLabel: "E-mail utilisé au paiement", findSubmit: "Renvoyer le lien", findSent: "Si une commande correspond à ces informations, le lien vient d'être envoyé par e-mail.", deliveryKeep: "Votre lecture est conservée 30 jours : gardez ce lien pour la retrouver ensuite.", deliveryCopy: "Copier le lien", deliveryCopied: "Lien copié ✓", deliveryOrderLabel: "Numéro de commande", deliveryEmailed: "Le lien vous a aussi été envoyé par e-mail.", deliveryDelete: "Supprimer ma lecture", recoveryPending: "Votre lecture est en cours de rédaction. Rechargez la page dans un instant.", recoveryFailed: "La rédaction a échoué. Vous pouvez la relancer sans repayer.", recoveryRetry: "Relancer la rédaction", recoveryUnknown: "Ce lien est inconnu ou a expiré.", testCodeToggle: "J'ai un code de test", testCodeLabel: "Code de test", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement (usage interne uniquement).", testCodeApplied: "Lecture offerte avec le code de test.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
     payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
     payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement. Votre lecture est conservée 30 jours, puis supprimée." },
   en: {
     pdfHint: "Opens the print window: choose “Save as PDF”. Uncheck “Headers and footers” to remove the date and the address.", backShort: "← My reading", backToReading: "← Back to my reading", authTitle: "Sign in", authSubmit: "Sign in", emailLabel: "Email", passwordLabel: "Password",
     llmUnavailable: "Writing is temporarily unavailable: no reading can be ordered right now, and you will not be charged. Please try again in a few minutes.",
-    payTitle: "Pay for your reading", payText: "Choose any amount, then pay right here: card, Apple Pay or Google Pay.",
-    payAmount: "Amount (free)", payRange: "The minimum amount is €5.", payHint: "Minimum €5 — you are welcome to give more.", findSummary: "Already paid? Find my reading", findReferenceLabel: "Order number", findEmailLabel: "Email used for payment", findSubmit: "Resend the link", findSent: "If an order matches this information, the link has just been emailed to you.", deliveryKeep: "Your reading is kept for 30 days: save this link to find it again.", deliveryCopy: "Copy the link", deliveryCopied: "Link copied ✓", deliveryOrderLabel: "Order number", deliveryEmailed: "The link has also been sent to you by email.", deliveryDelete: "Delete my reading", recoveryPending: "Your reading is being written. Reload the page in a moment.", recoveryFailed: "Writing failed. You can start it again without paying.", recoveryRetry: "Restart the writing", recoveryUnknown: "This link is unknown or has expired.", testCodeToggle: "I have a test code", testCodeLabel: "Test code", testCodePlaceholder: "Paste your code", testCodeHint: "This code replaces the payment (internal use only).", testCodeApplied: "Reading provided free with the test code.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
+    payTitle: "Pay for your reading", payText: "One fixed price: pay right here by card, Apple Pay or Google Pay. The launch code is already pre-filled; remove it to pay the regular price.",
+    payPromoLabel: "Promo code", payOfferNote: "Launch offer — code {code}.", payPromoApplied: "Code applied: −{discount}.", payPromoUnknown: "This code is not valid. Price without discount: {total}.", payPromoEmpty: "Price without discount: {total}.", findSummary: "Already paid? Find my reading", findReferenceLabel: "Order number", findEmailLabel: "Email used for payment", findSubmit: "Resend the link", findSent: "If an order matches this information, the link has just been emailed to you.", deliveryKeep: "Your reading is kept for 30 days: save this link to find it again.", deliveryCopy: "Copy the link", deliveryCopied: "Link copied ✓", deliveryOrderLabel: "Order number", deliveryEmailed: "The link has also been sent to you by email.", deliveryDelete: "Delete my reading", recoveryPending: "Your reading is being written. Reload the page in a moment.", recoveryFailed: "Writing failed. You can start it again without paying.", recoveryRetry: "Restart the writing", recoveryUnknown: "This link is unknown or has expired.", testCodeToggle: "I have a test code", testCodeLabel: "Test code", testCodePlaceholder: "Paste your code", testCodeHint: "This code replaces the payment (internal use only).", testCodeApplied: "Reading provided free with the test code.", payStart: "Continue to payment →", payPreparing: "Preparing the payment…",
     payConfirmed: "Payment confirmed ✓ — creating your reading…", payContinue: "Payment done? Continue →",
     payNote: "Secure payment by Stripe. Your card details never pass through our servers; your reading is created as soon as the payment is confirmed. Your reading is kept for 30 days, then deleted." },
   de: {
     pdfHint: "Öffnet das Druckfenster: wähle „Als PDF speichern“. Deaktiviere „Kopf- und Fußzeilen“, um Datum und Adresse zu entfernen.", backShort: "← Meine Deutung", backToReading: "← Zurück zu meiner Deutung", authTitle: "Anmelden", authSubmit: "Anmelden", emailLabel: "E-Mail", passwordLabel: "Passwort",
     llmUnavailable: "Die Texterstellung ist vorübergehend nicht verfügbar: Derzeit kann keine Lesung bestellt werden, und es wird nichts berechnet. Bitte versuchen Sie es in einigen Minuten erneut.",
-    payTitle: "Deine Deutung bezahlen", payText: "Wähle den Betrag frei und zahle direkt hier: Karte, Apple Pay oder Google Pay.",
-    payAmount: "Freier Betrag", payRange: "Der Mindestbetrag beträgt 5 €.", payHint: "Mindestens 5 € — Sie dürfen gerne mehr geben.", findSummary: "Schon bezahlt? Meine Lesung finden", findReferenceLabel: "Bestellnummer", findEmailLabel: "Bei der Zahlung verwendete E-Mail", findSubmit: "Link erneut senden", findSent: "Wenn eine Bestellung zu diesen Angaben passt, wurde der Link soeben per E-Mail verschickt.", deliveryKeep: "Deine Lesung wird 30 Tage aufbewahrt: Speichere diesen Link, um sie wiederzufinden.", deliveryCopy: "Link kopieren", deliveryCopied: "Link kopiert ✓", deliveryOrderLabel: "Bestellnummer", deliveryEmailed: "Der Link wurde dir auch per E-Mail geschickt.", deliveryDelete: "Meine Lesung löschen", recoveryPending: "Deine Lesung wird gerade verfasst. Lade die Seite gleich neu.", recoveryFailed: "Das Verfassen ist fehlgeschlagen. Du kannst es ohne erneute Zahlung neu starten.", recoveryRetry: "Verfassen neu starten", recoveryUnknown: "Dieser Link ist unbekannt oder abgelaufen.", testCodeToggle: "Ich habe einen Testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Code einfügen", testCodeHint: "Dieser Code ersetzt die Zahlung (nur intern).", testCodeApplied: "Lesung mit Testcode kostenlos erstellt.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
+    payTitle: "Deine Deutung bezahlen", payText: "Ein Festpreis: zahle direkt hier per Karte, Apple Pay oder Google Pay. Der Einführungscode ist bereits eingetragen; entferne ihn, um den regulären Preis zu zahlen.",
+    payPromoLabel: "Rabattcode", payOfferNote: "Einführungsangebot — Code {code}.", payPromoApplied: "Code angewendet: −{discount}.", payPromoUnknown: "Dieser Code ist ungültig. Preis ohne Rabatt: {total}.", payPromoEmpty: "Preis ohne Rabatt: {total}.", findSummary: "Schon bezahlt? Meine Lesung finden", findReferenceLabel: "Bestellnummer", findEmailLabel: "Bei der Zahlung verwendete E-Mail", findSubmit: "Link erneut senden", findSent: "Wenn eine Bestellung zu diesen Angaben passt, wurde der Link soeben per E-Mail verschickt.", deliveryKeep: "Deine Lesung wird 30 Tage aufbewahrt: Speichere diesen Link, um sie wiederzufinden.", deliveryCopy: "Link kopieren", deliveryCopied: "Link kopiert ✓", deliveryOrderLabel: "Bestellnummer", deliveryEmailed: "Der Link wurde dir auch per E-Mail geschickt.", deliveryDelete: "Meine Lesung löschen", recoveryPending: "Deine Lesung wird gerade verfasst. Lade die Seite gleich neu.", recoveryFailed: "Das Verfassen ist fehlgeschlagen. Du kannst es ohne erneute Zahlung neu starten.", recoveryRetry: "Verfassen neu starten", recoveryUnknown: "Dieser Link ist unbekannt oder abgelaufen.", testCodeToggle: "Ich habe einen Testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Code einfügen", testCodeHint: "Dieser Code ersetzt die Zahlung (nur intern).", testCodeApplied: "Lesung mit Testcode kostenlos erstellt.", payStart: "Weiter zur Zahlung →", payPreparing: "Zahlung wird vorbereitet …",
     payConfirmed: "Zahlung bestätigt ✓ — deine Deutung wird erstellt …", payContinue: "Zahlung erledigt? Weiter →",
     payNote: "Sichere Zahlung über Stripe. Deine Kartendaten laufen nie über unsere Server; die Deutung wird nach Bestätigung der Zahlung erstellt. Deine Lesung wird 30 Tage aufbewahrt und dann gelöscht." },
   es: {
     pdfHint: "Abre la ventana de impresión: elige «Guardar como PDF». Desmarca «Encabezados y pies de página» para quitar la fecha y la dirección.", backShort: "← Mi lectura", backToReading: "← Volver a mi lectura", authTitle: "Iniciar sesión", authSubmit: "Iniciar sesión", emailLabel: "Correo electrónico", passwordLabel: "Contraseña",
     llmUnavailable: "La redacción no está disponible en este momento: ahora mismo no se puede pedir ninguna lectura y no se le cobrará. Vuelva a intentarlo en unos minutos.",
-    payTitle: "Pagar tu lectura", payText: "Elige libremente el importe y paga aquí mismo: tarjeta, Apple Pay o Google Pay.",
-    payAmount: "Importe libre", payRange: "El importe mínimo es de 5 €.", payHint: "Mínimo 5 € — puedes dar más si quieres.", findSummary: "¿Ya has pagado? Recuperar mi lectura", findReferenceLabel: "Número de pedido", findEmailLabel: "Correo usado en el pago", findSubmit: "Reenviar el enlace", findSent: "Si un pedido coincide con estos datos, el enlace acaba de enviarse por correo.", deliveryKeep: "Tu lectura se conserva 30 días: guarda este enlace para encontrarla después.", deliveryCopy: "Copiar el enlace", deliveryCopied: "Enlace copiado ✓", deliveryOrderLabel: "Número de pedido", deliveryEmailed: "El enlace también se te ha enviado por correo.", deliveryDelete: "Eliminar mi lectura", recoveryPending: "Tu lectura se está redactando. Recarga la página en un momento.", recoveryFailed: "La redacción ha fallado. Puedes reiniciarla sin volver a pagar.", recoveryRetry: "Reiniciar la redacción", recoveryUnknown: "Este enlace es desconocido o ha caducado.", testCodeToggle: "Tengo un código de prueba", testCodeLabel: "Código de prueba", testCodePlaceholder: "Pega tu código", testCodeHint: "Este código sustituye el pago (uso interno).", testCodeApplied: "Lectura gratuita con el código de prueba.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
+    payTitle: "Pagar tu lectura", payText: "Precio fijo, una sola fórmula: paga aquí mismo con tarjeta, Apple Pay o Google Pay. El código de lanzamiento ya está rellenado; bórralo para pagar el precio normal.",
+    payPromoLabel: "Código promocional", payOfferNote: "Oferta de lanzamiento — código {code}.", payPromoApplied: "Código aplicado: −{discount}.", payPromoUnknown: "Este código no es válido. Precio sin descuento: {total}.", payPromoEmpty: "Precio sin descuento: {total}.", findSummary: "¿Ya has pagado? Recuperar mi lectura", findReferenceLabel: "Número de pedido", findEmailLabel: "Correo usado en el pago", findSubmit: "Reenviar el enlace", findSent: "Si un pedido coincide con estos datos, el enlace acaba de enviarse por correo.", deliveryKeep: "Tu lectura se conserva 30 días: guarda este enlace para encontrarla después.", deliveryCopy: "Copiar el enlace", deliveryCopied: "Enlace copiado ✓", deliveryOrderLabel: "Número de pedido", deliveryEmailed: "El enlace también se te ha enviado por correo.", deliveryDelete: "Eliminar mi lectura", recoveryPending: "Tu lectura se está redactando. Recarga la página en un momento.", recoveryFailed: "La redacción ha fallado. Puedes reiniciarla sin volver a pagar.", recoveryRetry: "Reiniciar la redacción", recoveryUnknown: "Este enlace es desconocido o ha caducado.", testCodeToggle: "Tengo un código de prueba", testCodeLabel: "Código de prueba", testCodePlaceholder: "Pega tu código", testCodeHint: "Este código sustituye el pago (uso interno).", testCodeApplied: "Lectura gratuita con el código de prueba.", payStart: "Continuar al pago →", payPreparing: "Preparando el pago…",
     payConfirmed: "Pago confirmado ✓ — generando tu lectura…", payContinue: "¿Pago realizado? Continuar →",
     payNote: "Pago seguro con Stripe. Los datos de tu tarjeta nunca pasan por nuestros servidores; la lectura se genera al confirmarse el pago. Tu lectura se conserva 30 días y luego se elimina." },
   it: {
     pdfHint: "Apre la finestra di stampa: scegli «Salva come PDF». Deseleziona «Intestazioni e piè di pagina» per togliere data e indirizzo.", backShort: "← La mia lettura", backToReading: "← Torna alla mia lettura", authTitle: "Accedi", authSubmit: "Accedi", emailLabel: "E-mail", passwordLabel: "Password",
     llmUnavailable: "La scrittura non è disponibile al momento: ora non è possibile ordinare una lettura e non le verrà addebitato nulla. Riprovi tra qualche minuto.",
-    payTitle: "Paga la tua lettura", payText: "Scegli liberamente l'importo e paga qui: carta, Apple Pay o Google Pay.",
-    payAmount: "Importo libero", payRange: "L'importo minimo è di 5 €.", payHint: "Minimo 5 € — puoi dare di più se vuoi.", findSummary: "Hai già pagato? Ritrova la mia lettura", findReferenceLabel: "Numero d'ordine", findEmailLabel: "E-mail usata per il pagamento", findSubmit: "Invia di nuovo il link", findSent: "Se un ordine corrisponde a questi dati, il link è appena stato inviato per e-mail.", deliveryKeep: "La tua lettura è conservata 30 giorni: salva questo link per ritrovarla.", deliveryCopy: "Copia il link", deliveryCopied: "Link copiato ✓", deliveryOrderLabel: "Numero d'ordine", deliveryEmailed: "Il link ti è stato inviato anche per e-mail.", deliveryDelete: "Eliminare la mia lettura", recoveryPending: "La tua lettura è in scrittura. Ricarica la pagina tra un istante.", recoveryFailed: "La scrittura non è riuscita. Puoi riavviarla senza pagare di nuovo.", recoveryRetry: "Riavvia la scrittura", recoveryUnknown: "Questo link è sconosciuto o scaduto.", testCodeToggle: "Ho un codice di test", testCodeLabel: "Codice di test", testCodePlaceholder: "Incolla il codice", testCodeHint: "Questo codice sostituisce il pagamento (solo uso interno).", testCodeApplied: "Lettura gratuita con il codice di test.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
+    payTitle: "Paga la tua lettura", payText: "Prezzo fisso, una sola formula: paga qui con carta, Apple Pay o Google Pay. Il codice di lancio è già inserito; rimuovilo per pagare il prezzo normale.",
+    payPromoLabel: "Codice promozionale", payOfferNote: "Offerta di lancio — codice {code}.", payPromoApplied: "Codice applicato: −{discount}.", payPromoUnknown: "Questo codice non è valido. Prezzo senza sconto: {total}.", payPromoEmpty: "Prezzo senza sconto: {total}.", findSummary: "Hai già pagato? Ritrova la mia lettura", findReferenceLabel: "Numero d'ordine", findEmailLabel: "E-mail usata per il pagamento", findSubmit: "Invia di nuovo il link", findSent: "Se un ordine corrisponde a questi dati, il link è appena stato inviato per e-mail.", deliveryKeep: "La tua lettura è conservata 30 giorni: salva questo link per ritrovarla.", deliveryCopy: "Copia il link", deliveryCopied: "Link copiato ✓", deliveryOrderLabel: "Numero d'ordine", deliveryEmailed: "Il link ti è stato inviato anche per e-mail.", deliveryDelete: "Eliminare la mia lettura", recoveryPending: "La tua lettura è in scrittura. Ricarica la pagina tra un istante.", recoveryFailed: "La scrittura non è riuscita. Puoi riavviarla senza pagare di nuovo.", recoveryRetry: "Riavvia la scrittura", recoveryUnknown: "Questo link è sconosciuto o scaduto.", testCodeToggle: "Ho un codice di test", testCodeLabel: "Codice di test", testCodePlaceholder: "Incolla il codice", testCodeHint: "Questo codice sostituisce il pagamento (solo uso interno).", testCodeApplied: "Lettura gratuita con il codice di test.", payStart: "Vai al pagamento →", payPreparing: "Preparazione del pagamento…",
     payConfirmed: "Pagamento confermato ✓ — stiamo creando la tua lettura…", payContinue: "Pagamento fatto? Continua →",
     payNote: "Pagamento sicuro con Stripe. I dati della carta non passano mai dai nostri server; la lettura viene creata alla conferma del pagamento. La tua lettura è conservata 30 giorni, poi eliminata." },
   pt: {
     pdfHint: "Abre a janela de impressão: escolha «Guardar como PDF». Desmarque «Cabeçalhos e rodapés» para remover a data e o endereço.", backShort: "← A minha leitura", backToReading: "← Voltar à minha leitura", authTitle: "Entrar", authSubmit: "Entrar", emailLabel: "E-mail", passwordLabel: "Palavra-passe",
     llmUnavailable: "A redação está momentaneamente indisponível: neste momento não é possível encomendar uma leitura e não lhe será cobrado nada. Tente novamente dentro de alguns minutos.",
-    payTitle: "Pagar a sua leitura", payText: "Escolha livremente o valor e pague aqui mesmo: cartão, Apple Pay ou Google Pay.",
-    payAmount: "Valor livre", payRange: "O valor mínimo é de 5 €.", payHint: "Mínimo 5 € — pode dar mais se quiser.", findSummary: "Já pagou? Recuperar a minha leitura", findReferenceLabel: "Número do pedido", findEmailLabel: "E-mail usado no pagamento", findSubmit: "Reenviar o link", findSent: "Se um pedido corresponder a estes dados, o link acabou de ser enviado por e-mail.", deliveryKeep: "A sua leitura é conservada 30 dias: guarde este link para a encontrar depois.", deliveryCopy: "Copiar o link", deliveryCopied: "Link copiado ✓", deliveryOrderLabel: "Número do pedido", deliveryEmailed: "O link também foi enviado por e-mail.", deliveryDelete: "Eliminar a minha leitura", recoveryPending: "A sua leitura está a ser escrita. Recarregue a página dentro de instantes.", recoveryFailed: "A escrita falhou. Pode reiniciá-la sem pagar de novo.", recoveryRetry: "Reiniciar a escrita", recoveryUnknown: "Este link é desconhecido ou expirou.", testCodeToggle: "Tenho um código de teste", testCodeLabel: "Código de teste", testCodePlaceholder: "Cole o seu código", testCodeHint: "Este código substitui o pagamento (uso interno).", testCodeApplied: "Leitura gratuita com o código de teste.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
+    payTitle: "Pagar a sua leitura", payText: "Preço fixo, uma só fórmula: pague aqui mesmo com cartão, Apple Pay ou Google Pay. O código de lançamento já está preenchido; remova-o para pagar o preço normal.",
+    payPromoLabel: "Código promocional", payOfferNote: "Oferta de lançamento — código {code}.", payPromoApplied: "Código aplicado: −{discount}.", payPromoUnknown: "Este código não é válido. Preço sem desconto: {total}.", payPromoEmpty: "Preço sem desconto: {total}.", findSummary: "Já pagou? Recuperar a minha leitura", findReferenceLabel: "Número do pedido", findEmailLabel: "E-mail usado no pagamento", findSubmit: "Reenviar o link", findSent: "Se um pedido corresponder a estes dados, o link acabou de ser enviado por e-mail.", deliveryKeep: "A sua leitura é conservada 30 dias: guarde este link para a encontrar depois.", deliveryCopy: "Copiar o link", deliveryCopied: "Link copiado ✓", deliveryOrderLabel: "Número do pedido", deliveryEmailed: "O link também foi enviado por e-mail.", deliveryDelete: "Eliminar a minha leitura", recoveryPending: "A sua leitura está a ser escrita. Recarregue a página dentro de instantes.", recoveryFailed: "A escrita falhou. Pode reiniciá-la sem pagar de novo.", recoveryRetry: "Reiniciar a escrita", recoveryUnknown: "Este link é desconhecido ou expirou.", testCodeToggle: "Tenho um código de teste", testCodeLabel: "Código de teste", testCodePlaceholder: "Cole o seu código", testCodeHint: "Este código substitui o pagamento (uso interno).", testCodeApplied: "Leitura gratuita com o código de teste.", payStart: "Continuar para o pagamento →", payPreparing: "A preparar o pagamento…",
     payConfirmed: "Pagamento confirmado ✓ — a gerar a sua leitura…", payContinue: "Pagamento feito? Continuar →",
     payNote: "Pagamento seguro pela Stripe. Os dados do cartão nunca passam pelos nossos servidores; a leitura é gerada quando o pagamento é confirmado. A sua leitura é conservada 30 dias e depois eliminada." },
   no: {
     pdfHint: "Åpner utskriftsvinduet: velg «Lagre som PDF». Fjern haken for «Topp- og bunntekst» for å fjerne dato og adresse.", backShort: "← Lesningen min", backToReading: "← Tilbake til lesningen min", authTitle: "Logg inn", authSubmit: "Logg inn", emailLabel: "E-post", passwordLabel: "Passord",
     llmUnavailable: "Teksten er midlertidig utilgjengelig: ingen lesning kan bestilles akkurat nå, og du blir ikke belastet. Prøv igjen om noen minutter.",
-    payTitle: "Betal for lesningen din", payText: "Velg beløpet fritt og betal her: kort, Apple Pay eller Google Pay.",
-    payAmount: "Fritt beløp", payRange: "Minimumsbeløpet er 5 €.", payHint: "Minimum 5 € — du kan gjerne gi mer.", findSummary: "Har du allerede betalt? Finn lesningen min", findReferenceLabel: "Ordrenummer", findEmailLabel: "E-post brukt ved betaling", findSubmit: "Send lenken på nytt", findSent: "Hvis en ordre samsvarer med disse opplysningene, er lenken nettopp sendt på e-post.", deliveryKeep: "Lesningen din oppbevares i 30 dager: ta vare på denne lenken for å finne den igjen.", deliveryCopy: "Kopier lenken", deliveryCopied: "Lenke kopiert ✓", deliveryOrderLabel: "Ordrenummer", deliveryEmailed: "Lenken er også sendt deg på e-post.", deliveryDelete: "Slett lesningen min", recoveryPending: "Lesningen din skrives nå. Last siden på nytt om litt.", recoveryFailed: "Skrivingen mislyktes. Du kan starte den på nytt uten å betale.", recoveryRetry: "Start skrivingen på nytt", recoveryUnknown: "Denne lenken er ukjent eller utløpt.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Lim inn koden", testCodeHint: "Denne koden erstatter betalingen (kun internt bruk).", testCodeApplied: "Lesningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payTitle: "Betal for lesningen din", payText: "Fast pris, én formel: betal her med kort, Apple Pay eller Google Pay. Lanseringstilbudet er allerede fylt inn; fjern koden for å betale ordinær pris.",
+    payPromoLabel: "Rabattkode", payOfferNote: "Lanseringstilbud — koden {code}.", payPromoApplied: "Koden er brukt: −{discount}.", payPromoUnknown: "Denne koden er ugyldig. Pris uten rabatt: {total}.", payPromoEmpty: "Pris uten rabatt: {total}.", findSummary: "Har du allerede betalt? Finn lesningen min", findReferenceLabel: "Ordrenummer", findEmailLabel: "E-post brukt ved betaling", findSubmit: "Send lenken på nytt", findSent: "Hvis en ordre samsvarer med disse opplysningene, er lenken nettopp sendt på e-post.", deliveryKeep: "Lesningen din oppbevares i 30 dager: ta vare på denne lenken for å finne den igjen.", deliveryCopy: "Kopier lenken", deliveryCopied: "Lenke kopiert ✓", deliveryOrderLabel: "Ordrenummer", deliveryEmailed: "Lenken er også sendt deg på e-post.", deliveryDelete: "Slett lesningen min", recoveryPending: "Lesningen din skrives nå. Last siden på nytt om litt.", recoveryFailed: "Skrivingen mislyktes. Du kan starte den på nytt uten å betale.", recoveryRetry: "Start skrivingen på nytt", recoveryUnknown: "Denne lenken er ukjent eller utløpt.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Lim inn koden", testCodeHint: "Denne koden erstatter betalingen (kun internt bruk).", testCodeApplied: "Lesningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekreftet ✓ — lesningen din lages …", payContinue: "Betalt? Fortsett →",
     payNote: "Sikker betaling via Stripe. Kortopplysningene går aldri via våre servere; lesningen lages så snart betalingen er bekreftet. Lesningen din oppbevares i 30 dager og slettes deretter." },
   da: {
     pdfHint: "Åbner udskriftsvinduet: vælg «Gem som PDF». Fjern markeringen i «Sidehoved og sidefod» for at fjerne dato og adresse.", backShort: "← Min læsning", backToReading: "← Tilbage til min læsning", authTitle: "Log ind", authSubmit: "Log ind", emailLabel: "E-mail", passwordLabel: "Adgangskode",
     llmUnavailable: "Teksten er midlertidigt utilgængelig: der kan ikke bestilles en læsning lige nu, og du bliver ikke opkrævet betaling. Prøv igen om et par minutter.",
-    payTitle: "Betal for din læsning", payText: "Vælg beløbet frit og betal her: kort, Apple Pay eller Google Pay.",
-    payAmount: "Frit beløb", payRange: "Minimumsbeløbet er 5 €.", payHint: "Minimum 5 € — du er velkommen til at give mere.", findSummary: "Har du allerede betalt? Find min læsning", findReferenceLabel: "Ordrenummer", findEmailLabel: "E-mail brugt ved betaling", findSubmit: "Send linket igen", findSent: "Hvis en ordre matcher disse oplysninger, er linket netop sendt på e-mail.", deliveryKeep: "Din læsning opbevares i 30 dage: gem dette link for at finde den igen.", deliveryCopy: "Kopiér linket", deliveryCopied: "Link kopieret ✓", deliveryOrderLabel: "Ordrenummer", deliveryEmailed: "Linket er også sendt til dig på e-mail.", deliveryDelete: "Slet min læsning", recoveryPending: "Din læsning skrives lige nu. Genindlæs siden om et øjeblik.", recoveryFailed: "Skrivningen mislykkedes. Du kan starte den igen uden at betale.", recoveryRetry: "Start skrivningen igen", recoveryUnknown: "Dette link er ukendt eller udløbet.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Indsæt din kode", testCodeHint: "Denne kode erstatter betalingen (kun intern brug).", testCodeApplied: "Læsningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
+    payTitle: "Betal for din læsning", payText: "Fast pris, én formel: betal her med kort, Apple Pay eller Google Pay. Lanceringstilbuddet er allerede udfyldt; fjern koden for at betale den normale pris.",
+    payPromoLabel: "Rabatkode", payOfferNote: "Lanceringstilbud — koden {code}.", payPromoApplied: "Koden er brugt: −{discount}.", payPromoUnknown: "Denne kode er ugyldig. Pris uden rabat: {total}.", payPromoEmpty: "Pris uden rabat: {total}.", findSummary: "Har du allerede betalt? Find min læsning", findReferenceLabel: "Ordrenummer", findEmailLabel: "E-mail brugt ved betaling", findSubmit: "Send linket igen", findSent: "Hvis en ordre matcher disse oplysninger, er linket netop sendt på e-mail.", deliveryKeep: "Din læsning opbevares i 30 dage: gem dette link for at finde den igen.", deliveryCopy: "Kopiér linket", deliveryCopied: "Link kopieret ✓", deliveryOrderLabel: "Ordrenummer", deliveryEmailed: "Linket er også sendt til dig på e-mail.", deliveryDelete: "Slet min læsning", recoveryPending: "Din læsning skrives lige nu. Genindlæs siden om et øjeblik.", recoveryFailed: "Skrivningen mislykkedes. Du kan starte den igen uden at betale.", recoveryRetry: "Start skrivningen igen", recoveryUnknown: "Dette link er ukendt eller udløbet.", testCodeToggle: "Jeg har en testkode", testCodeLabel: "Testkode", testCodePlaceholder: "Indsæt din kode", testCodeHint: "Denne kode erstatter betalingen (kun intern brug).", testCodeApplied: "Læsningen er gratis med testkoden.", payStart: "Gå til betaling →", payPreparing: "Forbereder betalingen …",
     payConfirmed: "Betaling bekræftet ✓ — din læsning laves …", payContinue: "Betalt? Fortsæt →",
     payNote: "Sikker betaling via Stripe. Dine kortoplysninger går aldrig gennem vores servere; læsningen laves, så snart betalingen er bekræftet. Din læsning opbevares i 30 dage og slettes derefter." },
   nl: {
     pdfHint: "Opent het afdrukvenster: kies ‘Opslaan als pdf’. Vink ‘Kop- en voetteksten’ uit om datum en adres te verwijderen.", backShort: "← Mijn lezing", backToReading: "← Terug naar mijn lezing", authTitle: "Inloggen", authSubmit: "Inloggen", emailLabel: "E-mail", passwordLabel: "Wachtwoord",
     llmUnavailable: "Het schrijven is tijdelijk niet beschikbaar: er kan nu geen lezing worden besteld en u wordt niet belast. Probeer het over enkele minuten opnieuw.",
-    payTitle: "Jouw lezing betalen", payText: "Kies vrij het bedrag en betaal hier: kaart, Apple Pay of Google Pay.",
-    payAmount: "Vrij bedrag", payRange: "Het minimumbedrag is € 5.", payHint: "Minimaal € 5 — je mag gerust meer geven.", findSummary: "Al betaald? Mijn lezing terugvinden", findReferenceLabel: "Ordernummer", findEmailLabel: "E-mailadres gebruikt bij betaling", findSubmit: "Link opnieuw versturen", findSent: "Als een bestelling overeenkomt met deze gegevens, is de link zojuist per e-mail verzonden.", deliveryKeep: "Je lezing wordt 30 dagen bewaard: bewaar deze link om haar terug te vinden.", deliveryCopy: "Link kopiëren", deliveryCopied: "Link gekopieerd ✓", deliveryOrderLabel: "Ordernummer", deliveryEmailed: "De link is ook per e-mail naar je verzonden.", deliveryDelete: "Mijn lezing verwijderen", recoveryPending: "Je lezing wordt geschreven. Herlaad de pagina zo meteen.", recoveryFailed: "Het schrijven is mislukt. Je kunt het opnieuw starten zonder te betalen.", recoveryRetry: "Schrijven opnieuw starten", recoveryUnknown: "Deze link is onbekend of verlopen.", testCodeToggle: "Ik heb een testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Plak je code", testCodeHint: "Deze code vervangt de betaling (alleen intern gebruik).", testCodeApplied: "Lezing gratis met de testcode.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
+    payTitle: "Jouw lezing betalen", payText: "Vaste prijs, één formule: betaal hier met kaart, Apple Pay of Google Pay. De introductiecode is al ingevuld; verwijder hem om de normale prijs te betalen.",
+    payPromoLabel: "Kortingscode", payOfferNote: "Introductieaanbieding — code {code}.", payPromoApplied: "Code toegepast: −{discount}.", payPromoUnknown: "Deze code is niet geldig. Prijs zonder korting: {total}.", payPromoEmpty: "Prijs zonder korting: {total}.", findSummary: "Al betaald? Mijn lezing terugvinden", findReferenceLabel: "Ordernummer", findEmailLabel: "E-mailadres gebruikt bij betaling", findSubmit: "Link opnieuw versturen", findSent: "Als een bestelling overeenkomt met deze gegevens, is de link zojuist per e-mail verzonden.", deliveryKeep: "Je lezing wordt 30 dagen bewaard: bewaar deze link om haar terug te vinden.", deliveryCopy: "Link kopiëren", deliveryCopied: "Link gekopieerd ✓", deliveryOrderLabel: "Ordernummer", deliveryEmailed: "De link is ook per e-mail naar je verzonden.", deliveryDelete: "Mijn lezing verwijderen", recoveryPending: "Je lezing wordt geschreven. Herlaad de pagina zo meteen.", recoveryFailed: "Het schrijven is mislukt. Je kunt het opnieuw starten zonder te betalen.", recoveryRetry: "Schrijven opnieuw starten", recoveryUnknown: "Deze link is onbekend of verlopen.", testCodeToggle: "Ik heb een testcode", testCodeLabel: "Testcode", testCodePlaceholder: "Plak je code", testCodeHint: "Deze code vervangt de betaling (alleen intern gebruik).", testCodeApplied: "Lezing gratis met de testcode.", payStart: "Doorgaan naar betaling →", payPreparing: "Betaling wordt voorbereid …",
     payConfirmed: "Betaling bevestigd ✓ — je lezing wordt gemaakt …", payContinue: "Betaald? Doorgaan →",
     payNote: "Veilige betaling via Stripe. Je kaartgegevens gaan nooit via onze servers; de lezing wordt gemaakt zodra de betaling is bevestigd. Je lezing wordt 30 dagen bewaard en daarna verwijderd.",
     aiNoticeTitle: "Tekst gegenereerd door kunstmatige intelligentie",
@@ -723,12 +716,11 @@ function applyUITranslations() {
   setNodeText("#express-progress", t.progress);
   setNodeText("#pay-title", t.payTitle);
   setNodeText("#pay-text", t.payText);
-  setNodeText("#pay-amount-label", t.payAmount);
+  setNodeText("#pay-promo-label", t.payPromoLabel);
   setNodeText("#recover-summary", t.findSummary);
   setNodeText("#recover-reference-label", t.findReferenceLabel);
   setNodeText("#recover-email-label", t.findEmailLabel);
   setNodeText("#recover-submit", t.findSubmit);
-  setNodeText("#pay-hint", t.payHint);
   setNodeText("#test-code-toggle", t.testCodeToggle);
   setNodeText("#test-code-label", t.testCodeLabel);
   setNodeText("#test-code-hint", t.testCodeHint);
@@ -742,6 +734,10 @@ function applyUITranslations() {
   setNodeText("#ai-notice-title", t.aiNoticeTitle);
   setNodeText("#ai-notice-text", t.aiNoticeText);
   setNodeText("#ai-consent-label", t.aiConsent);
+  // Les chiffres ne changent pas avec la langue, mais les phrases du devis si.
+  if (state.quote) {
+    renderQuote(state.quote);
+  }
   setNodeText("#express-viewer h3", t.viewerTitle);
   setNodeText("#express-ready-hint", t.viewerHint);
   setNodeText("#guest-download-html", t.dlHtml);
@@ -1481,6 +1477,103 @@ function formatMoney(amountCents, currency) {
     style: "currency",
     currency
   }).format(amountCents / 100);
+}
+
+// ---------- prix fixe et code promo ----------
+// Le prix affiché est toujours celui calculé par le serveur : le site ne fait
+// aucun calcul de montant, il affiche le devis reçu. Une remise non accordée
+// n'est jamais montrée comme acquise.
+
+function formatEuros(centimes) {
+  const devise = state.config?.payments?.pricing?.currency ?? "eur";
+  return formatMoney(Number(centimes) || 0, devise);
+}
+
+// Affiche un devis : prix de base, prix payé, et ce que devient le code saisi.
+function renderQuote(quote) {
+  const t = uiStrings();
+  const base = $("#pay-price-base");
+  const total = $("#pay-price-total");
+  const statut = $("#pay-promo-status");
+  if (base) base.textContent = formatEuros(quote.baseCents);
+  if (total) total.textContent = formatEuros(quote.totalCents);
+  if (statut) {
+    const classe = promoMessageState(quote);
+    statut.classList.toggle("ok", classe === "ok");
+    statut.classList.toggle("ko", classe === "ko");
+    statut.textContent = fillTemplate(t[promoMessageKey(quote)], {
+      discount: formatEuros(quote.discountCents),
+      total: formatEuros(quote.totalCents)
+    });
+  }
+}
+
+// Devis du serveur pour le code saisi. Si le serveur ne répond pas, on n'invente
+// aucun prix : on réaffiche le tarif connu sans remise.
+async function refreshQuote() {
+  const champ = $("#pay-promo");
+  const code = champ ? champ.value : "";
+  try {
+    const reponse = await api("/api/public/price-quote", { method: "POST", body: { promoCode: code } });
+    const quote = reponse?.quote ?? null;
+    if (quote) {
+      state.quote = quote;
+      renderQuote(quote);
+    }
+    return quote;
+  } catch {
+    const pricing = state.config?.payments?.pricing ?? null;
+    if (!pricing) {
+      state.quote = null;
+      return null;
+    }
+    const repli = {
+      baseCents: pricing.baseCents,
+      discountCents: 0,
+      totalCents: pricing.baseCents,
+      promoCode: pricing.promoCode ?? null,
+      valid: false,
+      reason: "empty"
+    };
+    state.quote = repli;
+    renderQuote(repli);
+    return repli;
+  }
+}
+
+// Au chargement : pré-remplit le code de lancement, affiche le tarif connu, puis
+// le fait confirmer par le serveur.
+function applyPricing() {
+  const pricing = state.config?.payments?.pricing ?? null;
+  const t = uiStrings();
+  const champ = $("#pay-promo");
+  if (champ && !champ.value && pricing?.promoCode) {
+    champ.value = pricing.promoCode;
+  }
+  if (!pricing) {
+    return;
+  }
+  const base = $("#pay-price-base");
+  const note = $("#pay-price-note");
+  if (base) {
+    base.textContent = formatEuros(pricing.baseCents);
+  }
+  if (note) {
+    note.textContent = pricing.promoCode ? fillTemplate(t.payOfferNote, { code: pricing.promoCode }) : "";
+    note.hidden = !pricing.promoCode;
+  }
+  // Vue « Offre & prix » : mêmes chiffres, même source.
+  setNodeText("#offre-base", formatEuros(pricing.baseCents));
+  setNodeText("#offre-remise", `−${formatEuros(pricing.promoDiscountCents)}`);
+  setNodeText("#offre-total", formatEuros(pricing.totalCents));
+  const ligne = $("#offre-remise-line");
+  if (ligne) {
+    ligne.hidden = !pricing.promoCode;
+  }
+  if (pricing.promoCode) {
+    setNodeText("#offre-promo-label", fillTemplate(t.payOfferNote, { code: pricing.promoCode }));
+  }
+  void refreshQuote();
 }
 
 function renderPeople() {
@@ -2369,135 +2462,6 @@ function deliverableParentsFromForm(form) {
   return parents;
 }
 
-function bindPriceSlider() {
-  const slider = $("#price-slider");
-  if (!slider) {
-    return;
-  }
-  const amountEl = $("#price-amount");
-  const tierEl = $("#price-tier");
-  const splitEl = $("#price-split");
-  const confirmBox = $("#price-confirm");
-  const confirmText = $("#price-confirm-text");
-  const resultEl = $("#price-result");
-  const chips = $all("#price-chips .chip");
-  const shareChips = $all("#share-chips .chip");
-  const PRICE_TIERS = [
-    [500, "Légende du ciel — merci infini 💫"],
-    [100, "Soutien précieux 💜"],
-    [30, "Grand merci ✨"],
-    [10, "Merci pour votre confiance 🙏"],
-    [1, "Merci d'être là 💫"]
-  ];
-  let pendingPrice = null;
-
-  const format = (value) =>
-    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
-
-  const activeShare = () => Number(shareChips.find((chip) => chip.classList.contains("active"))?.dataset.share ?? 0);
-
-  function refresh() {
-    const value = Number(slider.value);
-    amountEl.textContent = format(value);
-    for (const chip of chips) {
-      chip.classList.toggle("active", Number(chip.dataset.price) === value);
-    }
-    const tier = PRICE_TIERS.find(([threshold]) => value >= threshold)?.[1] ?? "Merci d'être là 💫";
-    tierEl.textContent = tier;
-    updateSplit(value);
-  }
-
-  function updateSplit(value) {
-    const share = activeShare();
-    const authorPortion = Math.round((value * (100 - share)) / 100);
-    const associationPortion = value - authorPortion;
-    if (share === 0) {
-      splitEl.textContent = `Intégralité pour votre lecture : ${format(authorPortion)}.`;
-    } else {
-      splitEl.textContent = `Répartition : ${format(authorPortion)} pour votre lecture · ${format(associationPortion)} reversé à l'association (maximum 50 %).`;
-    }
-  }
-
-  function finish(value) {
-    confirmBox.hidden = true;
-    const share = activeShare();
-    const authorPortion = Math.round((value * (100 - share)) / 100);
-    const associationPortion = value - authorPortion;
-    const tier = PRICE_TIERS.find(([threshold]) => value >= threshold)?.[1] ?? "Merci d'être là 💫";
-    const lines = [
-      `Choix enregistré (démo) : ${format(value)} pour votre lecture — ${tier}`,
-      associationPortion > 0 ? `Dont ${format(associationPortion)} reversé à l'association (max 50 %).` : ""
-    ];
-    resultEl.textContent = lines.filter(Boolean).join(" ");
-    showMessage(
-      associationPortion > 0
-        ? `Démo : merci pour ${format(authorPortion)} — ${format(associationPortion)} ira à l'association.`
-        : `Démo : merci pour ${format(authorPortion)} — ${tier}`
-    );
-  }
-
-  slider.addEventListener("input", () => {
-    confirmBox.hidden = true;
-    refresh();
-  });
-
-  for (const chip of chips) {
-    chip.addEventListener("click", () => {
-      slider.value = chip.dataset.price;
-      confirmBox.hidden = true;
-      refresh();
-    });
-  }
-  for (const chip of shareChips) {
-    chip.addEventListener("click", () => {
-      for (const other of shareChips) {
-        other.classList.toggle("active", other === chip);
-      }
-      refresh();
-    });
-  }
-
-  $("#price-validate").addEventListener("click", () => {
-    if (!confirmBox.hidden) {
-      return;
-    }
-    const value = Number(slider.value);
-    resultEl.textContent = "";
-    if (value > 100) {
-      pendingPrice = value;
-      confirmText.textContent = `Vous êtes sur le point de choisir ${format(value)} pour votre lecture. C'est un montant élevé : confirmez-vous ?`;
-      confirmBox.hidden = false;
-      return;
-    }
-    finish(value);
-  });
-
-  $("#price-confirm-yes").addEventListener("click", () => {
-    if (pendingPrice !== null) {
-      finish(pendingPrice);
-      pendingPrice = null;
-    }
-  });
-
-  $("#price-confirm-no").addEventListener("click", () => {
-    confirmBox.hidden = true;
-    pendingPrice = null;
-  });
-
-  $("#price-reset").addEventListener("click", () => {
-    slider.value = 10;
-    pendingPrice = null;
-    confirmBox.hidden = true;
-    resultEl.textContent = "";
-    for (const chip of shareChips) {
-      chip.classList.toggle("active", Number(chip.dataset.share) === 0);
-    }
-    refresh();
-  });
-
-  refresh();
-}
-
 async function refreshDossier() {
   if (!state.user) {
     state.dossier = null;
@@ -2816,25 +2780,22 @@ function bindExpressForm() {
   $("#guest-back")?.addEventListener("click", backToReading);
   $("#auth-back")?.addEventListener("click", backToReading);
 
-  // ---------- paiement Stripe intégré (montant libre) ----------
-  const amountInput = $("#pay-amount");
-  const presets = $all("#pay-presets .chip");
-
-  const syncPresets = () => {
-    const amount = Number(amountInput?.value ?? 0);
-    for (const chip of presets) {
-      chip.classList.toggle("active", Number(chip.dataset.amount) === Math.round(amount * 100));
-    }
-  };
-  if (amountInput) {
-    amountInput.addEventListener("input", syncPresets);
-  }
-  for (const chip of presets) {
-    chip.addEventListener("click", () => {
-      if (amountInput) {
-        amountInput.value = String(Math.round(Number(chip.dataset.amount) / 100));
-      }
-      syncPresets();
+  // ---------- paiement Stripe intégré (prix fixe + code promo) ----------
+  // Le montant n'est jamais calculé ici : on demande un devis au serveur et on
+  // affiche ce qu'il renvoie. Le champ du code est pré-rempli avec le code de
+  // lancement, donc la remise s'applique sans rien faire — mais elle reste
+  // calculée côté serveur, et retirable.
+  const promoInput = $("#pay-promo");
+  if (promoInput) {
+    let minuteur = null;
+    promoInput.addEventListener("input", () => {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(() => {
+        void refreshQuote();
+      }, 300);
+    });
+    promoInput.addEventListener("blur", () => {
+      void refreshQuote();
     });
   }
 
@@ -2879,28 +2840,15 @@ function bindExpressForm() {
       return;
     }
     const payments = state.config?.payments ?? {};
-    // Montant libre : plancher à 5 €, aucun plafond (celui qui veut donner plus le peut).
-    // Champ vide → on propose le montant par défaut (20 €) ; en dessous du minimum,
-    // on corrige sur le minimum et on explique, sans jamais valider en silence.
-    const raw = amountInput ? String(amountInput.value).trim() : "";
-    const typed = raw === "" ? DEFAULT_PAYMENT_EUROS : Math.round(Number(raw));
-    const belowMinimum = !Number.isFinite(typed) || typed < MIN_PAYMENT_EUROS;
-    const euros = belowMinimum ? MIN_PAYMENT_EUROS : typed;
-    if (amountInput) {
-      amountInput.value = String(euros);
-      syncPresets();
-    }
-    if (belowMinimum) {
-      showMessage(uiStrings().payRange, true);
-      return;
-    }
     const startButton = $("#pay-start");
     startButton.disabled = true;
     setPayStatus(uiStrings().payPreparing);
     try {
+      // Devis frais : le prix débité est exactement celui qui vient d'être affiché.
+      const quote = await refreshQuote();
       const session = await api("/api/public/checkout-session", {
         method: "POST",
-        body: { amountCents: euros * 100, label: "Lecture symbolique Lastro" }
+        body: { promoCode: quote?.valid ? String(promoInput?.value ?? "") : "", language: state.language ?? "fr" }
       });
       state.paymentSessionId = session.sessionId;
       const Stripe = await loadStripeJs();
@@ -2922,6 +2870,8 @@ function bindExpressForm() {
       startButton.disabled = false;
       setPayStatus("");
       showMessage(error.message, true);
+      // Code refusé par le serveur : on réaffiche le prix qu'il vient de calculer.
+      void refreshQuote();
     }
   };
 
@@ -3063,7 +3013,7 @@ function bindExpressForm() {
       panel.hidden = false;
       syncTestCodeAvailability();
       panel.scrollIntoView({ behavior: "smooth", block: "center" });
-      syncPresets();
+      applyPricing();
       return;
     }
     await runGeneration(null);
@@ -3261,7 +3211,6 @@ function bindExpressForm() {
 }
 
 function bindForms() {
-  bindPriceSlider();
   bindExpressForm();
   initLanguageSelector();
   $("#register-form").addEventListener("submit", async (event) => {
@@ -3567,6 +3516,9 @@ async function loadConfig() {
   } catch {
     state.config = { commerceEnabled: true, llmConfigured: false, production: false };
   }
+  // Le prix et le code de lancement viennent du serveur : rien n'est écrit en
+  // dur dans la page.
+  applyPricing();
   const commerceNav = document.querySelector('.nav-button[data-view="commerce"]');
   if (commerceNav && state.config.commerceEnabled === false) {
     commerceNav.hidden = true;
