@@ -688,3 +688,35 @@ test("une contradiction planète/signe déclenche une réécriture, jamais une l
   // Et la section a bien été réécrite, pas simplement amputée.
   assert.equal(appels.filter((id) => id === "action").length, 2);
 });
+
+test("un placeholder non rempli ne peut pas atteindre le client", async () => {
+  const appels = [];
+  const writerFn = (section) => {
+    appels.push(section.id);
+    if (section.id === "lettre-miroir" && appels.filter((id) => id === "lettre-miroir").length === 1) {
+      // Exactement ce que le modèle a produit sur une vraie lecture.
+      return "Cette lettre vous accompagne. Avec respect et espoir, [Votre prénom ou un mot symbolique]";
+    }
+    return `Texte pour ${section.id}.`;
+  };
+
+  const reading = await createPublicReading(
+    {
+      firstName: "Bassam",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn, crossCheckFn: null }
+  );
+
+  assert.doesNotMatch(reading.html, /\[Votre prénom/i);
+  assert.doesNotMatch(reading.html, /mot symbolique/i);
+  // La lettre a été réécrite, elle n'a pas simplement disparu.
+  assert.equal(appels.filter((id) => id === "lettre-miroir").length, 2);
+  assert.ok(reading.sections.some((section) => section.id === "lettre-miroir"));
+});

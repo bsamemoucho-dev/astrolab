@@ -76,6 +76,30 @@ function normalizeSignWord(value) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+// Placeholders non remplis. Rien ne doit jamais partir avec « [Votre prénom ou
+// un mot symbolique] » dans une lettre présentée comme personnelle : cela
+// trahit une machine, et c'est immédiatement visible pour un client payant.
+const PLACEHOLDER_PATTERNS = [
+  /\[[^\]\n]{1,80}\]/,
+  /\{\{?[^}\n]{1,80}\}?\}/,
+  /<[^>\n]{1,80}>/,
+  /\b(?:Votre|Ton|Ta|Vos|Tes)\s+(?:prénom|nom|ville|date|heure)\b/i,
+  /\b(?:insérer|insérez|ajouter|ajoutez|compléter|complétez)\b[^.!?\n]{0,40}\b(?:ici|prénom|nom)\b/i
+];
+
+export function findUnfilledPlaceholders(text) {
+  const found = [];
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    if (!sentence.trim()) {
+      continue;
+    }
+    if (PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(sentence))) {
+      found.push({ sentence: sentence.trim() });
+    }
+  }
+  return found;
+}
+
 export function findSignContradictions(text, socle) {
   const bodies = Array.isArray(socle?.bodies) ? socle.bodies : [];
   const bodiesBySign = new Map();
