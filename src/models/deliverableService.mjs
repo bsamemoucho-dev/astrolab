@@ -152,7 +152,12 @@ export async function startDeliverableGeneration(store, userId, input = {}, opti
       person: personInfo,
       parents: normalizeParents(input),
       intention: String(input.intention ?? "").trim() || null,
-      socle
+      socle,
+      uncertainty: {
+        timeKnown: calculation.result.uncertainty?.timePrecision !== "unknown",
+        indeterminable: calculation.result.uncertainty?.indeterminable ?? [],
+        warnings: calculation.result.uncertainty?.warnings ?? []
+      }
     };
     return { person, personInfo, personLabel, context, createdAt: nowIso() };
   });

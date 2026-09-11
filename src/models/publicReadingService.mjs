@@ -93,7 +93,14 @@ export async function createPublicReading(input = {}, options = {}) {
     intention: cleanString(input.intention),
     languageName: englishNameFor(language),
     styleGuide: strings.styleGuide ?? null,
-    socle
+    socle,
+    // Ce que le calcul n'a pas pu établir : le rédacteur doit le savoir, sinon
+    // il invente un ascendant ou des maisons.
+    uncertainty: {
+      timeKnown: calculation.result.uncertainty?.timePrecision !== "unknown",
+      indeterminable: calculation.result.uncertainty?.indeterminable ?? [],
+      warnings: calculation.result.uncertainty?.warnings ?? []
+    }
   };
 
   const sections = [];

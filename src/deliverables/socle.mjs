@@ -21,9 +21,29 @@ function localizedSignName(sign, details) {
   return details?.signs?.[sign] ?? frSign(sign).fr;
 }
 
+// Sans heure de naissance, ni le degré ni parfois le signe ne sont calculables :
+// on n'affiche alors aucune valeur inventée (« null 0°00′ » ou « 0°00′ »), et on
+// donne la plage réellement balayée quand le signe change dans la journée.
+function placementLabel(body, details) {
+  const degreeKnown = Number.isFinite(body.degreeInSign);
+  const degree = degreeKnown ? ` ${formatDegreeInSign(body.degreeInSign)}` : "";
+  if (body.sign) {
+    return { signFr: localizedSignName(body.sign, details), label: `${localizedSignName(body.sign, details)}${degree}` };
+  }
+  const range = body.signRange ?? null;
+  if (range?.start && range?.end) {
+    const from = localizedSignName(range.start, details);
+    const to = localizedSignName(range.end, details);
+    return { signFr: `${from} → ${to}`, label: `${from} → ${to}` };
+  }
+  const unknown = details?.values?.unknown ?? "inconnu";
+  return { signFr: unknown, label: unknown };
+}
+
 function bodyFact(body, houses, details) {
   const house = houseNumberForBody(body, houses);
-  const signName = localizedSignName(body.sign, details);
+  const placement = placementLabel(body, details);
+  const signName = placement.signFr;
   const retrograde = body.apparentMotion?.retrograde ?? false;
   const houseWord = details?.labels?.house ?? "maison";
   const wholeSign = details?.values?.wholeSignShort ?? "Whole Sign";
@@ -33,7 +53,7 @@ function bodyFact(body, houses, details) {
     sign: body.sign,
     signFr: signName,
     degreeInSign: body.degreeInSign,
-    degreeLabel: `${signName} ${formatDegreeInSign(body.degreeInSign)}`,
+    degreeLabel: placement.label,
     longitude: body.longitude,
     house: house,
     houseLabel: house ? `${houseWord} ${house} (${wholeSign})` : null,

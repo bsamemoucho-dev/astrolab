@@ -520,3 +520,45 @@ test("injected writer text is validated and stored with its provider", async () 
   assert.equal(written.provider, "injected");
   assert.match(written.text, /tenir sans demander/);
 });
+
+test("heure de naissance inconnue : le rédacteur est prévenu que l'axe et les maisons ne sont pas calculés", async () => {
+  const contextes = [];
+  const writerFn = (section, context) => {
+    contextes.push(context);
+    return `Texte pour ${section.id}.`;
+  };
+  const reading = await createPublicReading(
+    {
+      firstName: "Test",
+      language: "fr",
+      birthDate: "1970-06-15",
+      timePrecision: "unknown",
+      resolvedPlace: {
+        selectedName: "Paris, France",
+        normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+      }
+    },
+    { writerFn, crossCheckFn: null }
+  );
+
+  // Le rédacteur reçoit l'information, section par section (une section peut
+  // être marquée « non disponible » et ne pas passer par le rédacteur).
+  assert.ok(contextes.length >= 9, `contextes reçus : ${contextes.length}`);
+  for (const context of contextes) {
+    assert.equal(context.uncertainty.timeKnown, false);
+    assert.ok(context.uncertainty.indeterminable.includes("ascendant"));
+    assert.ok(context.uncertainty.indeterminable.includes("houses"));
+    assert.match(context.uncertainty.warnings.join(" "), /unknown/i);
+  }
+
+  // Et aucun fait d'ascendant ou de maison ne lui est présenté comme calculé.
+  const facts = contextes[0].socle.facts;
+  const labels = facts.map((fact) => fact.id);
+  // Aucun angle n'est présenté comme calculé…
+  assert.equal(labels.some((id) => id.startsWith("angle.")), false);
+  // …et aucune position n'est rattachée à une maison, ni affichée avec une
+  // valeur inventée (« null », « 0°00′ »).
+  const bodyValues = facts.filter((fact) => fact.id.startsWith("body.")).map((fact) => String(fact.value));
+  assert.ok(bodyValues.length >= 7);
+  assert.doesNotMatch(bodyValues.join(" | "), /maison|house|null|0°00/i);
+});

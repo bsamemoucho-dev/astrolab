@@ -75,6 +75,12 @@ export async function callChatCompletions(config, { system, user, temperature = 
   }
 }
 
+// Quand l'heure de naissance est inconnue, l'axe et les maisons ne sont pas
+// calculés : sans cette consigne, le modèle comble le vide et invente un
+// ascendant, ce qui est une conclusion fausse présentée comme un fait.
+const TIME_UNKNOWN_DIRECTIVE =
+  "Règle absolue : l'heure de naissance n'est pas connue. L'Ascendant, le Milieu du Ciel, le Descendant, le Fond du Ciel, les maisons et la secte NE SONT PAS calculés. Tu ne dois jamais les nommer, les supposer, les déduire ni les évoquer indirectement : pas de « votre ascendant », pas de « en maison 7 », pas de « selon votre heure de naissance ». Rédige uniquement à partir des planètes, des signes et des aspects effectivement calculés, et indique clairement, quand c'est utile, que l'axe et les maisons ne peuvent pas être établis sans l'heure de naissance.";
+
 function buildSystemPrompt(section, context = {}) {
   const languageName = context.languageName ?? "French";
   const parts = [
@@ -84,6 +90,12 @@ function buildSystemPrompt(section, context = {}) {
       : `Tu écris en ${languageName}, avec respect, profondeur, clarté et humanité. Tout le texte produit doit être en ${languageName}, jamais en français.`,
     "Adaptation culturelle : n'effectue pas une traduction mot à mot. Écris comme un auteur natif de cette culture, avec son ton, ses tournures et ses références ; adapte les exemples, les métaphores et les conventions (dates, ordre des noms, unités) au public visé. Ne cite aucune référence culturelle française.",
     ...(context.styleGuide ? [`Guide de style attendu : ${context.styleGuide}`] : []),
+    ...(context.uncertainty?.timeKnown === false
+      ? [
+          TIME_UNKNOWN_DIRECTIVE,
+          `Éléments explicitement non calculés : ${(context.uncertainty.indeterminable ?? []).join(", ") || "ascendant, maisons, secte"}.`
+        ]
+      : []),
     ...FRAME_DIRECTIVES,
     `Section à produire : « ${section.title} ».`,
     ...(section.directives ?? [])
@@ -99,6 +111,9 @@ function buildUserPayload(section, context) {
       parents: context.parents ?? [],
       intention: context.intention ?? null,
       socleFacts: context.socle?.facts ?? [],
+      birthTimeKnown: context.uncertainty?.timeKnown ?? null,
+      notCalculated: context.uncertainty?.indeterminable ?? [],
+      calculationWarnings: context.uncertainty?.warnings ?? [],
       instruction: "Rédige uniquement le corps de cette section (sans titre répété), en paragraphes continus."
     },
     null,
