@@ -1,34 +1,62 @@
-# AstroLab
+# Lastro (AstroLab)
 
-AstroLab is a web platform project for personal transversal analysis across documented astrological, calendrical, and symbolic systems.
+Lastro is a **live product**: <https://www.lastro.fr> — a personalised symbolic
+astrology reading, written from a verified calculation base.
 
-The product is designed around one rule: never confuse a tradition, a calculation, a structured result, a transversal inference, and an AI-written explanation.
+The product is built on one rule: never confuse a tradition, a calculation, a
+structured result, a transversal inference, and an AI-written explanation.
 
-## Current Status
+## What is live in production
 
-This repository contains the first functional V1 slice:
+- **Public path, no account**: birth form → payment → writing → reading on screen
+  + a recovery link (`/r/<token>`, kept 30 days) + e-mail. The order is recorded
+  **before** writing, so a failure or a closed tab stays recoverable without
+  paying again.
+- **Payment**: Stripe Checkout embedded in the page (card, Apple Pay, Google Pay;
+  Link excluded). **Live and taking payments** — verify with
+  `curl -s https://www.lastro.fr/api/config`.
+- **E-mail**: Brevo, used for recovery links (`BREVO_API_KEY`,
+  `BREVO_SENDER_EMAIL`).
+- **The reading document**: cover with the three key placements, narrative
+  sections, and a technical annex (the verified calculation base) that starts on
+  its own page when printed. Nine languages.
+- **Honesty about uncertainty**: an approximate birth time is bounded by a written
+  margin (`lastro-time-margin@1.0.0`); an angle sign that changes inside that
+  margin is written as *not decidable*, never asserted. Aspect orbs are a written,
+  versioned convention (`lastro-aspects@1.0.0`) — see
+  [`docs/conventions-lastro.md`](docs/conventions-lastro.md).
+- **Guardrails are measured, not requested**: one detector per important rule
+  (invented facts, planet ↔ sign contradictions, unfilled placeholders,
+  biographical invention, hedged uncertainty wording, repetition across sections,
+  orphan antecedents, tutoiement/vouvoiement, forbidden vocabulary), plus a CI
+  workflow that runs the whole suite on every push.
+- **Security**: no secret in the repository (enforced by a test), secrets only in
+  environment variables, and the recovery token is the only secret of a paid
+  reading (`/r/` and `/api/` are `noindex`).
 
-- product and technical architecture notes;
-- a conceptual data model;
-- internal engine contracts;
-- domain constants and validation helpers;
-- a dependency-free Node web server;
-- e-mail/password registration with verification code;
-- HTTP-only cookie sessions;
-- structured account export and logical account deletion;
-- a local structured JSON store;
-- profile, birth data, linked people, relationships, and audit history APIs;
-- versioned analysis snapshots with explicit unavailable method results;
-- an initial transversal engine that stays indeterminate until comparison rules are validated;
-- guarded deterministic report artifacts that stay blocked until structured results support interpretation;
-- a client-dossier delivery layer: verified factual "socle" rendered from structured results, an eleven-section reading plan with provenance badges, an OpenAI-compatible LLM writer adapter or a deterministic template fallback, machine validation (no invented facts, no event predictions, no contradictions with the socle), and versioned HTML/Markdown exports;
-- development credit plans, paid-order stubs, and an append-only credit ledger;
-- admin-only summary and redacted audit views;
-- shared HTTP security headers, JSON body limits, content-type checks, and production `Secure` cookies;
-- a usable responsive web interface;
-- structural and integration tests.
+## What is NOT implemented yet
 
-It does not yet implement production SMTP, OAuth, real payment provider integration, PDF export, full administration workflows, rate limiting, CSRF tokens, or real methodological calculations. Client-dossier narrative writing requires an LLM key (see below); without one the dossier is generated as a technical draft whose verified annex remains complete.
+- the "Périodes & Cycles" module (needs transit and progression calculations);
+- a server-side PDF export: the PDF comes from the browser print dialog (the
+  document sets the proposed file name, 2 cm margins and the page break);
+- a dedicated public landing page — the visitor's view is revealed by JavaScript
+  and a single URL is indexable;
+- editorial detectors beyond French: event prediction, medical claims, biographical
+  invention, orphan antecedents and tutoiement are detected in French only (the
+  factual safety rules cover all nine languages);
+- rate limiting outside the test-code path, and CSRF tokens;
+- Apple/Google login (e-mail + verification code only);
+- a relational database: persistence is a single JSON file on a mounted disk.
+
+## How to check the state of the product
+
+| Question | Where the answer is |
+|---|---|
+| Do the guardrails hold? | `npm test` (183 tests) |
+| Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
+| What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
+| Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |
+| Did the last push pass? | the *Tests* workflow, in GitHub Actions |
 
 ## Client Dossier (delivery layer)
 
@@ -103,9 +131,12 @@ docs/
   data-model.md         Conceptual entities and relationships
   engine-contracts.md   Internal module and engine interfaces
 public/
-  index.html            Web application shell
+  index.html            Web application shell (canonical, Open Graph, meta)
   app.js                Browser-side interactions
   styles.css            Interface styling
+  robots.txt            Allow /, Disallow /api/ and /r/
+  sitemap.xml           The single public URL
+  favicon.svg           The ✦ mark
 src/auth/
   authService.mjs       Registration, verification, login, sessions
   security.mjs          Password hashing and token helpers
@@ -137,6 +168,13 @@ src/deliverables/
 src/astro/rules/
   lastroAspects.mjs     Versioned convention lastro-aspects@1.0.0 (orbs, retained aspects)
 src/server.mjs          Local app entrypoint
+tools/
+  measure-readings.mjs  Rewrite-rate measurement over a sample of real readings
+  verify-production-reading.mjs  End-to-end check after a deployment
+  preview-document.mjs  Layout preview with placeholder text, no network, no cost
+  inspect-pdf.mjs       Reads a delivered PDF page by page (ToUnicode text extraction)
+.github/workflows/
+  tests.yml             npm test + syntax check on every push
 docs/conventions-lastro.md  Versioned Lastro conventions (LASTRO_RULE) and their discipline
 tests/
   app.integration.test.mjs
@@ -146,6 +184,9 @@ tests/
   languageQuality.test.mjs  Orphan antecedents, repetition, vouvoiement, vocabulary, order
   noSecrets.test.mjs    Guardrail: no secret in any git-tracked file
   languageCoverage.test.mjs  Detector coverage measured across the nine languages
+  writerDirectives.test.mjs  What the writer actually receives (prompt intercepted)
+  printLayout.test.mjs  Print layout contracts and place-field wiring
+  publicFiles.test.mjs  robots.txt, sitemap, noindex on private paths
 ```
 
 ## Run Tests
@@ -168,9 +209,12 @@ Then open `http://localhost:4173`.
 
 The development e-mail adapter returns the verification code in the registration response and stores the message in `data/astrolab.json` under `outbox`.
 
-## Déployer en ligne (sans encaissement)
+## Déployer en ligne
 
-Le site est pleinement opérationnel **sans aucun système de paiement** : comptes (vérification par code en développement), profils, personnes/clients avec lieu résolu, calcul Western Natal, et génération de dossiers clients (socle vérifié local ; rédaction IA si une clé LLM est fournie). La partie commerciale n'est qu'un brouillon technique et peut être masquée.
+`https://www.lastro.fr` tourne avec le paiement actif. Une instance **peut**
+aussi tourner sans encaissement (recette, démonstration, développement) : sans
+clés Stripe, le tunnel de paiement est simplement désactivé, et le reste
+(comptes, profils, lieux résolus, calcul, dossiers) fonctionne à l'identique.
 
 Variables d'environnement :
 
@@ -228,12 +272,19 @@ Au démarrage, le serveur affiche `Lastro — stockage : <chemin>` : si le chemi
 Un disque persistant empêche le déploiement sans coupure (quelques secondes d'indisponibilité à
 chaque mise en ligne) et interdit de faire tourner plusieurs instances en parallèle.
 
-La vérification e-mail reste en mode « code affiché dans la réponse » (`ASTROLAB_EMAIL_MODE=dev_code`) tant qu'aucun SMTP réel n'est configuré — suffisant pour tester.
+La vérification d'adresse à l'inscription reste en mode « code affiché dans la
+réponse » (`ASTROLAB_EMAIL_MODE=dev_code`) : elle ne dépend pas de Brevo, qui sert
+à l'envoi du **lien de récupération** des lectures payées.
 
-## Recommended V1 Build Order
+## Recommended next steps
 
-1. Replace local JSON persistence with a relational database and migrations.
-2. Add production SMTP plus Apple/Google login.
-3. Add the first documented methodology module only after source validation.
-4. Connect production payment provider and harden commercial reconciliation.
-5. Expand administration workflows, rate limiting, CSRF protection, and security hardening.
+1. A dedicated public landing page, served as static HTML with its own content
+   (today the visitor's view is revealed by JavaScript, and only one URL is
+   indexable).
+2. Measure the guardrails on a larger sample of real readings (the rewrite rate is
+   currently measured on one French/English sample), then tune the detectors.
+3. Extend the editorial detectors to the eight other languages.
+4. Build the "Périodes & Cycles" module once transit methods leave the research
+   backlog.
+5. Replace local JSON persistence with a relational database and migrations.
+6. Rate limiting, CSRF protection, Apple/Google login.

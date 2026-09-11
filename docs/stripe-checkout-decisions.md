@@ -3,9 +3,11 @@
 > **Statut : terminée et en production.** Le paiement fonctionne sur
 > `https://www.lastro.fr` (Checkout embarqué, carte, Apple Pay et Google Pay).
 > Ce document est conservé pour l'**historique des décisions**, pas comme une liste
-> de travaux en cours. L'état réel du produit est dans `docs/ETAT-ET-SUITE.md`.
-> Un audit a déjà conclu de ce titre que le paiement était inachevé : ne pas
-> masquer ni désactiver le bouton d'achat sur cette base.
+> de travaux en cours. L'état réel du produit est dans `docs/ETAT-ET-SUITE.md` et
+> dans `README.md`. Il s'appelait `STRIPE_INTEGRATION_TODO.md` à la racine : un
+> audit a conclu de ce nom que le paiement était inachevé et a recommandé de
+> masquer le bouton d'achat. Ne pas masquer ni désactiver le bouton d'achat sur
+> cette base.
 
 ## Décisions (historique)
 

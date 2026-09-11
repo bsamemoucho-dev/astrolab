@@ -207,7 +207,15 @@ Ce que ce contrôle a établi :
 
 ## Audit externe (SEO, SPA, Stripe) — ce qui a été suivi, et ce qui a été écarté
 
-Un audit a produit trois recommandations. Vérification faite :
+Un audit a produit trois recommandations. **La cause de son erreur sur le paiement
+était notre README** : il annonçait « does not yet implement […] real payment
+provider integration » et « la partie commerciale n'est qu'un brouillon
+technique », alors que le paiement encaisse en production. Un auditeur qui lit la
+porte d'entrée du dépôt en conclut logiquement que le bouton d'achat doit être
+masqué. Le README a été réécrit (état réel, ce qui manque vraiment, comment
+vérifier), et `STRIPE_INTEGRATION_TODO.md` déplacé dans `docs/`.
+
+Vérification faite, point par point :
 
 1. **« Pas de robots.txt ni de sitemap.xml » — exact, mais la raison importante
    était ailleurs.** Le site n'a qu'une page publique ; en revanche il expose deux
@@ -227,9 +235,10 @@ Un audit a produit trois recommandations. Vérification faite :
    canonical, pas de favicon. Corrigés.
 3. **« L'intégration Stripe est inachevée, masquez le bouton d'achat » — faux et
    dangereux.** Le paiement est **en production et encaisse** (Checkout embarqué,
-   carte, Apple Pay, Google Pay). Le fichier `STRIPE_INTEGRATION_TODO.md` est un
-   document d'**historique des décisions**, pas une liste de travaux en cours : un
-   bandeau de statut a été ajouté en tête pour couper court à cette lecture. Suivre
+   carte, Apple Pay, Google Pay). Le fichier `STRIPE_INTEGRATION_TODO.md` — renommé depuis en
+   `docs/stripe-checkout-decisions.md`, parce qu'un `*_TODO.md` à la racine fait
+   croire à un chantier en cours — est un document d'**historique des décisions**,
+   avec un bandeau de statut en tête. Suivre
    cette recommandation aurait coupé la seule source de revenus du produit.
 
 Reste, si le référencement devient un objectif : une **page d'accueil publique
