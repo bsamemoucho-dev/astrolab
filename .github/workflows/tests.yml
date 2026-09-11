@@ -1,0 +1,59 @@
+# Vérifications automatiques.
+#
+# Pourquoi ce fichier existe : il n'y avait AUCUNE CI. Le Dockerfile installe les
+# dépendances de production puis démarre le serveur, sans jamais lancer les tests.
+# Un commit qui cassait l'annexe, qui réintroduisait un faux positif de détection
+# ou qui laissait fuiter une clé partait donc en production sans aucun contrôle —
+# c'est exactement ce qui est arrivé au faux positif de contradiction
+# planète ↔ signe, resté en production une session entière.
+#
+# Ce que ce workflow vérifie, à chaque push sur main et à chaque proposition de
+# fusion :
+#   - les 159 tests (moteur, marges, conventions d'aspects, détecteurs, 9 langues) ;
+#   - le garde-fou « aucun secret dans les fichiers suivis par git » ;
+#   - l'ordre des sections sur les deux services (lecture publique et dossier).
+#
+# Il ne déploie rien : le déploiement reste le fait de Render, depuis main.
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: npm test (Node 22)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Lancer les tests
+        run: npm test
+
+      - name: Vérifier la syntaxe de tous les modules
+        run: |
+          fichiers=$(git ls-files '*.mjs' 'public/app.js')
+          if [ -z "$fichiers" ]; then
+            echo "aucun fichier à vérifier : la liste est vide, le contrôle ne mesurerait rien"
+            exit 1
+          fi
+          for fichier in $fichiers; do
+            node --check "$fichier"
+          done
+          echo "$(echo "$fichiers" | wc -l) fichier(s) vérifié(s)"

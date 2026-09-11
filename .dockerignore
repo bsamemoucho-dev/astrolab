@@ -6,3 +6,5 @@ tests
 .env
 .DS_Store
 *.log
+tools
+.github
