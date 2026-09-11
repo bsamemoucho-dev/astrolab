@@ -73,7 +73,7 @@ test("important factors are listed without inventing dominance or interpretation
   assert.ok(factor(analysis, "factor.body.Sun").calculatedFacts.some((fact) => fact.kind === "whole_sign_house_placement"));
 });
 
-test("relations distinguish calculated geometry from inactive interpretive rules", () => {
+test("relations distinguent la geometrie mesuree, la structure retenue et l'interpretation absente", () => {
   const analysis = chart().analysisPrototype;
   const sunSign = relation(analysis, "placed_in_sign", "factor.body.Sun", "sign.Capricorn");
   const sunHouse = relation(analysis, "placed_in_whole_sign_house", "factor.body.Sun", "house.7");
@@ -97,8 +97,18 @@ test("relations distinguish calculated geometry from inactive interpretive rules
   assert.equal(sunMoonGeometry.detectionRule.ruleVersionId, null);
   assert.equal(
     sunMoonGeometry.detectionRule.status,
-    "relation géométrique détectée — règle d'interprétation non activée"
+    "relation géométrique mesurée — décision d'orbe portée par structuralAstrology.aspects"
   );
+
+  // Les aspects retenus portent, eux, la version de convention : c'est la
+  // seule couche où une relation angulaire devient une structure du thème.
+  const retained = analysis.relations.filter((entry) => entry.detectionRule.ruleVersionId === "lastro-aspects@1.0.0");
+  assert.ok(retained.length > 0);
+  assert.ok(retained.every((entry) => entry.relation.startsWith("retained_aspect_")));
+  assert.ok(retained.every((entry) => entry.value.orbUsed > 0));
+  assert.ok(retained.every((entry) => entry.detectionRule.source === "lastro_convention"));
+  // Aucune signification n'est produite par le moteur.
+  assert.ok(retained.every((entry) => entry.interpretiveStatus === "not_interpreted_no_rule_version"));
 });
 
 test("analysis explicitly separates fact, rule, interpretation and synthesis", () => {
@@ -107,8 +117,15 @@ test("analysis explicitly separates fact, rule, interpretation and synthesis", (
 
   assert.ok(allFacts.length > 0);
   assert.ok(allFacts.every((fact) => fact.layer === "calculated_fact"));
-  assert.ok(analysis.relations.every((entry) => entry.detectionRule.ruleVersionId === null));
-  assert.ok(analysis.relations.every((entry) => entry.detectionRule.source === null));
+  const structural = analysis.relations.filter((entry) => entry.detectionRule.ruleVersionId !== null);
+  assert.ok(structural.length > 0);
+  assert.ok(structural.every((entry) => entry.detectionRule.ruleVersionId === "lastro-aspects@1.0.0"));
+  assert.ok(
+    analysis.relations
+      .filter((entry) => entry.detectionRule.ruleVersionId === null)
+      .every((entry) => entry.detectionRule.source === null)
+  );
+  assert.deepEqual(analysis.guardrails.structuralConventionsActive, ["lastro-aspects@1.0.0"]);
   assert.ok(analysis.relations.every((entry) => entry.interpretiveStatus === "not_interpreted_no_rule_version"));
   assert.equal(analysis.synthesis.status, "limited");
   assert.equal(analysis.guardrails.separatesFactRuleInterpretationSynthesis, true);

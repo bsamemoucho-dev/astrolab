@@ -414,19 +414,128 @@ const MARGIN_STRINGS = {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Aspects retenus — convention Lastro « lastro-aspects@1.0.0 ».
+//
+// Les orbes sont une convention de produit : le document écrit la version et le
+// vocabulaire employé. En français, on écrit « trigone », jamais « trine ».
+// ---------------------------------------------------------------------------
+const ASPECT_STRINGS = {
+  fr: {
+    aspects: "Aspects retenus (convention Lastro)",
+    aspectGeometry: "Géométrie angulaire examinée",
+    orb: "orbe",
+    withLuminaries: "avec le Soleil ou la Lune",
+    aspectsSummary: "{examined} couples examinés · {retained} aspects retenus · {marginDiscarded} écartés par la marge",
+    aspectNotStableWithinMargin: "Aspects écartés car ils ne tiennent pas sur toute la marge d'incertitude : {list}.",
+    annexMethod: "Positions astronomiques calculées localement, sans accès Internet, avec astronomy-engine 2.1.19. Zodiaque tropical, maisons Whole Sign (maisons entières). Les aspects retenus suivent la convention Lastro versionnée indiquée ci-dessus ; aucune interprétation n'est produite par le moteur.",
+    aspectNames: { conjunction: "conjonction", sextile: "sextile", square: "carré", trine: "trigone", opposition: "opposition" }
+  },
+  en: {
+    aspects: "Retained aspects (Lastro convention)",
+    aspectGeometry: "Angular geometry examined",
+    orb: "orb",
+    withLuminaries: "with the Sun or the Moon",
+    aspectsSummary: "{examined} pairs examined · {retained} aspects retained · {marginDiscarded} discarded because of the margin",
+    aspectNotStableWithinMargin: "Aspects discarded because they do not hold across the whole uncertainty margin: {list}.",
+    annexMethod: "Astronomical positions computed locally, without Internet access, with astronomy-engine 2.1.19. Tropical zodiac, Whole Sign houses. Retained aspects follow the versioned Lastro convention shown above; no interpretation is produced by the engine.",
+    aspectNames: { conjunction: "conjunction", sextile: "sextile", square: "square", trine: "trine", opposition: "opposition" }
+  },
+  de: {
+    aspects: "Berücksichtigte Aspekte (Lastro-Konvention)",
+    aspectGeometry: "Geprüfte Winkelgeometrie",
+    orb: "Orbis",
+    withLuminaries: "mit Sonne oder Mond",
+    aspectsSummary: "{examined} geprüfte Paare · {retained} berücksichtigte Aspekte · {marginDiscarded} wegen der Spanne verworfen",
+    aspectNotStableWithinMargin: "Aspekte verworfen, weil sie nicht über die gesamte Unsicherheitsspanne bestehen: {list}.",
+    annexMethod: "Astronomische Positionen werden lokal und ohne Internetzugang mit astronomy-engine 2.1.19 berechnet. Tropischer Tierkreis, Ganzzeichenhäuser. Die berücksichtigten Aspekte folgen der oben genannten versionierten Lastro-Konvention; der Motor erzeugt keine Deutung.",
+    aspectNames: { conjunction: "Konjunktion", sextile: "Sextil", square: "Quadrat", trine: "Trigon", opposition: "Opposition" }
+  },
+  es: {
+    aspects: "Aspectos retenidos (convención Lastro)",
+    aspectGeometry: "Geometría angular examinada",
+    orb: "orbe",
+    withLuminaries: "con el Sol o la Luna",
+    aspectsSummary: "{examined} parejas examinadas · {retained} aspectos retenidos · {marginDiscarded} descartados por el margen",
+    aspectNotStableWithinMargin: "Aspectos descartados porque no se mantienen en todo el margen de incertidumbre: {list}.",
+    annexMethod: "Posiciones astronómicas calculadas localmente, sin acceso a Internet, con astronomy-engine 2.1.19. Zodíaco tropical, casas por signos enteros. Los aspectos retenidos siguen la convención Lastro versionada indicada arriba; el motor no produce ninguna interpretación.",
+    aspectNames: { conjunction: "conjunción", sextile: "sextil", square: "cuadratura", trine: "trígono", opposition: "oposición" }
+  },
+  it: {
+    aspects: "Aspetti ritenuti (convenzione Lastro)",
+    aspectGeometry: "Geometria angolare esaminata",
+    orb: "orbe",
+    withLuminaries: "con il Sole o la Luna",
+    aspectsSummary: "{examined} coppie esaminate · {retained} aspetti ritenuti · {marginDiscarded} scartati per il margine",
+    aspectNotStableWithinMargin: "Aspetti scartati perché non reggono su tutto il margine di incertezza: {list}.",
+    annexMethod: "Posizioni astronomiche calcolate localmente, senza accesso a Internet, con astronomy-engine 2.1.19. Zodiaco tropicale, case a segno intero. Gli aspetti ritenuti seguono la convenzione Lastro versionata indicata sopra; il motore non produce alcuna interpretazione.",
+    aspectNames: { conjunction: "congiunzione", sextile: "sestile", square: "quadrato", trine: "trigono", opposition: "opposizione" }
+  },
+  pt: {
+    aspects: "Aspetos retidos (convenção Lastro)",
+    aspectGeometry: "Geometria angular examinada",
+    orb: "orbe",
+    withLuminaries: "com o Sol ou a Lua",
+    aspectsSummary: "{examined} pares examinados · {retained} aspetos retidos · {marginDiscarded} descartados pela margem",
+    aspectNotStableWithinMargin: "Aspetos descartados por não se manterem em toda a margem de incerteza: {list}.",
+    annexMethod: "Posições astronómicas calculadas localmente, sem acesso à Internet, com astronomy-engine 2.1.19. Zodíaco tropical, casas por signos inteiros. Os aspetos retidos seguem a convenção Lastro versionada indicada acima; o motor não produz qualquer interpretação.",
+    aspectNames: { conjunction: "conjunção", sextile: "sextil", square: "quadratura", trine: "trígono", opposition: "oposição" }
+  },
+  no: {
+    aspects: "Aspekter som er lagt til grunn (Lastro-konvensjon)",
+    aspectGeometry: "Undersøkt vinkelgeometri",
+    orb: "orbis",
+    withLuminaries: "med solen eller månen",
+    aspectsSummary: "{examined} par undersøkt · {retained} aspekter lagt til grunn · {marginDiscarded} forkastet på grunn av marginen",
+    aspectNotStableWithinMargin: "Aspekter forkastet fordi de ikke holder over hele usikkerhetsmargen: {list}.",
+    annexMethod: "Astronomiske posisjoner beregnes lokalt, uten internettilgang, med astronomy-engine 2.1.19. Tropisk dyrekrets, heltegnshus. Aspektene som er lagt til grunn følger den versjonerte Lastro-konvensjonen ovenfor; motoren produserer ingen tolkning.",
+    aspectNames: { conjunction: "konjunksjon", sextile: "sekstil", square: "kvadrat", trine: "trigon", opposition: "opposisjon" }
+  },
+  da: {
+    aspects: "Aspekter der er lagt til grund (Lastro-konvention)",
+    aspectGeometry: "Undersøgt vinkelgeometri",
+    orb: "orbis",
+    withLuminaries: "med solen eller månen",
+    aspectsSummary: "{examined} par undersøgt · {retained} aspekter lagt til grund · {marginDiscarded} forkastet på grund af marginen",
+    aspectNotStableWithinMargin: "Aspekter forkastet, fordi de ikke holder over hele usikkerhedsmarginen: {list}.",
+    annexMethod: "Astronomiske positioner beregnes lokalt, uden internetadgang, med astronomy-engine 2.1.19. Tropisk dyrekrets, heltegnshuse. De aspekter, der er lagt til grund, følger den versionerede Lastro-konvention ovenfor; motoren producerer ingen fortolkning.",
+    aspectNames: { conjunction: "konjunktion", sextile: "sekstil", square: "kvadrat", trine: "trigon", opposition: "opposition" }
+  },
+  nl: {
+    aspects: "Aangehouden aspecten (Lastro-conventie)",
+    aspectGeometry: "Onderzochte hoekgeometrie",
+    orb: "orbe",
+    withLuminaries: "met de zon of de maan",
+    aspectsSummary: "{examined} paren onderzocht · {retained} aspecten aangehouden · {marginDiscarded} verworpen door de marge",
+    aspectNotStableWithinMargin: "Aspecten verworpen omdat ze niet over de hele onzekerheidsmarge standhouden: {list}.",
+    annexMethod: "Astronomische posities worden lokaal berekend, zonder internettoegang, met astronomy-engine 2.1.19. Tropische dierenriem, hele-tekenhuizen. De aangehouden aspecten volgen de hierboven genoemde geversioneerde Lastro-conventie; de engine produceert geen interpretatie.",
+    aspectNames: { conjunction: "conjunctie", sextile: "sextiel", square: "vierkant", trine: "driehoek", opposition: "oppositie" }
+  }
+};
+
 export function docStrings(code) {
   const language = normalizeLanguage(code);
   const table = DOCS[language] ?? FR;
   const details = DETAILS[language] ?? DETAILS.fr;
   const margin = MARGIN_STRINGS[language] ?? MARGIN_STRINGS.fr;
-  const labels = { ...details.labels, margin: margin.margin, marginRange: margin.marginRange };
+  const aspect = ASPECT_STRINGS[language] ?? ASPECT_STRINGS.fr;
+  const labels = {
+    ...details.labels,
+    margin: margin.margin,
+    marginRange: margin.marginRange,
+    aspects: aspect.aspects,
+    aspectGeometry: aspect.aspectGeometry,
+    orb: aspect.orb
+  };
   const values = {
     ...details.values,
     marginDefault: margin.marginDefault,
     marginSupplied: margin.marginSupplied,
     signStable: margin.signStable,
     signNotDecidable: margin.signNotDecidable,
-    withinMargin: margin.withinMargin
+    withinMargin: margin.withinMargin,
+    withLuminaries: aspect.withLuminaries,
+    aspectsSummary: aspect.aspectsSummary
   };
   const uncertainty = {
     ...details.uncertainty,
@@ -434,7 +543,8 @@ export function docStrings(code) {
     approximateStable: margin.approximateStable,
     approximateUnstable: margin.approximateUnstable,
     approximateBodySigns: margin.approximateBodySigns,
-    approximateSect: margin.approximateSect
+    approximateSect: margin.approximateSect,
+    aspectNotStableWithinMargin: aspect.aspectNotStableWithinMargin
   };
   return {
     ...FR,
@@ -443,6 +553,8 @@ export function docStrings(code) {
     labels,
     values,
     uncertainty,
+    aspects: aspect.aspectNames,
+    annexMethod: aspect.annexMethod,
     sectionTitles: { ...FR.sectionTitles, ...(table.sectionTitles ?? {}) },
     lang: language
   };

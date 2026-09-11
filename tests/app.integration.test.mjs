@@ -476,7 +476,8 @@ test("western natal endpoint calculates and persists reproducible development ar
     assert.equal(calculated.status, 201);
     assert.equal(calculated.payload.result.methodId, "western-natal");
     assert.equal(calculated.payload.result.productionEligible, false);
-    assert.equal(calculated.payload.result.parameters.ruleVersionsCreated, false);
+    assert.deepEqual(calculated.payload.result.parameters.ruleVersionsCreated, ["lastro-aspects@1.0.0"]);
+    assert.equal(calculated.payload.result.parameters.interpretiveRuleVersionsCreated, false);
     assert.equal(calculated.payload.calculationArtifacts.length, 2);
     assert.match(calculated.payload.calculationRun.inputDataHash, /^[a-f0-9]{64}$/);
     assert.match(calculated.payload.calculationRun.resultHash, /^[a-f0-9]{64}$/);

@@ -17,6 +17,19 @@ export const PROVENANCE = Object.freeze({
   llmSynthesis: "LLM_SYNTHESIS"
 });
 
+// Conventions de STRUCTURE actives : elles décident quelles relations existent
+// (orbes écrits), pas ce qu'elles signifient. La signification reste au
+// rédacteur, donc en LLM_SYNTHESIS.
+export const STRUCTURAL_CONVENTIONS = Object.freeze([
+  Object.freeze({
+    id: "lastro-aspects",
+    version: "1.0.0",
+    versionId: "lastro-aspects@1.0.0",
+    nature: PROVENANCE.lastroRule,
+    scope: "structural_aspect_orbs"
+  })
+]);
+
 // Convention de synthèse : à ce jour, aucune règle interprétative traditionnelle
 // n'est active. Le document doit le dire plutôt que de le laisser croire.
 export const CONVERGENCE_RULE_VERSION = Object.freeze({
@@ -33,6 +46,7 @@ export function provenanceSummary() {
     astronomy: PROVENANCE.calculated,
     traditionalRules: CONVERGENCE_RULE_VERSION.traditionalRulesActive ? PROVENANCE.traditionalRule : null,
     lastroConvention: `${CONVERGENCE_RULE_VERSION.id}@${CONVERGENCE_RULE_VERSION.version}`,
+    structuralConventions: STRUCTURAL_CONVENTIONS.map((convention) => convention.versionId),
     text: PROVENANCE.llmSynthesis,
     note: CONVERGENCE_RULE_VERSION.disclaimer
   };

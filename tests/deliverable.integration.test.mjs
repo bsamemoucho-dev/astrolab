@@ -294,8 +294,11 @@ test("public no-account reading works without authentication and stores nothing"
     // d'inventer une histoire d'ancêtres) ; la conclusion éthique n'est plus une
     // section mais une clôture fixe ; et « forces et tensions » n'apparaît que
     // si des indicateurs convergent réellement (ici : oui).
-    assert.equal(reading.payload.sections.length, 10);
+    assert.equal(reading.payload.sections.length, 11);
     assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
+    // La convention d'aspects est active : la section conditionnelle revient
+    // dès que des indicateurs convergent (ici Soleil et Mercure en Gemeaux).
+    assert.equal(reading.payload.sections.some((section) => section.id === "forces-tensions"), true);
     // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
     assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
     assert.equal(reading.payload.provenance.traditionalRules, null);
@@ -619,13 +622,16 @@ test("« Vos forces et vos tensions » n'existe que si des indicateurs convergen
     ]),
     true
   );
-  // Tous les signes différents : aucune convergence, donc pas de section.
+  // Tous les signes différents, aucun aspect retenu : pas de section.
   assert.equal(
-    hasConvergentIndicators([
-      { body: "Sun", sign: "Gemini" },
-      { body: "Mercury", sign: "Cancer" },
-      { body: "Venus", sign: "Leo" }
-    ]),
+    hasConvergentIndicators(
+      [
+        { body: "Sun", sign: "Gemini" },
+        { body: "Mercury", sign: "Cancer" },
+        { body: "Venus", sign: "Leo" }
+      ],
+      { aspectConvention: { patterns: [] }, retainedAspects: [] }
+    ),
     false
   );
   // Un signe indéterminé (heure inconnue) ne compte pas comme convergence.
@@ -636,8 +642,36 @@ test("« Vos forces et vos tensions » n'existe que si des indicateurs convergen
     ]),
     false
   );
+  // Deux aspects retenus par la convention : matière structurelle suffisante.
+  assert.equal(
+    hasConvergentIndicators(
+      [
+        { body: "Sun", sign: "Gemini" },
+        { body: "Mercury", sign: "Cancer" },
+        { body: "Venus", sign: "Leo" }
+      ],
+      {
+        aspectConvention: { patterns: ["Sun-Moon:trine", "Venus-Mars:square"] },
+        retainedAspects: [{ exactness: 5 }, { exactness: 6 }]
+      }
+    ),
+    true
+  );
+  // Un seul aspect, mais très serré (écart ≤ 2°) : suffisant.
+  assert.equal(
+    hasConvergentIndicators(
+      [
+        { body: "Sun", sign: "Gemini" },
+        { body: "Mercury", sign: "Cancer" },
+        { body: "Venus", sign: "Leo" }
+      ],
+      { aspectConvention: { patterns: ["Sun-Moon:trine"] }, retainedAspects: [{ exactness: 1.2 }] }
+    ),
+    true
+  );
 
   const contextes = [];
+  const sectionsVues = [];
   const reading = await createPublicReading(
     {
       firstName: "Test",
@@ -649,13 +683,25 @@ test("« Vos forces et vos tensions » n'existe que si des indicateurs convergen
         normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
       }
     },
-    { writerFn: (section, context) => { contextes.push(context); return "Texte."; }, crossCheckFn: null }
+    {
+      writerFn: (section, context) => { sectionsVues.push(section); contextes.push(context); return "Texte."; },
+      crossCheckFn: null
+    }
   );
-  // La section a été retirée du plan : tant que les aspects sont inactifs,
-  // aucune matière robuste n'existe, donc aucune section.
-  assert.equal(reading.sections.some((section) => section.id === "forces-tensions"), false);
-  // Et la consigne interdit d'interpréter les aspects, encore inactifs.
-  assert.match(contextes[0].socle.warnings.join(" "), /inactive/i);
+  const sectionForces = sectionsVues.find((section) => section.id === "forces-tensions");
+  // Heure inconnue : Soleil et Mercure sont tous deux en Gémeaux, la
+  // convergence de signe suffit — la section existe donc, sans aucun aspect
+  // (les longitudes ne sont pas calculées sans heure).
+  assert.equal(reading.sections.some((section) => section.id === "forces-tensions"), true);
+  assert.equal(contextes[0].socle.aspectConvention.patterns.length, 0);
+  // Les aspects ne sont plus déclarés inactifs : la convention est active et
+  // versionnée, et le rédacteur reçoit la consigne correspondante.
+  const avertissements = contextes[0].socle.warnings.join(" ");
+  assert.doesNotMatch(avertissements, /Aspect orbs[^.]*inactive/i);
+  assert.match(avertissements, /lastro-aspects@1\.0\.0/);
+  // La consigne de la section autorise desormais les aspects retenus.
+  assert.ok(sectionForces);
+  assert.match(sectionForces.directives.join(" "), /aspects retenus/i);
 });
 
 test("une contradiction planète/signe déclenche une réécriture, jamais une livraison", async () => {

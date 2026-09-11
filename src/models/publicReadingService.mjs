@@ -43,10 +43,16 @@ function normalizeParents(input = {}) {
 // Une entrée « parent » sans aucun contenu (rôle seul) ne constitue pas une
 // donnée familiale : la section transgénérationnelle ne doit pas exister pour
 // un dossier où les parents sont vides.
+//
 // « Forces et tensions » n'a de matière que si des indicateurs convergent
-// réellement. Aujourd'hui : plusieurs corps dans un même signe (les aspects
-// restent inactifs). Sans convergence, la section disparaît.
-export function hasConvergentIndicators(bodies = []) {
+// réellement et robustement :
+//   - plusieurs corps dans un même signe (convergence de signe), ou
+//   - au moins deux aspects retenus par la convention Lastro (structure), ou
+//   - un aspect retenu très serré (écart ≤ 2°), qui suffit à lui seul.
+// Sans cela, la section disparaît au lieu de commenter du vide.
+const ROBUST_ASPECT_GAP_DEGREES = 2;
+
+export function hasConvergentIndicators(bodies = [], socle = null) {
   const counts = new Map();
   for (const entry of Array.isArray(bodies) ? bodies : []) {
     const sign = entry?.sign ?? null;
@@ -55,7 +61,15 @@ export function hasConvergentIndicators(bodies = []) {
     }
     counts.set(sign, (counts.get(sign) ?? 0) + 1);
   }
-  return [...counts.values()].some((count) => count >= 2);
+  if ([...counts.values()].some((count) => count >= 2)) {
+    return true;
+  }
+  const convention = socle?.aspectConvention ?? null;
+  const retained = convention?.patterns ?? [];
+  if (retained.length >= 2) {
+    return true;
+  }
+  return (socle?.retainedAspects ?? []).some((aspect) => Number(aspect.exactness) <= ROBUST_ASPECT_GAP_DEGREES);
 }
 
 function hasFamilyData(parents) {
@@ -153,7 +167,7 @@ export async function createPublicReading(input = {}, options = {}) {
     // Section conditionnelle : pas de convergence calculée, pas de section.
     if (
       planSection.requiresConvergence &&
-      !hasConvergentIndicators(calculation.result.astronomicalCalculation?.bodies)
+      !hasConvergentIndicators(calculation.result.astronomicalCalculation?.bodies, socle)
     ) {
       continue;
     }

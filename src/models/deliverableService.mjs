@@ -12,6 +12,7 @@ import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deli
 import { buildSocle } from "../deliverables/socle.mjs";
 import { validateSectionText } from "../deliverables/validator.mjs";
 import { writeSection } from "../deliverables/writers.mjs";
+import { hasConvergentIndicators } from "./publicReadingService.mjs";
 import { calculateWesternNatalForUser } from "./natalCalculationService.mjs";
 
 const GENERATION_STALE_AFTER_MS = 10 * 60 * 1000;
@@ -254,6 +255,13 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
       // Mêmes règles que la lecture publique : sans données familiales, la
       // section transgénérationnelle disparaît au lieu d'inventer des ancêtres.
       if (planSection.id === "transgenerationnel" && !proHasFamily) {
+        continue;
+      }
+      // Section conditionnelle : pas d'indicateurs robustes, pas de section.
+      if (
+        planSection.requiresConvergence &&
+        !hasConvergentIndicators(context.socle?.bodies, context.socle)
+      ) {
         continue;
       }
       context.previousSections = writtenSections.map((written) => ({

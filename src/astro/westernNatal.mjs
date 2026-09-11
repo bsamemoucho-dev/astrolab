@@ -13,6 +13,7 @@ import {
   WESTERN_NATAL_METHOD_VERSION
 } from "./constants.mjs";
 import { calculateBodyPositions } from "./ephemeris.mjs";
+import { evaluateLastroAspects } from "./rules/lastroAspects.mjs";
 import { normalizeSignedDegrees, round } from "./math.mjs";
 import { julianDay, localDateTimeToUtc, parseDate, parseTime, validateCoordinates } from "./time.mjs";
 import { uncertainIntervalAnalysis } from "./signWindows.mjs";
@@ -361,10 +362,12 @@ function calculateAspectInfrastructure(positions) {
           ...aspect,
           exactness: round(Math.abs(distance - aspect.exactAngle), 6)
         })).sort((a, b) => a.exactness - b.exactness),
+        // Couche géométrique seule : c'est `structuralAstrology.aspects` qui
+        // porte la décision (orbe retenu, version de convention).
         active: false,
         orbUsed: null,
         ruleVersionId: null,
-        status: "aspect_geometry_only_orb_rule_not_validated"
+        status: "aspect_geometry_only_orb_rule_not_applied_here"
       });
     }
   }
@@ -623,7 +626,7 @@ function timeEvidence(normalizedInput, window) {
   };
 }
 
-function buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, conditions, lots, margin, warnings) {
+function buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, aspectConvention, conditions, lots, margin, warnings) {
   return {
     schema: "astrolab.western_natal.structured_result",
     schemaVersion: ASTROLAB_MODEL_VERSION,
@@ -657,7 +660,8 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
       astronomyEngineVersion: ASTRONOMY_ENGINE_VERSION,
       ephemerisStatus: "astronomy_engine_2_1_19_validated_against_jpl_horizons_reference_fixtures",
       internetUsedAtRuntime: false,
-      ruleVersionsCreated: false
+      ruleVersionsCreated: [aspectConvention.ruleVersionId],
+      interpretiveRuleVersionsCreated: false
     },
     astronomicalCalculation: {
       bodies: positions,
@@ -684,12 +688,16 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
           }
         : {}),
       aspectInfrastructure: aspects,
+      aspects: aspectConvention,
       planetaryConditions: conditions,
       lots
     },
     traditionalInterpretation: {
       status: "not_generated",
-      reason: "No RuleVersion is active for interpretation."
+      reason: "No interpretive RuleVersion is active.",
+      // Une convention de STRUCTURE est active (orbes) : elle ne dit pas ce que
+      // les aspects signifient, elle dit lesquels existent.
+      structuralConventionsActive: [aspectConvention.ruleVersionId]
     },
     uncertainty: {
       timePrecision: normalizedInput.timePrecision,
@@ -762,6 +770,11 @@ export function calculateWesternNatalChart(input, options = {}) {
           unstableBodySigns: positions.filter((position) => position.marginWindow && !position.marginWindow.signStable).map((position) => position.body)
         }
       : null;
+  // Sans instant représentatif (heure inconnue ou intervalle), les longitudes
+  // ne sont pas calculées : la convention d'aspects ne s'applique à rien.
+  const aspectConvention = evaluateLastroAspects(hasRepresentativeTime ? positions : [], {
+    marginMinutes: normalizedInput.timeMarginMinutes
+  });
   const aspects = hasRepresentativeTime ? calculateAspectInfrastructure(positions) : [];
   const conditions = inactiveConditions(positions);
   const lots = inactiveLots();
@@ -782,7 +795,10 @@ export function calculateWesternNatalChart(input, options = {}) {
   const warnings = [
     "Astronomical engine is astronomy-engine@2.1.19 validated against stored JPL Horizons reference fixtures for the current V1 test set.",
     "No interpretive RuleVersion is active.",
-    "Aspect orbs, dignities, lots and condition rules are represented as inactive structures.",
+    `Structural aspect orbs are active under the documented, versioned Lastro convention ${aspectConvention.ruleVersionId} (${aspectConvention.orbTable
+      .map((entry) => `${entry.type} ${entry.orbDegrees}°/${entry.orbDegreesWithLuminary}°`)
+      .join(", ")}).`,
+    "Dignities, lots and planetary condition rules remain inactive structures.",
     ...(normalizedInput.timePrecision === "unknown" ? ["Birth time is unknown; angles, houses and sect are not calculated."] : []),
     ...(normalizedInput.timePrecision === "approximate"
       ? [
@@ -792,7 +808,7 @@ export function calculateWesternNatalChart(input, options = {}) {
       : []),
     ...(normalizedInput.timePrecision === "interval" ? ["Birth time is an interval; stable-vs-variable analysis is represented but not collapsed to an exact chart.", intervalStabilityNote] : [])
   ];
-  const payload = buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, conditions, lots, margin, warnings);
+  const payload = buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, aspectConvention, conditions, lots, margin, warnings);
   if (intervalAnalysis) {
     payload.uncertainty.intervalAnalysis = intervalAnalysis;
   }

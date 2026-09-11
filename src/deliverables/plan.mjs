@@ -68,8 +68,9 @@ const DIRECTIVES = {
     "Pas d'affirmation sur un métier, un projet ou une décision à venir."
   ],
   forcesTensions: [
-    "Appuie-toi uniquement sur les convergences réellement calculées : plusieurs corps dans un même signe ou un même élément.",
-    "Les aspects ne sont pas activés : n'en parle pas, ne les suppose pas, ne les invente pas.",
+    "Appuie-toi uniquement sur les indicateurs réellement calculés : les aspects retenus (orbe écrit dans l'annexe) et les convergences de signe.",
+    "Un aspect retenu est une structure, pas un verdict : décris ce qui soutient et ce qui met en tension, sans transformer un aspect en promesse ni en fatalité.",
+    "N'évoque jamais un aspect écarté par la marge d'incertitude : la liste des aspects écartés est fournie, et un aspect qui ne tient pas sur la marge n'existe pas dans ce dossier.",
     "Nomme ce qui soutient (une force qui revient) et ce qui met en tension (deux exigences qui tirent en sens opposés).",
     "Reste descriptif et non prescriptif : pas de conseil, pas d'injonction, pas de pronostic."
   ],
@@ -175,6 +176,20 @@ export const DOSSIER_SECTIONS = Object.freeze([
     writer: "llm",
     requiresSocle: true,
     directives: DIRECTIVES.action
+  },
+  {
+    // Section conditionnelle : elle n'existe que si des indicateurs robustes
+    // convergent réellement (voir hasConvergentIndicators). Sans matière, elle
+    // disparaît — jamais de remplissage dans un document vendu.
+    id: "forces-tensions",
+    rank: 6.5,
+    title: "Vos forces et vos tensions",
+    kind: "symbolic",
+    badge: BADGES.symbolic,
+    writer: "llm",
+    requiresSocle: true,
+    requiresConvergence: true,
+    directives: DIRECTIVES.forcesTensions
   },
   {
     id: "lecture-passe",

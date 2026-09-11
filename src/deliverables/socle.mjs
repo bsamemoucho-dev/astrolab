@@ -124,23 +124,41 @@ function angleFact(name, angle, details, window = null, marginMinutes = null) {
   };
 }
 
-function aspectFacts(aspectInfrastructure) {
-  if (!Array.isArray(aspectInfrastructure)) {
-    return [];
-  }
-  return aspectInfrastructure
-    .map((pair) => {
-      const best = pair.candidates?.[0] ?? null;
-      return {
-        bodyA: pair.bodyA,
-        bodyB: pair.bodyB,
-        angularDistance: pair.angularDistance,
-        closestCandidate: best ? best.type : null,
-        exactness: best ? best.exactness : null
-      };
-    })
-    .sort((first, second) => (first.exactness ?? 999) - (second.exactness ?? 999))
-    .slice(0, 12);
+// Aspects retenus par la convention Lastro. Ce ne sont plus des « candidats
+// géométriques » : l'orbe appliqué est écrit, et un aspect qui ne tient pas sur
+// toute la marge d'incertitude n'est pas retenu.
+function aspectName(type, details) {
+  return details?.aspects?.[type] ?? type ?? "";
+}
+
+function orbTableLabel(convention, details) {
+  const withLuminaries = details?.values?.withLuminaries ?? "avec le Soleil ou la Lune";
+  return (convention?.orbTable ?? [])
+    .map((entry) => `${aspectName(entry.type, details)} ${entry.orbDegrees}° (${entry.orbDegreesWithLuminary}° ${withLuminaries})`)
+    .join(" · ");
+}
+
+function retainedAspectFacts(aspectConvention, details) {
+  const items = Array.isArray(aspectConvention?.items) ? aspectConvention.items : [];
+  return items
+    .filter((item) => item.retained)
+    .map((item) => ({
+      id: item.id,
+      bodyA: item.bodyA,
+      bodyB: item.bodyB,
+      type: item.type,
+      aspectLabel: aspectName(item.type, details),
+      angularDistance: item.angularDistance,
+      exactness: item.exactness,
+      orbUsed: item.orbUsed,
+      orbWithLuminary: item.orbWithLuminary,
+      marginStable: item.marginStability ? item.marginStability.stable : null
+    }));
+}
+
+function discardedByMargin(aspectConvention) {
+  const items = Array.isArray(aspectConvention?.items) ? aspectConvention.items : [];
+  return items.filter((item) => item.discardedReason === "not_stable_within_declared_margin");
 }
 
 export function buildSocle(payload, strings = null) {
@@ -209,15 +227,32 @@ export function buildSocle(payload, strings = null) {
     });
   }
 
-  const aspectList = aspectFacts(structural.aspectInfrastructure);
+  const aspectList = retainedAspectFacts(structural.aspects, details);
+  if (structural.aspects) {
+    facts.push({
+      id: "method.aspects",
+      label: L.aspects ?? "Aspects retenus (convention Lastro)",
+      value: `${structural.aspects.ruleVersionId} — ${orbTableLabel(structural.aspects, details)}`
+    });
+    facts.push({
+      id: "method.aspectGeometry",
+      label: L.aspectGeometry ?? "Géométrie angulaire examinée",
+      value: fillTemplate(
+        V.aspectsSummary ?? "{examined} couples examinés · {retained} aspects retenus · {marginDiscarded} écartés par la marge",
+        {
+          examined: structural.aspects.summary?.examinedPairs ?? 0,
+          retained: structural.aspects.summary?.retained ?? 0,
+          marginDiscarded: structural.aspects.summary?.discardedNotStableWithinMargin ?? 0
+        }
+      )
+    });
+  }
   for (const aspect of aspectList) {
-    if (aspect.closestCandidate) {
-      facts.push({
-        id: `aspect.${aspect.bodyA}.${aspect.bodyB}`,
-        label: `${localizedBodyName(aspect.bodyA, details)} – ${localizedBodyName(aspect.bodyB, details)}`,
-        value: `${L.aspect ?? "distance angulaire"} ${aspect.angularDistance.toFixed(1)}°, ${L.closest ?? "plus proche candidat"} : ${aspect.closestCandidate} (${L.gap ?? "écart"} ${aspect.exactness.toFixed(2)}°) — ${L.noOrb ?? "aucune règle d'orbe active"}`
-      });
-    }
+    facts.push({
+      id: aspect.id,
+      label: `${localizedBodyName(aspect.bodyA, details)} – ${localizedBodyName(aspect.bodyB, details)}`,
+      value: `${aspect.aspectLabel}, ${L.orb ?? "orbe"} ${aspect.orbUsed}°, ${L.gap ?? "écart"} ${aspect.exactness.toFixed(2)}°`
+    });
   }
 
   if (uncertainty.intervalAnalysis) {
@@ -266,6 +301,19 @@ export function buildSocle(payload, strings = null) {
     if (margin?.sectStableWithinMargin === false) {
       uncertaintyNotes.push(U.approximateSect ?? "La secte (diurne ou nocturne) bascule dans cette marge : elle n'est pas affichée.");
     }
+    const marginDiscarded = discardedByMargin(structural.aspects);
+    if (marginDiscarded.length > 0) {
+      uncertaintyNotes.push(
+        fillTemplate(U.aspectNotStableWithinMargin ?? "Aspects écartés car ils ne tiennent pas sur toute la marge d'incertitude : {list}.", {
+          list: marginDiscarded
+            .map(
+              (item) =>
+                `${localizedBodyName(item.bodyA, details)} – ${localizedBodyName(item.bodyB, details)} (${aspectName(item.candidateType, details)})`
+            )
+            .join(", ")
+        })
+      );
+    }
   } else if (normalizedInput.timePrecision === "interval") {
     uncertaintyNotes.push(U.interval ?? "Heure de naissance fournie en intervalle : aucune heure exacte n'a été inventée.");
   }
@@ -313,6 +361,19 @@ export function buildSocle(payload, strings = null) {
         }
       : null,
     aspectGeometry: aspectList,
+    retainedAspects: aspectList,
+    aspectConvention: structural.aspects
+      ? {
+          ruleVersionId: structural.aspects.ruleVersionId,
+          nature: structural.aspects.nature,
+          orbTable: structural.aspects.orbTable,
+          summary: structural.aspects.summary,
+          patterns: aspectList.map((aspect) => `${aspect.bodyA}-${aspect.bodyB}:${aspect.type}`),
+          discardedNotStableWithinMargin: discardedByMargin(structural.aspects).map(
+            (item) => `${item.bodyA}-${item.bodyB}:${item.candidateType}`
+          )
+        }
+      : null,
     facts,
     uncertaintyNotes,
     warnings: uncertainty.warnings ?? []
@@ -326,7 +387,8 @@ export function renderSocleAnnex(socle, strings = null) {
       "Cette annexe contient les seules données calculées et vérifiées utilisées pour ce dossier. Aucune interprétation n'y figure.",
     person: "Personne",
     uncertaintyLimits: "Limites d'incertitude",
-    engineWarnings: "Avertissements du moteur de calcul"
+    methodNote:
+      "Positions astronomiques calculées localement, sans accès Internet, avec astronomy-engine 2.1.19. Zodiaque tropical, maisons Whole Sign (maisons entières). Aucune interprétation n'est produite par le moteur."
   };
   const lines = [`# ${t.annexTitle}`, "", t.annexIntro, ""];
   if (socle.person?.firstName) {
@@ -341,16 +403,9 @@ export function renderSocleAnnex(socle, strings = null) {
       lines.push(`- ${note}`);
     }
   }
-  if (socle.warnings.length > 0) {
-    lines.push("", `${t.engineWarnings} :`, "");
-    for (const warning of socle.warnings) {
-      lines.push(`- ${warning}`);
-    }
-  }
-  lines.push(
-    "",
-    `Méthode : ${socle.methodId} (${socle.methodVersion}) — statut ${socle.status}.`,
-    "Les positions sont calculées par astronomy-engine@2.1.19 (validé contre les fixtures JPL Horizons du référentiel de test V1)."
-  );
+  // Les avertissements bruts du moteur restent dans les données pour l'audit
+  // interne : ils ne sont plus recopiés ici. Un document vendu n'expose ni
+  // statut interne, ni langage de préproduction, ni texte anglais non traduit.
+  lines.push("", t.annexMethod ?? t.methodNote);
   return lines.join("\n");
 }

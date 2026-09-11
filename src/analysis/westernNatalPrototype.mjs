@@ -88,7 +88,7 @@ function factorFromAngle(name, angle) {
   };
 }
 
-function relation(factorA, relationType, factorB, dataUsed, value, status = "calculated_relation_no_interpretive_rule") {
+function relation(factorA, relationType, factorB, dataUsed, value, status = "calculated_relation_no_interpretive_rule", rule = null) {
   return {
     factorA,
     relation: relationType,
@@ -98,8 +98,8 @@ function relation(factorA, relationType, factorB, dataUsed, value, status = "cal
     detectionRule: {
       kind: "calculated_structure",
       status,
-      ruleVersionId: null,
-      source: null,
+      ruleVersionId: rule?.ruleVersionId ?? null,
+      source: rule?.ruleVersionId ? "lastro_convention" : null,
       confidence: "calculated"
     },
     interpretiveStatus: "not_interpreted_no_rule_version"
@@ -159,9 +159,35 @@ function buildGeometricRelations(aspects) {
         nearestCandidate: aspect.candidates?.[0] ?? null,
         activeAspect: false
       },
-      "relation géométrique détectée — règle d'interprétation non activée"
+      "relation géométrique mesurée — décision d'orbe portée par structuralAstrology.aspects"
     )
   );
+}
+
+// Aspects retenus par la convention Lastro : c'est ici, et seulement ici, qu'une
+// relation angulaire devient une structure active du thème.
+function buildRetainedAspectRelations(aspectConvention) {
+  return (aspectConvention?.items ?? [])
+    .filter((item) => item.retained)
+    .map((item) =>
+      relation(
+        `factor.body.${item.bodyA}`,
+        `retained_aspect_${item.type}`,
+        `factor.body.${item.bodyB}`,
+        ["structuralAstrology.aspects"],
+        {
+          type: item.type,
+          exactAngle: item.exactAngle,
+          angularDistance: item.angularDistance,
+          gapFromExact: item.exactness,
+          orbUsed: item.orbUsed,
+          orbWithLuminary: item.orbWithLuminary,
+          marginStability: item.marginStability
+        },
+        "structure d'aspect retenue — signification non interprétée",
+        { ruleVersionId: item.ruleVersionId }
+      )
+    );
 }
 
 function uncertaintyItems(result) {
@@ -169,7 +195,7 @@ function uncertaintyItems(result) {
     {
       topic: "interpretation",
       status: "unavailable",
-      reason: "No interpretive RuleVersion is active."
+      reason: "No interpretive RuleVersion is active: the meaning of the retained structures is not produced by the engine."
     },
     {
       topic: "importance",
@@ -239,7 +265,8 @@ export function analyzeWesternNatalPrototype(result) {
   const relations = [
     ...buildPlacementRelations(bodies, houses),
     ...buildAngleRelations(angles),
-    ...buildGeometricRelations(result.structuralAstrology.aspectInfrastructure)
+    ...buildGeometricRelations(result.structuralAstrology.aspectInfrastructure),
+    ...buildRetainedAspectRelations(result.structuralAstrology.aspects)
   ];
 
   return {
@@ -261,7 +288,7 @@ export function analyzeWesternNatalPrototype(result) {
       established: [
         "Positions astronomiques structurées disponibles.",
         ...(angles.ascendant ? ["Ascendant, MC et maisons Whole Sign disponibles."] : ["Ascendant, MC et maisons non calculés pour cette précision d'heure."]),
-        "Relations géométriques disponibles sans règle d'interprétation activée."
+        `Relations angulaires mesurées ; aspects retenus par la convention versionnée ${result.structuralAstrology.aspects?.ruleVersionId ?? "lastro-aspects@1.0.0"} (orbes écrits), sans interprétation de leur signification.`
       ]
     },
     factors,
@@ -275,6 +302,9 @@ export function analyzeWesternNatalPrototype(result) {
       separatesFactRuleInterpretationSynthesis: true,
       sourceCountingIsTruthScoring: false,
       aiNarrativeGenerated: false,
+      // Une convention de structure est active ; aucune règle d'INTERPRÉTATION
+      // ne l'est : le moteur ne dit pas ce que les aspects signifient.
+      structuralConventionsActive: [result.structuralAstrology.aspects?.ruleVersionId].filter(Boolean),
       ruleVersionsCreated: false
     }
   };

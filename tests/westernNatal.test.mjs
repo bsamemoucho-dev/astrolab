@@ -53,7 +53,9 @@ test("western natal calculation creates deterministic structured development res
   assert.equal(first.result.methodId, "western-natal");
   assert.equal(first.result.productionEligible, false);
   assert.equal(first.result.parameters.internetUsedAtRuntime, false);
-  assert.equal(first.result.parameters.ruleVersionsCreated, false);
+  assert.equal(first.result.parameters.ruleVersionsCreated.length, 1);
+  assert.equal(first.result.parameters.ruleVersionsCreated[0], "lastro-aspects@1.0.0");
+  assert.equal(first.result.parameters.interpretiveRuleVersionsCreated, false);
   assert.equal(first.calculationRun.inputDataHash, second.calculationRun.inputDataHash);
   assert.equal(first.calculationRun.resultHash, second.calculationRun.resultHash);
   assert.notEqual(first.calculationRun.calculatedAt, second.calculationRun.calculatedAt);
@@ -81,18 +83,36 @@ test("western natal result includes seven traditional bodies, signs, angles and 
   assert.equal(houses[0].ruleVersionId, null);
 });
 
-test("aspects and interpretive conditions remain inactive without RuleVersion", () => {
+test("les aspects sont actifs sous convention versionnee, les conditions restent inactives", () => {
   const { result } = calculateWesternNatalChart(parisInput, { calculatedAt: "2026-09-01T00:00:00.000Z" });
-  const aspects = result.structuralAstrology.aspectInfrastructure;
+  const geometry = result.structuralAstrology.aspectInfrastructure;
+  const convention = result.structuralAstrology.aspects;
   const conditions = result.structuralAstrology.planetaryConditions;
   const lots = result.structuralAstrology.lots;
 
-  assert.equal(aspects.length, 21);
-  assert.ok(aspects.every((aspect) => aspect.active === false));
-  assert.ok(aspects.every((aspect) => aspect.ruleVersionId === null));
+  // La couche géométrie mesure les 21 couples, sans appliquer d'orbe.
+  assert.equal(geometry.length, 21);
+  assert.ok(geometry.every((pair) => pair.active === false));
+  assert.ok(geometry.every((pair) => pair.ruleVersionId === null));
+
+  // La couche « aspects » applique la convention Lastro, versionnée.
+  assert.equal(convention.ruleVersionId, "lastro-aspects@1.0.0");
+  assert.equal(convention.nature, "LASTRO_RULE");
+  assert.equal(convention.items.length, 21);
+  assert.ok(convention.items.every((item) => item.ruleVersionId === "lastro-aspects@1.0.0"));
+  assert.equal(convention.orbTable.length, 5);
+  assert.ok(convention.summary.retained > 0);
+  assert.equal(
+    convention.summary.retained + convention.summary.discardedOutsideOrb + convention.summary.discardedNotStableWithinMargin,
+    21
+  );
+
+  // Dignités, lots et conditions planétaires restent inactifs : aucune règle
+  // d'interprétation n'est activée.
   assert.ok(conditions.every((condition) => condition.domicile.ruleVersionId === null));
   assert.ok(lots.every((lot) => lot.value === null));
   assert.equal(result.traditionalInterpretation.status, "not_generated");
+  assert.deepEqual(result.traditionalInterpretation.structuralConventionsActive, ["lastro-aspects@1.0.0"]);
 });
 
 test("western natal calculation handles approximate, interval and unknown time without inventing exact angles", () => {
