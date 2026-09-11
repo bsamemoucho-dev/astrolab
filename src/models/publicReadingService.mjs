@@ -14,7 +14,11 @@ import { DOSSIER_SECTIONS } from "../deliverables/plan.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
 import { buildSocle } from "../deliverables/socle.mjs";
 import { provenanceSummary } from "../deliverables/provenance.mjs";
-import { findSignContradictions, findUnfilledPlaceholders } from "../deliverables/validator.mjs";
+import {
+  findBiographicalInvention,
+  findSignContradictions,
+  findUnfilledPlaceholders
+} from "../deliverables/validator.mjs";
 import { validateSectionText } from "../deliverables/validator.mjs";
 import { writeSection } from "../deliverables/writers.mjs";
 
@@ -174,13 +178,14 @@ export async function createPublicReading(input = {}, options = {}) {
       // puis on retire les phrases fautives si la réécriture échoue.
       const defauts = (texte) => [
         ...findSignContradictions(texte, context.socle),
-        ...findUnfilledPlaceholders(texte)
+        ...findUnfilledPlaceholders(texte),
+        ...findBiographicalInvention(texte)
       ];
       let contradictions = defauts(written.text);
       if (contradictions.length > 0) {
         const raisons = contradictions.map((entry) => `« ${entry.sentence.trim()} »`).join(" ");
         console.warn(`[Lastro] texte fautif dans « ${planSection.id} » — réécriture demandée`);
-        context.correctionNote = `Ta version précédente contenait des passages à ne jamais livrer : ${raisons} Réécris la section. N'attribue jamais à une planète un signe qui n'est pas le sien, et n'écris aucun texte entre crochets, accolades ou chevrons : si tu signes la lettre, utilise le prénom fourni, ou termine sans signature inventée.`;
+        context.correctionNote = `Ta version précédente contenait des passages à ne jamais livrer : ${raisons} Réécris la section. N'attribue jamais à une planète un signe qui n'est pas le sien, n'invente aucune biographie (pas de responsabilités précoces, de renoncements, de sacrifices, de pression familiale : tu parles de dynamiques symboliques, jamais d'une histoire vécue), et n'écris aucun texte entre crochets, accolades ou chevrons : si tu signes la lettre, utilise le prénom fourni, ou termine sans signature inventée.`;
         written = await writeSection(planSection, context, options);
         context.correctionNote = null;
         contradictions = defauts(written.text);

@@ -294,7 +294,7 @@ test("public no-account reading works without authentication and stores nothing"
     // d'inventer une histoire d'ancêtres) ; la conclusion éthique n'est plus une
     // section mais une clôture fixe ; et « forces et tensions » n'apparaît que
     // si des indicateurs convergent réellement (ici : oui).
-    assert.equal(reading.payload.sections.length, 11);
+    assert.equal(reading.payload.sections.length, 10);
     assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
     // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
     assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
@@ -558,7 +558,7 @@ test("heure de naissance inconnue : le rédacteur est prévenu que l'axe et les 
 
   // Le rédacteur reçoit l'information, section par section (une section peut
   // être marquée « non disponible » et ne pas passer par le rédacteur).
-  assert.ok(contextes.length >= 10, `contextes reçus : ${contextes.length}`);
+  assert.ok(contextes.length >= 9, `contextes reçus : ${contextes.length}`);
   for (const context of contextes) {
     assert.equal(context.uncertainty.timeKnown, false);
     assert.ok(context.uncertainty.indeterminable.includes("ascendant"));
@@ -651,7 +651,9 @@ test("« Vos forces et vos tensions » n'existe que si des indicateurs convergen
     },
     { writerFn: (section, context) => { contextes.push(context); return "Texte."; }, crossCheckFn: null }
   );
-  assert.ok(reading.sections.some((section) => section.id === "forces-tensions"));
+  // La section a été retirée du plan : tant que les aspects sont inactifs,
+  // aucune matière robuste n'existe, donc aucune section.
+  assert.equal(reading.sections.some((section) => section.id === "forces-tensions"), false);
   // Et la consigne interdit d'interpréter les aspects, encore inactifs.
   assert.match(contextes[0].socle.warnings.join(" "), /inactive/i);
 });

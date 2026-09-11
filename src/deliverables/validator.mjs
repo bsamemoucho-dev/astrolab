@@ -87,6 +87,35 @@ const PLACEHOLDER_PATTERNS = [
   /\b(?:insérer|insérez|ajouter|ajoutez|compléter|complétez)\b[^.!?\n]{0,40}\b(?:ici|prénom|nom)\b/i
 ];
 
+// Invention biographique. La consigne « n'invente aucun événement » ne suffisait
+// pas : le modèle ne mettait pas de dates, mais reconstruisait une vie
+// (« responsabilités précoces », « renoncements silencieux », « sacrifices »).
+// Ce qu'on interdit ici, c'est de déduire une histoire à partir de placements.
+const BIOGRAPHICAL_PATTERNS = [
+  /responsabilit[és]+\s+(pr[ée]coces?|d[èe]s\s+(le\s+plus\s+jeune|jeune|[ée]ge))/i,
+  /renoncements?\b/i,
+  /sacrifices?\s+(personnels?|familiaux?|silencieux)/i,
+  /pression\s+de\s+r[ée]ussir/i,
+  /\bon\s+(t'|vous\s+)?a\s+demand[ée]/i,
+  /\b(tu|vous)\s+as\s+d[ûu]|\b(tu|vous)\s+avez\s+d[ûu]/i,
+  /loyaut[és]+\s+familial/i,
+  /secrets?\s+de\s+famille/i,
+  /d[èe]s\s+ton\s+plus\s+jeune\s+[âa]ge/i
+];
+
+export function findBiographicalInvention(text) {
+  const found = [];
+  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
+    if (!sentence.trim()) {
+      continue;
+    }
+    if (BIOGRAPHICAL_PATTERNS.some((pattern) => pattern.test(sentence))) {
+      found.push({ sentence: sentence.trim() });
+    }
+  }
+  return found;
+}
+
 export function findUnfilledPlaceholders(text) {
   const found = [];
   for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {

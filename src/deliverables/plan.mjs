@@ -176,17 +176,6 @@ export const DOSSIER_SECTIONS = Object.freeze([
     directives: DIRECTIVES.action
   },
   {
-    id: "forces-tensions",
-    rank: 6,
-    title: "Vos forces et vos tensions",
-    kind: "symbolic",
-    badge: BADGES.symbolic,
-    writer: "llm",
-    requiresSocle: true,
-    requiresConvergence: true,
-    directives: DIRECTIVES.forcesTensions
-  },
-  {
     id: "lecture-passe",
     rank: 6,
     title: "Lecture approfondie du passé",
