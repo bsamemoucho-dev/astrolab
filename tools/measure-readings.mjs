@@ -18,7 +18,7 @@
 // code de sortie non nul si un signal de régression apparaît (une contradiction
 // planète ↔ signe signalée, un placeholder livré, une fuite de langage interne).
 
-import { LANGUAGES } from "../src/deliverables/i18n.mjs";
+import { LANGUAGES, docStrings } from "../src/deliverables/i18n.mjs";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { loadDotEnv } from "../src/env.mjs";
 import { createPublicReading } from "../src/models/publicReadingService.mjs";
@@ -38,13 +38,14 @@ const CAS = [
 ];
 
 function parseArgs(argv) {
-  const args = { yes: false, count: 4, languages: null, json: null, crossCheck: false };
+  const args = { yes: false, count: 4, languages: null, cases: null, json: null, crossCheck: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--yes") args.yes = true;
     else if (arg === "--cross-check") args.crossCheck = true;
     else if (arg === "--count") args.count = Number(argv[++i]);
     else if (arg === "--languages") args.languages = String(argv[++i] ?? "").split(",").map((code) => code.trim()).filter(Boolean);
+    else if (arg === "--cases") args.cases = String(argv[++i] ?? "").split(",").map((id) => id.trim()).filter(Boolean);
     else if (arg === "--json") args.json = argv[++i];
   }
   if (!Number.isInteger(args.count) || args.count < 1) {
@@ -57,8 +58,12 @@ function plan(args) {
   const langues = args.languages ?? LANGUAGES.map((entry) => entry.code);
   // Produit CARTÉSIEN cas × langues : une simple rotation répétait les mêmes
   // couples et ne couvrait pas, par exemple, « heure inconnue » en anglais.
+  const casRetenus = args.cases ? CAS.filter((cas) => args.cases.includes(cas.id)) : CAS;
+  if (casRetenus.length === 0) {
+    throw new Error(`--cases ne correspond à aucun cas connu (${CAS.map((cas) => cas.id).join(", ")})`);
+  }
   const couples = [];
-  for (const cas of CAS) {
+  for (const cas of casRetenus) {
     for (const language of langues) {
       couples.push({ cas, language });
     }
@@ -119,6 +124,9 @@ async function mesurerUneLecture({ cas, language }, options) {
     );
     const evenements = decouperLeJournal(journaux);
     const html = reading.html ?? "";
+    // Le libellé de la marge est traduit : chercher la chaîne française donnait un
+    // faux « signal de régression » sur les huit autres langues.
+    const libelleMarge = docStrings(language).labels.margin;
     return {
       cas: cas.id,
       language,
@@ -132,7 +140,7 @@ async function mesurerUneLecture({ cas, language }, options) {
       signalements: {
         placeholderLivre: /\{[a-z]+\}|\[[^\]]{1,40}\]/.test(html),
         fuiteInterne: /calculated_development_not_production|JPL Horizons|inactive structures/.test(html),
-        margePubliee: cas.timePrecision !== "approximate" || /Marge d'incertitude retenue/.test(html),
+        margePubliee: cas.timePrecision !== "approximate" || html.includes(libelleMarge),
         conventionPubliee: /lastro-aspects@1\.0\.0/.test(html)
       }
     };

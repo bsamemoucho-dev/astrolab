@@ -121,6 +121,21 @@ function timeApproximateDirective(cap) {
   return lines.join(" ");
 }
 
+// Corps dont le signe n'est pas établi : le modèle nommait spontanément le signe
+// de la Lune alors que la position balaie plusieurs signes sur la journée, et le
+// détecteur retirait la phrase — jusqu'à huit sections sur onze amputées pour une
+// naissance sans heure. La consigne dit quoi faire de ce vide.
+function signsNotEstablishedDirective(socle) {
+  const noms = (socle?.signsNotEstablished ?? [])
+    .map((body) => socle?.bodies?.find((fact) => fact.body === body)?.label ?? body)
+    .join(", ");
+  return [
+    `Règle absolue : le signe de ces corps n'est PAS établi pour cette naissance (leur position balaie plusieurs signes sur la période) : ${noms}.`,
+    "Tu ne dois nommer aucun signe pour eux, ni directement ni sous forme de plage : pas de « votre Lune en Cancer », pas de « entre Balance et Scorpion ».",
+    "Parle de leur fonction symbolique — ce qu'ils représentent, comment ils agissent — jamais de leur signe."
+  ].join(" ");
+}
+
 function buildSystemPrompt(section, context = {}) {
   const languageName = context.languageName ?? "French";
   const cap = context.uncertainty?.languageCap ?? null;
@@ -139,6 +154,7 @@ function buildSystemPrompt(section, context = {}) {
         ]
       : []),
     ...(cap ? [timeApproximateDirective(cap)] : []),
+    ...(context.socle?.signsNotEstablished?.length ? [signsNotEstablishedDirective(context.socle)] : []),
     ...FRAME_DIRECTIVES,
     `Section à produire : « ${section.title} ».`,
     ...(section.directives ?? [])
@@ -157,6 +173,7 @@ function buildUserPayload(section, context) {
       socleFacts: context.socle?.facts ?? [],
       alreadyWritten: context.previousSections ?? [],
       birthTimeKnown: context.uncertainty?.timeKnown ?? null,
+      signsNotEstablished: context.socle?.signsNotEstablished ?? [],
       notCalculated: context.uncertainty?.indeterminable ?? [],
       calculationWarnings: context.uncertainty?.warnings ?? [],
       ...(cap

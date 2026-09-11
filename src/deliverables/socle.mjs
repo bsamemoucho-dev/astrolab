@@ -62,7 +62,10 @@ function placementLabel(body, details, options = {}) {
   if (range?.start && range?.end) {
     const from = localizedSignName(range.start, details);
     const to = localizedSignName(range.end, details);
-    return { signFr: `${from} → ${to}`, label: `${from} → ${to}`, signStable: false };
+    // « Balance → Scorpion » seul laissait croire qu'un des deux signes pouvait
+    // être retenu : le fait dit maintenant que le signe n'est pas établi.
+    const precision = details?.values?.signNotEstablished ?? "signe non établi sans heure précise";
+    return { signFr: `${from} → ${to}`, label: `${from} → ${to} (${precision})`, signStable: false };
   }
   const unknown = details?.values?.unknown ?? "inconnu";
   return { signFr: unknown, label: unknown, signStable: null };
@@ -356,6 +359,10 @@ export function buildSocle(payload, strings = null) {
     },
     anglesAvailable: Boolean(ascendant),
     bodies: bodyFacts,
+    // Corps dont le signe n'est PAS établi (heure inconnue, ou signe balayé par
+    // un intervalle) : le rédacteur ne doit nommer aucun signe pour eux, et le
+    // détecteur refuse toute affirmation de signe les concernant.
+    signsNotEstablished: bodyFacts.filter((body) => !body.sign).map((body) => body.body),
     ascendant,
     midheaven,
     sect,

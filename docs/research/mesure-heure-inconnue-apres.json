@@ -1,0 +1,54 @@
+{
+  "date": "2026-09-11T02:53:01.926Z",
+  "resultats": [
+    {
+      "cas": "heure-inconnue",
+      "language": "fr",
+      "sections": 11,
+      "appelsLlm": 13,
+      "reecritures": 3,
+      "retraits": 0,
+      "styleConserve": 2,
+      "motifs": [
+        "unfilled_placeholder",
+        "defaut",
+        "asserted_unestablished_sign",
+        "unfilled_placeholder",
+        "defaut",
+        "orphan_antecedent"
+      ],
+      "dureeSecondes": 52.6,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "heure-inconnue",
+      "language": "en",
+      "sections": 11,
+      "appelsLlm": 15,
+      "reecritures": 5,
+      "retraits": 0,
+      "styleConserve": 1,
+      "motifs": [
+        "defaut",
+        "asserted_unestablished_sign",
+        "unfilled_placeholder",
+        "unfilled_placeholder",
+        "unfilled_placeholder",
+        "defaut"
+      ],
+      "dureeSecondes": 42.1,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    }
+  ],
+  "problemes": []
+}

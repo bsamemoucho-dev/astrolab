@@ -14,6 +14,9 @@ export const FRAME_DIRECTIVES = Object.freeze([
   "Langage de postures, cycles et climats intérieurs ; ton non anxiogène, non déterministe, non culpabilisant.",
   "Libre arbitre toujours respecté.",
   "Aucun fait astronomique inventé : utilise uniquement les faits calculés fournis.",
+  // Les placeholders étaient détectés puis réécrits à chaque lecture : la consigne
+  // arrive maintenant AVANT l'écriture, pas seulement après le défaut constaté.
+  "N'écris jamais de texte entre crochets, accolades ou chevrons, ni de champ à remplir (« votre prénom », « votre ville »). Si tu signes une lettre, utilise le prénom fourni ; si aucun prénom n'est fourni, termine sans signature.",
   "Si un fait calculé manque (heure inconnue, Ascendant non calculé), travaille en tendances symboliques explicites, sans affirmation technique.",
   "Explique brièvement chaque terme astrologique la première fois que tu l'utilises ; évite tout jargon non expliqué.",
   "Accord et cohérence : garde le même genre grammatical du début à la fin du document (accords, adjectifs, participes). Si le genre n'est pas connu, choisis-en un une fois et ne change plus.", 
@@ -25,7 +28,10 @@ export const FRAME_DIRECTIVES = Object.freeze([
   "Nomme une fois le placement en clair, au moment où il sert (« votre Lune en Cancer », « en maison VII »), puis n'y reviens pas pour l'expliquer. N'ouvre jamais une phrase par « cette position », « cette maison », « cet aspect » ou « cette énergie » si le placement n'a pas été nommé dans la même section.",
   "Les passages déjà rédigés te sont fournis dans « alreadyWritten » : appuie-toi dessus sans les redévelopper, et ne réutilise pas les mêmes formulations. N'y répète ni le même aspect ni la même maison.",
   // Ouverture éditoriale (chantier 3) : une première page qui donne envie.
-  "Dans la section d'introduction uniquement, ouvre par un court paragraphe « Votre ciel en un coup d'œil » : trois à cinq traits marquants, distincts et concrets, sans jargon.",
+  // Le plafond mesuré sur le coup d'œil (900 caractères) était dépassé à CHAQUE
+  // lecture, ce qui déclenchait une réécriture systématique : la consigne donne
+  // désormais un budget concret, le détecteur reste le filet de sécurité.
+  "Dans la section d'introduction uniquement, ouvre par un court paragraphe « Votre ciel en un coup d'œil » : trois à cinq traits marquants, distincts et concrets, sans jargon, en 120 mots au plus.",
   // Transgénérationnel (chantier 3) : jamais d'histoire familiale inventée.
   "Pour tout passage transgénérationnel : parle uniquement de correspondances symboliques entre des thèmes, jamais d'un héritage, d'un rôle, d'un secret ou d'un événement familial que les données fournies ne contiennent pas. Si aucune donnée familiale n'est fournie, ce passage n'existe pas."
 ]);

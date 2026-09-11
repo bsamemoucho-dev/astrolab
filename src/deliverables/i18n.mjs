@@ -276,6 +276,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (précisée par le client)",
     signStable: "signe stable sur toute la marge",
     signNotDecidable: "signe non décidable : la frontière est franchie dans la marge",
+    signNotEstablished: "signe non établi sans heure précise",
     withinMargin: "sur la marge ±{n} min",
     approximate:
       "Heure de naissance approximative : l'Ascendant, le Milieu du Ciel, les maisons et la secte ont été calculés sur la marge déclarée {margin}.",
@@ -293,6 +294,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (specified by the client)",
     signStable: "sign stable across the whole margin",
     signNotDecidable: "sign not decidable: the boundary is crossed within the margin",
+    signNotEstablished: "sign not established without a precise time",
     withinMargin: "over the ±{n} min margin",
     approximate:
       "Approximate birth time: the Ascendant, the Midheaven, the houses and the sect were computed over the declared margin {margin}.",
@@ -309,6 +311,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} Min. (vom Kunden angegeben)",
     signStable: "Zeichen über die gesamte Spanne stabil",
     signNotDecidable: "Zeichen nicht entscheidbar: die Grenze wird innerhalb der Spanne überschritten",
+    signNotEstablished: "Zeichen ohne genaue Geburtszeit nicht bestimmbar",
     withinMargin: "über die Spanne von ±{n} Min.",
     approximate:
       "Ungefähre Geburtszeit: Aszendent, Medium Coeli, Häuser und Sekte wurden über die angegebene Spanne {margin} berechnet.",
@@ -325,6 +328,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (indicado por el cliente)",
     signStable: "signo estable en todo el margen",
     signNotDecidable: "signo no decidible: se cruza la frontera dentro del margen",
+    signNotEstablished: "signo no establecido sin hora precisa",
     withinMargin: "sobre el margen de ±{n} min",
     approximate:
       "Hora de nacimiento aproximada: el Ascendente, el Medio Cielo, las casas y la secta se han calculado sobre el margen declarado {margin}.",
@@ -341,6 +345,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (indicato dal cliente)",
     signStable: "segno stabile su tutto il margine",
     signNotDecidable: "segno non decidibile: il confine viene superato entro il margine",
+    signNotEstablished: "segno non stabilito senza ora precisa",
     withinMargin: "sul margine di ±{n} min",
     approximate:
       "Ora di nascita approssimativa: l'Ascendente, il Medio Cielo, le case e la setta sono stati calcolati sul margine dichiarato {margin}.",
@@ -356,6 +361,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (informado pelo cliente)",
     signStable: "signo estável em toda a margem",
     signNotDecidable: "signo não decidível: a fronteira é ultrapassada dentro da margem",
+    signNotEstablished: "signo não estabelecido sem hora precisa",
     withinMargin: "sobre a margem de ±{n} min",
     approximate:
       "Hora de nascimento aproximada: o Ascendente, o Meio do Céu, as casas e a seita foram calculados sobre a margem declarada {margin}.",
@@ -371,6 +377,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (oppgitt av kunden)",
     signStable: "tegnet stabilt over hele marginen",
     signNotDecidable: "tegnet ikke avgjørbart: grensen krysses innenfor marginen",
+    signNotEstablished: "tegnet ikke fastslått uten presis tid",
     withinMargin: "over marginen på ±{n} min",
     approximate:
       "Omtrentlig fødselstid: Ascendanten, Midtheaven, husene og sekten er beregnet over den oppgitte marginen {margin}.",
@@ -387,6 +394,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (oplyst af kunden)",
     signStable: "tegnet stabilt over hele marginen",
     signNotDecidable: "tegnet ikke afgørbart: grænsen overskrides inden for marginen",
+    signNotEstablished: "tegnet ikke fastslått uden præcis tid",
     withinMargin: "over marginen på ±{n} min",
     approximate:
       "Omtrentligt fødselstidspunkt: Ascendanten, Midterhimlen, husene og sekten er beregnet over den oplyste margin {margin}.",
@@ -403,6 +411,7 @@ const MARGIN_STRINGS = {
     marginSupplied: "±{n} min (door de klant opgegeven)",
     signStable: "teken stabiel over de hele marge",
     signNotDecidable: "teken niet te bepalen: de grens wordt binnen de marge overschreden",
+    signNotEstablished: "teken niet vastgesteld zonder precieze tijd",
     withinMargin: "over de marge van ±{n} min",
     approximate:
       "Geboortetijd bij benadering: de Ascendant, de Midhemel, de huizen en de sekte zijn berekend over de opgegeven marge {margin}.",
@@ -533,6 +542,7 @@ export function docStrings(code) {
     marginSupplied: margin.marginSupplied,
     signStable: margin.signStable,
     signNotDecidable: margin.signNotDecidable,
+    signNotEstablished: margin.signNotEstablished,
     withinMargin: margin.withinMargin,
     withLuminaries: aspect.withLuminaries,
     aspectsSummary: aspect.aspectsSummary

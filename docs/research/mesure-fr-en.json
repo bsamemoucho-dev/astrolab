@@ -1,0 +1,230 @@
+{
+  "date": "2026-09-11T02:49:56.881Z",
+  "resultats": [
+    {
+      "cas": "caroline",
+      "language": "fr",
+      "sections": 11,
+      "appelsLlm": 11,
+      "reecritures": 1,
+      "retraits": 1,
+      "styleConserve": 1,
+      "motifs": [
+        "unhedged_angle_sign_assertion",
+        "defaut",
+        "unfilled_placeholder",
+        "unhedged_angle_sign_assertion",
+        "defaut"
+      ],
+      "dureeSecondes": 46.4,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "caroline",
+      "language": "en",
+      "sections": 11,
+      "appelsLlm": 14,
+      "reecritures": 4,
+      "retraits": 2,
+      "styleConserve": 1,
+      "motifs": [
+        "unfilled_placeholder",
+        "defaut",
+        "unhedged_angle_sign_assertion",
+        "unhedged_angle_sign_assertion",
+        "unfilled_placeholder",
+        "unfilled_placeholder",
+        "unfilled_placeholder",
+        "defaut"
+      ],
+      "dureeSecondes": 40.8,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": false,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "frontiere-ascendant",
+      "language": "fr",
+      "sections": 11,
+      "appelsLlm": 12,
+      "reecritures": 2,
+      "retraits": 1,
+      "styleConserve": 1,
+      "motifs": [
+        "unfilled_placeholder",
+        "defaut",
+        "unhedged_angle_sign_assertion",
+        "unfilled_placeholder",
+        "defaut"
+      ],
+      "dureeSecondes": 49.3,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "frontiere-ascendant",
+      "language": "en",
+      "sections": 11,
+      "appelsLlm": 13,
+      "reecritures": 3,
+      "retraits": 1,
+      "styleConserve": 1,
+      "motifs": [
+        "defaut",
+        "unfilled_placeholder",
+        "unfilled_placeholder",
+        "unfilled_placeholder",
+        "defaut"
+      ],
+      "dureeSecondes": 39,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": false,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "heure-inconnue",
+      "language": "fr",
+      "sections": 11,
+      "appelsLlm": 18,
+      "reecritures": 8,
+      "retraits": 8,
+      "styleConserve": 1,
+      "motifs": [
+        "contradiction_with_socle",
+        "defaut",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "unfilled_placeholder",
+        "contradiction_with_socle",
+        "unfilled_placeholder",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "defaut"
+      ],
+      "dureeSecondes": 72.1,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "heure-inconnue",
+      "language": "en",
+      "sections": 11,
+      "appelsLlm": 19,
+      "reecritures": 9,
+      "retraits": 9,
+      "styleConserve": 1,
+      "motifs": [
+        "contradiction_with_socle",
+        "unfilled_placeholder",
+        "defaut",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "unfilled_placeholder",
+        "contradiction_with_socle",
+        "unfilled_placeholder",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "defaut"
+      ],
+      "dureeSecondes": 52.8,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "lever-de-soleil",
+      "language": "fr",
+      "sections": 11,
+      "appelsLlm": 11,
+      "reecritures": 1,
+      "retraits": 1,
+      "styleConserve": 1,
+      "motifs": [
+        "defaut",
+        "unfilled_placeholder",
+        "defaut"
+      ],
+      "dureeSecondes": 42.4,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": true,
+        "conventionPubliee": true
+      }
+    },
+    {
+      "cas": "lever-de-soleil",
+      "language": "en",
+      "sections": 11,
+      "appelsLlm": 12,
+      "reecritures": 2,
+      "retraits": 1,
+      "styleConserve": 1,
+      "motifs": [
+        "defaut",
+        "contradiction_with_socle",
+        "contradiction_with_socle",
+        "defaut"
+      ],
+      "dureeSecondes": 35.4,
+      "signalements": {
+        "placeholderLivre": false,
+        "fuiteInterne": false,
+        "margePubliee": false,
+        "conventionPubliee": true
+      }
+    }
+  ],
+  "problemes": [
+    "caroline/en : marge d'incertitude absente de l'annexe",
+    "frontiere-ascendant/en : marge d'incertitude absente de l'annexe",
+    "heure-inconnue/fr : 16 contradiction(s) planète ↔ signe signalée(s)",
+    "heure-inconnue/en : 18 contradiction(s) planète ↔ signe signalée(s)",
+    "lever-de-soleil/en : marge d'incertitude absente de l'annexe",
+    "lever-de-soleil/en : 2 contradiction(s) planète ↔ signe signalée(s)"
+  ]
+}

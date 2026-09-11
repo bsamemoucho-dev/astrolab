@@ -115,7 +115,28 @@ détecteur.
 1. **« Vos périodes & cycles »** : module toujours indisponible (nécessite le
    calcul des transits/progressions). Il disparaît du document au lieu de dire
    « non disponible ».
-2. **Rédacteur IA réel — mesuré.** Une lecture complète a été générée en local
+2. **Tirage fr + en (8 lectures) — mesuré, et il a changé le diagnostic.** La
+   mesure unique était trop favorable. Sur 8 lectures (2 langues × 4 cas) :
+   - **110 appels LLM pour 88 sections (+25 %)**, 30 réécritures, **24 phrases
+     retirées** ;
+   - `heure-inconnue` était le cas noir : **18 et 19 appels pour 11 sections, 8 et
+     9 sections amputées**. Cause : sans heure, le signe de la Lune n'est pas établi
+     (« Balance → Scorpion ») ; le modèle en nommait un, le détecteur le refusait à
+     juste titre, et la phrase disparaissait — section après section. Aucune
+     consigne ne disait quoi faire de ce vide, contrairement au cas de la marge.
+   **Correctif appliqué et remesuré** : consigne dédiée aux corps dont le signe
+   n'est pas établi (dans la langue du document), code de détection dédié
+   `asserted_unestablished_sign` (ce n'était pas une « contradiction »), et mention
+   explicite dans l'annexe. Résultat sur le même cas : **0 amputation** (contre 8 et
+   9), 13 et 15 appels (contre 18 et 19).
+   Détail chiffré conservé : `docs/research/mesure-fr-en.json` (avant) et
+   `docs/research/mesure-heure-inconnue-apres.json` (après).
+   Restent deux défauts systématiques, corrigés par consigne mais **pas encore
+   remesurés** : un gabarit non rempli (5 sur 22 sections) et un coup d'œil
+   dépassant le plafond de 900 caractères (4 sur 22) — chacun coûtant une
+   réécriture par lecture.
+
+3. **Rédacteur IA réel — première mesure.** Une lecture complète a été générée en local
    avec le rédacteur IA configuré (2 janvier 1986, Courbevoie, heure
    approximative ±30 min, 9 langues non testées ici) :
    - **13 appels LLM pour 11 sections** : 3 sections ont déclenché une
@@ -178,11 +199,15 @@ détecteur.
 | `tests/noSecrets.test.mjs` | garde-fou : aucun secret dans les fichiers suivis |
 | `src/deliverables/detectorVocabulary.mjs` | vocabulaire des détecteurs par langue (incertitude, identité, degrés) |
 | `tests/languageCoverage.test.mjs` | couverture mesurée des détecteurs dans les 9 langues |
+| `tests/writerDirectives.test.mjs` | ce que le rédacteur reçoit vraiment (invite interceptée, sans réseau) |
+| `.github/workflows/tests.yml` | `npm test` + contrôle de syntaxe à chaque push |
+| `tools/measure-readings.mjs` | tirage de lectures pour mesurer le taux de réécriture, par langue |
+| `tools/verify-production-reading.mjs` | vérification de bout en bout après déploiement |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 159 tests
+npm test                                   # 164 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

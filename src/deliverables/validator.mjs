@@ -187,17 +187,33 @@ export function findSignContradictions(text, socle) {
     const matches = mentionedSigns.some((sign) =>
       (bodiesBySign.get(normalizeForMatch(sign)) ?? []).some((body) => mentionedBodies.includes(body))
     );
-    if (!matches) {
-      contradictions.push({
-        code: "contradiction_with_socle",
-        sentence,
-        bodies: mentionedBodies,
-        signs: mentionedSigns,
-        message: `Le texte associe ${mentionedBodies.join(", ")} à ${mentionedSigns
-          .map((sign) => localizedName(sign, strings))
-          .join(", ")} alors que le calcul vérifié ne le confirme pas.`
-      });
+    if (matches) {
+      continue;
     }
+    // Un corps dont le signe n'est pas établi (heure inconnue, intervalle) n'est
+    // pas en « contradiction » : le texte affirme un fait qui n'a pas été
+    // calculé. Le dire change ce que l'exploitant comprend du journal.
+    const unestablished = new Set(socle?.signsNotEstablished ?? []);
+    const affirmedUnestablished = mentionedBodies.filter((body) => unestablished.has(body));
+    if (affirmedUnestablished.length > 0) {
+      contradictions.push({
+        code: "asserted_unestablished_sign",
+        sentence,
+        bodies: affirmedUnestablished,
+        signs: mentionedSigns,
+        message: `Le texte situe ${affirmedUnestablished.join(", ")} dans un signe précis alors que ce signe n'a pas pu être calculé (la position balaie plusieurs signes sur la période de naissance).`
+      });
+      continue;
+    }
+    contradictions.push({
+      code: "contradiction_with_socle",
+      sentence,
+      bodies: mentionedBodies,
+      signs: mentionedSigns,
+      message: `Le texte associe ${mentionedBodies.join(", ")} à ${mentionedSigns
+        .map((sign) => localizedName(sign, strings))
+        .join(", ")} alors que le calcul vérifié ne le confirme pas.`
+    });
   }
   return contradictions;
 }
