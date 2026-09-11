@@ -9,24 +9,45 @@
 // (le dépôt l'est aussi).
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Les fichiers qui portent les décisions visibles depuis l'extérieur : les
-// routes et les règles de prix côté serveur, ce que le navigateur exécute et
-// affiche côté client.
+// Ce qui est couvert : TOUT le code du serveur et ce que le navigateur reçoit.
+//
+// Une première version ne hachait que quatre fichiers choisis à la main, et la
+// question « est-ce que ma correction de marges est en ligne ? » n'avait toujours
+// pas de réponse : `render.mjs`, qui décide de la mise en page, n'y était pas. Une
+// empreinte qui ne bouge pas quand le document change ne sert à rien.
 export const RELEASE_FILES = Object.freeze([
-  "src/http/app.mjs",
-  "src/payments/pricing.mjs",
+  "src",
   "public/app.js",
-  "public/index.html"
+  "public/index.html",
+  "public/styles.css"
 ]);
+
+const EXTENSIONS = /\.(mjs|js|html|css)$/;
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+// Un fichier, ou tous ceux d'un dossier, dans un ordre stable.
+function fichiers(racine, relatif) {
+  const complet = join(racine, relatif);
+  try {
+    const entrees = statSync(complet).isDirectory()
+      ? readdirSync(complet, { recursive: true })
+          .map((entree) => String(entree))
+          .filter((entree) => EXTENSIONS.test(entree))
+          .map((entree) => join(relatif, entree))
+      : [relatif];
+    return entrees.sort();
+  } catch {
+    return [`${relatif}:absent`];
+  }
+}
+
 export function releaseFingerprint({ racine = RACINE } = {}) {
-  const empreintes = RELEASE_FILES.map((relatif) => {
+  const empreintes = RELEASE_FILES.flatMap((relatif) => fichiers(racine, relatif)).map((relatif) => {
     try {
       const contenu = readFileSync(join(racine, relatif));
       return `${relatif}:${createHash("sha256").update(contenu).digest("hex")}`;

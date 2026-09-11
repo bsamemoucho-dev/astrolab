@@ -30,13 +30,31 @@ const html = renderDossierHtml({
 });
 const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
 
-test("l'impression laisse 2 cm de marge tout autour", () => {
-  // Modèle retenu (template validé) : la page est exactement A4 et les marges
-  // viennent du rembourrage de la feuille, pas du dialogue d'impression — sinon
-  // elles s'additionnent et dépendent du réglage du client.
-  assert.match(css, /@page\s*\{\s*size\s*:\s*A4\s*;\s*margin\s*:\s*0\s*;?\s*\}/);
-  assert.match(css, /\.sheet\s*\{[^}]*padding\s*:\s*20mm/);
-  assert.match(css, /@media print\s*\{[\s\S]*\.sheet\s*\{[^}]*padding\s*:\s*20mm/);
+test("l'impression laisse 2 cm de marge sur TOUTES les pages", () => {
+  // Le modèle « rembourrage de la feuille » ne tenait que la première page : le
+  // rembourrage d'une boîte s'applique une fois, pas à chaque page. Mesuré sur le
+  // PDF livré : texte à 4,5 mm du haut et 7 mm du bas.
+  assert.match(css, /@page\s*\{\s*size\s*:\s*A4\s*;\s*margin\s*:\s*20mm\s*;?\s*\}/);
+  // La couverture reste pleine page : seule la première page est sans marge.
+  assert.match(css, /@page\s*:first\s*\{\s*margin\s*:\s*0\s*;?\s*\}/);
+  assert.match(css, /@media print\s*\{[\s\S]*\.sheet\s*\{[^}]*padding\s*:\s*0/);
+  // Et la feuille ne remet pas de marges par-dessus celles de la page.
+  assert.doesNotMatch(css, /@media print\s*\{[\s\S]*\.sheet\s*\{[^}]*padding\s*:\s*20mm/);
+  // L'écran garde sa feuille A4 et son rembourrage de 2 cm.
+  assert.match(css, /(^|\n)\s*\.sheet\{[^}]*padding:20mm/);
+});
+
+test("deux lignes vides séparent le texte de l'annexe", () => {
+  assert.match(css, /\.annex-gap\{height:calc\(2 \* var\(--interligne\) \* 14\.5px\)\}/);
+  assert.match(html, /<div class="annex-gap" aria-hidden="true"><\/div>\s*<section class="block annex">/);
+  // Et dans l'export Markdown.
+  const markdown = renderDossierMarkdown({
+    title: "Lecture de test",
+    personLabel: "Test",
+    createdAt: "2026-09-11T00:00:00.000Z",
+    sections: annexSections({ facts: [], uncertaintyNotes: [], warnings: [], person: {} }, docStrings("fr"))
+  });
+  assert.match(markdown, /\n\n\n## Annexe/);
 });
 
 test("l'interligne et l'espacement des blocs aèrent le document", () => {

@@ -191,8 +191,7 @@ test("l'empreinte change quand un fichier suivi change", () => {
   const racine = mkdtempSync(join(tmpdir(), "lastro-release-"));
   try {
     for (const relatif of RELEASE_FILES) {
-      const chemin = join(racine, relatif);
-      cpSync(new URL(`../${relatif}`, import.meta.url).pathname, chemin);
+      cpSync(new URL(`../${relatif}`, import.meta.url).pathname, join(racine, relatif), { recursive: true });
     }
     const avant = releaseFingerprint({ racine });
     assert.equal(avant, releaseFingerprint({ racine }), "deux calculs identiques donnent la même empreinte");
@@ -222,5 +221,27 @@ test("le site ne dit jamais qu'un code a été envoyé s'il ne l'a pas été", (
   for (const cle of ["registerEmailSent", "registerEmailFailed", "registerDevCode"]) {
     const occurrences = (source.match(new RegExp(`${cle}:`, "g")) ?? []).length;
     assert.equal(occurrences, 9, `${cle} doit être traduit dans les neuf langues (${occurrences})`);
+  }
+});
+
+test("l'empreinte couvre le moteur du document, pas seulement les routes", () => {
+  // Leçon : la première empreinte ne hachait que quatre fichiers choisis à la main,
+  // et ne bougeait pas quand la mise en page changeait — donc elle ne répondait pas
+  // à la question qu'on lui posait.
+  const dossier = new URL("../src/deliverables/", import.meta.url).pathname;
+  const suivi = RELEASE_FILES.some((entree) => entree === "src");
+  assert.equal(suivi, true, "tout le code du serveur doit être couvert");
+  for (const fichier of ["render.mjs", "chart.mjs", "socle.mjs", "pdfRenderer.mjs", "validator.mjs"]) {
+    const racine = mkdtempSync(join(tmpdir(), "lastro-release2-"));
+    try {
+      for (const relatif of RELEASE_FILES) {
+        cpSync(new URL(`../${relatif}`, import.meta.url).pathname, join(racine, relatif), { recursive: true });
+      }
+      const avant = releaseFingerprint({ racine });
+      writeFileSync(join(racine, "src/deliverables", fichier), `${readFileSync(join(dossier, fichier), "utf8")}\n// marque\n`);
+      assert.notEqual(releaseFingerprint({ racine }), avant, `modifier ${fichier} doit changer l'empreinte`);
+    } finally {
+      rmSync(racine, { recursive: true, force: true });
+    }
   }
 });

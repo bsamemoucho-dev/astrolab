@@ -72,9 +72,9 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (264 tests) |
+| Do the guardrails hold? | `npm test` (266 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
-| Which version is really deployed? | `curl -s https://www.lastro.fr/healthz` (`release`), compared with `node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"` |
+| Which version is really deployed? | `curl -s https://www.lastro.fr/healthz` (`release` — fingerprint of **all** server code and served files), compared with `node -e "import('./src/http/release.mjs').then(m=>console.log(m.releaseFingerprint()))"` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |
 | Did the last push pass? | the *Tests* workflow, in GitHub Actions |

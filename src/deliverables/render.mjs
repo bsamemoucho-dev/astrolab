@@ -236,12 +236,27 @@ const CSS = `
   /* Chaque grande pièce commence sur sa page : la carte du ciel, puis l'annexe. */
   section.block.chart-page{break-before:page;page-break-before:always;break-after:page;page-break-after:always;margin-top:0}
   section.block.annex{break-before:page;page-break-before:always;margin-top:0}
+  /* Deux lignes vides avant l'annexe, demandées explicitement. À l'écran (où le
+     saut de page n'existe pas) elles séparent vraiment les deux blocs ; à
+     l'impression, elles tombent en fin de page précédente ou en haut de celle de
+     l'annexe, sans jamais rien casser. */
+  .annex-gap{height:calc(2 * var(--interligne) * 14.5px)}
 
-  @page{size:A4;margin:0}
+  /* Les marges viennent de la PAGE, pas du rembourrage de la feuille.
+     Le rembourrage d'une boîte ne s'applique qu'UNE fois : la première page
+     recevait ses 2 cm en haut, les suivantes rien du tout, et le bas de page
+     jamais. Mesuré sur le PDF livré : texte à 4,5 mm du haut et 7 mm du bas.
+     @page se répète à chaque page, lui. */
+  @page{size:A4;margin:20mm}
+  /* La couverture est pleine page : seule la première page est sans marge.
+     Si un navigateur ignore :first, la couverture se contente de la zone
+     imprimable — d'où les hauteurs en vh, qui ne débordent jamais. */
+  @page :first{margin:0}
   @media print{
     body{background:#fff}
-    .sheet{width:210mm;margin:0;box-shadow:none;padding:20mm}
-    .cover-page{width:210mm;min-height:297mm;margin:0;box-shadow:none}
+    .sheet{width:auto;margin:0;box-shadow:none;padding:0}
+    .cover-page{width:auto;min-height:100vh;margin:0;box-shadow:none}
+    .cover-inner{min-height:100vh;padding:14mm 18mm}
     .caveat,.ai-review,.badge{break-inside:avoid;page-break-inside:avoid}
     a{color:inherit;text-decoration:none}
   }
@@ -251,8 +266,10 @@ const CSS = `
      2 cm de marge par 20 px (5,3 mm) — c'est exactement ce que montrait le PDF
      livré. Les règles d'écran ne doivent jamais s'appliquer au papier. */
   @media screen and (max-width:900px){
-    .sheet,.cover-page{width:100%;box-shadow:none;padding-left:20px;padding-right:20px}
-    .cover-inner{padding:32px 20px}
+    /* Sur écran étroit, les 2 cm d'une feuille A4 ne tiennent pas : on garde un
+       vrai air latéral (32 px ≈ 8,5 mm) au lieu des 20 px d'avant. */
+    .sheet,.cover-page{width:100%;box-shadow:none;padding:28px 32px}
+    .cover-inner{padding:32px 24px}
     .two-col{grid-template-columns:1fr}
     .big-three{width:100%;grid-template-columns:1fr}
   }
@@ -283,7 +300,9 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
         return `<section class="block chart-page"><div class="block-body">${section.html ?? ""}</div></section>`;
       }
       const classes = section.kind === "annex" ? "block annex" : "block";
-      return `<section class="${classes}">
+      // Deux lignes vides avant l'annexe (voir .annex-gap).
+      const avant = section.kind === "annex" ? '<div class="annex-gap" aria-hidden="true"></div>\n' : "";
+      return `${avant}<section class="${classes}">
         <h2>${escapeHtml(section.title)}</h2>
         <div class="block-body">${markdownToHtml(section.text)}</div>
       </section>`;
@@ -367,6 +386,10 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections,
   }
   parts.push("", "---", "");
   for (const section of sections) {
+    if (section.kind === "annex") {
+      // Deux lignes vides avant l'annexe, comme dans le HTML.
+      parts.push("", "");
+    }
     parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "", section.text, "");
   }
   if (aiReview) {

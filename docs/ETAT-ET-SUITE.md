@@ -518,9 +518,12 @@ avec la réponse neutre pour une adresse inconnue.
 vérifications ont été faites « au feeling » après déploiement — et les protections
 du tunnel payant ne se déclenchent que dans des situations qu'on ne provoque pas en
 production, donc rien d'observable ne permettait de deviner la version.
-`GET /healthz` porte maintenant `release` : une empreinte de douze caractères des
-fichiers qui portent les décisions visibles depuis l'extérieur (`src/http/app.mjs`,
-`src/payments/pricing.mjs`, `public/app.js`, `public/index.html`). Comparer avec
+`GET /healthz` porte maintenant `release` : une empreinte de douze caractères de
+**tout** le code du serveur (`src/`) et de ce que le navigateur reçoit
+(`public/app.js`, `public/index.html`, `public/styles.css`). La première version
+ne hachait que quatre fichiers choisis à la main : elle ne bougeait pas quand la
+mise en page changeait, donc elle ne répondait pas à la question posée — c'est un
+test qui le vérifie désormais, fichier par fichier. Comparer avec
 l'empreinte locale répond à la question en une commande :
 
 ```bash
@@ -627,6 +630,38 @@ n'y était pour rien.
 **Reste à vérifier par le client** : un nouveau PDF, imprimé depuis la version
 déployée. La consigne d'impression (neuf langues) précise maintenant de laisser les
 marges par défaut : le document gère les siennes.
+
+### Deuxième retour sur le PDF : les marges en hauteur (12/09/2026)
+
+Le client confirme les marges latérales dans le PDF, mais signale **l'absence de
+marges en haut et en bas**. Mesuré sur le PDF livré : le texte monte à **4,5 mm du
+bord supérieur** et descend à **7 mm du bord inférieur**.
+
+La cause est structurelle, pas un réglage : **le rembourrage d'une boîte ne
+s'applique qu'une fois**. La feuille recevait ses 2 cm en haut de la **première**
+page, rien sur les suivantes, et jamais en bas. Aucun rembourrage ne peut produire
+une marge par page ; seule la page elle-même se répète.
+
+Correction : les marges viennent désormais de `@page { size:A4; margin:20mm }`, qui
+s'applique à **chaque** page, et la feuille n'a plus de rembourrage à l'impression.
+La couverture reste pleine page grâce à `@page :first { margin:0 }` — et ses hauteurs
+sont exprimées en `vh` pour qu'un navigateur ignorant `:first` la ramène simplement
+dans la zone imprimable au lieu de la faire déborder sur deux pages.
+
+**Conséquence à connaître** : avec ce modèle, si la fenêtre d'impression est réglée
+sur « Marges : Aucune », le navigateur écrase les 2 cm de la page. Il faut laisser
+les marges **par défaut** — c'est ce que dit la consigne affichée par le bouton PDF,
+dans les neuf langues.
+
+**Deux lignes vides avant l'annexe**, également demandées : un bloc `.annex-gap` de
+la hauteur de deux lignes de texte, visible à l'écran (où le saut de page n'existe
+pas) et inoffensif à l'impression, plus deux lignes vides dans l'export Markdown.
+
+**Sur écran étroit** (moins de 900 px), l'air latéral passe de 20 px à **32 px** : le
+client le trouvait trop juste. À noter pour être exact : ce rembourrage était déjà de
+20 px avant la correction des marges — la requête média n'a jamais changé le rendu
+d'écran, seulement le rendu papier. C'est le réglage qui est relevé, pas une
+régression réparée.
 
 ## Corrections marquantes (contexte pour la suite)
 
@@ -764,7 +799,7 @@ marges par défaut : le document gère les siennes.
 ## Commandes utiles
 
 ```bash
-npm test                                   # 264 tests
+npm test                                   # 266 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test
