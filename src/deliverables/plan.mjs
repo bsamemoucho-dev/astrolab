@@ -48,10 +48,11 @@ const DIRECTIVES = {
     "Ne prétends jamais connaître des événements familiaux réels : travaille en climat symbolique.",
     "Si les données parents ne sont pas fournies, dis-le clairement et reste général."
   ],
-  archetypes: [
-    "Nomme des archétypes actifs (gardien, enfant, bâtisseur, guérisseur...) et leur fonction protectrice.",
-    "Montre les déséquilibres possibles et un axe d'intégration.",
-    "Relie chaque archétype aux faits calculés quand c'est naturel, sans le forcer."
+  grandesLignes: [
+    "Dégage cinq à six grandes lignes réellement distinctes du thème : chacune doit dire quelque chose que les autres ne disent pas.",
+    "Ne réexplique pas les placements déjà traités dans le coup d'œil : ici, tu expliques pourquoi ils composent une ligne de force.",
+    "Tu peux nommer un archétype uniquement lorsqu'il apporte une synthèse utile (plusieurs éléments qui convergent). Jamais de liste d'archétypes, jamais d'archétype décoratif.",
+    "Si aucun archétype ne s'impose, n'en parle pas : la section reste une synthèse des lignes de force."
   ],
   past: [
     "Évoque la construction intérieure, les responsabilités précoces possibles, les renoncements silencieux.",
@@ -127,14 +128,14 @@ export const DOSSIER_SECTIONS = Object.freeze([
     directives: DIRECTIVES.transgenerational
   },
   {
-    id: "archetypes-dominants",
+    id: "grandes-lignes",
     rank: 5,
-    title: "Archétypes dominants",
+    title: "Vos grandes lignes",
     kind: "symbolic",
     badge: BADGES.symbolic,
     writer: "llm",
     requiresSocle: true,
-    directives: DIRECTIVES.archetypes
+    directives: DIRECTIVES.grandesLignes
   },
   {
     id: "lecture-passe",
