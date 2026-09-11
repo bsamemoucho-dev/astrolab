@@ -132,6 +132,7 @@ src/deliverables/
   writers.mjs           LLM writer adapter + deterministic template fallback
   validator.mjs         All detectors: fatal errors and style defects
   i18n.mjs              Nine languages (interface, annex, versioned conventions)
+  detectorVocabulary.mjs  Per-language detector vocabulary (hedges, identity fields, degrees)
   render.mjs            HTML/Markdown dossier rendering
 src/astro/rules/
   lastroAspects.mjs     Versioned convention lastro-aspects@1.0.0 (orbs, retained aspects)
@@ -144,6 +145,7 @@ tests/
   lastroAspects.test.mjs  Aspect convention: orbs, provenance, annex, nine languages
   languageQuality.test.mjs  Orphan antecedents, repetition, vouvoiement, vocabulary, order
   noSecrets.test.mjs    Guardrail: no secret in any git-tracked file
+  languageCoverage.test.mjs  Detector coverage measured across the nine languages
 ```
 
 ## Run Tests

@@ -210,16 +210,22 @@ export async function createPublicReading(input = {}, options = {}) {
       //     répétition d'un placement, tutoiement). Réécriture demandée, jamais
       //     d'amputation : couper une phrase juste pour une maladresse abîmerait
       //     la lecture.
+      // Un signe d'angle présenté sans nuance alors qu'il est STABLE dans la marge
+      // n'est pas une affirmation fausse : c'est une nuance manquante, donc du
+      // style. Un signe non décidable affirmé, un degré précis ou une maison non
+      // décidable sont, eux, des affirmations fausses.
+      const estFatalDansLaMarge = (violation) => violation.code !== "unhedged_angle_sign_assertion";
       const erreursFatales = (texte) => [
         ...findSignContradictions(texte, context.socle),
-        ...findUnfilledPlaceholders(texte),
+        ...findUnfilledPlaceholders(texte, context.socle),
         ...findBiographicalInvention(texte),
-        ...findUnhedgedTimedAssertions(texte, context.socle)
+        ...findUnhedgedTimedAssertions(texte, context.socle).filter(estFatalDansLaMarge)
       ];
       const defautsDeStyle = (texte) => [
-        ...findOrphanAntecedents(texte),
-        ...findRepeatedPlacements(texte, sections),
-        ...findTutoiement(texte),
+        ...findUnhedgedTimedAssertions(texte, context.socle).filter((violation) => !estFatalDansLaMarge(violation)),
+        ...findOrphanAntecedents(texte, context.socle),
+        ...findRepeatedPlacements(texte, sections, context.socle),
+        ...findTutoiement(texte, context.socle?.language),
         ...(planSection.id === "introduction" && String(texte).length > PLAFOND_COUP_DOEIL
           ? [{ sentence: `ouverture trop longue (${String(texte).length} caractères)` }]
           : [])

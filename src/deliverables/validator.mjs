@@ -1,8 +1,35 @@
 // Machine validation of client dossier text against the guardrail contract:
 // nothing invented, no event predictions, no medical/diagnostic claims, no
 // excessive deterministic certainty, and no contradiction with verified facts.
+//
+// LANGUE : chaque contrôle s'applique dans la langue DU DOCUMENT. Les noms de
+// planètes, de signes et d'aspects ne sont pas écrits ici : ils sont dérivés des
+// tables i18n, seule source de vérité pour ce que le lecteur voit. Écrire ces
+// règles en français seulement laissait passer une contradiction factuelle dans
+// huit langues sur neuf — et refusait une phrase anglaise correcte, où le mot
+// juste est « trine ».
+//
+// DEUX RÉGIMES : une règle de sécurité factuelle est FATALE (l'affirmation est
+// fausse : on réécrit puis on retire la phrase). Une règle de langue ou de style
+// ne l'est pas (on réécrit, on n'ampute jamais).
 
-import { enSignFromFr, frSign } from "./french.mjs";
+import { docStrings } from "./i18n.mjs";
+import {
+  canonicalKeysIn,
+  degreeWords,
+  prefixRegex,
+  fillInWords,
+  hasHedgeIn,
+  identityFieldWords,
+  localizedAspectIndex,
+  localizedBodyIndex,
+  localizedSignIndex,
+  normalizeForMatch,
+  possessiveWords,
+  wordRegex
+} from "./detectorVocabulary.mjs";
+
+export { wordRegex };
 
 const PREDICTIVE_PATTERNS = [
   /(tu|vous)\s+(vas|allez|va)\s+(rencontrer|tomber amoureu|te marier|vous marier|changer de travail|quitter|divorcer|perdre|gagner de l'argent|avoir un enfant|déménager|acheter|vendre|partir vivre)/i,
@@ -24,73 +51,8 @@ const DETERMINISTIC_PATTERNS = [
   /tu\s+es\s+quelqu'un\s+qui/i
 ];
 
-const FACT_PATTERN = /\b(soleil|lune|ascendant|milieu\s+du\s+ciel)\s+(?:en|:)?\s*([A-Za-zÀ-ÿéèêëïîôûùç']+)/gi;
-
-function expectedSign(socle, kind) {
-  if (kind === "soleil") {
-    return socle?.bodies?.find((body) => body.body === "Sun")?.sign ?? null;
-  }
-  if (kind === "lune") {
-    return socle?.bodies?.find((body) => body.body === "Moon")?.sign ?? null;
-  }
-  if (kind === "ascendant") {
-    return socle?.ascendant?.sign ?? null;
-  }
-  if (kind === "milieu du ciel") {
-    return socle?.midheaven?.sign ?? null;
-  }
-  return null;
-}
-
-const SIGN_WORDS = [
-  ["bélier", "Aries"], ["belier", "Aries"], ["taureau", "Taurus"], ["gémeaux", "Gemini"], ["gemeaux", "Gemini"],
-  ["cancer", "Cancer"], ["lion", "Leo"], ["vierge", "Virgo"], ["balance", "Libra"], ["scorpion", "Scorpio"],
-  ["sagittaire", "Sagittarius"], ["capricorne", "Capricorn"], ["verseau", "Aquarius"], ["poissons", "Pisces"]
-];
-
-// Contradiction planète ↔ signe, au niveau de la phrase.
-//
-// Le contrôle historique ne couvrait que Soleil, Lune, Ascendant et Milieu du
-// Ciel. Une phrase comme « ton Soleil, ta Lune et Mercure en Balance » passait
-// donc alors que la Lune était en Cancer — l'erreur qui fait perdre confiance.
-//
-// Règle retenue : si une phrase nomme des planètes ET un signe, et qu'aucune des
-// planètes nommées n'est dans ce signe, c'est une contradiction. Si au moins une
-// correspond, on ne conclut rien (énumération ambiguë).
-const BODY_NAMES = [
-  ["soleil", "Sun"],
-  ["lune", "Moon"],
-  ["mercure", "Mercury"],
-  ["vénus", "Venus"],
-  ["venus", "Venus"],
-  ["mars", "Mars"],
-  ["jupiter", "Jupiter"],
-  ["saturne", "Saturn"]
-];
-
-function normalizeSignWord(value) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-// Placeholders non remplis. Rien ne doit jamais partir avec « [Votre prénom ou
-// un mot symbolique] » dans une lettre présentée comme personnelle : cela
-// trahit une machine, et c'est immédiatement visible pour un client payant.
-const PLACEHOLDER_PATTERNS = [
-  /\[[^\]\n]{1,80}\]/,
-  /\{\{?[^}\n]{1,80}\}?\}/,
-  /<[^>\n]{1,80}>/,
-  /\b(?:Votre|Ton|Ta|Vos|Tes)\s+(?:prénom|nom|ville|date|heure)\b/i,
-  /\b(?:insérer|insérez|ajouter|ajoutez|compléter|complétez)\b[^.!?\n]{0,40}\b(?:ici|prénom|nom)\b/i
-];
-
-// Invention biographique. La consigne « n'invente aucun événement » ne suffisait
-// pas : le modèle ne mettait pas de dates, mais reconstruisait une vie
-// (« responsabilités précoces », « renoncements silencieux », « sacrifices »).
-// Ce qu'on interdit ici, c'est de déduire une histoire à partir de placements.
+// Invention biographique : motifs français uniquement à ce jour (voir la note de
+// couverture en fin de fichier).
 const BIOGRAPHICAL_PATTERNS = [
   /responsabilit[és]+\s+(pr[ée]coces?|d[èe]s\s+(le\s+plus\s+jeune|jeune|[ée]ge))/i,
   /renoncements?\b/i,
@@ -103,168 +65,230 @@ const BIOGRAPHICAL_PATTERNS = [
   /d[èe]s\s+ton\s+plus\s+jeune\s+[âa]ge/i
 ];
 
-export function findBiographicalInvention(text) {
-  const found = [];
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    if (!sentence.trim()) {
-      continue;
-    }
-    if (BIOGRAPHICAL_PATTERNS.some((pattern) => pattern.test(sentence))) {
-      found.push({ sentence: sentence.trim() });
-    }
+// Vouvoiement constant : règle de langue française (le tutoiement est le défaut
+// visé en français ; dans les autres langues, la forme d'adresse attendue est
+// décrite par le guide de style, pas par un détecteur).
+const TU_PATTERN = wordRegex("tu|ton|ta|tes|toi|te|t'");
+
+// Vocabulaire imposé : en français, on écrit « trigone », jamais « trine ». Le
+// contrôle est limité au français : en anglais, « trine » EST le mot juste.
+const FORBIDDEN_VOCABULARY_BY_LANGUAGE = {
+  fr: [/\btrine\b/i]
+};
+
+// ---------------------------------------------------------------------------
+// Contexte linguistique du document.
+// ---------------------------------------------------------------------------
+const STRINGS_CACHE = new Map();
+
+function stringsFor(language) {
+  const code = String(language ?? "fr").slice(0, 2).toLowerCase();
+  if (!STRINGS_CACHE.has(code)) {
+    STRINGS_CACHE.set(code, docStrings(code));
   }
-  return found;
+  return STRINGS_CACHE.get(code);
 }
 
-export function findUnfilledPlaceholders(text) {
-  const found = [];
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    if (!sentence.trim()) {
-      continue;
-    }
-    if (PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(sentence))) {
-      found.push({ sentence: sentence.trim() });
-    }
-  }
-  return found;
+function languageOf(socle) {
+  return stringsFor(socle?.language ?? "fr").lang ?? "fr";
 }
 
+function splitSentences(text) {
+  return String(text ?? "")
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+// Clé canonique d'un corps : `body` si présent, sinon dérivée de l'identifiant
+// « body.Sun ». Les deux formes circulent (socles stockés avant la correction).
+function canonicalBodyKey(fact) {
+  if (fact?.body) {
+    return fact.body;
+  }
+  const id = String(fact?.id ?? "");
+  return id.startsWith("body.") ? id.slice(5) : id;
+}
+
+function localizedName(canonical, strings) {
+  return strings?.signs?.[canonical] ?? canonical;
+}
+
+// ---------------------------------------------------------------------------
+// Contradiction planète ↔ signe, et angle ↔ signe, au niveau de la phrase.
+//
+// Règle : si une phrase nomme des planètes ET un signe, et qu'aucune des planètes
+// nommées n'est dans ce signe, c'est une contradiction. Si au moins une
+// correspond, on ne conclut rien (énumération ambiguë).
+// Pour un angle (Ascendant, Milieu du Ciel) : une seule valeur est attendue ;
+// s'il n'a pas pu être calculé, l'affirmer est une invention.
+// ---------------------------------------------------------------------------
 export function findSignContradictions(text, socle) {
+  const strings = stringsFor(languageOf(socle));
+  const bodyIndex = localizedBodyIndex(strings);
+  const signIndex = localizedSignIndex(strings);
   const bodies = Array.isArray(socle?.bodies) ? socle.bodies : [];
   const bodiesBySign = new Map();
   for (const body of bodies) {
     if (!body?.sign) {
       continue;
     }
-    const key = normalizeSignWord(body.sign);
-    bodiesBySign.set(key, [...(bodiesBySign.get(key) ?? []), body.body]);
+    const key = normalizeForMatch(body.sign);
+    bodiesBySign.set(key, [...(bodiesBySign.get(key) ?? []), canonicalBodyKey(body)]);
   }
+
+  const angles = [
+    { key: "ascendant", label: strings?.labels?.asc ?? "Ascendant", expected: socle?.ascendant?.sign ?? null },
+    { key: "midheaven", label: strings?.labels?.mc ?? "Midheaven", expected: socle?.midheaven?.sign ?? null }
+  ];
+
   const contradictions = [];
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    if (!sentence.trim()) {
+  for (const sentence of splitSentences(text)) {
+    const mentionedBodies = canonicalKeysIn(sentence, bodyIndex);
+    // Les noms de signes se déclinent (« im Löwen », « Væren ») : préfixe.
+    const mentionedSigns = canonicalKeysIn(sentence, signIndex, { allowInflection: true });
+    if (mentionedSigns.length === 0) {
       continue;
     }
-    const mentioned = BODY_NAMES.filter(([fr]) => containsWord(sentence, fr)).map(([, en]) => en);
-    if (mentioned.length === 0) {
-      continue;
-    }
-    // Signes cités dans la phrase, via la table française déjà utilisée ailleurs.
-    const signsInSentence = new Set();
-    for (const [fr, en] of SIGN_WORDS) {
-      if (containsWord(sentence, fr)) {
-        // La comparaison se fait sur le nom anglais, celui des faits calculés.
-        signsInSentence.add(normalizeSignWord(en));
+
+    // Angles : contrôle à valeur unique.
+    for (const angle of angles) {
+      if (!prefixRegex(angle.label).test(sentence) && !wordRegex(angle.label).test(sentence)) {
+        continue;
+      }
+      if (!angle.expected) {
+        contradictions.push({
+          code: "invented_unavailable_fact",
+          sentence,
+          angle: angle.key,
+          signs: mentionedSigns,
+          message: `Le texte nomme ${angle.label} alors qu'aucun calcul d'angle n'est disponible pour cette précision d'heure.`
+        });
+        continue;
+      }
+      // Les deux côtés sont des clés canoniques : ne pas normaliser d'un seul côté.
+      if (!mentionedSigns.includes(angle.expected)) {
+        contradictions.push({
+          code: "contradiction_with_socle",
+          sentence,
+          angle: angle.key,
+          expectedSign: angle.expected,
+          signs: mentionedSigns,
+          message: `Le texte situe ${angle.label} ailleurs que dans le signe calculé (${localizedName(angle.expected, strings)}).`
+        });
       }
     }
-    if (signsInSentence.size === 0) {
+
+    // Planètes : contradiction seulement si AUCUNE des planètes citées n'est
+    // dans l'un des signes cités.
+    if (mentionedBodies.length === 0) {
       continue;
     }
-    const matches = [...signsInSentence].some((sign) => (bodiesBySign.get(sign) ?? []).some((body) => mentioned.includes(body)));
+    const matches = mentionedSigns.some((sign) =>
+      (bodiesBySign.get(normalizeForMatch(sign)) ?? []).some((body) => mentionedBodies.includes(body))
+    );
     if (!matches) {
-      contradictions.push({ sentence, bodies: mentioned, signs: [...signsInSentence] });
+      contradictions.push({
+        code: "contradiction_with_socle",
+        sentence,
+        bodies: mentionedBodies,
+        signs: mentionedSigns,
+        message: `Le texte associe ${mentionedBodies.join(", ")} à ${mentionedSigns
+          .map((sign) => localizedName(sign, strings))
+          .join(", ")} alors que le calcul vérifié ne le confirme pas.`
+      });
     }
   }
   return contradictions;
 }
 
-// Frontières de mot tenant compte des accents.
-//
-// `\b` considère « é », « è » ou « ê » comme des NON-lettres : dans « complète »
-// ou « quête », il voit un mot « te » isolé. Résultat : un détecteur de
-// tutoiement qui accuse un texte vouvoyé. On encadre donc les motifs par
-// l'absence de lettre ou de chiffre, pas par `\b`.
-const NOT_LETTER_BEFORE = "(?<![\\p{L}\\p{N}])";
-const NOT_LETTER_AFTER = "(?![\\p{L}\\p{N}])";
-
-export function wordRegex(word, flags = "iu") {
-  return new RegExp(`${NOT_LETTER_BEFORE}(?:${word})${NOT_LETTER_AFTER}`, flags);
-}
-
-function containsWord(text, word) {
-  return wordRegex(word).test(text);
-}
-
-// Plafond de langage quand l'heure de naissance est approximative.
-//
-// Le moteur borne désormais les angles, les maisons et la secte par une marge
-// déclarée (±30 min par défaut) : dès que la marge n'est pas nulle, un signe
-// d'angle n'est plus un fait mais une probabilité, et si la frontière tombe dans
-// la marge il n'est pas décidable du tout. Une consigne ne suffit pas : ce
-// détecteur mesure ce qui est réellement écrit.
-const ANGLE_WORDS = [
-  ["ascendant", "ascendant"],
-  ["milieu du ciel", "midheaven"],
-  ["mc", "midheaven"]
+// ---------------------------------------------------------------------------
+// Placeholders non remplis. Les marques structurelles ([…], {{…}}, <…>) sont
+// universelles ; les formulations « votre prénom » sont cherchées dans la langue
+// du document.
+// ---------------------------------------------------------------------------
+const UNIVERSAL_PLACEHOLDER_PATTERNS = [
+  /\[[^\]\n]{1,80}\]/,
+  /\{\{?[^}\n]{1,80}\}?\}/,
+  /<[^>\n]{1,80}>/
 ];
 
-const HEDGE_PATTERNS = [
-  /probablement/i,
-  /sans\s+doute/i,
-  /vraisemblablement/i,
-  /apparemment/i,
-  /peut-être/i,
-  /peut\s+être/i,
-  /possible/i,
-  /hypothèse/i,
-  /hypothese/i,
-  /semble|semblerait|sembleraient/i,
-  /fronti[èe]re/i,
-  /ne\s+peut\s+pas\s+[êe]tre\s+(tranch|d[ée]termin)/i,
-  /ne\s+peuvent\s+pas\s+[êe]tre\s+(tranch|d[ée]termin)/i,
-  /marge/i,
-  /incertitude/i,
-  /approximative/i,
-  /vers\s+\d/i,
-  /autour\s+de\s+\d/i,
-  /environ/i,
-  /plage/i,
-  /plut[ôo]t/i,
-  /tendance/i,
-  /selon/i,
-  /borne|born[ée]e?/i
-];
-
-function hasHedge(sentence) {
-  return HEDGE_PATTERNS.some((pattern) => pattern.test(sentence));
-}
-
-function signsInSentenceFr(sentence) {
-  const signs = new Set();
-  for (const [fr, en] of SIGN_WORDS) {
-    if (containsWord(sentence, fr)) {
-      signs.add(en);
+export function findUnfilledPlaceholders(text, socle = null) {
+  const language = languageOf(socle);
+  const possessives = possessiveWords(language);
+  const fields = identityFieldWords(language);
+  const fillIns = fillInWords(language);
+  const localized = [
+    // « votre prénom » et, dans les langues a possessif postpose (« fornavnet
+    // ditt » en norvegien et en danois), « prenom votre ».
+    new RegExp(`(?:${possessives.join("|")})\\s+(?:${fields.join("|")})`, "iu"),
+    new RegExp(`(?:${fields.join("|")})\\s+(?:${possessives.join("|")})`, "iu"),
+    new RegExp(`(?:${fillIns.join("|")})[^.!?\\n]{0,40}(?:${fields.join("|")})`, "iu")
+  ];
+  const found = [];
+  for (const sentence of splitSentences(text)) {
+    if (UNIVERSAL_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(sentence))) {
+      found.push({ sentence, code: "unfilled_placeholder" });
+      continue;
+    }
+    if (localized.some((pattern) => pattern.test(sentence))) {
+      found.push({ sentence, code: "unfilled_placeholder" });
     }
   }
-  return signs;
+  return found;
 }
 
+export function findBiographicalInvention(text) {
+  const found = [];
+  for (const sentence of splitSentences(text)) {
+    if (BIOGRAPHICAL_PATTERNS.some((pattern) => pattern.test(sentence))) {
+      found.push({ sentence, code: "biographical_invention" });
+    }
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// Plafond de langage quand l'heure de naissance est approximative.
+//
+// Le moteur borne les angles, les maisons et la secte par une marge déclarée :
+// dès que la marge n'est pas nulle, un signe d'angle n'est plus un fait mais une
+// probabilité, et si la frontière tombe dans la marge il n'est pas décidable du
+// tout. Une consigne ne suffit pas : ce détecteur mesure ce qui est écrit.
+// ---------------------------------------------------------------------------
 export function findUnhedgedTimedAssertions(text, socle) {
   const cap = socle?.timeLanguageCap ?? null;
   if (!cap) {
     return [];
   }
+  const language = languageOf(socle);
+  const strings = stringsFor(language);
+  const signIndex = localizedSignIndex(strings);
+  // Préfixe : le document norvégien écrit « Ascendanten », l'allemand « im Löwen ».
+  const angleWords = [
+    { key: "ascendant", label: strings?.labels?.asc ?? "Ascendant" },
+    { key: "midheaven", label: strings?.labels?.mc ?? "Midheaven" }
+  ].map((angle) => ({ ...angle, regex: prefixRegex(angle.label) }));
+  const houseWord = strings?.labels?.house ?? "house";
+  const houseRegex = new RegExp(`(?:${houseWord})\\s*(?:n[°o]\\s*)?(\\d{1,2})`, "iu");
+  const degrees = degreeWords(language).join("|");
+  const degreeRegex = new RegExp(`\\d{1,2}\\s*(?:°|${degrees})`, "iu");
+  const bodyIndex = localizedBodyIndex(strings);
+
   const found = [];
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    const trimmed = sentence.trim();
-    if (!trimmed) {
-      continue;
-    }
-    const signs = signsInSentenceFr(trimmed);
-    const mentionedAngles = [...new Set(ANGLE_WORDS.filter(([word]) => containsWord(trimmed, word)).map(([, key]) => key))];
-    const hedged = hasHedge(trimmed);
+  for (const sentence of splitSentences(text)) {
+    const mentionedSigns = canonicalKeysIn(sentence, signIndex, { allowInflection: true });
+    const mentionedAngles = angleWords.filter((angle) => angle.regex.test(sentence)).map((angle) => angle.key);
+    const hedged = hasHedgeIn(sentence, language);
 
     // 1. Degré précis sur un angle : interdit tant que la marge n'est pas nulle.
-    if (mentionedAngles.length > 0 && /\b\d{1,2}\s*(?:°|degr[ée])/.test(trimmed)) {
-      found.push({
-        sentence: trimmed,
-        code: "exact_angle_degree_with_uncertainty_margin",
-        angle: mentionedAngles[0]
-      });
+    if (mentionedAngles.length > 0 && degreeRegex.test(sentence)) {
+      found.push({ sentence, code: "exact_angle_degree_with_uncertainty_margin", angle: mentionedAngles[0] });
       continue;
     }
 
     // 2. Signe d'angle affirmé (chaque angle a sa propre fenêtre de marge).
-    if (mentionedAngles.length > 0 && signs.size > 0) {
+    if (mentionedAngles.length > 0 && mentionedSigns.length > 0) {
       let flagged = false;
       for (const angle of mentionedAngles) {
         const stable =
@@ -273,19 +297,19 @@ export function findUnhedgedTimedAssertions(text, socle) {
           (angle === "ascendant" ? cap.ascendantSignsInWindow : cap.midheavenSignsInWindow) ?? [];
         // Une formulation de frontière nomme les deux signes possibles : c'est
         // la seule manière acceptable de parler d'un signe non décidable.
-        const namesWholeWindow = windowSigns.length > 1 && windowSigns.every((sign) => signs.has(sign));
+        const namesWholeWindow = windowSigns.length > 1 && windowSigns.every((sign) => mentionedSigns.includes(sign));
         if (stable === false && !namesWholeWindow) {
-          found.push({ sentence: trimmed, code: "undecidable_angle_sign_asserted", angle, signsInWindow: windowSigns });
-          flagged = true;
-          break;
-        }
-        if (stable !== false && !hedged) {
-          found.push({ sentence: trimmed, code: "unhedged_angle_sign_assertion", angle });
+          found.push({ sentence, code: "undecidable_angle_sign_asserted", angle, signsInWindow: windowSigns });
           flagged = true;
           break;
         }
         if (stable === false && namesWholeWindow && !hedged) {
-          found.push({ sentence: trimmed, code: "unhedged_angle_sign_assertion", angle });
+          found.push({ sentence, code: "unhedged_angle_sign_assertion", angle });
+          flagged = true;
+          break;
+        }
+        if (stable !== false && !hedged) {
+          found.push({ sentence, code: "unhedged_angle_sign_assertion", angle });
           flagged = true;
           break;
         }
@@ -297,101 +321,89 @@ export function findUnhedgedTimedAssertions(text, socle) {
 
     // 3. Maison numérotée alors que les maisons ne sont pas décidables.
     if (cap.housesDecidableWithinMargin === false) {
-      const houseMatch = trimmed.match(/\b(?:maison|houses?)\s*(?:n[°o]\s*)?(\d{1,2})\b/i) ?? trimmed.match(/\ben\s+maison\s+(\d{1,2})\b/i);
+      const houseMatch = sentence.match(houseRegex) ?? sentence.match(/\b(?:maison|houses?)\s*(\d{1,2})\b/i);
       if (houseMatch) {
-        found.push({ sentence: trimmed, code: "undecidable_house_asserted", house: Number(houseMatch[1]) });
+        found.push({ sentence, code: "undecidable_house_asserted", house: Number(houseMatch[1]) });
         continue;
       }
     }
 
     // 4. Corps dont le signe change dans la marge.
     const unstableBodies = cap.bodySignsNotStableWithinMargin ?? [];
-    if (unstableBodies.length > 0 && signs.size > 0) {
-      const named = unstableBodies.filter((body) => {
-        const fr = BODY_NAMES.find(([, en]) => en === body)?.[0];
-        return fr ? containsWord(trimmed, fr) : false;
-      });
+    if (unstableBodies.length > 0 && mentionedSigns.length > 0) {
+      const named = mentionedBodiesIn(sentence, bodyIndex, unstableBodies);
       if (named.length > 0) {
-        found.push({ sentence: trimmed, code: "undecidable_body_sign_asserted", bodies: named });
+        found.push({ sentence, code: "undecidable_body_sign_asserted", bodies: named });
       }
     }
   }
   return found;
 }
 
+function mentionedBodiesIn(sentence, bodyIndex, canonicalBodies) {
+  const mentioned = canonicalKeysIn(sentence, bodyIndex);
+  return mentioned.filter((body) => canonicalBodies.includes(body));
+}
+
 // ---------------------------------------------------------------------------
-// Défauts de style (réécriture demandée, jamais d'amputation) et vocabulaire.
-//
-// Un antécédent orphelin (« Cette position… », « Cette maison… ») n'est pas un
-// mensonge : c'est une phrase incompréhensible parce que le placement n'a jamais
-// été nommé dans la section. La règle correcte est de le nommer UNE FOIS, puis
-// de ne plus le réexpliquer — l'anti-répétition avait fait comprendre au modèle
-// « ne nomme pas ».
+// Vocabulaire et tutoiement (français).
+// ---------------------------------------------------------------------------
+export function findForbiddenVocabulary(text, language = "fr") {
+  const patterns = FORBIDDEN_VOCABULARY_BY_LANGUAGE[String(language ?? "fr").slice(0, 2).toLowerCase()] ?? [];
+  if (patterns.length === 0) {
+    return [];
+  }
+  const found = [];
+  for (const sentence of splitSentences(text)) {
+    if (patterns.some((pattern) => pattern.test(sentence))) {
+      found.push({ sentence, code: "forbidden_vocabulary" });
+    }
+  }
+  return found;
+}
+
+export function findTutoiement(text, language = "fr") {
+  if (String(language ?? "fr").slice(0, 2).toLowerCase() !== "fr") {
+    return [];
+  }
+  const found = [];
+  for (const sentence of splitSentences(text)) {
+    if (TU_PATTERN.test(sentence)) {
+      found.push({ sentence, code: "tutoiement" });
+    }
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// Antécédent orphelin (« Cette position… » sans placement nommé). Motifs
+// français à ce jour : la règle éditoriale française est celle qui a été
+// observée défaillante.
 // ---------------------------------------------------------------------------
 const DEMONSTRATIVE_OPENERS = [
   /^(?:cette|cet|ce|ces)\s+(position|maison|place|placement|configuration|figure|structure|dynamique|énergie|energie|tension|planète|planete|thème|theme|axe|aspect|influence)\b/i,
   /^(?:il|elle)\s+(s'agit|correspond|renvoie|traduit)\b/i
 ];
 
-const PLACEMENT_MARKERS = [
-  /\b(soleil|lune|mercure|v[ée]nus|mars|jupiter|saturne)\b/i,
-  /\bmaison\s*(?:n[°o]\s*)?\d{1,2}\b/i,
-  /\bascendant\b/i,
-  /\bmilieu\s+du\s+ciel\b/i
-];
-
-export function findOrphanAntecedents(text) {
+export function findOrphanAntecedents(text, socle = null) {
+  const strings = stringsFor(languageOf(socle));
+  const bodyIndex = localizedBodyIndex(strings);
+  const houseWord = strings?.labels?.house ?? "maison";
+  const angleWords = [strings?.labels?.asc, strings?.labels?.mc].filter(Boolean);
   const found = [];
-  const sentences = String(text ?? "")
-    .split(/(?<=[.!?])\s+/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
   let namedSoFar = false;
-  for (const sentence of sentences) {
-    if (PLACEMENT_MARKERS.some((pattern) => pattern.test(sentence))) {
+  for (const sentence of splitSentences(text)) {
+    const namesPlacement =
+      canonicalKeysIn(sentence, bodyIndex).length > 0 ||
+      new RegExp(`(?:${houseWord})\\s*(?:n[°o]\\s*)?\\d{1,2}`, "iu").test(sentence) ||
+      angleWords.some((label) => prefixRegex(label).test(sentence));
+    if (namesPlacement) {
       namedSoFar = true;
       continue;
     }
     const orphan = DEMONSTRATIVE_OPENERS.find((pattern) => pattern.test(sentence));
     if (orphan && !namedSoFar) {
-      found.push({ sentence, referent: sentence.split(/\s+/).slice(0, 2).join(" ").toLowerCase() });
-    }
-  }
-  return found;
-}
-
-// Vocabulaire imposé : en français, on écrit « trigone », jamais « trine ».
-const FORBIDDEN_VOCABULARY = [/\btrine\b/i];
-
-export function findForbiddenVocabulary(text) {
-  const found = [];
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    const trimmed = sentence.trim();
-    if (!trimmed) {
-      continue;
-    }
-    if (FORBIDDEN_VOCABULARY.some((pattern) => pattern.test(trimmed))) {
-      found.push({ sentence: trimmed, code: "forbidden_vocabulary" });
-    }
-  }
-  return found;
-}
-
-// Vouvoiement constant en français : le texte ne doit pas basculer au tutoiement.
-// Attention aux faux positifs : « complète », « quête », « secrète » contiennent
-// « te »/« ta » pour un `\b` naïf, pas pour un lecteur.
-const TU_PATTERN = wordRegex("tu|ton|ta|tes|toi|te|t'");
-export const TU_WORDS = Object.freeze(["tu", "ton", "ta", "tes", "toi", "te", "t'"]);
-
-export function findTutoiement(text) {
-  const found = [];
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    const trimmed = sentence.trim();
-    if (!trimmed) {
-      continue;
-    }
-    if (TU_PATTERN.test(trimmed)) {
-      found.push({ sentence: trimmed, code: "tutoiement" });
+      found.push({ sentence, code: "orphan_antecedent", referent: sentence.split(/\s+/).slice(0, 2).join(" ").toLowerCase() });
     }
   }
   return found;
@@ -399,37 +411,32 @@ export function findTutoiement(text) {
 
 // ---------------------------------------------------------------------------
 // Anti-répétition entre sections : un même placement ne doit pas être expliqué
-// deux fois. On ne compare pas la formulation, on compare la SIGNATURE du
-// placement (corps concernés, aspect, maison), ce qui est mesurable.
+// deux fois. On compare la SIGNATURE du placement (corps concernés, aspect,
+// maison), pas la formulation — et dans la langue du document.
 // ---------------------------------------------------------------------------
-const ASPECT_WORDS = [
-  ["conjonction", "conjunction"],
-  ["sextile", "sextile"],
-  ["carré", "square"],
-  ["carre", "square"],
-  ["trigone", "trine"],
-  ["trine", "trine"],
-  ["opposition", "opposition"]
-];
-
-function signatureFromSentence(sentence) {
+function signatureFromSentence(sentence, strings) {
   const signatures = [];
-  const bodies = [...new Set(BODY_NAMES.filter(([fr]) => containsWord(sentence, fr)).map(([, en]) => en))];
-  const aspect = ASPECT_WORDS.find(([fr]) => containsWord(sentence, fr));
+  const bodyIndex = localizedBodyIndex(strings);
+  const aspectIndex = localizedAspectIndex(strings);
+  const bodies = canonicalKeysIn(sentence, bodyIndex);
+  const aspect = canonicalKeysIn(sentence, aspectIndex)[0] ?? null;
   if (bodies.length === 2 && aspect) {
-    signatures.push(`aspect:${[...bodies].sort().join("-")}:${aspect[1]}`);
+    signatures.push(`aspect:${[...bodies].sort().join("-")}:${aspect}`);
   }
-  const house = sentence.match(/\bmaison\s*(?:n[°o]\s*)?(\d{1,2})\b/i);
+  const houseWord = strings?.labels?.house ?? "maison";
+  const house = sentence.match(new RegExp(`(?:${houseWord})\\s*(?:n[°o]\\s*)?(\\d{1,2})`, "iu"))
+    ?? sentence.match(/\bmaison\s*(\d{1,2})\b/i);
   if (house && bodies.length === 1) {
     signatures.push(`house:${bodies[0]}:${Number(house[1])}`);
   }
   return signatures;
 }
 
-export function findRepeatedPlacements(text, previousSections = []) {
+export function findRepeatedPlacements(text, previousSections = [], socle = null) {
+  const strings = stringsFor(languageOf(socle));
   const alreadyExplained = new Set();
   for (const section of Array.isArray(previousSections) ? previousSections : []) {
-    for (const signature of signatureFromSentence(String(section?.excerpt ?? section?.text ?? ""))) {
+    for (const signature of signatureFromSentence(String(section?.excerpt ?? section?.text ?? ""), strings)) {
       alreadyExplained.add(signature);
     }
   }
@@ -438,31 +445,31 @@ export function findRepeatedPlacements(text, previousSections = []) {
   }
   const found = [];
   const seenHere = new Set();
-  for (const sentence of String(text ?? "").split(/(?<=[.!?])\s+/)) {
-    const trimmed = sentence.trim();
-    if (!trimmed) {
-      continue;
-    }
-    for (const signature of signatureFromSentence(trimmed)) {
+  for (const sentence of splitSentences(text)) {
+    for (const signature of signatureFromSentence(sentence, strings)) {
       if (alreadyExplained.has(signature) && !seenHere.has(signature)) {
         seenHere.add(signature);
-        found.push({ sentence: trimmed, code: "repeated_placement", signature });
+        found.push({ sentence, code: "repeated_placement", signature });
       }
     }
   }
   return found;
 }
 
+// ---------------------------------------------------------------------------
+// Contrôle complet d'une section.
+// ---------------------------------------------------------------------------
 export function validateSectionText({ sectionId, text, socle }) {
   const issues = [];
   if (!text || !text.trim()) {
     return { ok: false, issues: [{ severity: "error", code: "empty_section", message: "Section vide." }] };
   }
+  const language = languageOf(socle);
 
   // Plafond de langage de l'heure approximative, mesuré sur le texte réel.
   for (const violation of findUnhedgedTimedAssertions(text, socle)) {
     issues.push({
-      severity: "error",
+      severity: violation.code === "unhedged_angle_sign_assertion" ? "warning" : "error",
       code: violation.code,
       message:
         violation.code === "undecidable_angle_sign_asserted"
@@ -478,13 +485,23 @@ export function validateSectionText({ sectionId, text, socle }) {
     });
   }
 
-  // Vocabulaire imposé : « trigone », jamais « trine ».
-  for (const violation of findForbiddenVocabulary(text)) {
+  // Vocabulaire imposé : « trigone », jamais « trine » (en français seulement).
+  for (const violation of findForbiddenVocabulary(text, language)) {
     issues.push({
       severity: "error",
       code: "forbidden_vocabulary",
       message: `Vocabulaire interdit : ${violation.sentence}`,
       sentence: violation.sentence
+    });
+  }
+
+  // Contradictions et faits non calculés, dans la langue du document.
+  for (const contradiction of findSignContradictions(text, socle)) {
+    issues.push({
+      severity: "error",
+      code: contradiction.code,
+      message: contradiction.message,
+      sentence: contradiction.sentence
     });
   }
 
@@ -505,45 +522,44 @@ export function validateSectionText({ sectionId, text, socle }) {
   for (const pattern of DETERMINISTIC_PATTERNS) {
     if (pattern.test(text)) {
       issues.push({
-        severity: "warning",        code: "deterministic_certainty",
+        severity: "warning",
+        code: "deterministic_certainty",
         message: "Formulation déterministe possible (« tu es … ») : reformuler en dynamique respectueuse du libre arbitre."
       });
       break;
     }
   }
 
-  const seen = new Set();
-  for (const match of text.matchAll(FACT_PATTERN)) {    const rawKind = match[1].toLowerCase();
-    const candidateFr = match[2].trim().replace(/'/g, "");
-    const signEn = enSignFromFr(candidateFr);
-    if (!signEn) {
-      continue; // not a zodiac word; ignore false positives
-    }
-    const kindKey = rawKind === "milieu du ciel" ? "milieu du ciel" : rawKind === "soleil" ? "soleil" : rawKind === "lune" ? "lune" : rawKind;
-    const seenKey = `${kindKey}:${signEn}`;
-    if (seen.has(seenKey)) {
-      continue;
-    }
-    seen.add(seenKey);
-    const expected = expectedSign(socle, kindKey);
-    if (expected === null) {
-      if (kindKey === "ascendant" || kindKey === "milieu du ciel") {
-        issues.push({
-          severity: "error",
-          code: "invented_unavailable_fact",
-          message: `Le texte affirme « ${rawKind} ${candidateFr} » alors qu'aucun ${rawKind} n'a pu être calculé (temps inconnu).`
-        });
-      }
-      continue;
-    }
-    if (expected !== signEn) {
-      issues.push({
-        severity: "error",
-        code: "contradiction_with_socle",
-        message: `Le texte dit « ${rawKind} ${candidateFr} » alors que le calcul vérifié donne ${rawKind} en ${frSign(expected).fr}.`
-      });
-    }
-  }
-
   return { ok: issues.every((issue) => issue.severity !== "error"), issues };
 }
+
+// ---------------------------------------------------------------------------
+// Couverture mesurée des détecteurs (à garder à jour avec ce fichier).
+//
+//   toutes langues : plafond de langage de la marge, contradiction planète ↔
+//                    signe et angle ↔ signe, placeholders (marques structurelles
+//                    et formulations localisées) ;
+//   français       : prédiction d'événement, affirmation médicale, formulation
+//                    déterministe, invention biographique, tutoiement,
+//                    vocabulaire imposé, antécédent orphelin.
+//
+// Étendre une règle à une langue, c'est ajouter son vocabulaire dans
+// detectorVocabulary.mjs et un test dans tests/languageCoverage.test.mjs.
+// ---------------------------------------------------------------------------
+export const DETECTOR_COVERAGE = Object.freeze({
+  allLanguages: Object.freeze([
+    "time_margin_language_cap",
+    "planet_and_angle_sign_contradiction",
+    "unfilled_placeholder",
+    "repeated_placement"
+  ]),
+  frenchOnly: Object.freeze([
+    "event_prediction",
+    "medical_claim",
+    "deterministic_certainty",
+    "biographical_invention",
+    "tutoiement",
+    "forbidden_vocabulary",
+    "orphan_antecedent"
+  ])
+});

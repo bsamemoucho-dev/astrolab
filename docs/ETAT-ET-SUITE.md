@@ -58,6 +58,16 @@ détecteur.
   sans placement nommé), répétition d'un aspect ou d'une maison d'une section à
   l'autre, tutoiement, « trine » → détectés ; **réécriture demandée sans
   amputation** (contrairement aux erreurs factuelles).
+- **Couverture par langue des détecteurs** (mesurée par
+  `tests/languageCoverage.test.mjs`, déclarée dans `DETECTOR_COVERAGE`) :
+  - **les 9 langues** : plafond de langage de la marge, contradiction
+    planète ↔ signe et angle ↔ signe, placeholders, anti-répétition ;
+  - **français seulement** : prédiction d'événement, affirmation médicale,
+    formulation déterministe, invention biographique, tutoiement, vocabulaire
+    imposé (« trigone »), antécédent orphelin.
+  Les noms de signes et d'angles sont cherchés en **préfixe de mot** : sans cela,
+  « Ascendanten » (norvégien) et « im Löwen » (allemand) échappaient au contrôle.
+  Les noms de corps restent en mot exact (« Sun » ne doit pas valoir « sunny »).
 - **Ordre des sections** : imposé par le `rank`, une seule fonction de tri
   (`dossierSectionsInOrder`) partagée par les deux services, vérifiée sur la
   lecture publique **et** sur le dossier du compte — coup d'œil 1,
@@ -70,6 +80,24 @@ détecteur.
   n'expose plus les avertissements bruts du moteur (anglais, statut interne,
   langage de préproduction).
 
+## Corrections marquantes (contexte pour la suite)
+
+- **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
+  socle exposait `id: "body.Sun"` mais pas de clé `body` ; le détecteur ne
+  reconnaissait donc **aucun** corps et déclarait une contradiction dès qu'une
+  phrase nommait une planète avec un signe — **même le bon**. Sur le parcours
+  public, ces phrases étaient réécrites puis, la réécriture échouant, **retirées**.
+  C'est une cause probable des « antécédents orphelins » décrits plus haut :
+  des sections amputées de leur phrase d'ouverture. Corrigé, avec un test qui
+  exige qu'une phrase juste passe.
+- **Règle française appliquée à toutes les langues (corrigé).** « trine » est le
+  mot juste en anglais ; il était refusé comme vocabulaire interdit dans un
+  document anglais. Les règles de langue sont désormais liées à la langue du
+  document.
+- **`\b` et les lettres accentuées (corrigé).** « complète » contenait « te »
+  pour le détecteur de tutoiement, et « carré » n'était jamais reconnu comme
+  aspect. Frontières de mot Unicode.
+
 ## Ce qui reste
 
 1. **« Vos périodes & cycles »** : module toujours indisponible (nécessite le
@@ -78,9 +106,10 @@ détecteur.
 2. **Rédacteur IA réel** : les garde-fous sont éprouvés avec des rédacteurs
    injectés ; la validation sur une vraie lecture complète (clé LLM configurée)
    reste à faire, en particulier la mesure du taux de réécriture par section.
-3. **Étendre les détecteurs aux huit autres langues** : tous les détecteurs de
-   langue (placeholders, contradictions, biographie, marge, antécédents,
-   répétition, tutoiement) ne couvrent que le français.
+3. **Étendre les règles éditoriales aux huit autres langues** : les règles de
+   sécurité factuelle sont désormais couvertes dans les 9 langues, mais la
+   prédiction d'événement, l'affirmation médicale, l'invention biographique,
+   l'antécédent orphelin et le tutoiement restent propres au français.
 4. **Exemple de référence** : régénérer un dossier « Caroline »
    (1986-01-02, Courbevoie) et le comparer au modèle conversation.
 5. **Antécédents orphelins** : la consigne et le détecteur sont en place ; il
@@ -123,11 +152,13 @@ détecteur.
 | `src/http/app.mjs` | routes publiques, paiement, livraison |
 | `public/app.js`, `public/index.html` | formulaire public (heure, marge, paiement) |
 | `tests/noSecrets.test.mjs` | garde-fou : aucun secret dans les fichiers suivis |
+| `src/deliverables/detectorVocabulary.mjs` | vocabulaire des détecteurs par langue (incertitude, identité, degrés) |
+| `tests/languageCoverage.test.mjs` | couverture mesurée des détecteurs dans les 9 langues |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 152 tests
+npm test                                   # 158 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

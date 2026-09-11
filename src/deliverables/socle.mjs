@@ -77,6 +77,11 @@ function bodyFact(body, houses, details, options = {}) {
   const wholeSign = details?.values?.wholeSignShort ?? "Whole Sign";
   const house = options.housesDecidable === false ? null : houseNumberForBody(body, houses);
   return {
+    // `body` = clé canonique anglaise (Sun, Moon…). Sans elle, les détecteurs qui
+    // comparent une phrase aux faits calculés ne reconnaissaient AUCUN corps et
+    // déclaraient une contradiction dès qu'une planète était nommée avec un
+    // signe — même le bon.
+    body: body.body,
     id: `body.${body.body}`,
     label: localizedBodyName(body.body, details),
     sign: body.sign,
@@ -330,6 +335,9 @@ export function buildSocle(payload, strings = null) {
 
   return {
     schema: "astrolab.western_natal.socle_livrable",
+    // La langue du document : les détecteurs de sécurité factuelle s'y adaptent
+    // (noms de planètes, de signes, d'aspects, vocabulaire d'incertitude).
+    language: details.lang ?? "fr",
     methodId: payload.methodId ?? "western-natal",
     methodVersion: payload.methodVersion ?? null,
     status: payload.status ?? "calculated_development_not_production",
