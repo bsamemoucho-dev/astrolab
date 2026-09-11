@@ -458,16 +458,19 @@
               </details>
               <details class="parent-fieldset express-optional">
                 <summary>Parents — lecture transgénérationnelle (optionnel)</summary>
+                <p class="hint">Indiquez la <strong>commune</strong> de naissance : la reconnaissance de lieu ne connaît que les villes, pas les établissements.</p>
                 <div class="grid two compact">
                   <label>Mère — nom <input name="motherName"></label>
                   <label>Mère — date <input name="motherBirthDate" type="date"></label>
                 </div>
-                <label>Mère — lieu <input name="motherBirthPlace"></label>
+                <label>Mère — ville de naissance <input name="motherBirthPlace" placeholder="Ex. Bouillante, Guadeloupe"></label>
+                <div id="mother-place-details" class="technical-details" hidden></div>
                 <div class="grid two compact">
                   <label>Père — nom <input name="fatherName"></label>
                   <label>Père — date <input name="fatherBirthDate" type="date"></label>
                 </div>
-                <label>Père — lieu <input name="fatherBirthPlace"></label>
+                <label>Père — ville de naissance <input name="fatherBirthPlace" placeholder="Ex. Roubaix, France"></label>
+                <div id="father-place-details" class="technical-details" hidden></div>
               </details>
 
               <button type="submit">Recevoir ma lecture</button>

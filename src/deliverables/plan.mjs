@@ -31,7 +31,7 @@ export const FRAME_DIRECTIVES = Object.freeze([
   // Le plafond mesuré sur le coup d'œil (900 caractères) était dépassé à CHAQUE
   // lecture, ce qui déclenchait une réécriture systématique : la consigne donne
   // désormais un budget concret, le détecteur reste le filet de sécurité.
-  "Dans la section d'introduction uniquement, ouvre par un court paragraphe « Votre ciel en un coup d'œil » : trois à cinq traits marquants, distincts et concrets, sans jargon, en 120 mots au plus.",
+  "Dans la section d'introduction uniquement, ouvre par un court paragraphe de synthèse — sans reprendre le titre de la section — de trois à cinq traits marquants, distincts et concrets, sans jargon, en 120 mots au plus.",
   // Transgénérationnel (chantier 3) : jamais d'histoire familiale inventée.
   "Pour tout passage transgénérationnel : parle uniquement de correspondances symboliques entre des thèmes, jamais d'un héritage, d'un rôle, d'un secret ou d'un événement familial que les données fournies ne contiennent pas. Si aucune donnée familiale n'est fournie, ce passage n'existe pas."
 ]);
@@ -55,6 +55,9 @@ const DIRECTIVES = {
     "Respecte strictement les faits calculés fournis (Soleil, Lune, Ascendant, maisons, aspects géométriques)."
   ],
   transgenerational: [
+    // Exception voulue : cette partie s'adresse directement au père et à la mère,
+    // le tutoiement y est plus juste que le vouvoiement du reste du document.
+    "Adresse-toi directement à la personne à la deuxième personne du singulier (en français : « tu ») dans toute cette section, et seulement dans celle-ci.",
     "Parle d'héritages conscients et inconscients, de loyautés invisibles, de rôles transmis.",
     "Ne prétends jamais connaître des événements familiaux réels : travaille en climat symbolique.",
     "Si les données parents ne sont pas fournies, dis-le clairement et reste général."
@@ -99,6 +102,8 @@ const DIRECTIVES = {
     "Aucune accusation, aucune certitude psychologique."
   ],
   letterMirror: [
+    // Même exception : une lettre adressée aux figures parentales se tutoie.
+    "Adresse-toi directement à la personne à la deuxième personne du singulier (en français : « tu ») : c'est une lettre, pas une analyse.",
     "Écris une lettre symbolique en miroir (au monde / aux figures parentales / aux liens).",
     "Mets en lumière ce qui a été attendu ; libère sans accuser.",
     "Ton respectueux et ouvert."

@@ -68,6 +68,11 @@ test("la session de paiement utilise les paramètres attendus par l'API Stripe a
           assert.equal(sent.origin_context, "web");
           // Réservé au mode abonnement : ne doit pas être envoyé ici.
           assert.equal("payment_method_collection" in sent, false);
+          // Moyens de paiement : carte seulement (les portefeuilles Apple Pay et
+          // Google Pay vivent DANS « carte »), et Link explicitement exclu — il
+          // s'affichait sur ordinateur sans fonctionner.
+          assert.equal(sent["payment_method_types[0]"], "card");
+          assert.equal(sent["excluded_payment_method_types[0]"], "link");
           assert.equal(sent["line_items[0][price_data][unit_amount]"], "1000");
           assert.equal(sent["line_items[0][price_data][currency]"], "eur");
           // Paramètre supprimé de l'API Stripe : ne doit plus être envoyé.
@@ -75,6 +80,34 @@ test("la session de paiement utilise les paramètres attendus par l'API Stripe a
           assert.equal("automatic_payment_methods[enabled]" in sent, false);
           assert.equal(session.sessionId, "cs_live_1");
           assert.equal(session.clientSecret, "cs_live_1_secret");
+        }
+      )
+  );
+});
+
+test("si l'exclusion de Link n'est pas connue de l'API, la session se crée quand même", async () => {
+  await withKeys(
+    { STRIPE_SECRET_KEY: "sk_live_abc123456789", STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789" },
+    () =>
+      withFakeStripe(
+        (attempt, body) =>
+          "excluded_payment_method_types[0]" in body
+            ? { ok: false, status: 400, payload: { error: { message: "Received unknown parameter: excluded_payment_method_types" } } }
+            : { ok: true, payload: { id: "cs_live_4", client_secret: "cs_live_4_secret", amount_total: 1000, currency: "eur" } },
+        async (calls) => {
+          const session = await createEmbeddedCheckoutSession({ amountCents: 1000 });
+          assert.equal(session.sessionId, "cs_live_4");
+          // Les deux noms de mode d'affichage sont tentés avec l'exclusion, puis
+          // sans elle. L'ordre est volontaire : le mode d'affichage d'abord.
+          assert.equal(calls.length, 3);
+          assert.equal(calls[0].body.ui_mode, "embedded_page");
+          assert.equal("excluded_payment_method_types[0]" in calls[0].body, true);
+          assert.equal(calls[1].body.ui_mode, "embedded");
+          assert.equal(calls[2].body.ui_mode, "embedded_page");
+          assert.equal("excluded_payment_method_types[0]" in calls[2].body, false);
+          // La restriction à la carte, elle, n'est jamais abandonnée : sans elle
+          // on réintroduirait Link par la petite porte.
+          assert.ok(calls.every((call) => call.body["payment_method_types[0]"] === "card"));
         }
       )
   );

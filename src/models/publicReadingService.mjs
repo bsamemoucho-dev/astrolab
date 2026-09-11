@@ -225,7 +225,7 @@ export async function createPublicReading(input = {}, options = {}) {
         ...findUnhedgedTimedAssertions(texte, context.socle).filter((violation) => !estFatalDansLaMarge(violation)),
         ...findOrphanAntecedents(texte, context.socle),
         ...findRepeatedPlacements(texte, sections, context.socle),
-        ...findTutoiement(texte, context.socle?.language),
+        ...findTutoiement(texte, context.socle?.language, planSection.id),
         ...(planSection.id === "introduction" && String(texte).length > PLAFOND_COUP_DOEIL
           ? [{ sentence: `ouverture trop longue (${String(texte).length} caractères)` }]
           : [])

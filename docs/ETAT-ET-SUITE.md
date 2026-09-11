@@ -84,6 +84,51 @@ détecteur.
   n'expose plus les avertissements bruts du moteur (anglais, statut interne,
   langage de préproduction).
 
+## Retours sur un PDF réel (11/09/2026)
+
+Cinq retours après impression d'une vraie lecture, tous traités :
+
+1. **Mise en page.** 2 cm de marge tout autour à l'impression (`@page`), feuille
+   sans rembourrage en impression (sinon les marges s'additionnent), blocs plus
+   aérés, interligne du corps passé de 1,75 à 1,6 avec un vrai espace entre
+   paragraphes (1,1 em) et entre sections (2,6 em). **Un titre ne peut plus
+   rester seul en bas de page** (`break-after:avoid` sur les titres,
+   `break-before:avoid` sur le paragraphe qui les suit, `orphans`/`widows` à 3).
+   Verrouillé par `tests/printLayout.test.mjs`.
+   Note : la date, l'URL et le numéro de page visibles sur le PDF viennent des
+   en-têtes/pieds du navigateur (option « En-têtes et pieds de page » de la boîte
+   d'impression), pas du document.
+2. **Tutoiement dans la partie adressée aux parents.** Exception voulue au
+   vouvoiement général : `transgenerationnel` et `lettre-miroir` demandent
+   explicitement la deuxième personne du singulier, le guide de style français ne
+   dit plus « vouvoiement constant », et `findTutoiement` ne signale plus le
+   tutoiement dans ces deux sections (`TUTOIEMENT_SECTIONS`).
+3. **Lieux des parents non reconnus (corrigé).** `attachPlaceAutocomplete`
+   n'était branché que sur le champ `birthPlace` : taper la ville du père ou de la
+   mère ne déclenchait aucune recherche ni correction. La liste
+   `EXPRESS_PLACE_FIELDS` branche désormais les trois champs de lieu, chacun avec
+   son encadré de résultat, et `resolvePlaceForForm` sait quel champ réécrire avec
+   le nom canonique. Un test compare cette liste aux champs réellement présents
+   dans le formulaire : un champ de lieu non branché fait échouer la suite.
+4. **« hôpital de … » introuvable : comportement normal.** La reconnaissance passe
+   par l'API de géocodage Open-Meteo (base GeoNames) : des **communes**, pas des
+   établissements. Les libellés disent maintenant « ville de naissance » et un
+   repère précise que la reconnaissance ne connaît que les villes.
+5. **Paiement : Link retiré, portefeuilles conservés.** La session Checkout
+   restreint les moyens à `card` — Apple Pay et Google Pay sont des portefeuilles
+   *à l'intérieur* de « carte », ils restent donc proposés — et exclut
+   explicitement `link` (`excluded_payment_method_types`), avec repli automatique
+   si la version d'API du compte ne connaît pas ce paramètre. Reste à vérifier
+   côté Stripe : l'activation d'Apple Pay et le réglage de Link dans
+   *Paramètres → Moyens de paiement*. Rappel : Apple Pay ne s'affiche que sur
+   Safari (macOS/iOS) avec une carte dans Wallet ; sur Chrome ou Firefox desktop,
+   c'est Google Pay qui apparaît.
+
+Défaut supplémentaire repéré sur ce même PDF : l'introduction **répétait le titre
+de la section** (« Votre ciel en un coup d'œil : … ») parce que la consigne le
+citait littéralement. La consigne demande maintenant un paragraphe de synthèse
+« sans reprendre le titre de la section ».
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -203,11 +248,12 @@ détecteur.
 | `.github/workflows/tests.yml` | `npm test` + contrôle de syntaxe à chaque push |
 | `tools/measure-readings.mjs` | tirage de lectures pour mesurer le taux de réécriture, par langue |
 | `tools/verify-production-reading.mjs` | vérification de bout en bout après déploiement |
+| `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 164 tests
+npm test                                   # 170 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

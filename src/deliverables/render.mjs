@@ -98,34 +98,46 @@ const CSS = `
   .sheet { max-width:820px; margin:24px auto; background:var(--paper); padding:56px 64px; box-shadow:0 4px 24px rgba(0,0,0,.08); }
   header.cover { border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:8px; }
   .brand { font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:var(--soft); }
-  h1 { font-size:30px; margin:10px 0 4px; }
+  h1 { font-size:30px; margin:10px 0 4px; line-height:1.2; }
   .cover-meta { color:var(--soft); font-size:13px; }
-  .caveat { font-size:13px; line-height:1.55; color:#4a4f58; background:#f6f4ff; border:1px solid #e6e0ff; border-radius:8px; padding:12px 14px; margin:18px 0 8px; }
-  section.block { margin-top:34px; }
-  h2 { font-size:21px; margin:0 0 4px; }
-  h3 { font-size:16px; margin:22px 0 4px; }
+  .caveat { font-size:13px; line-height:1.55; color:#4a4f58; background:#f6f4ff; border:1px solid #e6e0ff; border-radius:8px; padding:12px 14px; margin:20px 0 10px; }
+  /* L'analyse se lit sur plusieurs pages : paragraphes aérés et interligne
+     confortable, pour qu'elle ne soit pas un bloc compact. */
+  p { line-height:1.6; font-size:15.5px; margin:0 0 1.1em; }
+  p:last-child { margin-bottom:0; }
+  ul, ol { line-height:1.6; font-size:15px; margin:0 0 1.1em; padding-left:1.35em; }
+  li + li { margin-top:.4em; }
+  section.block { margin-top:2.6em; }
+  h2 { font-size:21px; margin:0 0 .55em; line-height:1.25; }
+  h3 { font-size:16px; margin:1.7em 0 .45em; line-height:1.3; }
+  /* Un titre ne doit jamais rester seul en bas de page, ni être séparé de sa
+     première phrase : un intitulé orphelin en bas de page est illisible. */
+  h1, h2, h3, h4 { break-after:avoid-page; page-break-after:avoid; break-inside:avoid; }
+  h2 + p, h3 + p, h2 + ul, h3 + ul { break-before:avoid-page; page-break-before:avoid; }
+  p { orphans:3; widows:3; }
   .badge { display:inline-block; font-size:11px; letter-spacing:.4px; border-radius:999px; padding:3px 10px; margin:0 0 12px; }
   .badge-calculated { background:#e9f9f1; color:var(--ok); border:1px solid #bfe9d4; }
   .badge-symbolic { background:#f3efff; color:#5b3fd4; border:1px solid #ddd2ff; }
   .badge-unavailable { background:#f6f6f6; color:var(--soft); border:1px solid var(--line); }
-  p { line-height:1.75; font-size:15.5px; }
-  ul { line-height:1.7; font-size:15px; }
   .validation { font-size:12px; color:var(--soft); margin-top:14px; }
   .validation .err { color:var(--err); }
   .validation .warn { color:var(--warn); }
-  .annex { background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:18px 22px; margin-top:40px; }
+  .annex { background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin-top:44px; }
   .annex p, .annex li { font-size:13px; line-height:1.6; color:#444; }
-  footer { margin-top:42px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
-  .ai-review { margin:14px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; font-weight:600; }
-  /* À l'impression (donc dans le PDF), l'annexe doit être VISIBLE : c'est la
-     seule pièce qui permet de vérifier les positions et les aspects utilisés.
-     Repliée à l'écran, dépliée dans le fichier. */
+  footer { margin-top:46px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
+  .ai-review { margin:16px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; font-weight:600; break-inside:avoid; page-break-inside:avoid; }
+  /* À l'impression (donc dans le PDF) : 2 cm de marge tout autour, l'annexe
+     VISIBLE (seule pièce qui permet de vérifier les positions et les aspects
+     utilisés), et des titres jamais seuls en bas de page. */
+  @page { margin:2cm; }
   @media print {
     body { background:#fff; }
-    .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; }
+    .sheet { box-shadow:none; margin:0; max-width:none; padding:0; }
     details.annex > summary { display:none; }
     details.annex > .block-body { display:block !important; }
-    details.annex { border:0; }
+    details.annex { border:0; background:none; padding:0; margin-top:40px; }
+    .caveat, .ai-review, .badge { break-inside:avoid; page-break-inside:avoid; }
+    a { color:inherit; text-decoration:none; }
   }
 `;
 

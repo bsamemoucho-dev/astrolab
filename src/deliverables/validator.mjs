@@ -378,8 +378,15 @@ export function findForbiddenVocabulary(text, language = "fr") {
   return found;
 }
 
-export function findTutoiement(text, language = "fr") {
+// Sections où le tutoiement est VOULU : la partie transgénérationnelle et la
+// lettre aux figures parentales s'adressent directement à la personne.
+export const TUTOIEMENT_SECTIONS = Object.freeze(["transgenerationnel", "lettre-miroir"]);
+
+export function findTutoiement(text, language = "fr", sectionId = null) {
   if (String(language ?? "fr").slice(0, 2).toLowerCase() !== "fr") {
+    return [];
+  }
+  if (sectionId && TUTOIEMENT_SECTIONS.includes(sectionId)) {
     return [];
   }
   const found = [];

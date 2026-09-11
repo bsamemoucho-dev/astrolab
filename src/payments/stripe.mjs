@@ -193,26 +193,40 @@ export async function createEmbeddedCheckoutSession({ amountCents, label }) {
     submit_type: "auto",
     integration_identifier: "hosted_web_0001",
     origin_context: "web",
+    // Carte uniquement. Apple Pay et Google Pay sont des portefeuilles À
+    // L'INTÉRIEUR du moyen « carte » : ils restent donc proposés quand le
+    // navigateur les prend en charge. Link, lui, est un moyen distinct : il
+    // s'affichait sur ordinateur et ne fonctionnait pas, on le retire.
+    "payment_method_types[0]": "card",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": config.currency,
     "line_items[0][price_data][unit_amount]": String(amount),
     "line_items[0][price_data][product_data][name]": label ?? "Lecture symbolique Lastro"
   };
 
+  // Deux raisons de réessayer, jamais plus : le nom du mode d'affichage et le
+  // paramètre d'exclusion, qui exigent une version d'API récente. Une clé ou un
+  // compte refusé ne se réessaie pas.
+  // Ordre : on fait d'abord varier le nom du mode d'affichage (comportement
+  // historique), puis on retire l'exclusion si la version d'API ne la connaît pas.
+  const variantes = EMBEDDED_UI_MODES.map((uiMode) => ({
+    ...common,
+    "excluded_payment_method_types[0]": "link",
+    ui_mode: uiMode
+  }));
+  for (const uiMode of EMBEDDED_UI_MODES) {
+    variantes.push({ ...common, ui_mode: uiMode });
+  }
+
   let data = null;
   let lastError = null;
-  for (const uiMode of EMBEDDED_UI_MODES) {
+  for (const body of variantes) {
     try {
-      data = await stripeRequest(config, "/checkout/sessions", {
-        method: "POST",
-        body: { ...common, ui_mode: uiMode }
-      });
+      data = await stripeRequest(config, "/checkout/sessions", { method: "POST", body });
       break;
     } catch (error) {
       lastError = error;
-      // On ne réessaie que si Stripe refuse le nom du mode d'affichage
-      // (différence de version d'API). Jamais pour une clé ou un compte refusé.
-      if (!/ui_mode/i.test(error.message)) {
+      if (!/ui_mode|excluded_payment_method_types/i.test(error.message)) {
         throw error;
       }
     }

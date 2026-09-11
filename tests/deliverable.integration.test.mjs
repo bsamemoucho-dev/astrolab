@@ -307,9 +307,12 @@ test("public no-account reading works without authentication and stores nothing"
     assert.deepEqual(reading.payload.sections.map((section) => section.id), attendu);
     // Et le HTML livré respecte cet ordre (les modules indisponibles, comme
     // « Périodes & Cycles », ne sont jamais rendus au client).
+    // Dans le CORPS du document : un titre peut aussi apparaître dans le CSS ou
+    // dans une consigne, ce qui faussait la mesure d'ordre.
+    const corps = reading.payload.html.slice(reading.payload.html.indexOf("<body>"));
     const positions = attendu
       .filter((id) => id !== "periodes-cycles")
-      .map((id) => reading.payload.html.indexOf(docStrings("fr").sectionTitles[id]));
+      .map((id) => corps.indexOf(docStrings("fr").sectionTitles[id]));
     assert.ok(positions.every((index) => index >= 0));
     assert.deepEqual(positions, [...positions].sort((first, second) => first - second));
     assert.equal(reading.payload.html.includes(docStrings("fr").sectionTitles["periodes-cycles"]), false);

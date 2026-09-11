@@ -1242,7 +1242,7 @@ function attachPlaceAutocomplete(input, { detailsId, usePublic = false } = {}) {
   const choose = async (place) => {
     closeList();
     input.value = place.name ?? "";
-    await resolvePlaceForForm(form, detailsId, place.id, usePublic);
+    await resolvePlaceForForm(form, detailsId, place.id, usePublic, input.name);
   };
 
   const render = (places, approximate) => {
@@ -1354,20 +1354,28 @@ function attachPlaceAutocomplete(input, { detailsId, usePublic = false } = {}) {
   });
 }
 
-async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = false) {
+// `targetName` : champ à résoudre et à réécrire avec le nom canonique. Le lieu de
+// naissance principal écrit aussi le lieu résolu dans le champ caché
+// `resolvedPlace` ; les lieux des parents n'ont besoin que du nom reconnu.
+async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = false, targetName = "birthPlace") {
   const payload = formPayload(form);
+  const target = field(form, targetName);
   const base = usePublic ? "/api/public/places" : "/api/places";
   try {
     const result = await api(`${base}/resolve`, {
       method: "POST",
       body: {
-        query: payload.birthPlace,
+        query: target?.value ?? payload.birthPlace,
         birthDate: payload.birthDate,
         placeId
       }
     });
-    field(form, "resolvedPlace").value = JSON.stringify(result.place);
-    field(form, "birthPlace").value = result.place.selectedName;
+    if (targetName === "birthPlace") {
+      field(form, "resolvedPlace").value = JSON.stringify(result.place);
+    }
+    if (target) {
+      target.value = result.place.selectedName;
+    }
     showResolvedPlace(detailsId, result.place);
     showMessage(uiStrings().placeFound);
     return result.place;
@@ -1388,7 +1396,7 @@ async function resolvePlaceForForm(form, detailsId, placeId = null, usePublic = 
       box.hidden = false;
       $all("[data-resolve-place-id]", box).forEach((button) => {
         button.addEventListener("click", async () => {
-          await resolvePlaceForForm(form, detailsId, button.dataset.resolvePlaceId, usePublic);
+          await resolvePlaceForForm(form, detailsId, button.dataset.resolvePlaceId, usePublic, targetName);
         });
       });
       showMessage(error.message, true);
@@ -2607,6 +2615,15 @@ function renderRecoveryState(status) {
   }
 }
 
+// Champs de lieu du parcours public : nom du champ → encadré de résultat.
+// Toute ville saisie doit pouvoir être reconnue (lieu de naissance et ceux des
+// parents), sans quoi le texte reçu n'est qu'une chaîne non vérifiée.
+const EXPRESS_PLACE_FIELDS = [
+  ["birthPlace", "express-place-details"],
+  ["motherBirthPlace", "mother-place-details"],
+  ["fatherBirthPlace", "father-place-details"]
+];
+
 function bindExpressForm() {
   const form = $("#express-form");
   if (!form) {
@@ -2619,7 +2636,16 @@ function bindExpressForm() {
     field(form, "resolvedPlace").value = "";
     $("#express-place-details").hidden = true;
   });
-  attachPlaceAutocomplete(field(form, "birthPlace"), { detailsId: "express-place-details", usePublic: true });
+  // Tous les champs de lieu du parcours public, avec leur encadré de résultat.
+  // Les lieux des parents n'étaient branchés sur RIEN : on tapait une ville sans
+  // reconnaissance ni correction possible. Cette liste est vérifiée par un test
+  // contre les champs réellement présents dans le formulaire.
+  for (const [nom, detailsId] of EXPRESS_PLACE_FIELDS) {
+    const champ = field(form, nom);
+    if (champ) {
+      attachPlaceAutocomplete(champ, { detailsId, usePublic: true });
+    }
+  }
 
   const precisionSelect = field(form, "timePrecision");
   const timeWrap = $("#express-time-label");

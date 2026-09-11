@@ -581,7 +581,7 @@ export function sectionTitleFor(code, sectionId) {
 const DETAILS = {
   fr: {
     styleGuide:
-      "Écris comme un auteur francophone natif : ton chaleureux, vouvoiement constant (« vous » du début à la fin), phrases fluides et concrètes. Évite les tournures traduites de l'anglais. Adapte les exemples à la culture francophone (rapport à la famille, au travail, à la spiritualité). Vocabulaire astrologique : emploie les termes français consacrés (conjonction, sextile, carré, trigone, opposition).",
+      "Écris comme un auteur francophone natif : ton chaleureux, vouvoiement (« vous »), sauf dans les sections qui demandent le tutoiement (la partie transgénérationnelle et la lettre aux figures parentales), phrases fluides et concrètes. Évite les tournures traduites de l'anglais. Adapte les exemples à la culture francophone (rapport à la famille, au travail, à la spiritualité). Vocabulaire astrologique : emploie les termes français consacrés (conjonction, sextile, carré, trigone, opposition).",
     planets: { Sun: "Soleil", Moon: "Lune", Mercury: "Mercure", Venus: "Vénus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturne" },
     signs: {
       Aries: "Bélier", Taurus: "Taureau", Gemini: "Gémeaux", Cancer: "Cancer", Leo: "Lion", Virgo: "Vierge",
