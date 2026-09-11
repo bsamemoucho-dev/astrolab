@@ -537,6 +537,59 @@ impossible sans fuite, valeurs inconnues, neuf langues, empreinte stable, emprei
 qui change quand un fichier change, et le site qui n'annonce jamais un envoi qui n'a
 pas eu lieu).
 
+## Retours sur le PDF livré (12/09/2026) — quatre corrections
+
+Le client a envoyé le PDF réel (« Lecture symbolique88.pdf », 11 pages) et quatre
+observations. Les trois premières étaient justes, la quatrième aussi — et sa cause
+n'était pas celle qu'on croyait.
+
+**1. « Pas de marges latérales dans le PDF, alors que le HTML les a. »** Mesuré dans
+le PDF livré : le texte commence à **5,3 mm** du bord et court jusqu'à 203 mm, soit
+~198 mm de large — les 2 cm de marge n'étaient pas là. La cause, trouvée dans le
+HTML archivé : la feuille de style contenait
+
+```css
+@media (max-width:900px){ .sheet,.cover-page{ ... padding-left:20px;padding-right:20px } }
+```
+
+Or **une page A4 mesure 794 px de large** : la requête `max-width:900px` est donc
+**vraie à l'impression**. Placée après le bloc `@media print` et de même
+spécificité, elle écrasait les 2 cm par 20 px — 20 px = 15 pt = **5,3 mm**, la
+valeur exacte mesurée. Correction : `@media screen and (max-width:900px)`. Un test
+vérifie désormais qu'**aucune requête de largeur ≥ 794 px n'existe sans `screen`**,
+donc qu'aucune règle d'écran ne peut s'appliquer au papier.
+
+**2. « Vraiment plus d'espace entre les lignes, 2 ou 2,5. »** L'interligne du texte
+lu passe à **2**, piloté par une seule variable (`--interligne` dans
+`src/deliverables/render.mjs`) : une ligne à changer pour 2,5. Tableaux, légendes,
+notes de pied et couverture gardent un interligne serré — à 2, un tableau de
+positions devient illisible.
+
+**3. « Le texte doit être justifié des deux côtés. »** `text-align:justify` +
+`hyphens:auto` (la césure suit la langue déclarée sur `<html>`, sans quoi un mot long
+creuse un trou dans la ligne). Titres, tableaux, légendes et notes de pied restent
+alignés à gauche : justifier ces blocs ne crée que des trous.
+
+**4. « L'annexe commence sur une nouvelle page » et « la phrase est écrite deux
+fois ».** Les deux venaient du même défaut : le texte de l'annexe recommençait par
+son propre titre (`# Annexe — socle de calcul vérifié`), qui était **déjà** rendu
+comme titre de section — dans le HTML (`<h2>` puis `<h2>` de suite) comme dans
+l'export Markdown. La première copie terminait la page précédente, la seconde
+ouvrait la page de l'annexe : d'où l'impression que l'annexe ne commençait pas sur
+sa page. Le titre est retiré du texte de l'annexe, et un test compte ses occurrences
+(une seule, en HTML comme en Markdown).
+
+**Ce que le diagnostic a coûté, et pourquoi il valait mieux que deviner** : le PDF a
+été mesuré avec les outils du dépôt (`tools/inspect-pdf.mjs`, plus un relevé des
+positions réelles du texte et des fonds de page en suivant les matrices `cm`/`Tm` et
+les objets imbriqués). La valeur 5,3 mm ≈ 20 px a désigné la règle fautive en une
+mesure — sans elle, on aurait « corrigé » le dialogue d'impression du client, qui
+n'y était pour rien.
+
+**Reste à vérifier par le client** : un nouveau PDF, imprimé depuis la version
+déployée. La consigne d'impression (neuf langues) précise maintenant de laisser les
+marges par défaut : le document gère les siennes.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -673,7 +726,7 @@ pas eu lieu).
 ## Commandes utiles
 
 ```bash
-npm test                                   # 256 tests
+npm test                                   # 259 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

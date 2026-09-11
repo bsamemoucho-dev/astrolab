@@ -522,7 +522,11 @@ export function renderSocleAnnex(socle, strings = null) {
     methodNote:
       "Positions astronomiques calculées localement, sans accès Internet, avec astronomy-engine 2.1.19. Zodiaque tropical, maisons Whole Sign (maisons entières). Aucune interprétation n'est produite par le moteur."
   };
-  const lines = [`# ${t.annexTitle}`, "", t.annexIntro, ""];
+  // Pas de titre ici : le titre de la section est rendu par le document (et par
+  // l'export Markdown). Le remettre dans le texte le faisait apparaître DEUX fois
+  // de suite — « Annexe — socle de calcul vérifié » puis « Annexe — socle de
+  // calcul vérifié » — dans le HTML comme dans le PDF livré.
+  const lines = [t.annexIntro, ""];
   if (socle.person?.firstName) {
     lines.push(`${t.person} : ${socle.person.firstName}`, "");
   }

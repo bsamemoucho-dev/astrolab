@@ -131,10 +131,13 @@ const CSS = `
     --rose:#c78ca6; --gold:#c5a15a; --line:#e9e2ea; --soft:#f6f1f7; --soft-2:#fbf7f4;
   }
   *{box-sizing:border-box}
+  /* Interligne du texte lu : une seule valeur à changer ici. Le client a demandé
+     2 ; 2,5 est possible en modifiant cette ligne (le document s'allonge d'autant). */
+  :root{--interligne:2}
   body{
     margin:0; background:#ece7e3; color:var(--ink);
     font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "DejaVu Sans", sans-serif;
-    line-height:1.55;
+    line-height:var(--interligne);
   }
   /* La feuille fait exactement une page A4 : les marges viennent de son
      rembourrage (2 cm), pas du dialogue d'impression. */
@@ -165,7 +168,7 @@ const CSS = `
   .sparkle{margin-top:24px;line-height:0}
   .sparkle svg{width:20px;height:20px}
   .cover-name{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;font-size:38px;margin-top:16px;line-height:1.1}
-  .cover-note{margin:4px auto 0;color:#dfd7e2;font-size:11px;max-width:430px}
+  .cover-note{margin:4px auto 0;color:#dfd7e2;font-size:11px;max-width:430px;line-height:1.5}
   .big-three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:32px auto 16px;width:78%}
   .big-card{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);border-radius:14px;padding:15px 10px 13px}
   .big-card small{display:block;text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:#dfd3e6;margin-bottom:5px}
@@ -176,9 +179,15 @@ const CSS = `
   h1,h2,h3,h4{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;margin:0;font-weight:600}
   h2{font-size:26px;line-height:1.2;margin:0 0 .5em}
   h3{font-size:18px;line-height:1.25;margin:1.5em 0 .4em}
-  p{line-height:1.6;font-size:14.5px;margin:0 0 1.05em}
+  /* Justifié des deux côtés, avec césure : sans césure, un mot long creuse des
+     trous dans la ligne. La langue est déclarée sur <html>, la césure suit. */
+  p{line-height:var(--interligne);font-size:14.5px;margin:0 0 1.35em;text-align:justify;hyphens:auto;-webkit-hyphens:auto;text-justify:inter-word}
   p:last-child{margin-bottom:0}
-  ul,ol{line-height:1.6;font-size:14px;margin:0 0 1.05em;padding-left:1.35em}
+  ul,ol{line-height:var(--interligne);font-size:14px;margin:0 0 1.35em;padding-left:1.35em;text-align:justify;hyphens:auto;-webkit-hyphens:auto}
+  /* Ce qui ne se justifie pas : une ligne courte, un titre, un tableau, une
+     légende, une note de pied. Justifier ces blocs ne crée que des trous. */
+  h1,h2,h3,h4,th,td,.badge,.legend,.footer-note,footer,.caveat,.ai-review,.cover-page p,.bar-row,table{text-align:initial;hyphens:none}
+  footer,.footer-note,.legend,td{text-align:left}
   li+li{margin-top:.4em}
   a{color:var(--violet)}
   .muted,.chart-intro{color:var(--muted)}
@@ -215,13 +224,14 @@ const CSS = `
   table{width:100%;border-collapse:collapse;font-size:12px;margin:0 0 1.2em}
   thead{display:table-header-group}
   thead th{text-align:left;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#948a98;border-bottom:1px solid #dacfdc;padding:9px 6px}
-  tbody td{padding:9px 6px;border-bottom:1px solid #eee7ef;vertical-align:middle}
+  tbody td{padding:9px 6px;border-bottom:1px solid #eee7ef;vertical-align:middle;line-height:1.45}
   tr{break-inside:avoid;page-break-inside:avoid}
   .annex{background:var(--soft-2);border:1px solid var(--line);border-radius:16px;padding:20px 24px;margin-top:44px}
-  .annex p,.annex li{font-size:12.5px;line-height:1.6;color:#444}
+  .annex p,.annex li{font-size:12.5px;line-height:var(--interligne);color:#444;text-align:justify;hyphens:auto}
   footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
   .ai-review{margin:16px 0 4px;padding:12px 16px;border:1px solid #e6d6a8;border-left:4px solid var(--gold);border-radius:10px;background:#fdf9f0;color:#6b5320;font-size:12.5px;line-height:1.55;break-inside:avoid;page-break-inside:avoid}
   .ethical-closing{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;font-size:13px}
+  footer p{line-height:1.55;text-align:left;hyphens:none}
 
   /* Chaque grande pièce commence sur sa page : la carte du ciel, puis l'annexe. */
   section.block.chart-page{break-before:page;page-break-before:always;break-after:page;page-break-after:always;margin-top:0}
@@ -235,7 +245,12 @@ const CSS = `
     .caveat,.ai-review,.badge{break-inside:avoid;page-break-inside:avoid}
     a{color:inherit;text-decoration:none}
   }
-  @media (max-width:900px){
+  /* « screen and » est INDISPENSABLE : une page A4 mesure 794 px de large, donc
+     « (max-width:900px) » est vraie à l'impression. Cette règle, plus bas dans la
+     feuille que le bloc d'impression et de même spécificité, écrasait alors les
+     2 cm de marge par 20 px (5,3 mm) — c'est exactement ce que montrait le PDF
+     livré. Les règles d'écran ne doivent jamais s'appliquer au papier. */
+  @media screen and (max-width:900px){
     .sheet,.cover-page{width:100%;box-shadow:none;padding-left:20px;padding-right:20px}
     .cover-inner{padding:32px 20px}
     .two-col{grid-template-columns:1fr}

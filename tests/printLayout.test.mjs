@@ -40,14 +40,66 @@ test("l'impression laisse 2 cm de marge tout autour", () => {
 });
 
 test("l'interligne et l'espacement des blocs aèrent le document", () => {
-  const interligne = css.match(/p\s*\{[^}]*line-height\s*:\s*([\d.]+)/);
-  assert.ok(interligne, "la règle de paragraphe doit fixer un interligne");
-  assert.ok(Number(interligne[1]) >= 1.5, `interligne trop serré : ${interligne[1]}`);
+  // Demande explicite du client : « vraiment plus d'espace entre les lignes,
+  // peut-être 2 ou 2,5 ». Une seule valeur pilote tout le texte lu.
+  const variable = css.match(/--interligne\s*:\s*([\d.]+)/);
+  assert.ok(variable, "l'interligne doit être piloté par une variable");
+  assert.ok(Number(variable[1]) >= 2, `interligne trop serré : ${variable[1]}`);
+  // Et le texte lu s'en sert réellement (l'ancien test mesurait « footer p » par
+  // accident, et validait 1,55 sans que le corps du texte soit concerné).
+  assert.match(css, /(^|\n)\s*p\{[^}]*line-height:var\(--interligne\)/, "la règle de paragraphe doit utiliser l'interligne");
+  assert.match(css, /\.annex p,\.annex li\{[^}]*line-height:var\(--interligne\)/);
   // Un espace entre paragraphes, et pas seulement l'interligne.
-  assert.match(css, /p\s*\{[^}]*margin\s*:\s*0\s+0\s+[\d.]+em/);
+  assert.match(css, /(^|\n)\s*p\{[^}]*margin\s*:\s*0\s+0\s+[\d.]+em/);
   // Les sections respirent.
   const section = css.match(/section\.block\s*\{\s*margin-top\s*:\s*([\d.]+)em/);
   assert.ok(section && Number(section[1]) >= 2, "les sections doivent être nettement séparées");
+});
+
+test("le texte est justifié des deux côtés, avec césure", () => {
+  assert.match(css, /(^|\n)\s*p\{[^}]*text-align:justify/);
+  assert.match(css, /(^|\n)\s*p\{[^}]*hyphens:auto/);
+  assert.match(css, /(^|\n)\s*p\{[^}]*text-justify:inter-word/);
+  // Ce qui ne se justifie pas : titres, tableaux, légendes, notes de pied.
+  assert.match(css, /h1,h2,h3,h4,th,td,[^{]*\{[^}]*text-align:initial/);
+});
+
+test("aucune règle d'écran ne peut s'appliquer au papier", () => {
+  // La panne livrée : `@media (max-width:900px)` est VRAIE à l'impression (une
+  // page A4 fait 794 px de large). Placée après le bloc d'impression et de même
+  // spécificité, elle remplaçait les 2 cm de marge par 20 px. Toute requête de
+  // largeur qui couvre la largeur d'une A4 doit donc être réservée à l'écran.
+  const LARGEUR_A4_PX = 794;
+  const requetes = [...css.matchAll(/@media([^{]*)\{/g)].map((m) => m[1].trim());
+  assert.ok(requetes.length >= 2, "les blocs de média doivent exister");
+  for (const requete of requetes) {
+    if (/^print\b/.test(requete)) continue;
+    if (/^screen\b/.test(requete)) continue;
+    const largeur = /max-width\s*:\s*(\d+)px/.exec(requete);
+    if (largeur) {
+      assert.ok(
+        Number(largeur[1]) < LARGEUR_A4_PX,
+        `« @media ${requete} » s'applique aussi à l'impression A4 : ajoutez « screen and »`
+      );
+    }
+  }
+  assert.match(css, /@media screen and \(max-width:900px\)/);
+});
+
+test("le titre de l'annexe n'apparaît qu'une fois", () => {
+  // Le document livré affichait deux fois de suite « Annexe — socle de calcul
+  // vérifié » : une fois par le titre de section, une fois au début du texte.
+  const titre = docStrings("fr").annexTitle;
+  const occurrences = html.split(titre).length - 1;
+  assert.equal(occurrences, 1, `le titre de l'annexe doit apparaître une fois (${occurrences})`);
+
+  const markdown = renderDossierMarkdown({
+    title: "Lecture de test",
+    personLabel: "Test",
+    createdAt: "2026-09-11T00:00:00.000Z",
+    sections: annexSections({ facts: [], uncertaintyNotes: [], warnings: [], person: {} }, docStrings("fr"))
+  });
+  assert.equal(markdown.split(titre).length - 1, 1, "idem dans l'export Markdown");
 });
 
 test("un titre ne peut plus rester seul en bas de page", () => {
