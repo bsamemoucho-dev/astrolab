@@ -7,6 +7,7 @@
 // visitor, who can download it. Nothing about the person is stored.
 
 import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
+import { chartSection } from "../deliverables/chart.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { crossCheckReading } from "../deliverables/crossCheck.mjs";
 import { aiNotice, docStrings, englishNameFor, normalizeLanguage } from "../deliverables/i18n.mjs";
@@ -361,7 +362,9 @@ export async function createPublicReading(input = {}, options = {}) {
   }
   const reviewPasses = 1 + (verification.status === "checked" ? 1 : 0) + 1;
 
-  const fullSections = [...sections, ...annexSections(socle, strings)];
+  // La carte du ciel ouvre le document, après la couverture et avant le texte :
+  // elle est calculée, pas rédigée, donc elle ne dépend pas du rédacteur.
+  const fullSections = [chartSection(socle, strings), ...sections, ...annexSections(socle, strings)];
   const writerMode = fullSections.some((section) => section.provider === "llm") ? "llm" : "template";
   const costEstimate =
     usage.promptTokens > 0 || usage.completionTokens > 0

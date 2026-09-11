@@ -97,6 +97,10 @@ function bodyFact(body, houses, details, options = {}) {
     retrograde: retrograde,
     temporalStatus: body.temporalStatus ?? null,
     signStableWithinMargin: marginWindow ? marginWindow.signStable : null,
+    // Plages conservées : sans heure, la roue trace un arc (la position balaie
+    // plusieurs signes) au lieu d'un point inventé.
+    longitudeRange: body.longitudeRange ?? null,
+    signRange: body.signRange ?? null,
     marginWindow
   };
 }
@@ -118,7 +122,10 @@ function angleFact(name, angle, details, window = null, marginMinutes = null) {
     uncertaintyStatus: angle.uncertaintyStatus ?? null,
     signStableWithinMargin: window ? window.signStable : null,
     signsInWindow: window?.signsInWindow ?? null,
-    marginMinutes: window ? marginMinutes : null
+    marginMinutes: window ? marginMinutes : null,
+    // Bornes réelles de la fenêtre : la roue dessine l'arc d'incertitude de l'axe.
+    longitudeAtWindowStart: window?.longitudeAtWindowStart ?? null,
+    longitudeAtWindowEnd: window?.longitudeAtWindowEnd ?? null
   };
   if (!window) {
     return base;

@@ -124,69 +124,119 @@ function statusLabel(status, t = null) {
 }
 
 const CSS = `
-  :root { --ink:#23262b; --soft:#5f6570; --line:#e4e6ea; --paper:#ffffff; --accent:#7c5cff; --ok:#2f9e6e; --warn:#c98a1b; --err:#c0392b; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:Georgia, "Times New Roman", serif; color:var(--ink); background:#f2f3f5; }
-  .sheet { max-width:820px; margin:24px auto; background:var(--paper); padding:56px 64px; box-shadow:0 4px 24px rgba(0,0,0,.08); }
-  header.cover { border-top:6px solid var(--accent); border-bottom:2px solid var(--ink); padding:18px 0 20px; margin-bottom:8px; }
-  .brand { font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:var(--soft); }
-  h1 { font-size:30px; margin:10px 0 4px; line-height:1.2; }
-  .cover-meta { color:var(--soft); font-size:13px; }
-  /* Trois placements clés sur la couverture. La fragilité éventuelle est écrite :
-     « probable » ou « non décidable », jamais un signe affirmé au-delà du calcul. */
-  .cover-cards { list-style:none; display:flex; gap:14px; margin:24px 0 0; padding:0; break-inside:avoid; page-break-inside:avoid; }
-  .cover-cards li { flex:1; background:#f7f5ff; border:1px solid #e6e0ff; border-radius:10px; padding:13px 14px; text-align:center; }
-  .cover-card-label { display:block; font-size:10.5px; letter-spacing:1.6px; text-transform:uppercase; color:var(--soft); }
-  .cover-card-value { display:block; font-size:17px; margin-top:5px; }
-  .cover-card-precision { display:block; font-size:11px; font-style:italic; color:var(--soft); margin-top:3px; }
-  .caveat { font-size:13px; line-height:1.55; color:#4a4f58; background:#f6f4ff; border:1px solid #e6e0ff; border-radius:8px; padding:12px 14px; margin:20px 0 10px; }
-  /* L'analyse se lit sur plusieurs pages : paragraphes aérés et interligne
-     confortable, pour qu'elle ne soit pas un bloc compact. */
-  p { line-height:1.6; font-size:15.5px; margin:0 0 1.1em; }
-  p:last-child { margin-bottom:0; }
-  ul, ol { line-height:1.6; font-size:15px; margin:0 0 1.1em; padding-left:1.35em; }
-  li + li { margin-top:.4em; }
-  /* Tableaux (tableau des positions) : lisibles, en-tête répété à chaque page. */
-  table { width:100%; border-collapse:collapse; margin:0 0 1.3em; font-size:14px; }
-  thead { display:table-header-group; }
-  thead th { text-align:left; font-size:10.5px; letter-spacing:1.1px; text-transform:uppercase; color:var(--soft); border-bottom:1.5px solid var(--ink); padding:7px 8px; }
-  tbody td { padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  tbody tr:last-child td { border-bottom:0; }
-  tr { break-inside:avoid; page-break-inside:avoid; }
-  section.block { margin-top:2.6em; }
-  /* Titres de section : petites capitales espacées et marqueur, dans l'esprit
-     d'un magazine — sans rien changer au contenu. */
-  h2 { font-size:15.5px; text-transform:uppercase; letter-spacing:.11em; margin:0 0 1em; line-height:1.35; }
-  h2::before { content:"✦"; color:var(--accent); margin-right:.6em; font-size:13px; letter-spacing:0; }
-  h3 { font-size:16px; margin:1.7em 0 .45em; line-height:1.3; }
-  /* Un titre ne doit jamais rester seul en bas de page, ni être séparé de sa
-     première phrase : un intitulé orphelin en bas de page est illisible. */
-  h1, h2, h3, h4 { break-after:avoid-page; page-break-after:avoid; break-inside:avoid; }
-  h2 + p, h3 + p, h2 + ul, h3 + ul { break-before:avoid-page; page-break-before:avoid; }
-  p { orphans:3; widows:3; }
-  .badge { display:inline-block; font-size:11px; letter-spacing:.4px; border-radius:999px; padding:3px 10px; margin:0 0 12px; }
-  .badge-calculated { background:#e9f9f1; color:var(--ok); border:1px solid #bfe9d4; }
-  .badge-symbolic { background:#f3efff; color:#5b3fd4; border:1px solid #ddd2ff; }
-  .badge-unavailable { background:#f6f6f6; color:var(--soft); border:1px solid var(--line); }
-  .validation { font-size:12px; color:var(--soft); margin-top:14px; }
-  .validation .err { color:var(--err); }
-  .validation .warn { color:var(--warn); }
-  .annex { background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin-top:44px; }
-  .annex p, .annex li { font-size:13px; line-height:1.6; color:#444; }
-  footer { margin-top:46px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
-  .ai-review { margin:16px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; line-height:1.55; font-weight:500; break-inside:avoid; page-break-inside:avoid; }
-  /* À l'impression (donc dans le PDF) : 2 cm de marge tout autour, et des titres
-     jamais seuls en bas de page. L'annexe n'a plus rien à déplier : elle est
-     visible partout, donc elle ne peut plus manquer au fichier. */
-  @page { margin:2cm; }
-  @media print {
-    body { background:#fff; }
-    .sheet { box-shadow:none; margin:0; max-width:none; padding:0; }
-    /* L'annexe commence toujours sur une nouvelle page : elle est d'une autre
-       nature que la lecture (des faits vérifiés, pas du texte rédigé). */
-    .annex { border:0; background:none; padding:0; margin-top:0; break-before:page; page-break-before:always; }
-    .caveat, .ai-review, .badge { break-inside:avoid; page-break-inside:avoid; }
-    a { color:inherit; text-decoration:none; }
+  /* Direction artistique : reprise du template validé (papier crème, violet, or,
+     Georgia pour les titres, sans-serif pour le corps). */
+  :root{
+    --ink:#292534; --muted:#746f7d; --paper:#fffdf9; --violet:#5a447f; --violet-2:#8b6aae;
+    --rose:#c78ca6; --gold:#c5a15a; --line:#e9e2ea; --soft:#f6f1f7; --soft-2:#fbf7f4;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:#ece7e3; color:var(--ink);
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height:1.55;
+  }
+  /* La feuille fait exactement une page A4 : les marges viennent de son
+     rembourrage (2 cm), pas du dialogue d'impression. */
+  .sheet{
+    width:210mm; margin:0 auto 22px; background:var(--paper);
+    padding:20mm; box-shadow:0 16px 45px rgba(46,35,53,.12);
+  }
+
+  /* --- Couverture pleine page --- */
+  .cover-page{
+    width:210mm; min-height:297mm; margin:0 auto 22px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255,255,255,.18), transparent 28%),
+      radial-gradient(circle at 82% 22%, rgba(255,255,255,.10), transparent 25%),
+      linear-gradient(155deg, #4e3577 0%, #69478c 46%, #a7698d 100%);
+    color:#fff; break-after:page; page-break-after:always;
+  }
+  .cover-inner{
+    min-height:297mm; padding:24mm 22mm; display:flex; flex-direction:column;
+    justify-content:center; text-align:center;
+  }
+  .brand{text-transform:uppercase;letter-spacing:.32em;font-size:11px;font-weight:800;color:#7d7182}
+  .cover-page .brand{color:#f1e9f1}
+  .kicker{text-transform:uppercase;letter-spacing:.24em;font-size:10px;font-weight:800;color:var(--gold);margin-bottom:8px}
+  .cover-page .kicker{color:#dfcfa8}
+  .sparkle{font-size:20px;color:#d8c083;margin-top:24px}
+  .cover-name{font-family:Georgia,"Times New Roman",serif;font-size:38px;margin-top:16px;line-height:1.1}
+  .cover-note{margin:4px auto 0;color:#dfd7e2;font-size:11px;max-width:430px}
+  .big-three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:32px auto 16px;width:78%}
+  .big-card{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);border-radius:14px;padding:15px 10px 13px}
+  .big-card small{display:block;text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:#dfd3e6;margin-bottom:5px}
+  .big-card b{display:block;font-family:Georgia,"Times New Roman",serif;font-size:18px;font-weight:600}
+  .big-card i{display:block;font-size:10px;font-style:italic;color:#cfc3d8;margin-top:4px}
+
+  /* --- Corps du document --- */
+  h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:600}
+  h2{font-size:26px;line-height:1.2;margin:0 0 .5em}
+  h3{font-size:18px;line-height:1.25;margin:1.5em 0 .4em}
+  p{line-height:1.6;font-size:14.5px;margin:0 0 1.05em}
+  p:last-child{margin-bottom:0}
+  ul,ol{line-height:1.6;font-size:14px;margin:0 0 1.05em;padding-left:1.35em}
+  li+li{margin-top:.4em}
+  a{color:var(--violet)}
+  .muted,.chart-intro{color:var(--muted)}
+  .header-line{height:3px;border-radius:4px;background:linear-gradient(90deg,var(--violet),var(--rose));margin:0 0 20px}
+  section.block{margin-top:2.6em}
+  .badge{display:inline-block;font-size:11px;letter-spacing:.4px;border-radius:999px;padding:3px 10px;margin:0 0 12px}
+  .badge-calculated{background:#eef4f0;color:#2f6e56;border:1px solid #cfe3d9}
+  .badge-symbolic{background:#f3efff;color:#5b3fd4;border:1px solid #ddd2ff}
+  .badge-unavailable{background:#f6f6f6;color:var(--muted);border:1px solid var(--line)}
+  .validation{font-size:12px;color:var(--muted);margin-top:14px}
+  .validation .err{color:#c0392b}
+  .validation .warn{color:#c98a1b}
+
+  /* Un titre ne reste jamais seul en bas de page, ni séparé de sa première phrase. */
+  h1,h2,h3,h4{break-after:avoid-page;page-break-after:avoid;break-inside:avoid}
+  h2+p,h3+p,h2+ul,h3+ul{break-before:avoid-page;page-break-before:avoid}
+  p{orphans:3;widows:3}
+
+  /* --- Cartes, tableaux, graphiques --- */
+  .caveat{font-size:12.5px;line-height:1.55;color:#4a4f58;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 22px;break-inside:avoid;page-break-inside:avoid}
+  .card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:18px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .chart-wrap{display:grid;grid-template-columns:1fr;gap:16px}
+  .chart-wheel{display:flex;flex-direction:column;align-items:center}
+  .wheel{width:100%;max-width:250px;height:auto;margin:4px auto 8px}
+  .bar-row{display:grid;grid-template-columns:70px 1fr 34px;align-items:center;gap:10px;margin:9px 0;font-size:12px}
+  .bar-track{height:8px;border-radius:99px;background:#eeeaf0;overflow:hidden}
+  .bar{height:100%;border-radius:99px}
+  .donut{width:118px;height:118px;border-radius:50%;margin:8px auto 12px;position:relative}
+  .donut:after{content:"";position:absolute;inset:27px;background:#fff;border-radius:50%}
+  .legend{display:grid;grid-template-columns:1fr;gap:6px;font-size:11px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px}
+  .footer-note{font-size:10.5px;color:#847c86;margin-top:12px;line-height:1.5}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:0 0 1.2em}
+  thead{display:table-header-group}
+  thead th{text-align:left;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#948a98;border-bottom:1px solid #dacfdc;padding:9px 6px}
+  tbody td{padding:9px 6px;border-bottom:1px solid #eee7ef;vertical-align:middle}
+  tr{break-inside:avoid;page-break-inside:avoid}
+  .annex{background:var(--soft-2);border:1px solid var(--line);border-radius:16px;padding:20px 24px;margin-top:44px}
+  .annex p,.annex li{font-size:12.5px;line-height:1.6;color:#444}
+  footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+  .ai-review{margin:16px 0 4px;padding:12px 16px;border:1px solid #e6d6a8;border-left:4px solid var(--gold);border-radius:10px;background:#fdf9f0;color:#6b5320;font-size:12.5px;line-height:1.55;break-inside:avoid;page-break-inside:avoid}
+  .ethical-closing{font-family:Georgia,"Times New Roman",serif;font-size:13px}
+
+  /* Chaque grande pièce commence sur sa page : la carte du ciel, puis l'annexe. */
+  section.block.chart-page{break-before:page;page-break-before:always;break-after:page;page-break-after:always;margin-top:0}
+  section.block.annex{break-before:page;page-break-before:always;margin-top:0}
+
+  @page{size:A4;margin:0}
+  @media print{
+    body{background:#fff}
+    .sheet{width:210mm;margin:0;box-shadow:none;padding:20mm}
+    .cover-page{width:210mm;min-height:297mm;margin:0;box-shadow:none}
+    .caveat,.ai-review,.badge{break-inside:avoid;page-break-inside:avoid}
+    a{color:inherit;text-decoration:none}
+  }
+  @media (max-width:900px){
+    .sheet,.cover-page{width:100%;box-shadow:none;padding-left:20px;padding-right:20px}
+    .cover-inner{padding:32px 20px}
+    .two-col{grid-template-columns:1fr}
+    .big-three{width:100%;grid-template-columns:1fr}
   }
 `;
 
@@ -210,6 +260,10 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
       // L'annexe est une section comme les autres : toujours visible, jamais
       // repliée derrière un « détail » cliquable. Un document payant n'a pas de
       // contenu caché, et le repli était la cause d'une annexe absente du PDF.
+      // La carte du ciel arrive avec son HTML calculé (roue SVG, graphiques).
+      if (section.kind === "chart") {
+        return `<section class="block chart-page"><div class="block-body">${section.html ?? ""}</div></section>`;
+      }
       const classes = section.kind === "annex" ? "block annex" : "block";
       return `<section class="${classes}">
         <h2>${escapeHtml(section.title)}</h2>
@@ -224,16 +278,19 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   const placements = Array.isArray(cover?.placements) ? cover.placements : [];
   const coverCards =
     placements.length > 0
-      ? `<ul class="cover-cards">${placements
+      ? `<div class="big-three">${placements
           .map(
             (placement) =>
-              `<li><span class="cover-card-label">${escapeHtml(placement.label)}</span>` +
-              `<span class="cover-card-value">${escapeHtml(placement.value)}</span>` +
-              (placement.precision ? `<span class="cover-card-precision">${escapeHtml(placement.precision)}</span>` : "") +
-              "</li>"
+              `<div class="big-card"><small>${escapeHtml(placement.label)}</small>` +
+              `<b>${escapeHtml(placement.value)}</b>` +
+              (placement.precision ? `<i>${escapeHtml(placement.precision)}</i>` : "") +
+              "</div>"
           )
-          .join("")}</ul>`
+          .join("")}</div>`
       : "";
+  // La marque sur la couverture : le premier mot suffit, la ligne complète est
+  // trop longue pour l'interlettrage du titre.
+  const marque = String(t.brand ?? "Lastro").split("·")[0].trim();
 
   return `<!doctype html>
 <html lang="${escapeHtml(t.lang ?? "fr")}">
@@ -244,13 +301,18 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 <style>${CSS}</style>
 </head>
 <body>
-<div class="sheet">
-  <header class="cover">
-    <div class="brand">${escapeHtml(t.brand)}</div>
-    <h1>${escapeHtml(title)}</h1>
-    <div class="cover-meta">${personLabel ? `${escapeHtml(t.person)} : ${escapeHtml(personLabel)} · ` : ""}${escapeHtml(t.generatedOn)} ${escapeHtml(formatHumanDate(createdAt, t.lang))}</div>
+<div class="cover-page">
+  <div class="cover-inner">
+    <div class="brand">${escapeHtml(marque)}</div>
+    <div class="sparkle">✦</div>
+    <div class="kicker">${escapeHtml(t.titlePrefix)}</div>
+    ${personLabel ? `<div class="cover-name">${escapeHtml(personLabel)}</div>` : `<div class="cover-name">${escapeHtml(title)}</div>`}
     ${coverCards}
-  </header>
+    <div class="cover-note">${escapeHtml(t.coverNote ?? "")}</div>
+    <div class="sparkle">✦</div>
+  </div>
+</div>
+<div class="sheet">
   <div class="caveat">${escapeHtml(t.caveat)}</div>
   ${body}
   <footer>
@@ -260,6 +322,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
     <p>${writerNote}</p>
     ${verificationNote ? `<p>${escapeHtml(verificationNote)}</p>` : ""}
     <p>${escapeHtml(t.footer)}</p>
+    <p>${escapeHtml(t.generatedOn)} ${escapeHtml(formatHumanDate(createdAt, t.lang))}</p>
   </footer>
 </div>
 </body>

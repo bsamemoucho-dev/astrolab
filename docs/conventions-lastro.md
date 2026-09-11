@@ -107,6 +107,50 @@ examinés.
 
 ---
 
+## `lastro-distribution@1.0.0` — répartition par élément et par modalité
+
+**Décision.** La page « carte du ciel » montre la répartition des corps entre les
+quatre éléments (Feu, Terre, Air, Eau) et les trois modalités (Cardinal, Fixe,
+Mutable). Un pourcentage suppose une règle : la voici, écrite.
+
+- **quels corps** : les **sept corps traditionnels** de la méthode, pas un autre
+  ensemble ;
+- **aucune pondération** : chaque corps compte pour un. Aucune importance relative
+  n'est inventée — le moteur ne hiérarchise pas les corps ;
+- **corps sans signe établi** : exclus du décompte et **comptés à part**, avec la
+  mention « *n* corps sans signe établi, non comptés dans cette répartition ». Un
+  pourcentage calculé sur des signes inconnus serait un chiffre inventé ;
+- **les pourcentages affichés** sont le rapport entre le nombre de corps et le
+  nombre de corps **classés** (et non le total des sept, qui inclurait les
+  exclus) ;
+- la convention est écrite **dans le document**, sous les graphiques.
+
+**Pourquoi pas de score de « force »** : une hiérarchie de planètes (dignités,
+anges, maîtrises) demanderait une règle traditionnelle sourcée ; aucune n'est
+active (`TRADITIONAL_RULE` : aucune). Tant que c'est le cas, la répartition reste
+un décompte.
+
+---
+
+## Rendu de la roue du ciel
+
+La roue est de la **géométrie** (`CALCULATED`) : secteurs des douze signes, position
+de chaque corps à sa longitude, numéros de maison Whole Sign, axes. Deux
+conventions de rendu sont retenues, parce qu'elles changent ce que le lecteur croit
+lire :
+
+- **orientation** : la roue est tournée sur l'**Ascendant**, placé à gauche, le
+  zodiaque tournant dans le sens inverse des aiguilles. Quand l'Ascendant n'est pas
+  décidable (marge d'incertitude, ou heure inconnue), la roue est orientée sur
+  **0° Bélier en haut** et le document l'écrit — une roue orientée sur un axe
+  indécis serait un mensonge visuel ;
+- **incertitude** : un Ascendant dont la frontière tombe dans la marge est dessiné
+  comme une **zone balayée** (« AC ? »), jamais comme un axe ; une position qui
+  balaie plusieurs signes (heure inconnue) est dessinée comme un **arc**, jamais
+  comme un point.
+
+---
+
 ## `lastro-convergence@1.0.0` — hiérarchie des convergences
 
 Convention de synthèse qui hiérarchise les convergences d'une lecture. Elle ne

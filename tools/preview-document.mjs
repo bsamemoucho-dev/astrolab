@@ -65,7 +65,7 @@ let index = 0;
 const writerFn = () => {
   const texte = textes.map((paragraphe) => `<p>${paragraphe}</p>`).join(" ");
   index += 1;
-  return `${texte}\n\n<p><em>[aperçu ${index} — texte de remplacement, aucune lecture réelle]</em></p>`;
+  return `${texte}\n\n<p><em>(aperçu ${index} — texte de remplacement, aucune lecture réelle)</em></p>`;
 };
 
 const reading = await createPublicReading(

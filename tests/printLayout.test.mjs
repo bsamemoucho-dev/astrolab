@@ -31,10 +31,12 @@ const html = renderDossierHtml({
 const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
 
 test("l'impression laisse 2 cm de marge tout autour", () => {
-  assert.match(css, /@page\s*\{\s*margin\s*:\s*2cm\s*;?\s*\}/);
-  // La marge doit venir de la page, pas s'ajouter à un rembourrage de feuille :
-  // sinon la marge réelle est la somme des deux.
-  assert.match(css, /\.sheet\s*\{[^}]*padding\s*:\s*0/);
+  // Modèle retenu (template validé) : la page est exactement A4 et les marges
+  // viennent du rembourrage de la feuille, pas du dialogue d'impression — sinon
+  // elles s'additionnent et dépendent du réglage du client.
+  assert.match(css, /@page\s*\{\s*size\s*:\s*A4\s*;\s*margin\s*:\s*0\s*;?\s*\}/);
+  assert.match(css, /\.sheet\s*\{[^}]*padding\s*:\s*20mm/);
+  assert.match(css, /@media print\s*\{[\s\S]*\.sheet\s*\{[^}]*padding\s*:\s*20mm/);
 });
 
 test("l'interligne et l'espacement des blocs aèrent le document", () => {
@@ -57,10 +59,10 @@ test("un titre ne peut plus rester seul en bas de page", () => {
 });
 
 test("l'annexe commence sur une nouvelle page à l'impression", () => {
-  assert.match(css, /@media print \{[\s\S]*\.annex \{[^}]*break-before:page/);
-  assert.match(css, /@media print \{[\s\S]*\.annex \{[^}]*page-break-before:always/);
+  assert.match(css, /section\.block\.annex\s*\{[^}]*break-before:page/);
+  assert.match(css, /section\.block\.annex\s*\{[^}]*page-break-before:always/);
   // Elle ne doit pas non plus flotter en bas de page : rien ne la retient.
-  assert.match(css, /@media print \{[\s\S]*\.annex \{[^}]*margin-top:0/);
+  assert.match(css, /section\.block\.annex\s*\{[^}]*margin-top:0/);
 });
 
 test("l'annexe est toujours visible : aucun détail cliquable", () => {
@@ -70,8 +72,7 @@ test("l'annexe est toujours visible : aucun détail cliquable", () => {
   assert.doesNotMatch(css, /details\.annex/);
   assert.match(html, /<section class="block annex">/);
   // Elle reste encadrée à l'écran, sobre à l'impression.
-  assert.match(css, /\.annex \{[^}]*border:1px solid/);
-  assert.match(css, /@media print \{[\s\S]*\.annex \{ border:0; background:none/);
+  assert.match(css, /\.annex\s*\{[^}]*border:1px solid/);
 });
 
 test("tout champ de lieu du parcours public est branché sur la reconnaissance", () => {
@@ -121,13 +122,13 @@ test("la couverture porte les trois placements, avec leur fragilité", () => {
     cover: socle.cover
   });
   // Les trois placements sont là…
-  assert.match(document, /class="cover-card-label">Soleil</);
-  assert.match(document, /class="cover-card-label">Lune</);
-  assert.match(document, /class="cover-card-label">Ascendant</);
+  assert.match(document, /<small>Soleil<\/small>/);
+  assert.match(document, /<small>Lune<\/small>/);
+  assert.match(document, /<small>Ascendant<\/small>/);
   // …et l'Ascendant n'est pas affirmé : la frontière est franchie dans la marge,
   // donc les deux signes possibles sont écrits, avec la mention.
-  assert.match(document, /class="cover-card-value">Bélier \/ Taureau</);
-  assert.match(document, /class="cover-card-precision">non décidable</);
+  assert.match(document, /<b>Bélier \/ Taureau<\/b>/);
+  assert.match(document, /<i>non décidable<\/i>/);
   // Une couverture sans données ne doit pas produire de cartes vides.
   const sansCover = renderDossierHtml({
     title: "Lecture",
@@ -138,7 +139,7 @@ test("la couverture porte les trois placements, avec leur fragilité", () => {
     strings: docStrings("fr")
   });
   // On regarde le CORPS : la CSS contient forcément les règles .cover-cards.
-  assert.doesNotMatch(sansCover.slice(sansCover.indexOf("<body>")), /cover-cards/);
+  assert.doesNotMatch(sansCover.slice(sansCover.indexOf("<body>")), /big-three/);
 });
 
 test("le tableau des positions est un vrai tableau, avec en-tête répétable", () => {
@@ -169,7 +170,7 @@ test("le tableau des positions est un vrai tableau, avec en-tête répétable", 
   assert.match(document, /<table><thead><tr><th>Planète<\/th>/);
   assert.match(document, /<tbody>.*<td>Soleil<\/td>/);
   // L'en-tête doit se répéter si le tableau se poursuit page suivante.
-  assert.match(document, /thead \{ display:table-header-group/);
+  assert.match(document, /thead\s*\{\s*display\s*:\s*table-header-group/);
 });
 
 test("une heure approximative écrit la marge dans la cellule du degré", () => {

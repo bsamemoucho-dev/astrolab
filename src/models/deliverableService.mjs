@@ -6,6 +6,7 @@
 // The client polls GET /api/deliverables/:id while status is "generating".
 
 import { dossierSectionsInOrder } from "../deliverables/plan.mjs";
+import { chartSection } from "../deliverables/chart.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { aiReviewNote } from "../deliverables/i18n.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
@@ -315,7 +316,7 @@ async function finishDeliverableGeneration(store, userId, deliverableId, payload
       await publishProgress(currentStep.completed + 1, null);
     }
 
-    const fullSections = [...sections, ...annexSections(context.socle)];
+    const fullSections = [chartSection(context.socle), ...sections, ...annexSections(context.socle)];
     const writerMode = fullSections.some((section) => section.provider === "llm") ? "llm" : "template";
     const status = overallStatus(sections, writerMode);
     const title = `Dossier de lecture — ${payload.personLabel}`;

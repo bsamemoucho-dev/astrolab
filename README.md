@@ -19,9 +19,10 @@ structured result, a transversal inference, and an AI-written explanation.
   delivering a draft).
 - **E-mail**: Brevo, used for recovery links (`BREVO_API_KEY`,
   `BREVO_SENDER_EMAIL`).
-- **The reading document**: cover with the three key placements, narrative
-  sections, and a technical annex (the verified calculation base) that starts on
-  its own page when printed. Nine languages.
+- **The reading document**: full-page premium cover with the three key placements,
+  a **computed birth-chart wheel** (SVG) and computed element/modality
+  distributions, narrative sections, and a technical annex (the verified
+  calculation base) that starts on its own page when printed. Nine languages.
 - **Honesty about uncertainty**: an approximate birth time is bounded by a written
   margin (`lastro-time-margin@1.0.0`); an angle sign that changes inside that
   margin is written as *not decidable*, never asserted. Aspect orbs are a written,
@@ -54,7 +55,7 @@ structured result, a transversal inference, and an AI-written explanation.
 
 | Question | Where the answer is |
 |---|---|
-| Do the guardrails hold? | `npm test` (189 tests) |
+| Do the guardrails hold? | `npm test` (196 tests) |
 | Is payment configured and live? | `curl -s https://www.lastro.fr/api/config` |
 | What is done, decided, remaining? | [`docs/ETAT-ET-SUITE.md`](docs/ETAT-ET-SUITE.md) |
 | Which conventions are active? | [`docs/conventions-lastro.md`](docs/conventions-lastro.md) |

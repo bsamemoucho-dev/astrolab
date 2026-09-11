@@ -294,6 +294,44 @@ peut pas rédiger**, et la règle ne s'applique que là où l'argent circule.
 Mesuré par `tests/paidPathGate.test.mjs` (4 cas, dont le client déjà débité avec
 Stripe simulé).
 
+## Habillage « livre premium », graphiques calculés (11/09/2026)
+
+Un template HTML a été fourni (`lastro-template-v1.html`) : couverture pleine page
+en dégradé, cartes, tableau, barres, anneau, roue. Deux constats à l'analyse :
+
+- la **direction artistique** est adoptée telle quelle (papier crème, violet, or,
+  Georgia pour les titres, sans-serif pour le corps, pages A4 exactes) ;
+- les **graphiques du template étaient décoratifs** : la roue est un cercle CSS
+  avec des glyphes positionnés à la main (`left:52%;top:10%`), et les pourcentages
+  sont écrits en dur (20/55/15/10 et 61/5/34 — les chiffres du concurrent). Ils ont
+  donc été **recalculés depuis le thème**.
+
+Ce qui est maintenant livré, et mesuré par `tests/chart.test.mjs` :
+
+- **roue calculée en SVG** (`src/deliverables/chart.mjs`) : secteurs des douze
+  signes colorés par élément, glyphes, numéros de maison Whole Sign, chaque corps à
+  sa longitude réelle, axes Ascendant et Milieu du Ciel. Quand l'Ascendant n'est
+  pas décidable, la roue est orientée sur 0° Bélier et dessine la **zone balayée**
+  (« AC ? ») au lieu d'un axe ; sans heure, chaque corps devient un **arc** au lieu
+  d'un point. Un corps voisin est décalé sur un second rayon plutôt que superposé.
+- **répartitions calculées** : quatre barres (éléments) et un anneau (modalités),
+  sous convention `lastro-distribution@1.0.0` — sept corps traditionnels, sans
+  pondération, corps sans signe établi exclus et comptés à part. Les pourcentages
+  sont le rapport au nombre de corps **classés**.
+- **couverture pleine page** reprenant le template, avec les trois placements et
+  leur fragilité (« non décidable », « probable »).
+- **pagination exacte** : `@page { size:A4; margin:0 }` et **2 cm de rembourrage**
+  de feuille (le template en mettait 17 mm ; la demande initiale était 2 cm). La
+  carte du ciel et l'annexe commencent chacune sur une page.
+
+**Ce qui reste, et qui demande une décision** : la « conversion automatique en
+PDF ». Aujourd'hui le PDF sort du dialogue d'impression du navigateur. Une
+conversion automatique impose un **moteur de rendu HTML côté serveur**
+(Chromium sans interface) : +300 Mo d'image Docker (ou ~60 Mo avec un build
+dédié), et surtout une empreinte mémoire de plusieurs centaines de Mo par rendu —
+à comparer aux 512 Mo d'une instance Render Starter. Le document HTML/CSS est
+prêt pour cette étape ; c'est l'infrastructure qui demande un arbitrage.
+
 ## Corrections marquantes (contexte pour la suite)
 
 - **Contradiction planète ↔ signe : faux positif systématique (corrigé).** Le
@@ -415,13 +453,14 @@ Stripe simulé).
 | `tools/verify-production-reading.mjs` | vérification de bout en bout après déploiement |
 | `tools/preview-document.mjs` | aperçu du document (mise en page) sans réseau ni coût |
 | `tools/inspect-pdf.mjs` | lecture d'un PDF livré, page par page (texte extrait par les tables ToUnicode) |
+| `src/deliverables/chart.mjs` | roue du ciel en SVG et répartitions calculées |
 | `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg` | exploration et partage |
 | `tests/printLayout.test.mjs` | contrats de mise en page imprimée et câblage des champs de lieu |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 189 tests
+npm test                                   # 196 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test
