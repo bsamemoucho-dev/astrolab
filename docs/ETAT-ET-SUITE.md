@@ -59,7 +59,8 @@ détecteur.
   l'autre, tutoiement, « trine » → détectés ; **réécriture demandée sans
   amputation** (contrairement aux erreurs factuelles).
 - **Ordre des sections** : imposé par le `rank`, une seule fonction de tri
-  (`dossierSectionsInOrder`) partagée par les deux services — coup d'œil 1,
+  (`dossierSectionsInOrder`) partagée par les deux services, vérifiée sur la
+  lecture publique **et** sur le dossier du compte — coup d'œil 1,
   grandes lignes 2, identité 3, émotions 4, relations 5, action 6, forces et
   tensions 6.5 (conditionnelle), clés 7, passé 8, famille 9, lettre miroir 10,
   périodes 11.
@@ -102,8 +103,11 @@ détecteur.
   retrait de la phrase) et **style** (maladresse → réécriture, jamais
   d'amputation).
 - **Sécurité** : secrets uniquement dans les variables d'environnement (jamais
-  dans le dépôt) ; le code de test et les clés Stripe/Brevo ne sont pas dans le
-  code.
+  dans le dépôt). Mesuré par `tests/noSecrets.test.mjs` : les fichiers suivis par
+  git sont scannés à chaque `npm test` (clés Stripe live/test, webhook, Brevo,
+  jeton GitHub, clé privée PEM, valeur longue affectée à une variable secrète) et
+  `.env` doit rester non suivi. Le fichier de test ne recopie jamais la valeur
+  trouvée : il nomme le fichier, la ligne et le motif.
 
 ## Cartographie utile
 
@@ -118,11 +122,12 @@ détecteur.
 | `src/models/publicReadingService.mjs` | parcours public vendu (réécriture, sections conditionnelles) |
 | `src/http/app.mjs` | routes publiques, paiement, livraison |
 | `public/app.js`, `public/index.html` | formulaire public (heure, marge, paiement) |
+| `tests/noSecrets.test.mjs` | garde-fou : aucun secret dans les fichiers suivis |
 
 ## Commandes utiles
 
 ```bash
-npm test                                   # 149 tests
+npm test                                   # 152 tests
 node --check <fichier>                     # après chaque édition
 git status -sb                             # « ahead » = commits non poussés
 curl -s https://www.lastro.fr/api/config   # état paiement / e-mail / code de test

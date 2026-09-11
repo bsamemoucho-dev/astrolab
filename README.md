@@ -143,6 +143,7 @@ tests/
   timeMargin.test.mjs   Uncertainty margin: engine, socle, detectors, nine languages
   lastroAspects.test.mjs  Aspect convention: orbs, provenance, annex, nine languages
   languageQuality.test.mjs  Orphan antecedents, repetition, vouvoiement, vocabulary, order
+  noSecrets.test.mjs    Guardrail: no secret in any git-tracked file
 ```
 
 ## Run Tests

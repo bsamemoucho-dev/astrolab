@@ -538,6 +538,40 @@ test("operator can register a client person with a resolved place and generate a
       body: { reviewed: false }
     });
     assert.equal(unmarked.payload.deliverable.reviewedByHuman, false);
+
+    // Le dossier du compte suit le MÊME ordre que la lecture publique : une
+    // seule fonction de tri, donc aucun risque de divergence écran / PDF.
+    const exported = await request(app.baseUrl, `/api/deliverables/${completed.deliverable.id}/export?format=json`, {
+      method: "GET",
+      cookie
+    });
+    assert.equal(exported.status, 200);
+    const ordre = dossierSectionsInOrder().map((entry) => entry.id);
+    const presentes = exported.payload.sections.map((section) => section.id);
+    const redigees = presentes.filter((id) => ordre.includes(id));
+    // Les sections conditionnelles absentes (ici le transgénérationnel, sans
+    // données parents) ne doivent pas casser l'ordre des autres.
+    assert.deepEqual(redigees, ordre.filter((id) => presentes.includes(id)));
+    assert.deepEqual(redigees, [
+      "introduction",
+      "grandes-lignes",
+      "position-naissance-axe",
+      "structure-psychologique",
+      "relations",
+      "action",
+      "forces-tensions",
+      "cles-integration",
+      "lecture-passe",
+      "lettre-miroir",
+      "periodes-cycles"
+    ]);
+    assert.equal(exported.payload.sections.some((section) => section.id === "forces-tensions"), true);
+
+    // L'annexe du dossier reste auditable et sans langage interne.
+    const annexe = exported.payload.sections.find((section) => section.id === "annexe-socle");
+    assert.ok(annexe);
+    assert.match(annexe.text, /lastro-aspects@1\.0\.0/);
+    assert.doesNotMatch(annexe.text, /calculated_development_not_production|JPL Horizons|inactive structures/);
   } finally {
     await app.close();
   }
