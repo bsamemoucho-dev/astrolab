@@ -102,12 +102,26 @@ test("western natal calculation handles approximate, interval and unknown time w
   assert.equal(approximate.result.uncertainty.timeEvidence.precision, "approximate");
   assert.equal(approximate.result.uncertainty.timeEvidence.suppliedTime, "12:30");
   assert.equal(approximate.result.uncertainty.timeEvidence.referenceTimeUsedForTimedCalculations, "12:30");
-  assert.equal(approximate.result.uncertainty.timeEvidence.uncertaintyWindow, null);
-  assert.equal(approximate.result.astronomicalCalculation.angles.uncertaintyStatus, "depends_on_approximate_birth_time");
+  // La marge n'est plus « inconnue » : ±30 min par défaut, écrite, et la fenêtre
+  // réellement calculée est bornée par elle.
+  assert.equal(approximate.result.uncertainty.timeEvidence.uncertaintyWindow.marginMinutes, 30);
+  assert.equal(approximate.result.uncertainty.timeEvidence.uncertaintyWindow.marginSource, "default");
+  assert.equal(approximate.result.uncertainty.margin.marginMinutes, 30);
+  assert.equal(
+    approximate.result.astronomicalCalculation.angles.uncertaintyStatus,
+    "depends_on_approximate_birth_time_within_declared_margin"
+  );
   assert.equal(approximate.result.astronomicalCalculation.angles.referenceTimeUsed, "12:30");
-  assert.ok(approximate.result.structuralAstrology.houses.every((house) => house.uncertaintyStatus === "depends_on_approximate_birth_time"));
-  assert.ok(approximate.result.uncertainty.indeterminable.includes("exact_angles_without_uncertainty_margin"));
+  assert.ok(
+    approximate.result.structuralAstrology.houses.every(
+      (house) => house.uncertaintyStatus === "depends_on_approximate_birth_time_within_declared_margin"
+    )
+  );
+  assert.ok(approximate.result.uncertainty.indeterminable.includes("exact_angle_longitudes_within_declared_margin"));
   assert.ok(approximate.result.astronomicalCalculation.angles.ascendant);
+  // Chaque corps porte la fenêtre de marge : un signe qui change dedans n'est
+  // pas décidable.
+  assert.ok(approximate.result.astronomicalCalculation.bodies.every((body) => body.marginWindow?.marginMinutes === 30));
 
   const unknown = calculateWesternNatalChart({ ...parisInput, timePrecision: "unknown", timeValue: "" });
   assert.equal(unknown.result.uncertainty.timePrecision, "unknown");
@@ -128,6 +142,80 @@ test("western natal calculation handles approximate, interval and unknown time w
   assert.equal(interval.result.time.utc, null);
   assert.equal(interval.result.astronomicalCalculation.angles.ascendant, null);
   assert.equal(interval.result.astronomicalCalculation.bodies.length, 7);
+});
+
+test("declared uncertainty margin bounds angles, and a sign crossing inside it is not decidable", () => {
+  // 15 janvier 1990, 12:30 à Paris : l'Ascendant est en fin de Bélier et franchit
+  // le Taureau dans la marge de 30 min. C'est exactement le cas où l'ancien
+  // moteur annonçait un signe unique sans marge.
+  const wide = calculateWesternNatalChart({
+    ...parisInput,
+    timePrecision: "approximate",
+    timeValue: "12:30",
+    timeMarginMinutes: 30
+  });
+  const wideAscendant = wide.result.astronomicalCalculation.angles.uncertaintyWindow.ascendant;
+  assert.equal(wideAscendant.signStable, false);
+  assert.deepEqual(wideAscendant.signsInWindow, ["Aries", "Taurus"]);
+  assert.equal(wide.result.uncertainty.margin.ascendantSignStableWithinMargin, false);
+  assert.equal(wide.result.structuralAstrology.houseUncertainty.housesDecidableWithinMargin, false);
+  assert.ok(wide.result.uncertainty.indeterminable.includes("ascendant_sign_within_declared_margin"));
+  assert.ok(wide.result.uncertainty.indeterminable.includes("houses_within_declared_margin"));
+
+  // Même instant, marge plus serrée : le signe redevient stable et décidable.
+  const narrow = calculateWesternNatalChart({
+    ...parisInput,
+    timePrecision: "approximate",
+    timeValue: "12:30",
+    timeMarginMinutes: 15
+  });
+  const narrowAscendant = narrow.result.astronomicalCalculation.angles.uncertaintyWindow.ascendant;
+  assert.equal(narrowAscendant.signStable, true);
+  assert.equal(narrowAscendant.signAtWindowStart, "Taurus");
+  assert.equal(narrowAscendant.signAtWindowEnd, "Taurus");
+  assert.equal(narrow.result.uncertainty.margin.ascendantSignStableWithinMargin, true);
+  assert.equal(narrow.result.structuralAstrology.houseUncertainty.housesDecidableWithinMargin, true);
+  assert.ok(!narrow.result.uncertainty.indeterminable.includes("ascendant_sign_within_declared_margin"));
+});
+
+test("uncertainty margin is explicit, auditable and rejected when invalid", () => {
+  const supplied = calculateWesternNatalChart({
+    ...parisInput,
+    timePrecision: "approximate",
+    timeValue: "12:30",
+    timeMarginMinutes: 60
+  });
+  assert.equal(supplied.result.uncertainty.margin.marginMinutes, 60);
+  assert.equal(supplied.result.uncertainty.margin.marginSource, "supplied");
+  assert.equal(supplied.result.normalizedInput.timeMarginMinutes, 60);
+  const defaulted = calculateWesternNatalChart({ ...parisInput, timePrecision: "approximate", timeValue: "12:30" });
+  assert.equal(defaulted.result.uncertainty.margin.marginSource, "default");
+  // Une heure exacte n'a jamais de marge : rien n'est ajouté silencieusement.
+  const exact = calculateWesternNatalChart(parisInput);
+  assert.equal(exact.result.uncertainty.margin, undefined);
+  assert.equal(exact.result.normalizedInput.timeMarginMinutes, null);
+  assert.throws(
+    () => calculateWesternNatalChart({ ...parisInput, timePrecision: "approximate", timeValue: "12:30", timeMarginMinutes: -5 }),
+    /Invalid time margin/
+  );
+  assert.throws(
+    () => calculateWesternNatalChart({ ...parisInput, timePrecision: "approximate", timeValue: "12:30", timeMarginMinutes: "beaucoup" }),
+    /Invalid time margin/
+  );
+});
+
+test("sect is withheld when it switches inside the declared margin", () => {
+  // 09:00 à Paris mi-janvier : le Soleil se lève dans la fenêtre ±30 min, la
+  // secte n'est donc pas décidable.
+  const sunrise = calculateWesternNatalChart({
+    ...parisInput,
+    timePrecision: "approximate",
+    timeValue: "09:00"
+  });
+  assert.equal(sunrise.result.structuralAstrology.sect.chartSect, "unknown");
+  assert.equal(sunrise.result.structuralAstrology.sect.marginWindow.stable, false);
+  assert.equal(sunrise.result.uncertainty.margin.sectStableWithinMargin, false);
+  assert.ok(sunrise.result.uncertainty.indeterminable.includes("sect_within_declared_margin"));
 });
 
 test("time precision evidence preserves exact time without downgrading or duplicating uncertainty", () => {

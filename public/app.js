@@ -2623,11 +2623,26 @@ function bindExpressForm() {
 
   const precisionSelect = field(form, "timePrecision");
   const timeWrap = $("#express-time-label");
+  const timeText = $("#express-time-text");
+  const marginWrap = $("#express-margin-label");
+  const marginHint = $("#express-margin-hint");
   const intervalWrap = $("#express-interval-fields");
   const syncTimeVisibility = () => {
     const value = precisionSelect.value;
     timeWrap.hidden = !(value === "exact" || value === "approximate");
     intervalWrap.hidden = value !== "interval";
+    // Heure approximative : on demande « vers quelle heure » et la marge qui
+    // borne réellement les angles, les maisons et la secte.
+    const approximate = value === "approximate";
+    if (marginWrap) {
+      marginWrap.hidden = !approximate;
+    }
+    if (marginHint) {
+      marginHint.hidden = !approximate;
+    }
+    if (timeText) {
+      timeText.textContent = approximate ? "Heure approximative (ex. 10:00)" : "Heure";
+    }
   };
   precisionSelect.addEventListener("change", syncTimeVisibility);
   syncTimeVisibility();
@@ -2854,12 +2869,18 @@ function bindExpressForm() {
       return;
     }
     const payload = formPayload(form);
+    // Marge d'incertitude : seulement pour une heure approximative. Le serveur
+    // applique ±30 min par défaut si rien n'est envoyé.
+    const marginField = field(form, "timeMarginMinutes");
+    const timePrecision = payload.timePrecision ?? "unknown";
     state.pendingReadingBody = {
       firstName: payload.firstName || null,
       language: currentLanguage(),
       birthDate: payload.birthDate,
-      timePrecision: payload.timePrecision ?? "unknown",
+      timePrecision,
       timeValue: payload.timeValue || null,
+      timeMarginMinutes:
+        timePrecision === "approximate" && marginField?.value ? Number(marginField.value) : null,
       timeStart: payload.timeStart || null,
       timeEnd: payload.timeEnd || null,
       birthPlace: payload.birthPlace || null,

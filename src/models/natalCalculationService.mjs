@@ -46,6 +46,7 @@ function inputFromPersonAndBirth(person, birth, overrides) {
     personId: person.id,
     birthDate: overrides.birthDate ?? birth?.birthDate,
     timeValue: overrides.timeValue ?? birth?.timeValue,
+    timeMarginMinutes: overrides.timeMarginMinutes ?? birth?.timeMarginMinutes ?? null,
     timeStart: overrides.timeStart ?? birth?.timeStart,
     timeEnd: overrides.timeEnd ?? birth?.timeEnd,
     timePrecision: overrides.timePrecision ?? birth?.timePrecision,

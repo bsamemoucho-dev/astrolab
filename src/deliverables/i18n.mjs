@@ -260,14 +260,189 @@ const IT = {
 
 const DOCS = { fr: FR, en: EN, de: DE, es: ES, it: IT };
 
+// ---------------------------------------------------------------------------
+// Marge d'incertitude (heure approximative) — 9 langues.
+//
+// Ces chaînes portent le plafond de langage : la marge est écrite, et un signe
+// qui change à l'intérieur de la marge est déclaré NON DÉCIDABLE. Elles vivent
+// dans une table unique, fusionnée en profondeur, pour que les quatre langues
+// sans table `DETAILS` complète (pt, no, da, nl) les reçoivent aussi.
+// ---------------------------------------------------------------------------
+const MARGIN_STRINGS = {
+  fr: {
+    margin: "Marge d'incertitude retenue",
+    marginRange: "Plage calculée sur la marge",
+    marginDefault: "±{n} min (valeur par défaut Lastro, non précisée par le client)",
+    marginSupplied: "±{n} min (précisée par le client)",
+    signStable: "signe stable sur toute la marge",
+    signNotDecidable: "signe non décidable : la frontière est franchie dans la marge",
+    withinMargin: "sur la marge ±{n} min",
+    approximate:
+      "Heure de naissance approximative : l'Ascendant, le Milieu du Ciel, les maisons et la secte ont été calculés sur la marge déclarée {margin}.",
+    approximateStable:
+      "Sur toute cette marge, le signe de l'Ascendant reste {sign} : il est donné comme probable, jamais comme exact.",
+    approximateUnstable:
+      "Le signe de l'Ascendant change dans cette marge ({from} → {to}) : il n'est pas décidable, et les maisons non plus.",
+    approximateBodySigns: "Ces corps changent aussi de signe dans la marge : {bodies}.",
+    approximateSect: "La secte (diurne ou nocturne) bascule dans cette marge : elle n'est pas affichée."
+  },
+  en: {
+    margin: "Uncertainty margin used",
+    marginRange: "Range computed over the margin",
+    marginDefault: "±{n} min (Lastro default, not specified by the client)",
+    marginSupplied: "±{n} min (specified by the client)",
+    signStable: "sign stable across the whole margin",
+    signNotDecidable: "sign not decidable: the boundary is crossed within the margin",
+    withinMargin: "over the ±{n} min margin",
+    approximate:
+      "Approximate birth time: the Ascendant, the Midheaven, the houses and the sect were computed over the declared margin {margin}.",
+    approximateStable: "Across this whole margin, the Ascendant sign remains {sign}: it is given as probable, never as exact.",
+    approximateUnstable:
+      "The Ascendant sign changes within this margin ({from} → {to}): it is not decidable, and neither are the houses.",
+    approximateBodySigns: "These bodies also change sign within the margin: {bodies}.",
+    approximateSect: "The sect (diurnal or nocturnal) switches within this margin: it is not displayed."
+  },
+  de: {
+    margin: "Angesetzte Unsicherheitsspanne",
+    marginRange: "Über die Spanne berechneter Bereich",
+    marginDefault: "±{n} Min. (Standardwert von Lastro, vom Kunden nicht angegeben)",
+    marginSupplied: "±{n} Min. (vom Kunden angegeben)",
+    signStable: "Zeichen über die gesamte Spanne stabil",
+    signNotDecidable: "Zeichen nicht entscheidbar: die Grenze wird innerhalb der Spanne überschritten",
+    withinMargin: "über die Spanne von ±{n} Min.",
+    approximate:
+      "Ungefähre Geburtszeit: Aszendent, Medium Coeli, Häuser und Sekte wurden über die angegebene Spanne {margin} berechnet.",
+    approximateStable: "Über diese gesamte Spanne bleibt das Zeichen des Aszendenten {sign}: es wird als wahrscheinlich angegeben, nie als exakt.",
+    approximateUnstable:
+      "Das Zeichen des Aszendenten ändert sich innerhalb dieser Spanne ({from} → {to}): es ist nicht entscheidbar, und die Häuser ebenso wenig.",
+    approximateBodySigns: "Auch diese Himmelskörper wechseln innerhalb der Spanne das Zeichen: {bodies}.",
+    approximateSect: "Die Sekte (Tag oder Nacht) wechselt innerhalb dieser Spanne: sie wird nicht angezeigt."
+  },
+  es: {
+    margin: "Margen de incertidumbre considerado",
+    marginRange: "Rango calculado sobre el margen",
+    marginDefault: "±{n} min (valor predeterminado de Lastro, no indicado por el cliente)",
+    marginSupplied: "±{n} min (indicado por el cliente)",
+    signStable: "signo estable en todo el margen",
+    signNotDecidable: "signo no decidible: se cruza la frontera dentro del margen",
+    withinMargin: "sobre el margen de ±{n} min",
+    approximate:
+      "Hora de nacimiento aproximada: el Ascendente, el Medio Cielo, las casas y la secta se han calculado sobre el margen declarado {margin}.",
+    approximateStable: "En todo este margen, el signo del Ascendente sigue siendo {sign}: se da como probable, nunca como exacto.",
+    approximateUnstable:
+      "El signo del Ascendente cambia dentro de este margen ({from} → {to}): no es decidible, y las casas tampoco.",
+    approximateBodySigns: "Estos cuerpos también cambian de signo dentro del margen: {bodies}.",
+    approximateSect: "La secta (diurna o nocturna) cambia dentro de este margen: no se muestra."
+  },
+  it: {
+    margin: "Margine di incertezza adottato",
+    marginRange: "Intervallo calcolato sul margine",
+    marginDefault: "±{n} min (valore predefinito di Lastro, non indicato dal cliente)",
+    marginSupplied: "±{n} min (indicato dal cliente)",
+    signStable: "segno stabile su tutto il margine",
+    signNotDecidable: "segno non decidibile: il confine viene superato entro il margine",
+    withinMargin: "sul margine di ±{n} min",
+    approximate:
+      "Ora di nascita approssimativa: l'Ascendente, il Medio Cielo, le case e la setta sono stati calcolati sul margine dichiarato {margin}.",
+    approximateStable: "Su tutto questo margine, il segno dell'Ascendente resta {sign}: viene indicato come probabile, mai come esatto.",
+    approximateUnstable: "Il segno dell'Ascendente cambia entro questo margine ({from} → {to}): non è decidibile, e nemmeno le case.",
+    approximateBodySigns: "Anche questi corpi cambiano segno entro il margine: {bodies}.",
+    approximateSect: "La setta (diurna o notturna) cambia entro questo margine: non viene mostrata."
+  },
+  pt: {
+    margin: "Margem de incerteza adotada",
+    marginRange: "Intervalo calculado sobre a margem",
+    marginDefault: "±{n} min (valor padrão da Lastro, não informado pelo cliente)",
+    marginSupplied: "±{n} min (informado pelo cliente)",
+    signStable: "signo estável em toda a margem",
+    signNotDecidable: "signo não decidível: a fronteira é ultrapassada dentro da margem",
+    withinMargin: "sobre a margem de ±{n} min",
+    approximate:
+      "Hora de nascimento aproximada: o Ascendente, o Meio do Céu, as casas e a seita foram calculados sobre a margem declarada {margin}.",
+    approximateStable: "Em toda esta margem, o signo do Ascendente permanece {sign}: ele é apresentado como provável, nunca como exato.",
+    approximateUnstable: "O signo do Ascendente muda dentro desta margem ({from} → {to}): ele não é decidível, e as casas também não.",
+    approximateBodySigns: "Estes corpos também mudam de signo dentro da margem: {bodies}.",
+    approximateSect: "A seita (diurna ou noturna) muda dentro desta margem: ela não é exibida."
+  },
+  no: {
+    margin: "Usikkerhetsmargen som er lagt til grunn",
+    marginRange: "Område beregnet over marginen",
+    marginDefault: "±{n} min (standardverdi fra Lastro, ikke oppgitt av kunden)",
+    marginSupplied: "±{n} min (oppgitt av kunden)",
+    signStable: "tegnet stabilt over hele marginen",
+    signNotDecidable: "tegnet ikke avgjørbart: grensen krysses innenfor marginen",
+    withinMargin: "over marginen på ±{n} min",
+    approximate:
+      "Omtrentlig fødselstid: Ascendanten, Midtheaven, husene og sekten er beregnet over den oppgitte marginen {margin}.",
+    approximateStable: "Over hele denne marginen forblir Ascendantens tegn {sign}: det oppgis som sannsynlig, aldri som eksakt.",
+    approximateUnstable:
+      "Ascendantens tegn endres innenfor denne marginen ({from} → {to}): det er ikke avgjørbart, og heller ikke husene.",
+    approximateBodySigns: "Disse himmellegemene skifter også tegn innenfor marginen: {bodies}.",
+    approximateSect: "Sekten (dag eller natt) skifter innenfor denne marginen: den vises ikke."
+  },
+  da: {
+    margin: "Usikkerhedsmargin anvendt",
+    marginRange: "Interval beregnet over marginen",
+    marginDefault: "±{n} min (standardværdi fra Lastro, ikke oplyst af kunden)",
+    marginSupplied: "±{n} min (oplyst af kunden)",
+    signStable: "tegnet stabilt over hele marginen",
+    signNotDecidable: "tegnet ikke afgørbart: grænsen overskrides inden for marginen",
+    withinMargin: "over marginen på ±{n} min",
+    approximate:
+      "Omtrentligt fødselstidspunkt: Ascendanten, Midterhimlen, husene og sekten er beregnet over den oplyste margin {margin}.",
+    approximateStable: "Over hele denne margin forbliver Ascendantens tegn {sign}: det angives som sandsynligt, aldrig som præcist.",
+    approximateUnstable:
+      "Ascendantens tegn skifter inden for denne margin ({from} → {to}): det er ikke afgørbart, og det er husene heller ikke.",
+    approximateBodySigns: "Disse himmellegemer skifter også tegn inden for marginen: {bodies}.",
+    approximateSect: "Sekten (dag eller nat) skifter inden for denne margin: den vises ikke."
+  },
+  nl: {
+    margin: "Aangehouden onzekerheidsmarge",
+    marginRange: "Bereik berekend over de marge",
+    marginDefault: "±{n} min (standaardwaarde van Lastro, niet door de klant opgegeven)",
+    marginSupplied: "±{n} min (door de klant opgegeven)",
+    signStable: "teken stabiel over de hele marge",
+    signNotDecidable: "teken niet te bepalen: de grens wordt binnen de marge overschreden",
+    withinMargin: "over de marge van ±{n} min",
+    approximate:
+      "Geboortetijd bij benadering: de Ascendant, de Midhemel, de huizen en de sekte zijn berekend over de opgegeven marge {margin}.",
+    approximateStable: "Over deze hele marge blijft het teken van de Ascendant {sign}: het wordt als waarschijnlijk gegeven, nooit als exact.",
+    approximateUnstable:
+      "Het teken van de Ascendant verandert binnen deze marge ({from} → {to}): het is niet te bepalen, en de huizen evenmin.",
+    approximateBodySigns: "Deze lichamen veranderen ook van teken binnen de marge: {bodies}.",
+    approximateSect: "De sekte (dag of nacht) wisselt binnen deze marge: deze wordt niet weergegeven."
+  }
+};
+
 export function docStrings(code) {
   const language = normalizeLanguage(code);
   const table = DOCS[language] ?? FR;
   const details = DETAILS[language] ?? DETAILS.fr;
+  const margin = MARGIN_STRINGS[language] ?? MARGIN_STRINGS.fr;
+  const labels = { ...details.labels, margin: margin.margin, marginRange: margin.marginRange };
+  const values = {
+    ...details.values,
+    marginDefault: margin.marginDefault,
+    marginSupplied: margin.marginSupplied,
+    signStable: margin.signStable,
+    signNotDecidable: margin.signNotDecidable,
+    withinMargin: margin.withinMargin
+  };
+  const uncertainty = {
+    ...details.uncertainty,
+    approximate: margin.approximate,
+    approximateStable: margin.approximateStable,
+    approximateUnstable: margin.approximateUnstable,
+    approximateBodySigns: margin.approximateBodySigns,
+    approximateSect: margin.approximateSect
+  };
   return {
     ...FR,
     ...table,
     ...details,
+    labels,
+    values,
+    uncertainty,
     sectionTitles: { ...FR.sectionTitles, ...(table.sectionTitles ?? {}) },
     lang: language
   };
@@ -305,7 +480,6 @@ const DETAILS = {
     },
     uncertainty: {
       unknown: "Heure de naissance inconnue : l'Ascendant, le Milieu du Ciel, les maisons et la secte n'ont pas été calculés.",
-      approximate: "Heure de naissance approximative : l'Ascendant et les maisons dépendent d'une marge d'incertitude inconnue.",
       interval: "Heure de naissance fournie en intervalle : aucune heure exacte n'a été inventée."
     }
   },
@@ -332,7 +506,6 @@ const DETAILS = {
     },
     uncertainty: {
       unknown: "Birth time unknown: the Ascendant, Midheaven, houses and sect were not calculated.",
-      approximate: "Approximate birth time: the Ascendant and houses depend on an unknown margin of uncertainty.",
       interval: "Birth time given as a range: no exact time was invented."
     }
   },
@@ -359,7 +532,6 @@ const DETAILS = {
     },
     uncertainty: {
       unknown: "Geburtszeit unbekannt: Aszendent, Medium Coeli, Häuser und Sekt wurden nicht berechnet.",
-      approximate: "Ungefähre Geburtszeit: Aszendent und Häuser hängen von einer unbekannten Unsicherheit ab.",
       interval: "Geburtszeit als Zeitspanne angegeben: es wurde keine genaue Uhrzeit erfunden."
     }
   },
@@ -386,7 +558,6 @@ const DETAILS = {
     },
     uncertainty: {
       unknown: "Hora de nacimiento desconocida: no se calcularon el Ascendente, el Medio Cielo, las casas ni la secta.",
-      approximate: "Hora de nacimiento aproximada: el Ascendente y las casas dependen de un margen de incertidumbre desconocido.",
       interval: "Hora de nacimiento dada como intervalo: no se inventó ninguna hora exacta."
     }
   },
@@ -413,7 +584,6 @@ const DETAILS = {
     },
     uncertainty: {
       unknown: "Ora di nascita sconosciuta: Ascendente, Medio Cielo, case e setta non sono stati calcolati.",
-      approximate: "Ora di nascita approssimativa: Ascendente e case dipendono da un margine di incertezza sconosciuto.",
       interval: "Ora di nascita indicata come intervallo: nessuna ora esatta è stata inventata."
     }
   }
@@ -592,7 +762,6 @@ DETAILS.pt = {
   },
   uncertainty: {
     unknown: "Hora de nascimento desconhecida: o Ascendente, o Meio do Céu, as casas e a secta não foram calculados.",
-    approximate: "Hora de nascimento aproximada: o Ascendente e as casas dependem de uma margem de incerteza desconhecida.",
     interval: "Hora de nascimento indicada como intervalo: nenhuma hora exata foi inventada."
   }
 };
@@ -620,7 +789,6 @@ DETAILS.no = {
   },
   uncertainty: {
     unknown: "Fødselstid ukjent: Ascendant, Medium Coeli, hus og sekt er ikke beregnet.",
-    approximate: "Omtrentlig fødselstid: Ascendant og hus avhenger av en ukjent usikkerhetsmargin.",
     interval: "Fødselstid oppgitt som intervall: ingen eksakt tid er oppfunnet."
   }
 };
@@ -648,7 +816,6 @@ DETAILS.da = {
   },
   uncertainty: {
     unknown: "Fødselstidspunkt ukendt: Ascendant, Medium Coeli, huse og sekt er ikke beregnet.",
-    approximate: "Omtrentligt fødselstidspunkt: Ascendant og huse afhænger af en ukendt usikkerhedsmargin.",
     interval: "Fødselstidspunkt angivet som interval: ingen præcis tid er opfundet."
   }
 };
@@ -728,7 +895,6 @@ DETAILS.nl = {
   },
   uncertainty: {
     unknown: "Geboortetijd onbekend: Ascendant, Medium Coeli, huizen en secte zijn niet berekend.",
-    approximate: "Geboortetijd bij benadering: Ascendant en huizen hangen af van een onbekende onzekerheidsmarge.",
     interval: "Geboortetijd als interval opgegeven: er is geen exacte tijd verzonnen."
   }
 };

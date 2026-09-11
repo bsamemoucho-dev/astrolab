@@ -39,7 +39,8 @@ function factorFromBody(body, houses) {
         sign: body.sign,
         signRange: body.signRange ?? null,
         degreeInSign: body.degreeInSign,
-        latitude: body.latitude
+        latitude: body.latitude,
+        marginWindow: body.marginWindow ?? null
       }),
       calculatedFact("sign_placement", ["structuralAstrology.signs"], {
         sign: body.sign,
@@ -78,7 +79,8 @@ function factorFromAngle(name, angle) {
         longitude: angle.longitude,
         sign: angle.sign,
         degreeInSign: angle.degreeInSign,
-        uncertaintyStatus: angle.uncertaintyStatus ?? null
+        uncertaintyStatus: angle.uncertaintyStatus ?? null,
+        uncertaintyWindow: angle.uncertaintyWindow ?? null
       })
     ],
     relations: [],
@@ -186,10 +188,22 @@ function uncertaintyItems(result) {
   }
 
   if (result.uncertainty?.timeEvidence?.precision === "approximate") {
+    const marginMinutes = result.uncertainty?.margin?.marginMinutes ?? result.uncertainty?.timeEvidence?.marginMinutes ?? null;
+    const source = result.uncertainty?.margin?.marginSource ?? result.uncertainty?.timeEvidence?.marginSource ?? null;
+    const unstable = result.uncertainty?.margin?.bodySignsNotStableWithinMargin ?? [];
+    const marginLabel =
+      marginMinutes === null
+        ? "an undeclared margin"
+        : `a declared ±${marginMinutes} min margin (${source === "default" ? "Lastro default" : "supplied by the client"})`;
     items.push({
       topic: "approximate_birth_time",
       status: "sensitive",
-      reason: "Angles and houses were calculated from a reference time but the uncertainty margin is unknown."
+      reason: `Angles, houses and sect were calculated from a reference time inside ${marginLabel}.${
+        result.uncertainty?.margin?.ascendantSignStableWithinMargin === false
+          ? " The Ascendant changes sign inside that margin: it is not decidable."
+          : ""
+      }${unstable.length > 0 ? ` Body signs not stable inside the margin: ${unstable.join(", ")}.` : ""}`,
+      affectedOutputs: result.uncertainty?.indeterminable ?? []
     });
   }
 

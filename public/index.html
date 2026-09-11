@@ -390,8 +390,16 @@
                     <option value="interval">Intervalle</option>
                   </select>
                 </label>
-                <label id="express-time-label">Heure <input name="timeValue" type="time"></label>
+                <label id="express-time-label"><span id="express-time-text">Heure</span> <input name="timeValue" type="time"></label>
+                <label id="express-margin-label" hidden>Marge d'incertitude
+                  <select name="timeMarginMinutes" id="express-margin">
+                    <option value="15">± 15 min</option>
+                    <option value="30" selected>± 30 min</option>
+                    <option value="60">± 60 min</option>
+                  </select>
+                </label>
               </div>
+              <p class="hint" id="express-margin-hint" hidden>Heure approximative : l'Ascendant, les maisons et la secte sont calculés à l'intérieur de cette marge. Si un signe change dans la marge, il est présenté comme indécis plutôt qu'affirmé.</p>
               <div id="express-interval-fields" hidden>
                 <label>Début <input name="timeStart" type="time"></label>
                 <label>Fin <input name="timeEnd" type="time"></label>

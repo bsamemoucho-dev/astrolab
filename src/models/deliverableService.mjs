@@ -156,7 +156,8 @@ export async function startDeliverableGeneration(store, userId, input = {}, opti
       uncertainty: {
         timeKnown: calculation.result.uncertainty?.timePrecision !== "unknown",
         indeterminable: calculation.result.uncertainty?.indeterminable ?? [],
-        warnings: calculation.result.uncertainty?.warnings ?? []
+        warnings: calculation.result.uncertainty?.warnings ?? [],
+        languageCap: socle.timeLanguageCap ?? null
       }
     };
     return { person, personInfo, personLabel, context, createdAt: nowIso() };

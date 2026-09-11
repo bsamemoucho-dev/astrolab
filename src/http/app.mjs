@@ -102,6 +102,7 @@ function storableInput(body) {
     birthDate: body.birthDate ?? null,
     timePrecision: body.timePrecision ?? null,
     timeValue: body.timeValue ?? null,
+    timeMarginMinutes: body.timeMarginMinutes ?? null,
     timeStart: body.timeStart ?? null,
     timeEnd: body.timeEnd ?? null,
     resolvedPlace: body.resolvedPlace ?? null,

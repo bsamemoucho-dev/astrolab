@@ -8,6 +8,8 @@ import {
   SEVEN_TRADITIONAL_BODIES,
   SIGN_NAMES,
   TRADITIONAL_RULERS,
+  UNCERTAINTY_MARGIN_DEFAULT_MINUTES,
+  UNCERTAINTY_MARGIN_MAX_MINUTES,
   WESTERN_NATAL_METHOD_VERSION
 } from "./constants.mjs";
 import { calculateBodyPositions } from "./ephemeris.mjs";
@@ -84,6 +86,32 @@ function parseResolvedPlace(input) {
   };
 }
 
+// Marge autour de l'heure approximative. Deux sources possibles, toujours
+// distinguées dans le résultat :
+//   - "supplied"  : le client a choisi la marge (15/30/60 min) ;
+//   - "default"   : il n'a rien précisé, la convention Lastro applique ±30 min.
+// Une marge n'est jamais inventée pour une heure exacte, et une valeur absurde
+// est refusée plutôt que silencieusement corrigée.
+function normalizeTimeMargin(input, timePrecision) {
+  if (timePrecision !== "approximate") {
+    return { timeMarginMinutes: null, timeMarginSource: null };
+  }
+  const raw = input.timeMarginMinutes ?? input.uncertaintyMarginMinutes ?? null;
+  const text = raw === null || raw === undefined ? "" : String(raw).trim();
+  if (!text) {
+    return { timeMarginMinutes: UNCERTAINTY_MARGIN_DEFAULT_MINUTES, timeMarginSource: "default" };
+  }
+  const value = Number(text);
+  if (!Number.isInteger(value) || value < 1 || value > UNCERTAINTY_MARGIN_MAX_MINUTES) {
+    const error = new Error(
+      `Invalid time margin: expected a whole number of minutes between 1 and ${UNCERTAINTY_MARGIN_MAX_MINUTES}`
+    );
+    error.status = 400;
+    throw error;
+  }
+  return { timeMarginMinutes: value, timeMarginSource: "supplied" };
+}
+
 function normalizeTime(input) {
   let timePrecision = input.timePrecision ?? (input.timeValue ? "exact" : "unknown");
   // Legacy UI value "very_approximate" is handled as approximate time.
@@ -98,6 +126,7 @@ function normalizeTime(input) {
       timeValue,
       timeStart: null,
       timeEnd: null,
+      ...normalizeTimeMargin(input, timePrecision),
       calculationMode: timePrecision === "exact" ? "exact_time" : "approximate_time"
     };
   }
@@ -111,6 +140,8 @@ function normalizeTime(input) {
       timeValue: null,
       timeStart,
       timeEnd,
+      timeMarginMinutes: null,
+      timeMarginSource: null,
       calculationMode: "time_interval"
     };
   }
@@ -120,6 +151,8 @@ function normalizeTime(input) {
       timeValue: null,
       timeStart: null,
       timeEnd: null,
+      timeMarginMinutes: null,
+      timeMarginSource: null,
       calculationMode: "date_only_time_unknown"
     };
   }
@@ -156,20 +189,66 @@ function normalizeInput(input) {
   };
 }
 
-function markApproximateAngleUncertainty(angles, normalizedInput) {
-  if (normalizedInput.timePrecision !== "approximate") {
-    return angles;
+function anglesAt(normalizedInput, instant) {
+  return calculateAngles({
+    jd: julianDay(instant),
+    latitude: normalizedInput.latitude,
+    longitude: normalizedInput.longitude
+  });
+}
+
+function describeAngleWindow(angleAtStart, angleAtEnd) {
+  if (!angleAtStart || !angleAtEnd) {
+    return null;
   }
+  const signStable = angleAtStart.sign === angleAtEnd.sign;
   return {
-    ...angles,
-    uncertaintyStatus: "depends_on_approximate_birth_time",
-    referenceTimeUsed: normalizedInput.timeValue,
-    uncertaintyWindow: null,
-    warning: "Angles were calculated from the supplied reference time, but no uncertainty margin is known."
+    longitudeAtWindowStart: angleAtStart.longitude,
+    longitudeAtWindowEnd: angleAtEnd.longitude,
+    degreeAtWindowStart: angleAtStart.degreeInSign,
+    degreeAtWindowEnd: angleAtEnd.degreeInSign,
+    signAtWindowStart: angleAtStart.sign,
+    signAtWindowEnd: angleAtEnd.sign,
+    signStable,
+    signsInWindow: signStable ? [angleAtStart.sign] : [angleAtStart.sign, angleAtEnd.sign]
   };
 }
 
-function calculateWholeSignHouses(ascendant, normalizedInput) {
+// Une heure approximative n'a plus de valeur unique : l'angle est calculé aux
+// deux bornes de la marge déclarée. Si le signe franchit une frontière dans
+// cette fenêtre, il n'est PAS décidable et le document doit le dire au lieu
+// d'annoncer un Ascendant.
+function markApproximateAngleUncertainty(angles, normalizedInput, window) {
+  if (normalizedInput.timePrecision !== "approximate") {
+    return angles;
+  }
+  const marginMinutes = normalizedInput.timeMarginMinutes;
+  const start = anglesAt(normalizedInput, window.startUtcInstant);
+  const end = anglesAt(normalizedInput, window.endUtcInstant);
+  return {
+    ...angles,
+    uncertaintyStatus: "depends_on_approximate_birth_time_within_declared_margin",
+    referenceTimeUsed: normalizedInput.timeValue,
+    uncertaintyMargin: {
+      marginMinutes,
+      marginSource: normalizedInput.timeMarginSource
+    },
+    uncertaintyWindow: {
+      marginMinutes,
+      marginSource: normalizedInput.timeMarginSource,
+      ascendant: describeAngleWindow(start.ascendant, end.ascendant),
+      midheaven: describeAngleWindow(start.midheaven, end.midheaven)
+    },
+    warning: `Angles were calculated from the reference time within the declared ±${marginMinutes} min window; anything outside that window is not covered.`
+  };
+}
+
+function calculateWholeSignHouses(ascendant, normalizedInput, angles) {
+  const marginMinutes = normalizedInput.timePrecision === "approximate" ? normalizedInput.timeMarginMinutes : null;
+  const ascendantWindow = angles?.uncertaintyWindow?.ascendant ?? null;
+  // Maisons Whole Sign : elles suivent le signe de l'Ascendant. Si ce signe
+  // n'est pas décidable dans la marge, les maisons ne le sont pas non plus.
+  const signStable = marginMinutes ? Boolean(ascendantWindow?.signStable) : true;
   return Array.from({ length: 12 }, (_, index) => {
     const signIndex = (ascendant.signIndex + index) % 12;
     const sign = SIGN_NAMES[signIndex];
@@ -182,22 +261,51 @@ function calculateWholeSignHouses(ascendant, normalizedInput) {
       system: "whole_sign",
       decisionStatus: WHOLE_SIGN_DECISION_STATUS,
       ruleVersionId: null,
-      uncertaintyStatus: normalizedInput.timePrecision === "approximate" ? "depends_on_approximate_birth_time" : "time_exact_or_not_time_dependent",
-      referenceTimeUsed: normalizedInput.timePrecision === "approximate" ? normalizedInput.timeValue : null
+      uncertaintyStatus: marginMinutes
+        ? "depends_on_approximate_birth_time_within_declared_margin"
+        : "time_exact_or_not_time_dependent",
+      referenceTimeUsed: marginMinutes ? normalizedInput.timeValue : null,
+      ...(marginMinutes ? { marginMinutes, decidableWithinMargin: signStable } : {})
     };
   });
 }
 
-function calculateSect(sunLongitude, jd, latitude, longitude) {
+function calculateSect(sunLongitude, jd, latitude, longitude, normalizedInput, window) {
   const sunAltitude = altitude(sunLongitude, jd, latitude, longitude);
   const chartSect = sunAltitude > 0 ? "diurnal" : "nocturnal";
-  return {
-    chartSect,
+  const base = {
     sunAltitude: round(sunAltitude, 6),
-    luminaryOfSect: chartSect === "diurnal" ? "sun" : "moon",
     classificationStatus: INACTIVE_RULE_STATUS,
     ruleVersionId: null,
     mercurySectStatus: "not_resolved_variant_requires_methodological_decision"
+  };
+  if (normalizedInput.timePrecision !== "approximate") {
+    return {
+      chartSect,
+      ...base,
+      luminaryOfSect: chartSect === "diurnal" ? "sun" : "moon"
+    };
+  }
+  // La secte dépend de la hauteur du Soleil : elle peut basculer dans la marge
+  // (naissance proche du lever ou du coucher). Dans ce cas elle reste inconnue.
+  const sectAt = (instant) => {
+    const sun = calculateBodyPositions(["Sun"], julianDay(instant))[0];
+    return altitude(sun.longitude, julianDay(instant), latitude, longitude) > 0 ? "diurnal" : "nocturnal";
+  };
+  const sectAtWindowStart = sectAt(window.startUtcInstant);
+  const sectAtWindowEnd = sectAt(window.endUtcInstant);
+  const stable = sectAtWindowStart === sectAtWindowEnd;
+  return {
+    chartSect: stable ? chartSect : "unknown",
+    ...base,
+    luminaryOfSect: stable ? (chartSect === "diurnal" ? "sun" : "moon") : null,
+    classificationStatus: stable ? INACTIVE_RULE_STATUS : "sect_not_stable_within_declared_margin",
+    marginWindow: {
+      marginMinutes: normalizedInput.timeMarginMinutes,
+      sectAtWindowStart,
+      sectAtWindowEnd,
+      stable
+    }
   };
 }
 
@@ -309,7 +417,7 @@ function inactiveLots() {
 
 function timeWindow(normalizedInput) {
   const date = parseDate(normalizedInput.birthDate);
-  if (normalizedInput.calculationMode === "exact_time" || normalizedInput.calculationMode === "approximate_time") {
+  if (normalizedInput.calculationMode === "exact_time") {
     const result = localDateTimeToUtc({
       date,
       time: parseTime(normalizedInput.timeValue),
@@ -320,6 +428,25 @@ function timeWindow(normalizedInput) {
       representativeUtcInstant: result.utcInstant,
       startUtcInstant: result.utcInstant,
       endUtcInstant: result.utcInstant,
+      marginMinutes: null,
+      timezoneOffsetMinutes: result.timezoneOffsetMinutes
+    };
+  }
+  if (normalizedInput.calculationMode === "approximate_time") {
+    const result = localDateTimeToUtc({
+      date,
+      time: parseTime(normalizedInput.timeValue),
+      timeZone: normalizedInput.timeZone
+    });
+    // Bornes réelles de la fenêtre d'incertitude, exprimées en UTC.
+    const marginMs = normalizedInput.timeMarginMinutes * 60 * 1000;
+    return {
+      mode: normalizedInput.calculationMode,
+      representativeUtcInstant: result.utcInstant,
+      startUtcInstant: new Date(result.utcInstant.getTime() - marginMs),
+      endUtcInstant: new Date(result.utcInstant.getTime() + marginMs),
+      marginMinutes: normalizedInput.timeMarginMinutes,
+      marginSource: normalizedInput.timeMarginSource,
       timezoneOffsetMinutes: result.timezoneOffsetMinutes
     };
   }
@@ -410,7 +537,43 @@ function calculateWindowPositions(startJd, endJd, status) {
   });
 }
 
-function timeEvidence(normalizedInput) {
+// Une heure approximative garde un instant de référence, mais chaque corps est
+// aussi calculé aux deux bornes de la marge : une planète rapide (la Lune en
+// particulier) peut changer de signe en trente minutes, et le document ne doit
+// pas l'affirmer dans ce cas.
+function decorateBodyMarginWindow(positions, normalizedInput, window) {
+  if (normalizedInput.timePrecision !== "approximate") {
+    return positions;
+  }
+  const marginMinutes = normalizedInput.timeMarginMinutes;
+  const startPositions = calculateTimedPositions(julianDay(window.startUtcInstant), "margin_window_start");
+  const endPositions = calculateTimedPositions(julianDay(window.endUtcInstant), "margin_window_end");
+  return positions.map((position) => {
+    const start = startPositions.find((entry) => entry.body === position.body);
+    const end = endPositions.find((entry) => entry.body === position.body);
+    if (!start || !end) {
+      return position;
+    }
+    const signStable = start.sign === end.sign;
+    return {
+      ...position,
+      marginWindow: {
+        marginMinutes,
+        marginSource: normalizedInput.timeMarginSource,
+        signAtWindowStart: start.sign,
+        signAtWindowEnd: end.sign,
+        degreeAtWindowStart: start.degreeInSign,
+        degreeAtWindowEnd: end.degreeInSign,
+        longitudeAtWindowStart: start.longitude,
+        longitudeAtWindowEnd: end.longitude,
+        signsInWindow: signStable ? [start.sign] : [start.sign, end.sign],
+        signStable
+      }
+    };
+  });
+}
+
+function timeEvidence(normalizedInput, window) {
   if (normalizedInput.timePrecision === "exact") {
     return {
       precision: "exact",
@@ -421,14 +584,22 @@ function timeEvidence(normalizedInput) {
     };
   }
   if (normalizedInput.timePrecision === "approximate") {
+    const marginMinutes = normalizedInput.timeMarginMinutes;
     return {
       precision: "approximate",
       suppliedTime: normalizedInput.timeValue,
       referenceTimeUsedForTimedCalculations: normalizedInput.timeValue,
-      uncertaintyWindow: null,
-      status: "approximate_time_used_as_reference_not_exact",
+      uncertaintyWindow: {
+        marginMinutes,
+        marginSource: normalizedInput.timeMarginSource,
+        startUtc: window.startUtcInstant.toISOString(),
+        endUtc: window.endUtcInstant.toISOString()
+      },
+      status: "approximate_time_with_declared_margin",
+      marginMinutes,
+      marginSource: normalizedInput.timeMarginSource,
       sensitiveOutputs: ["ascendant", "descendant", "midheaven", "imumCoeli", "houses", "sect"],
-      warning: "No uncertainty margin was supplied; angles and houses depend on the unknown margin around the reference time."
+      warning: `No exact time was supplied. Angles, houses and sect were calculated from the reference time inside a declared ±${marginMinutes} min window; they must not be presented as exact, and signs that change inside that window are not decidable.`
     };
   }
   if (normalizedInput.timePrecision === "interval") {
@@ -452,7 +623,7 @@ function timeEvidence(normalizedInput) {
   };
 }
 
-function buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, conditions, lots, warnings) {
+function buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, conditions, lots, margin, warnings) {
   return {
     schema: "astrolab.western_natal.structured_result",
     schemaVersion: ASTROLAB_MODEL_VERSION,
@@ -477,6 +648,7 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
         start: round(julianDay(window.startUtcInstant), 8),
         end: round(julianDay(window.endUtcInstant), 8)
       },
+      ...(margin ? { marginMinutes: margin.marginMinutes, marginSource: margin.marginSource } : {}),
       timezoneOffsetMinutes: window.timezoneOffsetMinutes
     },
     parameters: {
@@ -501,6 +673,16 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
       })),
       houses,
       sect,
+      ...(margin
+        ? {
+            houseUncertainty: {
+              marginMinutes: margin.marginMinutes,
+              marginSource: margin.marginSource,
+              ascendantSignStableWithinMargin: margin.ascendantSignStable,
+              housesDecidableWithinMargin: margin.ascendantSignStable
+            }
+          }
+        : {}),
       aspectInfrastructure: aspects,
       planetaryConditions: conditions,
       lots
@@ -512,12 +694,33 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
     uncertainty: {
       timePrecision: normalizedInput.timePrecision,
       calculationMode: normalizedInput.calculationMode,
-      timeEvidence: timeEvidence(normalizedInput),
+      timeEvidence: timeEvidence(normalizedInput, window),
       coordinateConfidence: normalizedInput.coordinateConfidence,
+      ...(margin
+        ? {
+            margin: {
+              marginMinutes: margin.marginMinutes,
+              marginSource: margin.marginSource,
+              ascendantSignStableWithinMargin: margin.ascendantSignStable,
+              midheavenSignStableWithinMargin: margin.midheavenSignStable,
+              sectStableWithinMargin: margin.sectStable,
+              bodySignsStableWithinMargin: margin.unstableBodySigns.length === 0,
+              bodySignsNotStableWithinMargin: margin.unstableBodySigns
+            }
+          }
+        : {}),
       indeterminable: [
         ...(normalizedInput.calculationMode === "date_only_time_unknown" ? ["ascendant", "descendant", "midheaven", "imumCoeli", "houses", "sect"] : []),
         ...(normalizedInput.calculationMode === "time_interval" ? ["exact_angles", "exact_houses", "exact_sect"] : []),
-        ...(normalizedInput.calculationMode === "approximate_time" ? ["exact_angles_without_uncertainty_margin", "exact_houses_without_uncertainty_margin"] : [])
+        ...(normalizedInput.calculationMode === "approximate_time"
+          ? [
+              "exact_angle_longitudes_within_declared_margin",
+              ...(margin?.ascendantSignStable ? [] : ["ascendant_sign_within_declared_margin", "houses_within_declared_margin"]),
+              ...(margin?.midheavenSignStable ? [] : ["midheaven_sign_within_declared_margin"]),
+              ...(margin?.sectStable ? [] : ["sect_within_declared_margin"]),
+              ...(margin && margin.unstableBodySigns.length > 0 ? ["body_signs_within_declared_margin"] : [])
+            ]
+          : [])
       ],
       warnings
     }
@@ -528,26 +731,37 @@ export function calculateWesternNatalChart(input, options = {}) {
   const normalizedInput = normalizeInput(input);
   const window = timeWindow(normalizedInput);
   const hasRepresentativeTime = Boolean(window.representativeUtcInstant);
-  const positions = hasRepresentativeTime
+  const representativePositions = hasRepresentativeTime
     ? calculateTimedPositions(julianDay(window.representativeUtcInstant), normalizedInput.calculationMode)
     : calculateWindowPositions(julianDay(window.startUtcInstant), julianDay(window.endUtcInstant), normalizedInput.calculationMode);
+  const positions = decorateBodyMarginWindow(representativePositions, normalizedInput, window);
   const angles = hasRepresentativeTime
     ? markApproximateAngleUncertainty(
-        calculateAngles({
-          jd: julianDay(window.representativeUtcInstant),
-          latitude: normalizedInput.latitude,
-          longitude: normalizedInput.longitude
-        }),
-        normalizedInput
+        anglesAt(normalizedInput, window.representativeUtcInstant),
+        normalizedInput,
+        window
       )
     : notCalculatedAngles(normalizedInput.calculationMode === "time_interval" ? "not_calculated_time_interval" : "not_calculated_time_unknown");
   const houses = hasRepresentativeTime
-    ? calculateWholeSignHouses(angles.ascendant, normalizedInput)
+    ? calculateWholeSignHouses(angles.ascendant, normalizedInput, angles)
     : notCalculatedHouses(normalizedInput.calculationMode === "time_interval" ? "not_calculated_time_interval" : "not_calculated_time_unknown");
   const sun = positions.find((position) => position.body === "Sun");
   const sect = hasRepresentativeTime
-    ? calculateSect(sun.longitude, julianDay(window.representativeUtcInstant), normalizedInput.latitude, normalizedInput.longitude)
+    ? calculateSect(sun.longitude, julianDay(window.representativeUtcInstant), normalizedInput.latitude, normalizedInput.longitude, normalizedInput, window)
     : notCalculatedSect(normalizedInput.calculationMode === "time_interval" ? "not_calculated_time_interval" : "not_calculated_time_unknown");
+  // Résumé de la marge : ce qui est décidable et ce qui ne l'est pas. Le socle,
+  // l'annexe et le détecteur de langage s'appuient dessus ; rien d'autre.
+  const margin =
+    hasRepresentativeTime && normalizedInput.timePrecision === "approximate"
+      ? {
+          marginMinutes: normalizedInput.timeMarginMinutes,
+          marginSource: normalizedInput.timeMarginSource,
+          ascendantSignStable: Boolean(angles.uncertaintyWindow?.ascendant?.signStable),
+          midheavenSignStable: Boolean(angles.uncertaintyWindow?.midheaven?.signStable),
+          sectStable: Boolean(sect.marginWindow?.stable),
+          unstableBodySigns: positions.filter((position) => position.marginWindow && !position.marginWindow.signStable).map((position) => position.body)
+        }
+      : null;
   const aspects = hasRepresentativeTime ? calculateAspectInfrastructure(positions) : [];
   const conditions = inactiveConditions(positions);
   const lots = inactiveLots();
@@ -570,10 +784,15 @@ export function calculateWesternNatalChart(input, options = {}) {
     "No interpretive RuleVersion is active.",
     "Aspect orbs, dignities, lots and condition rules are represented as inactive structures.",
     ...(normalizedInput.timePrecision === "unknown" ? ["Birth time is unknown; angles, houses and sect are not calculated."] : []),
-    ...(normalizedInput.timePrecision === "approximate" ? ["Birth time is approximate; calculated timed values must not be treated as exact."] : []),
+    ...(normalizedInput.timePrecision === "approximate"
+      ? [
+          `Birth time is approximate: a ±${normalizedInput.timeMarginMinutes} min margin (${normalizedInput.timeMarginSource === "default" ? "Lastro default, not supplied by the client" : "supplied by the client"}) bounds the angle, house and sect calculations.`,
+          "Timed values must never be presented as exact: a sign that changes inside the declared margin is not decidable."
+        ]
+      : []),
     ...(normalizedInput.timePrecision === "interval" ? ["Birth time is an interval; stable-vs-variable analysis is represented but not collapsed to an exact chart.", intervalStabilityNote] : [])
   ];
-  const payload = buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, conditions, lots, warnings);
+  const payload = buildDeterministicPayload(normalizedInput, window, positions, angles, houses, sect, aspects, conditions, lots, margin, warnings);
   if (intervalAnalysis) {
     payload.uncertainty.intervalAnalysis = intervalAnalysis;
   }

@@ -81,8 +81,49 @@ export async function callChatCompletions(config, { system, user, temperature = 
 const TIME_UNKNOWN_DIRECTIVE =
   "Règle absolue : l'heure de naissance n'est pas connue. L'Ascendant, le Milieu du Ciel, le Descendant, le Fond du Ciel, les maisons et la secte NE SONT PAS calculés. Tu ne dois jamais les nommer, les supposer, les déduire ni les évoquer indirectement : pas de « votre ascendant », pas de « en maison 7 », pas de « selon votre heure de naissance ». Rédige uniquement à partir des planètes, des signes et des aspects effectivement calculés, et indique clairement, quand c'est utile, que l'axe et les maisons ne peuvent pas être établis sans l'heure de naissance.";
 
+// Quand l'heure de naissance est approximative, la marge est connue mais rien
+// de ce qui en dépend n'est exact. Sans cette consigne, le modèle écrit
+// « votre Ascendant est en Lion » à partir d'un instant de référence, ce qui
+// est faux dès que la frontière de signe tombe dans la marge.
+function timeApproximateDirective(cap) {
+  const margin = cap?.marginMinutes ?? 30;
+  const source =
+    cap?.marginSource === "default"
+      ? "marge par défaut de Lastro, non précisée par la personne"
+      : "marge précisée par la personne";
+  const lines = [
+    `Règle absolue : l'heure de naissance est APPROXIMATIVE. Tous les calculs qui en dépendent sont bornés par une marge de ±${margin} min (${source}). Tu ne dois jamais présenter un angle, une maison ou une secte comme un fait exact, ni citer un degré précis pour l'Ascendant ou le Milieu du Ciel.`,
+    `Formule la fragilité dans la langue du document : « vers 10h », « probablement », « d'après la marge retenue ». N'écris jamais « votre heure de naissance » comme si elle était connue.`
+  ];
+  if (cap?.ascendantSignStableWithinMargin) {
+    lines.push(
+      `Sur toute la marge, le signe de l'Ascendant ne change pas${cap.ascendantSignsInWindow?.length ? ` (${cap.ascendantSignsInWindow.join(" / ")})` : ""} : tu peux le nommer, mais comme une probabilité forte (« votre Ascendant se situe probablement en … »), jamais comme une certitude et jamais avec un degré exact.`
+    );
+  } else {
+    lines.push(
+      `Le signe de l'Ascendant CHANGE à l'intérieur de la marge : tu ne dois nommer aucun signe d'Ascendant ni de Milieu du Ciel. Dis simplement que l'axe du thème ne peut pas être tranché sans une heure plus précise.`
+    );
+  }
+  if (cap?.housesDecidableWithinMargin === false) {
+    lines.push(
+      "Les maisons ne sont pas décidables dans cette marge : n'écris aucune maison (« en maison 7 » est interdit). Tu peux parler des thèmes de maison en tendance générale, sans numéro."
+    );
+  }
+  const unstable = cap?.bodySignsNotStableWithinMargin ?? [];
+  if (unstable.length > 0) {
+    lines.push(
+      `Ces corps changent de signe dans la marge : ${unstable.join(", ")}. Pour eux, ne nomme pas le signe : dis qu'ils sont à la frontière entre deux signes sur cette marge.`
+    );
+  }
+  if (cap?.sectStableWithinMargin === false) {
+    lines.push("La secte (diurne/nocturne) bascule dans la marge : ne l'évoque pas.");
+  }
+  return lines.join(" ");
+}
+
 function buildSystemPrompt(section, context = {}) {
   const languageName = context.languageName ?? "French";
+  const cap = context.uncertainty?.languageCap ?? null;
   const parts = [
     "Tu es l'auteur expert d'un dossier de lecture symbolique et astrologique personnalisé.",
     languageName === "French"
@@ -97,6 +138,7 @@ function buildSystemPrompt(section, context = {}) {
           `Éléments explicitement non calculés : ${(context.uncertainty.indeterminable ?? []).join(", ") || "ascendant, maisons, secte"}.`
         ]
       : []),
+    ...(cap ? [timeApproximateDirective(cap)] : []),
     ...FRAME_DIRECTIVES,
     `Section à produire : « ${section.title} ».`,
     ...(section.directives ?? [])
@@ -105,6 +147,7 @@ function buildSystemPrompt(section, context = {}) {
 }
 
 function buildUserPayload(section, context) {
+  const cap = context.uncertainty?.languageCap ?? null;
   return JSON.stringify(
     {
       section: section.id,
@@ -116,6 +159,18 @@ function buildUserPayload(section, context) {
       birthTimeKnown: context.uncertainty?.timeKnown ?? null,
       notCalculated: context.uncertainty?.indeterminable ?? [],
       calculationWarnings: context.uncertainty?.warnings ?? [],
+      ...(cap
+        ? {
+            approximateBirthTime: {
+              marginMinutes: cap.marginMinutes,
+              marginSource: cap.marginSource,
+              ascendantSignStableWithinMargin: cap.ascendantSignStableWithinMargin,
+              ascendantSignsInWindow: cap.ascendantSignsInWindow,
+              housesDecidableWithinMargin: cap.housesDecidableWithinMargin,
+              bodySignsNotStableWithinMargin: cap.bodySignsNotStableWithinMargin
+            }
+          }
+        : {}),
       instruction: "Rédige uniquement le corps de cette section (sans titre répété), en paragraphes continus."
     },
     null,
