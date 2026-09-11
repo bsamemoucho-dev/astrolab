@@ -518,19 +518,7 @@ details.parent-fieldset summary::marker { color: var(--gold); }
 
 /* ---------- carte des prix ---------- */
 .price-card { display: grid; gap: 16px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: radial-gradient(360px 240px at 85% 0%, rgba(233, 196, 106, 0.14), transparent 60%), linear-gradient(150deg, var(--panel) 0%, var(--panel-soft) 100%); }
-.price-hero { display: grid; gap: 6px; text-align: center; }
-.price-hero span { font-family: var(--serif); font-size: clamp(2.6rem, 6vw, 4.6rem); font-weight: 700; line-height: 1; background: linear-gradient(90deg, var(--gold), #f6dfae, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
-.price-hero strong { color: var(--muted); font-size: 0.95rem; font-weight: 700; }
-#price-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; border-radius: 999px; background: linear-gradient(90deg, rgba(139,124,240,.5), var(--gold)); outline: none; cursor: pointer; }
-#price-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #241a06; border: 5px solid var(--gold); box-shadow: 0 6px 18px -4px rgba(0,0,0,0.7); cursor: grab; }
-#price-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #241a06; border: 5px solid var(--gold); box-shadow: 0 6px 18px -4px rgba(0,0,0,0.7); cursor: grab; }
-.slider-scale { display: flex; justify-content: space-between; color: var(--faint); font-size: 0.74rem; margin-top: -6px; }
-.share-box { display: grid; gap: 10px; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.03); }
-.share-box .hint { text-align: center; }
 .fiscal-note { display: block; color: var(--faint); font-size: 0.72rem; line-height: 1.5; text-align: center; }
-#price-result { text-align: center; font-weight: 650; }
-#price-confirm { text-align: center; }
-#price-confirm .split-actions { justify-content: center; }
 
 /* ---------- tech fold ---------- */
 .tech-fold { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-glass); }
