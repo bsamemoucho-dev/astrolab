@@ -117,7 +117,16 @@ const CSS = `
   .annex p, .annex li { font-size:13px; line-height:1.6; color:#444; }
   footer { margin-top:42px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--soft); }
   .ai-review { margin:14px 0 4px; padding:12px 16px; border:1px solid #e6d6a8; border-left:4px solid #d9b45c; border-radius:8px; background:#fdf8ec; color:#6b5320; font-size:13px; font-weight:600; }
-  @media print { body { background:#fff; } .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; } }
+  /* À l'impression (donc dans le PDF), l'annexe doit être VISIBLE : c'est la
+     seule pièce qui permet de vérifier les positions et les aspects utilisés.
+     Repliée à l'écran, dépliée dans le fichier. */
+  @media print {
+    body { background:#fff; }
+    .sheet { box-shadow:none; margin:0; max-width:none; padding:24px 16px; }
+    details.annex > summary { display:none; }
+    details.annex > .block-body { display:block !important; }
+    details.annex { border:0; }
+  }
 `;
 
 export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null, verificationNote = null, aiReview = null }) {
