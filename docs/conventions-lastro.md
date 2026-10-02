@@ -159,7 +159,7 @@ certitude **factuelle** : elle n'augmente que la force du langage symbolique.
 
 ---
 
-## `lastro-pricing@1.0.0` — prix de la lecture et offre de lancement
+## `lastro-pricing@1.0.0` — prix de la lecture et codes privés
 
 Ce n'est pas une convention astrologique, mais c'est une règle versionnée : elle dit
 ce qui est affiché au client et ce qui est débité. Elle vit dans
@@ -167,10 +167,10 @@ ce qui est affiché au client et ce qui est débité. Elle vit dans
 
 | Élément | Valeur en 1.0.0 | Comment la changer |
 |---|---|---|
-| Prix de la lecture | **25 €** (`ASTROLAB_PRICE_CENTS=2500`) | variable d'environnement |
-| Code de lancement | **`bessbousse10`** (`ASTROLAB_PROMO_CODE`) | variable d'environnement |
-| Remise du code | **−10 €** (`ASTROLAB_PROMO_DISCOUNT_CENTS=1000`) | variable d'environnement |
-| Prix payé avec le code | **15 €** | calculé, jamais écrit à la main |
+| Prix de la lecture | **15 €** (`ASTROLAB_PRICE_CENTS=1500`) | variable d'environnement |
+| Code public | aucun par défaut (`ASTROLAB_PROMO_CODE` vide) | variable d'environnement |
+| Remise publique | aucune par défaut (`ASTROLAB_PROMO_DISCOUNT_CENTS=0`) | variable d'environnement |
+| Prix payé sans code | **15 €** | calculé par le serveur |
 
 Codes **privés**, facultatifs, définis uniquement par l'environnement
 (`ASTROLAB_PROMO_CODES=CODE=montant`, plusieurs codes séparés par des virgules) :
@@ -186,16 +186,15 @@ Règles de la convention :
 - le **montant est calculé par le serveur**, jamais envoyé par le navigateur : le
   client n'envoie qu'un code, et le montant d'un éventuel `amountCents` glissé dans
   la requête n'est pas lu ;
-- le **code est public** (il est pré-rempli dans le formulaire de paiement) : ce
-  n'est pas un secret, et il ne doit pas en être un. Ce qui est protégé, c'est le
-  calcul, pas la discrétion du code ;
+- aucun **code public** n'est annoncé ni pré-rempli par défaut. Les codes privés
+  restent possibles côté serveur, via l'environnement uniquement ;
 - la remise est **bornée** : elle ne peut ni dépasser le prix, ni faire tomber le
   total sous le minimum accepté par Stripe (0,50 €). Une remise nulle n'est pas une
   offre : aucun « −0 € » n'est annoncé ;
 - un code **inconnu** ne donne aucune remise et le paiement est refusé (400) plutôt
   que débité au plein tarif sans que le client l'ait vu ;
-- le reçu Stripe porte le montant réellement payé, et la ligne de commande dit
-  pourquoi (`25,00 € moins 10,00 € (offre de lancement)`), dans la langue du client ;
+- le reçu Stripe porte le montant réellement payé. Quand un code privé est utilisé,
+  la ligne de commande indique la réduction sans révéler le code ;
 - le prix affiché est toujours celui du serveur : si le devis échoue, le site
   réaffiche le tarif **sans remise** et n'invente aucun montant.
 

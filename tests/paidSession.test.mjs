@@ -92,7 +92,7 @@ function withSession(session, run) {
 const SESSION_PAYEE = (extra = {}) => ({
   id: "cs_test_paye",
   payment_status: "paid",
-  amount_total: 2500,
+  amount_total: 1500,
   currency: "eur",
   metadata: { purpose: "lastro_lecture", pricing: "lastro-pricing@1.0.0" },
   customer_details: { email: "client@example.test" },
@@ -162,8 +162,8 @@ test("session payée pour un autre produit ou à un autre prix : refus", async (
   });
 });
 
-test("session au prix de l'offre de lancement : acceptée", async () => {
-  // 15 € est un prix légitime : le client a utilisé le code de lancement.
+test("session au prix normal : acceptée", async () => {
+  // 15 € est le prix normal de la lecture.
   await withEnv({ ...STRIPE_KEYS }, () =>
     withSession(SESSION_PAYEE({ amount_total: 1500 }), async () => {
       const app = await startApp();
@@ -205,7 +205,7 @@ test("le paiement n'est pas ouvert quand la rédaction ne peut pas suivre", asyn
   await withEnv(STRIPE_KEYS, async () => {
     const app = await startApp();
     try {
-      const reponse = await post(app.baseUrl, "/api/public/checkout-session", { promoCode: "bessbousse10" });
+      const reponse = await post(app.baseUrl, "/api/public/checkout-session", {});
       assert.equal(reponse.status, 503);
       assert.equal(reponse.payload.code, "writer_unavailable");
       assert.match(reponse.payload.error, /ne serez pas débité/i);

@@ -426,17 +426,17 @@
               <div id="express-payment" class="pay-panel" hidden>
                 <div class="pay-head">
                   <strong id="pay-title">Régler votre lecture</strong>
-                  <span id="pay-text">Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay. Le code de lancement est déjà pré-rempli, retirez-le pour payer le prix courant.</span>
+                  <span id="pay-text">Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay.</span>
                 </div>
                 <div class="fix-price">
                   <div class="fix-price-line">
-                    <span class="fix-price-base" id="pay-price-base">25 €</span>
+                    <span class="fix-price-base" id="pay-price-base">15 €</span>
                     <span class="fix-price-total" id="pay-price-total">15 €</span>
                   </div>
-                  <p class="pay-hint" id="pay-price-note">Offre de lancement : −10 € avec le code bessbousse10.</p>
+                  <p class="pay-hint" id="pay-price-note" hidden></p>
                 </div>
                 <label class="pay-promo"><span id="pay-promo-label">Code promo</span>
-                  <input id="pay-promo" type="text" autocomplete="off" spellcheck="false" placeholder="bessbousse10">
+                  <input id="pay-promo" type="text" autocomplete="off" spellcheck="false" placeholder="Code éventuel">
                 </label>
                 <p class="pay-hint" id="pay-promo-status"></p>
                 <div class="ai-notice">
@@ -544,11 +544,11 @@
             </div>
             <div class="price-card">
               <div class="offre-lignes">
-                <p><span>Lecture symbolique personnalisée</span><strong id="offre-base">25 €</strong></p>
-                <p id="offre-remise-line"><span id="offre-promo-label">Offre de lancement — code bessbousse10</span><strong id="offre-remise">−10 €</strong></p>
+                <p><span>Lecture symbolique personnalisée</span><strong id="offre-base">15 €</strong></p>
+                <p id="offre-remise-line" hidden><span id="offre-promo-label"></span><strong id="offre-remise"></strong></p>
                 <p class="offre-total"><span>Total à payer</span><strong id="offre-total">15 €</strong></p>
               </div>
-              <p class="hint" id="offre-texte">Le code de lancement est pré-rempli dans le formulaire de paiement : vous n'avez rien à faire pour en bénéficier. Sans lui, le prix est de 25 €.</p>
+              <p class="hint" id="offre-texte">Le prix normal est de 15 €. Aucun code de lancement n'est pré-rempli.</p>
               <p class="hint">Paiement sécurisé par Stripe (carte bancaire, Apple Pay, Google Pay). La lecture est rédigée dès la confirmation du paiement, puis conservée 30 jours derrière un lien privé.</p>
               <small class="fiscal-note" id="offre-fiscal">
                 Tout montant encaissé constitue un revenu à déclarer. Le prix affiché est le prix payé : aucune remise n'est appliquée sans le code.

@@ -1,29 +1,22 @@
-// Prix de la lecture : une seule formule, un code de lancement.
+// Prix de la lecture : une seule formule à prix normal.
 //
 // Convention versionnée `lastro-pricing@1.0.0`. Le prix est décidé par le
 // SERVEUR, jamais par le client : le navigateur n'envoie qu'un code promo, et le
 // montant transmis à Stripe est recalculé ici. Un montant glissé dans la requête
 // n'est pas corrigé — il n'est même pas lu.
 //
-// Le code de lancement est PUBLIC : il est pré-rempli dans le formulaire, donc
-// visible par tout le monde. Ce n'est pas un secret, et il ne doit pas en être un
-// (un secret pré-rempli dans une page ne serait plus un secret). Ce qui doit être
-// solide, c'est le calcul du prix, pas la discrétion du code.
-//
-// Pourquoi pas un coupon Stripe : cela obligerait à créer le coupon ET le code
-// promotionnel dans le tableau de bord Stripe avant que le site fonctionne — une
-// dépendance invisible qui casse le tunnel le jour où elle manque. Ici l'offre est
-// dans le dépôt, versionnée, testée, et le reçu Stripe porte le montant réellement
-// payé.
+// Le prix est dans le dépôt, versionné, testé, et le reçu Stripe porte le montant
+// réellement payé. Les codes privés restent possibles via l'environnement, mais
+// aucun code public n'est annoncé ni pré-rempli par défaut.
 
 import { MAX_AMOUNT_CENTS, MIN_AMOUNT_CENTS as STRIPE_MINIMUM_CENTS } from "./stripe.mjs";
 
 export const LASTRO_PRICING_VERSION = "lastro-pricing@1.0.0";
 
-// 25 € — offre de lancement à 15 € avec le code ci-dessous.
-export const DEFAULT_PRICE_CENTS = 2500;
-export const DEFAULT_PROMO_CODE = "bessbousse10";
-export const DEFAULT_PROMO_DISCOUNT_CENTS = 1000;
+// 15 € — prix normal, sans remise publique par défaut.
+export const DEFAULT_PRICE_CENTS = 1500;
+export const DEFAULT_PROMO_CODE = "";
+export const DEFAULT_PROMO_DISCOUNT_CENTS = 0;
 
 // Mention portée sur la ligne de commande Stripe, dans la langue du client.
 const OFFER_LABELS = {

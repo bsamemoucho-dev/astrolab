@@ -10,11 +10,11 @@ const state = {
   recovery: null,
   // Jeton de la livraison affichée : c'est lui qui ouvre le PDF côté serveur.
   readingToken: null,
-  // Dernier devis de prix reçu du serveur (prix fixe et code promo).
+  // Dernier devis de prix reçu du serveur.
   quote: null
 };
 
-// Prix de la lecture : une seule formule à prix fixe, avec un code de lancement.
+// Prix de la lecture : une seule formule à prix fixe.
 // Le montant n'est jamais calculé ici : il vient du serveur (voir `refreshQuote`),
 // et c'est exactement celui qui est débité.
 
@@ -61,7 +61,7 @@ const UI_STRINGS = {
     submit: "Recevoir ma lecture",
     progress: "Génération en cours — calcul puis rédaction (1 à 2 minutes environ).",
     payTitle: "Pendant que votre lecture se prépare…",
-    payText: "Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay. Le code de lancement est déjà pré-rempli, retirez-le pour payer le prix courant.",
+    payText: "Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay.",
     payNote: "Paiement sécurisé Stripe. Votre lecture continue de se générer en parallèle — rien n'est bloqué.",
     viewerTitle: "Votre lecture",
     viewerHint: "Elle est prête : téléchargez-la. Elle reste accessible 30 jours avec votre lien.",
@@ -448,7 +448,7 @@ const UI_EXTRA = {
   fr: {
     pdfHint: "Ouvre la fenêtre d'impression : choisissez « Enregistrer au format PDF », décochez « En-têtes et pieds de page », et laissez les marges par défaut — le document gère ses propres marges de 2 cm.", backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", registerEmailSent: "Compte créé. Un code de vérification vient de vous être envoyé par e-mail.", registerDevCode: "Compte créé. Code de vérification (développement) : {code}", registerEmailFailed: "Compte créé, mais l'envoi du code a échoué. Réessayez dans un instant ; votre compte existe déjà.", verifyCodeRejected: "Code de vérification refusé. Demandez un nouveau code.", resendCode: "Renvoyer le code", resendCodeSent: "Si un compte non vérifié correspond à cette adresse, un nouveau code vient d'être envoyé.", resendCodeTooMany: "Trop de demandes pour cette adresse. Réessayez dans une heure.", emailLabel: "E-mail", passwordLabel: "Mot de passe",
     llmUnavailable: "La rédaction est momentanément indisponible : aucune lecture ne peut être commandée pour l'instant, et vous ne serez pas débité. Merci de réessayer dans quelques minutes.",
-    payTitle: "Régler votre lecture", payText: "Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay. Le code de lancement est déjà pré-rempli, retirez-le pour payer le prix courant.",
+    payTitle: "Régler votre lecture", payText: "Prix fixe, une seule formule : payez ici même par carte bancaire, Apple Pay ou Google Pay.",
     payPromoLabel: "Code promo", payOfferNote: "Offre de lancement — code {code}.", payPromoApplied: "Code appliqué : −{discount}.", payPromoUnknown: "Ce code n'est pas valide. Prix sans remise : {total}.", payPromoEmpty: "Prix sans remise : {total}.", findSummary: "Vous avez déjà payé ? Retrouver ma lecture", findReferenceLabel: "Numéro de commande", findEmailLabel: "E-mail utilisé au paiement", findSubmit: "Renvoyer le lien", findSent: "Si une commande correspond à ces informations, le lien vient d'être envoyé par e-mail.", deliveryKeep: "Votre lecture est conservée 30 jours : gardez ce lien pour la retrouver ensuite.", deliveryCopy: "Copier le lien", deliveryCopied: "Lien copié ✓", deliveryOrderLabel: "Numéro de commande", deliveryEmailed: "Le lien vous a aussi été envoyé par e-mail.", deliveryDelete: "Supprimer ma lecture", recoveryPending: "Votre lecture est en cours de rédaction. Rechargez la page dans un instant.", recoveryFailed: "La rédaction a échoué. Vous pouvez la relancer sans repayer.", recoveryRetry: "Relancer la rédaction", recoveryUnknown: "Ce lien est inconnu ou a expiré.", testCodeToggle: "J'ai un code", testCodeLabel: "Code", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement. Il n'est valable qu'une fois.", testCodeApplied: "Lecture offerte avec votre code.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
     payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
     payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement. Votre lecture est conservée 30 jours, puis supprimée." },
@@ -1542,7 +1542,7 @@ async function refreshQuote() {
   }
 }
 
-// Au chargement : pré-remplit le code de lancement, affiche le tarif connu, puis
+// Au chargement : affiche le tarif connu, puis
 // le fait confirmer par le serveur.
 function applyPricing() {
   const pricing = state.config?.payments?.pricing ?? null;
@@ -2781,11 +2781,10 @@ function bindExpressForm() {
   $("#guest-back")?.addEventListener("click", backToReading);
   $("#auth-back")?.addEventListener("click", backToReading);
 
-  // ---------- paiement Stripe intégré (prix fixe + code promo) ----------
+  // ---------- paiement Stripe intégré (prix fixe + code éventuel) ----------
   // Le montant n'est jamais calculé ici : on demande un devis au serveur et on
-  // affiche ce qu'il renvoie. Le champ du code est pré-rempli avec le code de
-  // lancement, donc la remise s'applique sans rien faire — mais elle reste
-  // calculée côté serveur, et retirable.
+  // affiche ce qu'il renvoie. Le champ code reste disponible pour les codes
+  // privés, mais aucun montant n'est calculé côté navigateur.
   const promoInput = $("#pay-promo");
   if (promoInput) {
     let minuteur = null;
@@ -3582,7 +3581,7 @@ async function loadConfig() {
   } catch {
     state.config = { commerceEnabled: true, llmConfigured: false, production: false };
   }
-  // Le prix et le code de lancement viennent du serveur : rien n'est écrit en
+  // Le prix vient du serveur : rien n'est écrit en
   // dur dans la page.
   applyPricing();
   const commerceNav = document.querySelector('.nav-button[data-view="commerce"]');
