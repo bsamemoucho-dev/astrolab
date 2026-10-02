@@ -1,4 +1,4 @@
-import { fillTemplate, promoMessageKey, promoMessageState } from "./pricing-ui.js";
+import { fillTemplate } from "./pricing-ui.js";
 
 const state = {
   user: null,
@@ -449,7 +449,7 @@ const UI_EXTRA = {
     pdfHint: "Ouvre la fenêtre d'impression : choisissez « Enregistrer au format PDF », décochez « En-têtes et pieds de page », et laissez les marges par défaut — le document gère ses propres marges de 2 cm.", backShort: "← Ma lecture", backToReading: "← Retour à ma lecture", authTitle: "Connexion", authSubmit: "Se connecter", registerEmailSent: "Compte créé. Un code de vérification vient de vous être envoyé par e-mail.", registerDevCode: "Compte créé. Code de vérification (développement) : {code}", registerEmailFailed: "Compte créé, mais l'envoi du code a échoué. Réessayez dans un instant ; votre compte existe déjà.", verifyCodeRejected: "Code de vérification refusé. Demandez un nouveau code.", resendCode: "Renvoyer le code", resendCodeSent: "Si un compte non vérifié correspond à cette adresse, un nouveau code vient d'être envoyé.", resendCodeTooMany: "Trop de demandes pour cette adresse. Réessayez dans une heure.", emailLabel: "E-mail", passwordLabel: "Mot de passe",
     llmUnavailable: "La rédaction est momentanément indisponible : aucune lecture ne peut être commandée pour l'instant, et vous ne serez pas débité. Merci de réessayer dans quelques minutes.",
     payTitle: "Régler votre lecture", payText: "Prix fixe : 3 €. Payez ici même par carte bancaire, Apple Pay ou Google Pay.",
-    payPromoLabel: "Code promo", payOfferNote: "Offre de lancement — code {code}.", payPromoApplied: "Code appliqué : −{discount}.", payPromoUnknown: "Ce code n'est pas valide. Prix sans remise : {total}.", payPromoEmpty: "Prix sans remise : {total}.", findSummary: "Vous avez déjà payé ? Retrouver ma lecture", findReferenceLabel: "Numéro de commande", findEmailLabel: "E-mail utilisé au paiement", findSubmit: "Renvoyer le lien", findSent: "Si une commande correspond à ces informations, le lien vient d'être envoyé par e-mail.", deliveryKeep: "Votre lecture est conservée 30 jours : gardez ce lien pour la retrouver ensuite.", deliveryCopy: "Copier le lien", deliveryCopied: "Lien copié ✓", deliveryOrderLabel: "Numéro de commande", deliveryEmailed: "Le lien vous a aussi été envoyé par e-mail.", deliveryDelete: "Supprimer ma lecture", recoveryPending: "Votre lecture est en cours de rédaction. Rechargez la page dans un instant.", recoveryFailed: "La rédaction a échoué. Vous pouvez la relancer sans repayer.", recoveryRetry: "Relancer la rédaction", recoveryUnknown: "Ce lien est inconnu ou a expiré.", testCodeToggle: "J'ai un code", testCodeLabel: "Code", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement. Il n'est valable qu'une fois.", testCodeApplied: "Lecture offerte avec votre code.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
+    payPromoLabel: "Code", payOfferNote: "Offre de lancement — code {code}.", payPromoApplied: "Code appliqué : −{discount}.", payPromoUnknown: "Ce code n'est pas valide. Prix sans remise : {total}.", payPromoEmpty: "Prix sans remise : {total}.", findSummary: "Vous avez déjà payé ? Retrouver ma lecture", findReferenceLabel: "Numéro de commande", findEmailLabel: "E-mail utilisé au paiement", findSubmit: "Renvoyer le lien", findSent: "Si une commande correspond à ces informations, le lien vient d'être envoyé par e-mail.", deliveryKeep: "Votre lecture est conservée 30 jours : gardez ce lien pour la retrouver ensuite.", deliveryCopy: "Copier le lien", deliveryCopied: "Lien copié ✓", deliveryOrderLabel: "Numéro de commande", deliveryEmailed: "Le lien vous a aussi été envoyé par e-mail.", deliveryDelete: "Supprimer ma lecture", recoveryPending: "Votre lecture est en cours de rédaction. Rechargez la page dans un instant.", recoveryFailed: "La rédaction a échoué. Vous pouvez la relancer sans repayer.", recoveryRetry: "Relancer la rédaction", recoveryUnknown: "Ce lien est inconnu ou a expiré.", testCodeToggle: "J'ai un code", testCodeLabel: "Code", testCodePlaceholder: "Collez votre code", testCodeHint: "Ce code remplace le paiement. Il n'est valable qu'une fois.", testCodeApplied: "Lecture offerte avec votre code.", payStart: "Continuer vers le paiement →", payPreparing: "Préparation du paiement…",
     payConfirmed: "Paiement confirmé ✓ — génération de votre lecture…", payContinue: "Paiement effectué ? Continuer →",
     payNote: "Paiement sécurisé par Stripe. Vos données bancaires ne passent jamais par nos serveurs ; la lecture est générée dès la confirmation du paiement. Votre lecture est conservée 30 jours, puis supprimée." },
   en: {
@@ -716,7 +716,6 @@ function applyUITranslations() {
   setNodeText("#express-progress", t.progress);
   setNodeText("#pay-title", t.payTitle);
   setNodeText("#pay-text", t.payText);
-  setNodeText("#pay-promo-label", t.payPromoLabel);
   setNodeText("#recover-summary", t.findSummary);
   setNodeText("#recover-reference-label", t.findReferenceLabel);
   setNodeText("#recover-email-label", t.findEmailLabel);
@@ -1490,37 +1489,23 @@ function formatEuros(centimes) {
   return formatMoney(Number(centimes) || 0, devise);
 }
 
-// Affiche un devis : prix de base, prix payé, et ce que devient le code saisi.
+// Affiche le devis : prix de base éventuel et prix payé.
 function renderQuote(quote) {
-  const t = uiStrings();
   const base = $("#pay-price-base");
   const total = $("#pay-price-total");
-  const statut = $("#pay-promo-status");
   const hasDiscount = Number(quote.discountCents) > 0 && Number(quote.totalCents) < Number(quote.baseCents);
   if (base) {
     base.textContent = formatEuros(quote.baseCents);
     base.hidden = !hasDiscount;
   }
   if (total) total.textContent = formatEuros(quote.totalCents);
-  if (statut) {
-    const classe = promoMessageState(quote);
-    statut.classList.toggle("ok", classe === "ok");
-    statut.classList.toggle("ko", classe === "ko");
-    statut.hidden = quote?.reason === "empty" && !hasDiscount;
-    statut.textContent = fillTemplate(t[promoMessageKey(quote)], {
-      discount: formatEuros(quote.discountCents),
-      total: formatEuros(quote.totalCents)
-    });
-  }
 }
 
 // Devis du serveur pour le code saisi. Si le serveur ne répond pas, on n'invente
 // aucun prix : on réaffiche le tarif connu sans remise.
 async function refreshQuote() {
-  const champ = $("#pay-promo");
-  const code = champ ? champ.value : "";
   try {
-    const reponse = await api("/api/public/price-quote", { method: "POST", body: { promoCode: code } });
+    const reponse = await api("/api/public/price-quote", { method: "POST", body: { promoCode: "" } });
     const quote = reponse?.quote ?? null;
     if (quote) {
       state.quote = quote;
@@ -1552,15 +1537,6 @@ async function refreshQuote() {
 function applyPricing() {
   const pricing = state.config?.payments?.pricing ?? null;
   const t = uiStrings();
-  const champ = $("#pay-promo");
-  const promoWrap = $("#pay-promo-wrap");
-  const hasPublicPromo = Boolean(pricing?.promoCode);
-  if (promoWrap) {
-    promoWrap.hidden = !hasPublicPromo;
-  }
-  if (champ && !champ.value && pricing?.promoCode) {
-    champ.value = pricing.promoCode;
-  }
   if (!pricing) {
     return;
   }
@@ -2793,23 +2769,9 @@ function bindExpressForm() {
   $("#guest-back")?.addEventListener("click", backToReading);
   $("#auth-back")?.addEventListener("click", backToReading);
 
-  // ---------- paiement Stripe intégré (prix fixe + code éventuel) ----------
+  // ---------- paiement Stripe intégré (prix fixe) ----------
   // Le montant n'est jamais calculé ici : on demande un devis au serveur et on
-  // affiche ce qu'il renvoie. Le champ code reste disponible pour les codes
-  // privés, mais aucun montant n'est calculé côté navigateur.
-  const promoInput = $("#pay-promo");
-  if (promoInput) {
-    let minuteur = null;
-    promoInput.addEventListener("input", () => {
-      clearTimeout(minuteur);
-      minuteur = setTimeout(() => {
-        void refreshQuote();
-      }, 300);
-    });
-    promoInput.addEventListener("blur", () => {
-      void refreshQuote();
-    });
-  }
+  // affiche ce qu'il renvoie. Aucun code promotionnel n'est demandé sur l'écran public.
 
   const setPayStatus = (text) => {
     const status = $("#pay-status");
@@ -2857,10 +2819,10 @@ function bindExpressForm() {
     setPayStatus(uiStrings().payPreparing);
     try {
       // Devis frais : le prix débité est exactement celui qui vient d'être affiché.
-      const quote = await refreshQuote();
+      await refreshQuote();
       const session = await api("/api/public/checkout-session", {
         method: "POST",
-        body: { promoCode: quote?.valid ? String(promoInput?.value ?? "") : "", language: state.language ?? "fr" }
+        body: { promoCode: "", language: state.language ?? "fr" }
       });
       state.paymentSessionId = session.sessionId;
       const Stripe = await loadStripeJs();

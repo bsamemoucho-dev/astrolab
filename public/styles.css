@@ -888,23 +888,8 @@ body.guest #express-view .express-wrap .panel {
 /* Le prix de base est barré : il n'est pas le prix payé, et il ne doit pas être
    confondu avec lui. */
 .fix-price-base { color: var(--faint); font-size: 1rem; text-decoration: line-through; font-variant-numeric: tabular-nums; }
-.fix-price-base[hidden], .pay-promo[hidden], .pay-hint[hidden] { display: none; }
+.fix-price-base[hidden], .pay-hint[hidden] { display: none; }
 .fix-price-total { font-family: var(--serif); font-size: 2rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
-.pay-promo { display: grid; gap: 6px; }
-.pay-promo span { color: var(--ink-soft); font-size: 0.85rem; font-weight: 700; }
-.pay-promo input {
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
-}
-.pay-promo input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
-#pay-promo-status.ok { color: var(--gold); }
-#pay-promo-status.ko { color: #ffb4a8; }
 
 /* ---------- vue Offre & prix ---------- */
 
