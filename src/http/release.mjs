@@ -21,9 +21,7 @@ import { fileURLToPath } from "node:url";
 // empreinte qui ne bouge pas quand le document change ne sert à rien.
 export const RELEASE_FILES = Object.freeze([
   "src",
-  "public/app.js",
-  "public/index.html",
-  "public/styles.css"
+  "public"
 ]);
 
 const EXTENSIONS = /\.(mjs|js|html|css)$/;

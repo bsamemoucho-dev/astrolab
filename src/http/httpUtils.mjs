@@ -97,7 +97,7 @@ function robotsHeader(pathname) {
 
 export async function sendStatic(publicDir, req, res) {
   const url = new URL(req.url, "http://localhost");
-  const requested = url.pathname === "/" ? "/index.html" : url.pathname;
+  const requested = url.pathname.endsWith("/") ? `${url.pathname}index.html` : url.pathname;
   const normalizedPath = normalize(requested).replace(/^(\.\.[/\\])+/, "");
   const filePath = join(publicDir, normalizedPath);
   const publicRelativePath = relative(publicDir, filePath);

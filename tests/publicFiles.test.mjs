@@ -37,7 +37,7 @@ test("robots.txt interdit les chemins privés et annonce le sitemap", async () =
   }
 });
 
-test("le sitemap ne déclare que l'adresse publique", async () => {
+test("le sitemap déclare l'accueil et les guides publics", async () => {
   const app = await startApp();
   try {
     const reponse = await fetch(`${app.baseUrl}/sitemap.xml`);
@@ -45,6 +45,9 @@ test("le sitemap ne déclare que l'adresse publique", async () => {
     assert.match(reponse.headers.get("content-type"), /xml/);
     const texte = await reponse.text();
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/theme-astral\.html<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/lecture-astrologique-personnalisee\.html<\/loc>/);
     // Aucun chemin privé ne doit y figurer.
     assert.doesNotMatch(texte, /\/r\/|\/api\//);
   } finally {
@@ -85,6 +88,28 @@ test("la page publique annonce le service vendu, pas l'outil interne", async () 
     assert.match(page, /<link rel="canonical" href="https:\/\/www\.lastro\.fr\/">/);
     assert.match(page, /<meta property="og:title"/);
     assert.match(page, /<link rel="icon" href="\/favicon\.svg"/);
+    assert.match(page, /href="\/guides\/"/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("les guides SEO sont servis comme pages indexables", async () => {
+  const app = await startApp();
+  try {
+    const index = await fetch(`${app.baseUrl}/guides/`);
+    assert.equal(index.status, 200);
+    assert.equal(index.headers.get("x-robots-tag"), null);
+    const html = await index.text();
+    assert.match(html, /Guides d'astrologie/);
+    assert.match(html, /href="\/guides\/ascendant\.html"/);
+
+    const article = await fetch(`${app.baseUrl}/guides/ascendant.html`);
+    assert.equal(article.status, 200);
+    assert.equal(article.headers.get("x-robots-tag"), null);
+    const articleHtml = await article.text();
+    assert.match(articleHtml, /<link rel="canonical" href="https:\/\/www\.lastro\.fr\/guides\/ascendant\.html">/);
+    assert.match(articleHtml, /Pourquoi l'ascendant compte/);
   } finally {
     await app.close();
   }
