@@ -17,22 +17,22 @@ import {
   quotePrice
 } from "../src/payments/pricing.mjs";
 
-test("le prix normal est fixe : 15 €, sans code public par défaut", () => {
+test("l'acompte immédiat est fixe : 3 €, sans code public par défaut", () => {
   const catalogue = pricingCatalogue({});
   assert.equal(catalogue.version, LASTRO_PRICING_VERSION);
-  assert.equal(catalogue.baseCents, 1500);
+  assert.equal(catalogue.baseCents, 300);
   assert.equal(DEFAULT_PROMO_CODE, "");
   assert.equal(catalogue.promo, null);
 
   const sans = quotePrice({ promoCode: "", env: {} });
   assert.equal(sans.valid, false);
   assert.equal(sans.reason, "empty");
-  assert.equal(sans.totalCents, 1500);
+  assert.equal(sans.totalCents, 300);
 
   const faux = quotePrice({ promoCode: "bessbousse11", env: {} });
   assert.equal(faux.valid, false);
   assert.equal(faux.reason, "unknown");
-  assert.equal(faux.totalCents, 1500, "un code inconnu ne donne aucune remise");
+  assert.equal(faux.totalCents, 300, "un code inconnu ne donne aucune remise");
 });
 
 test("les codes privés se comparent sans casse ni espaces", () => {
@@ -74,7 +74,7 @@ test("l'offre peut être changée par l'environnement, dans des bornes sûres", 
   assert.equal(quotePrice({ promoCode: DEFAULT_PROMO_CODE, env: { ASTROLAB_PROMO_DISCOUNT_CENTS: "0" } }).valid, false);
 
   // Un prix ou une remise illisible retombe sur le tarif par défaut.
-  assert.equal(publicPricing({ ASTROLAB_PRICE_CENTS: "beaucoup" }).baseCents, 1500);
+  assert.equal(publicPricing({ ASTROLAB_PRICE_CENTS: "beaucoup" }).baseCents, 300);
   assert.equal(publicPricing({ ASTROLAB_PROMO_DISCOUNT_CENTS: "environ dix" }).promoDiscountCents, 0);
 });
 
@@ -124,7 +124,7 @@ test("un code privé fixe le prix payé, sans apparaître dans la page", async (
   const unEuro = quotePrice({ promoCode: "KDMjf87Gh", env });
   assert.equal(unEuro.valid, true);
   assert.equal(unEuro.totalCents, 100);
-  assert.equal(unEuro.discountCents, 1400);
+  assert.equal(unEuro.discountCents, 200);
   assert.equal(unEuro.appliedCode, "kdmjf87gh");
   assert.equal(unEuro.appliedIsPublic, false);
   // Il se compare comme les autres : sans casse ni espaces.
@@ -135,24 +135,24 @@ test("un code privé fixe le prix payé, sans apparaître dans la page", async (
   const publique = publicPricing(env);
   assert.equal(publique.promoCode, null);
   assert.equal(publique.promoDiscountCents, 0);
-  assert.equal(publique.totalCents, 1500);
+  assert.equal(publique.totalCents, 300);
   const texte = JSON.stringify(publique);
   assert.doesNotMatch(texte, /kdmjf87gh/i, "le code privé ne doit pas figurer dans la configuration publique");
   assert.doesNotMatch(texte, /100\b/, "ni son montant");
 
   // Sans la variable d'environnement, le code n'existe pas : il est refusé.
   assert.equal(quotePrice({ promoCode: "KDMjf87Gh", env: {} }).reason, "unknown");
-  assert.equal(quotePrice({ promoCode: "KDMjf87Gh", env: {} }).totalCents, 1500);
+  assert.equal(quotePrice({ promoCode: "KDMjf87Gh", env: {} }).totalCents, 300);
 });
 
 test("un code privé peut aussi être une remise, et reste au-dessus du plancher", async () => {
   const { legitimateTotals, quotePrice } = await import("../src/payments/pricing.mjs");
   // Montant négatif = remise.
-  assert.equal(quotePrice({ promoCode: "AMI", env: { ASTROLAB_PROMO_CODES: "AMI=-1000" } }).totalCents, 500);
+  assert.equal(quotePrice({ promoCode: "AMI", env: { ASTROLAB_PROMO_CODES: "AMI=-1000" } }).totalCents, 50);
   // Plusieurs codes à la fois, séparés par des virgules.
   const env = { ASTROLAB_PROMO_CODES: "KDMjf87Gh=100,AMI=-1000,CADEAU=-999999" };
   assert.equal(quotePrice({ promoCode: "KDMjf87Gh", env }).totalCents, 100);
-  assert.equal(quotePrice({ promoCode: "AMI", env }).totalCents, 500);
+  assert.equal(quotePrice({ promoCode: "AMI", env }).totalCents, 50);
   // Un code qui descendrait sous 0,50 € est ramené au minimum que Stripe accepte,
   // sinon le client ne pourrait pas payer du tout.
   assert.equal(quotePrice({ promoCode: "CADEAU", env }).totalCents, 50);
@@ -165,13 +165,13 @@ test("un code privé peut aussi être une remise, et reste au-dessus du plancher
 test("tous les tarifs atteignables sont reconnus comme légitimes", async () => {
   const { checkoutSessionProblem, legitimateTotals } = await import("../src/payments/pricing.mjs");
   const env = { ASTROLAB_PROMO_CODES: "KDMjf87Gh=100" };
-  assert.deepEqual(legitimateTotals(env), [100, 1500]);
+  assert.deepEqual(legitimateTotals(env), [100, 300]);
 
   const session = (montant) => ({ payment_status: "paid", amount_total: montant, currency: "eur", metadata: { purpose: "lastro_lecture" } });
   // Une lecture payée 1 € avec le code doit être reconnue : sinon le client
   // paierait puis se verrait refuser sa lecture.
   assert.equal(checkoutSessionProblem(session(100), env), null);
-  assert.equal(checkoutSessionProblem(session(1500), env), null);
+  assert.equal(checkoutSessionProblem(session(300), env), null);
   assert.equal(checkoutSessionProblem(session(2500), env), "amount_mismatch");
   assert.equal(checkoutSessionProblem(session(200), env), "amount_mismatch");
   // Sans le code configuré, 1 € n'est plus un montant légitime.
@@ -182,7 +182,7 @@ test("le reçu distingue l'offre publique d'un code privé", async () => {
   const { checkoutLineLabel, quotePrice } = await import("../src/payments/pricing.mjs");
   const env = { ASTROLAB_PROMO_CODES: "KDMjf87Gh=100" };
   const prive = checkoutLineLabel({ quote: quotePrice({ promoCode: "KDMjf87Gh", env }), language: "fr" });
-  assert.match(prive, /15,00 € moins 14,00 €/);
+  assert.match(prive, /3,00 € moins 2,00 €/);
   assert.match(prive, /code promotionnel/);
   assert.doesNotMatch(prive, /kdmjf87gh/i, "le reçu ne nomme pas le code privé");
   const public_ = checkoutLineLabel({ quote: quotePrice({ promoCode: "PUBLIC", env: { ASTROLAB_PROMO_CODE: "PUBLIC", ASTROLAB_PROMO_DISCOUNT_CENTS: "100" } }), language: "fr" });

@@ -167,10 +167,12 @@ ce qui est affiché au client et ce qui est débité. Elle vit dans
 
 | Élément | Valeur en 1.0.0 | Comment la changer |
 |---|---|---|
-| Prix de la lecture | **15 €** (`ASTROLAB_PRICE_CENTS=1500`) | variable d'environnement |
+| Acompte débité maintenant | **3 €** (`ASTROLAB_PRICE_CENTS=300`) | variable d'environnement |
+| Prix normal complet | **15 €** | règle commerciale |
+| Solde si satisfait | **12 €** | règle commerciale |
 | Code public | aucun par défaut (`ASTROLAB_PROMO_CODE` vide) | variable d'environnement |
 | Remise publique | aucune par défaut (`ASTROLAB_PROMO_DISCOUNT_CENTS=0`) | variable d'environnement |
-| Prix payé sans code | **15 €** | calculé par le serveur |
+| Prix payé sans code maintenant | **3 €** | calculé par le serveur |
 
 Codes **privés**, facultatifs, définis uniquement par l'environnement
 (`ASTROLAB_PROMO_CODES=CODE=montant`, plusieurs codes séparés par des virgules) :

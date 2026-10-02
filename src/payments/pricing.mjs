@@ -1,4 +1,4 @@
-// Prix de la lecture : une seule formule à prix normal.
+// Prix de la lecture : acompte de 3 EUR, solde de 12 EUR si satisfait.
 //
 // Convention versionnée `lastro-pricing@1.0.0`. Le prix est décidé par le
 // SERVEUR, jamais par le client : le navigateur n'envoie qu'un code promo, et le
@@ -13,8 +13,8 @@ import { MAX_AMOUNT_CENTS, MIN_AMOUNT_CENTS as STRIPE_MINIMUM_CENTS } from "./st
 
 export const LASTRO_PRICING_VERSION = "lastro-pricing@1.0.0";
 
-// 15 € — prix normal, sans remise publique par défaut.
-export const DEFAULT_PRICE_CENTS = 1500;
+// 3 EUR — acompte paye maintenant. Le prix normal reste 15 EUR, avec 12 EUR de solde si satisfait.
+export const DEFAULT_PRICE_CENTS = 300;
 export const DEFAULT_PROMO_CODE = "";
 export const DEFAULT_PROMO_DISCOUNT_CENTS = 0;
 
