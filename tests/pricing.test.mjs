@@ -17,7 +17,7 @@ import {
   quotePrice
 } from "../src/payments/pricing.mjs";
 
-test("l'acompte immédiat est fixe : 3 €, sans code public par défaut", () => {
+test("le prix est fixe : 3 €, sans code public par défaut", () => {
   const catalogue = pricingCatalogue({});
   assert.equal(catalogue.version, LASTRO_PRICING_VERSION);
   assert.equal(catalogue.baseCents, 300);

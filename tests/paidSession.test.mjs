@@ -162,8 +162,8 @@ test("session payée pour un autre produit ou à un autre prix : refus", async (
   });
 });
 
-test("session à l'acompte de 3 euros : acceptée", async () => {
-  // 3 € est l'acompte payé maintenant.
+test("session au prix de 3 euros : acceptée", async () => {
+  // 3 € est le prix payé maintenant.
   await withEnv({ ...STRIPE_KEYS }, () =>
     withSession(SESSION_PAYEE({ amount_total: 300 }), async () => {
       const app = await startApp();

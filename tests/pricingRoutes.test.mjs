@@ -1,8 +1,8 @@
-// Le tunnel de paiement vend un acompte fixe.
+// Le tunnel de paiement vend un prix fixe.
 //
 // Ce que ces tests protègent : le montant envoyé à Stripe est TOUJOURS calculé
 // par le serveur. Un montant glissé dans la requête n'est pas corrigé, il est
-// ignoré — sans quoi n'importe qui paierait 1 € au lieu de l'acompte prévu.
+// ignoré — sans quoi n'importe qui paierait 1 € au lieu du prix prévu.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -84,7 +84,7 @@ const SESSION_OK = () => ({
   payload: { id: "cs_test_1", client_secret: "cs_test_1_secret", amount_total: 300, currency: "eur" }
 });
 
-test("la configuration annonce l'acompte de 3 euros sans code public", async () => {
+test("la configuration annonce le prix de 3 euros sans code public", async () => {
   const app = await startApp();
   try {
     const config = await (await fetch(`${app.baseUrl}/api/config`)).json();
@@ -127,7 +127,7 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
     withFakeStripe(SESSION_OK, async (calls) => {
       const app = await startApp();
       try {
-        // L'acompte s'applique : 3 €, quoi que raconte le client.
+        // Le prix s'applique : 3 €, quoi que raconte le client.
         const session = await post(app.baseUrl, "/api/public/checkout-session", {
           amountCents: 100,
           promoCode: "",
