@@ -1496,12 +1496,17 @@ function renderQuote(quote) {
   const base = $("#pay-price-base");
   const total = $("#pay-price-total");
   const statut = $("#pay-promo-status");
-  if (base) base.textContent = formatEuros(quote.baseCents);
+  const hasDiscount = Number(quote.discountCents) > 0 && Number(quote.totalCents) < Number(quote.baseCents);
+  if (base) {
+    base.textContent = formatEuros(quote.baseCents);
+    base.hidden = !hasDiscount;
+  }
   if (total) total.textContent = formatEuros(quote.totalCents);
   if (statut) {
     const classe = promoMessageState(quote);
     statut.classList.toggle("ok", classe === "ok");
     statut.classList.toggle("ko", classe === "ko");
+    statut.hidden = quote?.reason === "empty" && !hasDiscount;
     statut.textContent = fillTemplate(t[promoMessageKey(quote)], {
       discount: formatEuros(quote.discountCents),
       total: formatEuros(quote.totalCents)
@@ -1548,6 +1553,11 @@ function applyPricing() {
   const pricing = state.config?.payments?.pricing ?? null;
   const t = uiStrings();
   const champ = $("#pay-promo");
+  const promoWrap = $("#pay-promo-wrap");
+  const hasPublicPromo = Boolean(pricing?.promoCode);
+  if (promoWrap) {
+    promoWrap.hidden = !hasPublicPromo;
+  }
   if (champ && !champ.value && pricing?.promoCode) {
     champ.value = pricing.promoCode;
   }
@@ -1556,8 +1566,10 @@ function applyPricing() {
   }
   const base = $("#pay-price-base");
   const note = $("#pay-price-note");
+  const hasDiscount = Number(pricing.promoDiscountCents) > 0 && Number(pricing.totalCents) < Number(pricing.baseCents);
   if (base) {
     base.textContent = formatEuros(pricing.baseCents);
+    base.hidden = !hasDiscount;
   }
   if (note) {
     note.textContent = pricing.promoCode ? fillTemplate(t.payOfferNote, { code: pricing.promoCode }) : "";

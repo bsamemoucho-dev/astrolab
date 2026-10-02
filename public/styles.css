@@ -888,6 +888,7 @@ body.guest #express-view .express-wrap .panel {
 /* Le prix de base est barré : il n'est pas le prix payé, et il ne doit pas être
    confondu avec lui. */
 .fix-price-base { color: var(--faint); font-size: 1rem; text-decoration: line-through; font-variant-numeric: tabular-nums; }
+.fix-price-base[hidden], .pay-promo[hidden], .pay-hint[hidden] { display: none; }
 .fix-price-total { font-family: var(--serif); font-size: 2rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
 .pay-promo { display: grid; gap: 6px; }
 .pay-promo span { color: var(--ink-soft); font-size: 0.85rem; font-weight: 700; }
