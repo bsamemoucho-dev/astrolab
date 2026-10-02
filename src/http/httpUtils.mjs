@@ -49,7 +49,9 @@ export function securityHeaders() {
   return {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
-    "referrer-policy": "same-origin",
+    // Les tuiles OpenStreetMap refusent les requêtes sans Referer identifiable.
+    // Cette politique envoie seulement l'origine en cross-site, jamais le chemin.
+    "referrer-policy": "strict-origin-when-cross-origin",
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
     "cross-origin-opener-policy": "same-origin"
   };

@@ -662,7 +662,7 @@ test("http layer applies security headers and request body guardrails", async ()
     assert.equal(page.status, 200);
     assert.equal(page.headers.get("x-content-type-options"), "nosniff");
     assert.equal(page.headers.get("x-frame-options"), "DENY");
-    assert.equal(page.headers.get("referrer-policy"), "same-origin");
+    assert.equal(page.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
     assert.match(page.headers.get("permissions-policy"), /camera=\(\)/);
 
     const badContentType = await rawRequest(app.baseUrl, "/api/auth/register", {
