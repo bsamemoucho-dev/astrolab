@@ -48,6 +48,10 @@ test("le sitemap déclare l'accueil et les guides publics", async () => {
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/<\/loc>/);
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/theme-astral\.html<\/loc>/);
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/lecture-astrologique-personnalisee\.html<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/signes\/<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/compatibilite-signes-amoureux\.html<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/signes\/belier\.html<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/signes\/poissons\.html<\/loc>/);
     // Aucun chemin privé ne doit y figurer.
     assert.doesNotMatch(texte, /\/r\/|\/api\//);
   } finally {
@@ -103,6 +107,8 @@ test("les guides SEO sont servis comme pages indexables", async () => {
     const html = await index.text();
     assert.match(html, /Guides d'astrologie/);
     assert.match(html, /href="\/guides\/ascendant\.html"/);
+    assert.match(html, /href="\/guides\/signes\/"/);
+    assert.match(html, /href="\/guides\/compatibilite-signes-amoureux\.html"/);
 
     const article = await fetch(`${app.baseUrl}/guides/ascendant.html`);
     assert.equal(article.status, 200);
@@ -110,6 +116,24 @@ test("les guides SEO sont servis comme pages indexables", async () => {
     const articleHtml = await article.text();
     assert.match(articleHtml, /<link rel="canonical" href="https:\/\/www\.lastro\.fr\/guides\/ascendant\.html">/);
     assert.match(articleHtml, /Pourquoi l'ascendant compte/);
+
+    const signes = await fetch(`${app.baseUrl}/guides/signes/`);
+    assert.equal(signes.status, 200);
+    const signesHtml = await signes.text();
+    assert.match(signesHtml, /Les 12 signes astrologiques/);
+    assert.match(signesHtml, /href="\/guides\/signes\/belier\.html"/);
+
+    const belier = await fetch(`${app.baseUrl}/guides/signes/belier.html`);
+    assert.equal(belier.status, 200);
+    assert.equal(belier.headers.get("x-robots-tag"), null);
+    const belierHtml = await belier.text();
+    assert.match(belierHtml, /Signe Bélier/);
+    assert.match(belierHtml, /Compatibilités fréquentes/);
+
+    const compatibilite = await fetch(`${app.baseUrl}/guides/compatibilite-signes-amoureux.html`);
+    assert.equal(compatibilite.status, 200);
+    const compatibiliteHtml = await compatibilite.text();
+    assert.match(compatibiliteHtml, /Quels signes sont compatibles en amour/);
   } finally {
     await app.close();
   }
