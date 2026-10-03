@@ -25,7 +25,7 @@ export function llmConfiguration() {
   };
 }
 
-export async function callChatCompletions(config, { system, user, temperature = 0.7 }) {
+export async function callChatCompletions(config, { system, user, temperature = 0.7, responseFormat = null, maxTokens = null }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
   try {
@@ -38,6 +38,8 @@ export async function callChatCompletions(config, { system, user, temperature = 
       body: JSON.stringify({
         model: config.model,
         temperature,
+        ...(responseFormat ? { response_format: responseFormat } : {}),
+        ...(maxTokens ? { max_tokens: maxTokens } : {}),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user }

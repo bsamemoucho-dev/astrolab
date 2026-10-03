@@ -19,8 +19,9 @@ import { getAdminSummary, listAdminAuditLogs } from "../models/adminService.mjs"
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { getPersonalCurrentSky } from "../models/currentSkyService.mjs";
+import { createFullPublicReading } from "../models/fullDossierService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
-import { assertPublicReadingInput, createPublicReading } from "../models/publicReadingService.mjs";
+import { assertPublicReadingInput, createPublicReading as createLegacyPublicReading } from "../models/publicReadingService.mjs";
 import {
   createPaidDelivery,
   deleteDeliveryByToken,
@@ -171,6 +172,16 @@ function developmentCreditsAllowed() {
     return true;
   }
   return process.env.ASTROLAB_ALLOW_DEV_CREDITS === "1";
+}
+
+function publicReadingWriter() {
+  if (process.env.NODE_ENV !== "production" && process.env.ASTROLAB_FORCE_FULL_DOSSIER !== "1") {
+    return createLegacyPublicReading;
+  }
+  if (!llmConfiguration()) {
+    return createLegacyPublicReading;
+  }
+  return createFullPublicReading;
 }
 
 // Destinataires autorisés pour le test d'envoi.
@@ -635,7 +646,7 @@ export function createApp(options = {}) {
           error.status = 503;
           throw error;
         }
-        const reading = await createPublicReading(readingInput);
+        const reading = await publicReadingWriter()(readingInput);
         await markDeliveryReady(store, delivery.id, reading);
         // Le quota ne compte que les lectures RÉELLEMENT accordées : une demande
         // incomplète ou une rédaction en échec ne consomme rien.
@@ -780,7 +791,7 @@ export function createApp(options = {}) {
       if (delivery.status !== "ready") {
         await markDeliveryGenerating(store, delivery.id);
         try {
-          const reading = await createPublicReading(delivery.input ?? {});
+          const reading = await publicReadingWriter()(delivery.input ?? {});
           await markDeliveryReady(store, delivery.id, reading);
         } catch (error) {
           await markDeliveryFailed(store, delivery.id, error.message);
