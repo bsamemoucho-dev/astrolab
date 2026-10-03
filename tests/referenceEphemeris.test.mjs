@@ -80,7 +80,7 @@ test("local civil time conversion feeds UTC and astronomical position pipeline c
     timeZone: "Europe/Paris"
   });
   assert.equal(converted.utcInstant.toISOString(), "1986-01-02T00:00:00.000Z");
-  assert.equal(converted.timezoneOffsetMinutes, 60);
+  assert.equal(converted.timezoneOffsetSeconds, 3600);
 
   const sun = calculateBodyPositions(["Sun"], julianDay(converted.utcInstant))[0];
   assert.ok(circularDifference(sun.longitude, 281.285218) <= 0.01);

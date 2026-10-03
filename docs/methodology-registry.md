@@ -48,7 +48,7 @@ Initial product scope:
 |---|---|---|---|---|---:|---|---|---|
 | `western-natal` | Western astrology | Hellenistic | Natal chart analysis | `natal` | 1 | `DOCUMENTATION_IN_PROGRESS` | No | [Western Natal](methods/western-natal.md) |
 | `western-synastry` | Western astrology | To validate | Synastry | `relational` | Later | `RESEARCH_BACKLOG` | No | Not created |
-| `western-transits` | Western astrology | To validate | Transits | `temporal` | Later | `RESEARCH_BACKLOG` | No | Not created |
+| `western-transits` | Western astrology | To validate | Transits | `temporal` | Later | `DOCUMENTATION_IN_PROGRESS` | No | [Western Transits](methods/western-transits.md) |
 | `jyotisha-natal` | Jyotisha | To validate | Natal analysis | `natal` | Later | `RESEARCH_BACKLOG` | No | Not created |
 | `jyotisha-dashas` | Jyotisha | To validate | Dashas | `temporal` | Later | `RESEARCH_BACKLOG` | No | Not created |
 | `chinese-bazi` | Chinese calendrical/destiny systems | To validate | BaZi / Four Pillars | `natal` | Later | `RESEARCH_BACKLOG` | No | Not created |

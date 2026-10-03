@@ -486,10 +486,115 @@ test("western natal endpoint calculates and persists reproducible development ar
     assert.equal(calculated.payload.result.structuralAstrology.houses.length, 12);
     assert.deepEqual(calculated.payload.result.normalizedInput.resolvedPlace, resolved.payload.place);
 
+    const currentSky = await request(app.baseUrl, "/api/personal/current-sky?nowUtc=2026-10-03T12:00:00.000Z&horizonDays=42", {
+      cookie
+    });
+    assert.equal(currentSky.status, 200);
+    assert.equal(currentSky.payload.schema, "astrolab.personal_current_sky");
+    assert.equal(currentSky.payload.window.horizonDays, 42);
+    assert.equal(currentSky.payload.versions.houseSystem, undefined);
+    const allCurrentSkyResults = [
+      ...currentSky.payload.current,
+      ...currentSky.payload.upcoming,
+      ...currentSky.payload.recent
+    ];
+    assert.ok(allCurrentSkyResults.length > 0);
+    const firstTransit = allCurrentSkyResults[0];
+    assert.match(firstTransit.resultId, /^current_sky\./);
+    assert.match(firstTransit.status, /^(CURRENT|UPCOMING|RECENT)$/);
+    assert.match(firstTransit.relevance, /^(VERY_PERSONAL|WATCH|GENERAL_CONTEXT)$/);
+    assert.equal(typeof firstTransit.timing.startsAt, "string");
+    assert.equal(typeof firstTransit.timing.exactAt, "string");
+    assert.equal(typeof firstTransit.timing.endsAt, "string");
+    assert.match(firstTransit.timing.phase, /^(APPLYING|SEPARATING|STATIONARY|INDETERMINATE)$/);
+    assert.match(firstTransit.contact.reliability, /^(HIGH|MEDIUM|LOW|INSUFFICIENT|UNKNOWN)$/);
+    assert.equal(firstTransit.whyPlaceholder, undefined);
+    assert.equal(firstTransit.celestialEvent, null);
+    assert.equal(firstTransit.contact.natalPointLabelFr, undefined);
+    if (firstTransit.contact.natalHouse) {
+      assert.equal(firstTransit.contact.houseSystem, "WHOLE_SIGN");
+      assert.equal(firstTransit.evidence.houseSystem, "WHOLE_SIGN");
+    }
+    const standaloneJupiterTransit = allCurrentSkyResults.find(
+      (result) =>
+        result.contact.transitBody === "Jupiter" &&
+        result.relatedCelestialEventIds.length === 0 &&
+        result.personalTransit &&
+        result.celestialEvent === null
+    );
+    assert.ok(standaloneJupiterTransit);
+    const lunationLinked = allCurrentSkyResults.filter((result) =>
+      result.relatedCelestialEvents.some((event) => event.eventType === "new_moon" || event.eventType === "full_moon")
+    );
+    assert.ok(lunationLinked.length > 0);
+    const uniqueContactIds = new Set(lunationLinked.map((result) => result.evidence.transitContactId));
+    assert.equal(uniqueContactIds.size, lunationLinked.length);
+    const currentSkyAgain = await request(app.baseUrl, "/api/personal/current-sky?nowUtc=2026-10-03T12:00:00.000Z&horizonDays=42", {
+      cookie
+    });
+    assert.equal(currentSkyAgain.status, 200);
+    assert.deepEqual(
+      {
+        current: currentSky.payload.current,
+        upcoming: currentSky.payload.upcoming,
+        recent: currentSky.payload.recent
+      },
+      {
+        current: currentSkyAgain.payload.current,
+        upcoming: currentSkyAgain.payload.upcoming,
+        recent: currentSkyAgain.payload.recent
+      }
+    );
+
     const exported = await request(app.baseUrl, "/api/me/export", { cookie });
     assert.equal(exported.payload.calculationRuns.length, 1);
     assert.equal(exported.payload.calculationArtifacts.length, 2);
     assert.ok(exported.payload.auditLogs.some((entry) => entry.action === "calculation.western_natal.created"));
+  } finally {
+    await app.close();
+  }
+});
+
+test("current sky with unknown birth time can use stable natal planets without houses or angles", async () => {
+  const app = await startTestApp();
+  try {
+    const cookie = await registerVerifyLogin(app.baseUrl, "current-sky-unknown@example.test");
+    const resolved = await request(app.baseUrl, "/api/places/resolve", {
+      method: "POST",
+      cookie,
+      body: { query: "Paris, France", birthDate: "1990-01-15" }
+    });
+    const saved = await request(app.baseUrl, "/api/me/profile", {
+      method: "PUT",
+      cookie,
+      body: {
+        firstName: "Unknown",
+        birthDate: "1990-01-15",
+        birthPlace: "Paris, France",
+        timePrecision: "unknown",
+        resolvedPlace: resolved.payload.place
+      }
+    });
+    await request(app.baseUrl, "/api/western-natal/calculate", {
+      method: "POST",
+      cookie,
+      body: { personId: saved.payload.person.id }
+    });
+    const currentSky = await request(app.baseUrl, "/api/personal/current-sky?nowUtc=2026-10-03T12:00:00.000Z&horizonDays=42", {
+      cookie
+    });
+    assert.equal(currentSky.status, 200);
+    const results = [...currentSky.payload.current, ...currentSky.payload.upcoming, ...currentSky.payload.recent];
+    assert.ok(results.length > 0);
+    assert.equal(currentSky.payload.versions.houseSystem, undefined);
+    assert.ok(results.some((result) => result.contact.longitudeUncertaintyDegrees !== null));
+    for (const result of results) {
+      assert.equal(result.contact.natalHouse, null);
+      assert.equal(result.contact.houseSystem, null);
+      assert.equal(result.evidence.houseSystem, undefined);
+      assert.equal(result.versions.houseSystem, undefined);
+      assert.doesNotMatch(result.contact.natalPoint, /^(ASC|DSC|MC|IC)$/);
+    }
   } finally {
     await app.close();
   }

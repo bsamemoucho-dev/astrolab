@@ -14,9 +14,11 @@ import {
 import { llmConfiguration } from "../deliverables/writers.mjs";
 import { JsonStore } from "../db/jsonStore.mjs";
 import { resolvePlaceForEntry, searchPlacesForEntryDetailed } from "../geo/placeResolver.mjs";
+import { renderCielEventPageBySlug, renderCielHomePage, renderCielOctober2026Page } from "../models/cielService.mjs";
 import { getAdminSummary, listAdminAuditLogs } from "../models/adminService.mjs";
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
+import { getPersonalCurrentSky } from "../models/currentSkyService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
 import { assertPublicReadingInput, createPublicReading } from "../models/publicReadingService.mjs";
 import {
@@ -83,7 +85,7 @@ import {
   upsertPrimaryProfile
 } from "../models/dossierService.mjs";
 import { listMethodRegistry } from "../methodology/registry.mjs";
-import { clearSessionCookie, parseCookies, readJson, sendJson, sendStatic, setSessionCookie } from "./httpUtils.mjs";
+import { clearSessionCookie, parseCookies, readJson, securityHeaders, sendJson, sendStatic, setSessionCookie } from "./httpUtils.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DEFAULT_PUBLIC_DIR = join(__dirname, "../../public");
@@ -212,6 +214,7 @@ export function createApp(options = {}) {
   // Rendu PDF automatique : `null` quand le drapeau n'est pas posé, et l'option
   // permet d'en injecter un autre dans les tests.
   const pdfRenderer = "pdfRenderer" in options ? options.pdfRenderer : defaultPdfRenderer();
+  const cielNowUtc = options.cielNowUtc ?? null;
 
   // Compteurs des points d'entrée non authentifiés, créés par application et non
   // au niveau du module : deux applications (les tests en montent plusieurs) ne
@@ -306,6 +309,37 @@ export function createApp(options = {}) {
         production: process.env.NODE_ENV === "production",
         time: new Date().toISOString()
       });
+    }),
+    route("GET", /^\/ciel\/?$/, async (_req, res) => {
+      res.writeHead(200, {
+        ...securityHeaders(),
+        "content-type": "text/html; charset=utf-8"
+      });
+      res.end(renderCielHomePage({ nowUtc: cielNowUtc }));
+    }),
+    route("GET", /^\/ciel\/octobre-2026\/?$/, async (_req, res) => {
+      res.writeHead(200, {
+        ...securityHeaders(),
+        "content-type": "text/html; charset=utf-8"
+      });
+      res.end(renderCielOctober2026Page());
+    }),
+    route("GET", /^\/ciel\/evenements\/(?<slug>[^/]+)\/?$/, async (_req, res, params) => {
+      const html = renderCielEventPageBySlug(params.slug);
+      if (!html) {
+        res.writeHead(404, {
+          ...securityHeaders(),
+          "x-robots-tag": "noindex, nofollow",
+          "content-type": "text/html; charset=utf-8"
+        });
+        res.end("<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\"><title>Page introuvable | Lastro</title></head><body><h1>Page introuvable</h1></body></html>");
+        return;
+      }
+      res.writeHead(200, {
+        ...securityHeaders(),
+        "content-type": "text/html; charset=utf-8"
+      });
+      res.end(html);
     }),
     // Parcours public « sans compte » : résolution de lieu et lecture, aucune
     // inscription, aucune donnée personnelle persistée.
@@ -989,6 +1023,18 @@ export function createApp(options = {}) {
     route("POST", /^\/api\/western-natal\/calculate$/, async (req, res) => {
       const user = await requireUser(store, req);
       sendJson(res, 201, await calculateWesternNatalForUser(store, user.id, await readJson(req)));
+    }),
+    route("GET", /^\/api\/personal\/current-sky$/, async (req, res, _params, url) => {
+      const user = await requireUser(store, req);
+      sendJson(
+        res,
+        200,
+        await getPersonalCurrentSky(store, user.id, {
+          personId: url.searchParams.get("personId") ?? null,
+          horizonDays: url.searchParams.get("horizonDays") ?? null,
+          nowUtc: url.searchParams.get("nowUtc") ?? null
+        })
+      );
     }),
     route("GET", /^\/api\/analyses\/(?<id>[^/]+)$/, async (req, res, params) => {
       const user = await requireUser(store, req);

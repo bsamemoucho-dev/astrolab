@@ -77,10 +77,36 @@ test("western natal result includes seven traditional bodies, signs, angles and 
 
   assert.ok(SIGN_NAMES.includes(angles.ascendant.sign));
   assert.ok(circularDifference((angles.ascendant.longitude + 180) % 360, angles.descendant.longitude) < 0.001);
+  assert.equal(result.parameters.houseSystem, "WHOLE_SIGN");
+  assert.equal(result.structuralAstrology.houseSystem, "WHOLE_SIGN");
   assert.equal(houses.length, 12);
   assert.equal(houses[0].sign, angles.ascendant.sign);
+  assert.equal(houses[0].houseSystem, "WHOLE_SIGN");
   assert.equal(houses[0].system, "whole_sign");
   assert.equal(houses[0].ruleVersionId, null);
+});
+
+test("les résultats avec maisons exposent toujours houseSystem = WHOLE_SIGN", () => {
+  const exact = calculateWesternNatalChart(parisInput, { calculatedAt: "2026-09-01T00:00:00.000Z" });
+  assert.equal(exact.result.parameters.houseSystem, "WHOLE_SIGN");
+  assert.equal(exact.result.structuralAstrology.houseSystem, "WHOLE_SIGN");
+  assert.ok(exact.result.structuralAstrology.houses.every((house) => house.houseSystem === "WHOLE_SIGN"));
+
+  const approximate = calculateWesternNatalChart({
+    ...parisInput,
+    timePrecision: "approximate",
+    timeValue: "12:30",
+    timeMarginMinutes: 15
+  });
+  assert.equal(approximate.result.parameters.houseSystem, "WHOLE_SIGN");
+  assert.equal(approximate.result.structuralAstrology.houseSystem, "WHOLE_SIGN");
+  assert.ok(approximate.result.structuralAstrology.houses.every((house) => house.houseSystem === "WHOLE_SIGN"));
+
+  const unknown = calculateWesternNatalChart({ ...parisInput, timePrecision: "unknown", timeValue: "" });
+  assert.equal(unknown.result.parameters.houseSystem, "WHOLE_SIGN");
+  assert.equal(unknown.result.structuralAstrology.houseSystem, "WHOLE_SIGN");
+  assert.equal(unknown.result.structuralAstrology.houses.houseSystem, "WHOLE_SIGN");
+  assert.equal(unknown.result.structuralAstrology.houses.status, "not_calculated_time_unknown");
 });
 
 test("les aspects sont actifs sous convention versionnee, les conditions restent inactives", () => {

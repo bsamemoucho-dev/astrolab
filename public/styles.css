@@ -257,6 +257,46 @@ h3 { color: var(--ink); font-size: 1.04rem; font-weight: 750; }
 .view.active { display: block; }
 @keyframes view-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+.current-sky-list,
+.current-sky-timeline {
+  display: grid;
+  gap: 14px;
+}
+.current-sky-timeline {
+  position: relative;
+}
+.current-sky-card {
+  gap: 12px;
+}
+.current-sky-mainline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  color: var(--ink-soft);
+}
+.current-sky-mainline strong {
+  color: var(--gold);
+}
+.current-sky-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+}
+.current-sky-details span {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.82rem;
+}
+.why-button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
 /* ---------- héro (auth non connecté) ---------- */
 .intro-panel {
   display: grid;

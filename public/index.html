@@ -46,6 +46,7 @@
           <button data-view="relations" class="nav-button" disabled>Relations</button>
           <p class="nav-section">Analyses</p>
           <button data-view="natal" class="nav-button" disabled>Thème natal</button>
+          <button data-view="current-sky" class="nav-button" disabled>Votre ciel</button>
           <button data-view="analyses" class="nav-button" disabled>Analyses</button>
           <button data-view="history" class="nav-button" disabled>Historique</button>
           <button data-view="methods" class="nav-button">Méthodes</button>
@@ -325,6 +326,30 @@
                 <pre id="natal-json" class="json-output">{}</pre>
               </details>
             </div>
+          </div>
+        </section>
+
+        <section id="current-sky-view" class="view">
+          <div class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Transits personnels</p>
+                <h3>Votre ciel actuellement</h3>
+              </div>
+              <button id="refresh-current-sky" class="secondary" type="button">Actualiser</button>
+            </div>
+            <p class="hint">Première version : événements en cours et prochaines semaines, sans narration IA ni alertes.</p>
+            <div id="current-sky-current" class="current-sky-list"></div>
+          </div>
+          <div class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">42 prochains jours</p>
+                <h3>Mes prochaines semaines</h3>
+              </div>
+            </div>
+            <div id="current-sky-upcoming" class="current-sky-timeline"></div>
+            <div id="current-sky-recent" class="current-sky-list"></div>
           </div>
         </section>
 

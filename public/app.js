@@ -795,6 +795,7 @@ const titles = {
   people: "Personnes",
   relations: "Relations",
   natal: "Thème natal",
+  "current-sky": "Votre ciel",
   analyses: "Analyses",
   history: "Historique",
   methods: "Méthodes",
@@ -2150,6 +2151,168 @@ function renderNatalResult(payload) {
   $("#natal-json").textContent = JSON.stringify(payload, null, 2);
 }
 
+const CURRENT_SKY_LABELS = {
+  relevance: {
+    VERY_PERSONAL: "Très personnel",
+    WATCH: "À observer",
+    GENERAL_CONTEXT: "Contexte général"
+  },
+  status: {
+    CURRENT: "En cours",
+    UPCOMING: "À venir",
+    RECENT: "Récent"
+  },
+  reliability: {
+    HIGH: "élevée",
+    MEDIUM: "moyenne",
+    LOW: "basse",
+    INSUFFICIENT: "insuffisante",
+    UNKNOWN: "inconnue"
+  },
+  aspect: {
+    conjunction: "conjoint",
+    opposition: "opposé",
+    square: "carré",
+    trine: "trigone",
+    sextile: "sextile"
+  },
+  body: {
+    Sun: "Soleil",
+    Moon: "Lune",
+    Mercury: "Mercure",
+    Venus: "Vénus",
+    Mars: "Mars",
+    Jupiter: "Jupiter",
+    Saturn: "Saturne",
+    Uranus: "Uranus",
+    Neptune: "Neptune",
+    Pluto: "Pluton"
+  },
+  natalPoint: {
+    Sun: "Soleil",
+    Moon: "Lune",
+    Mercury: "Mercure",
+    Venus: "Vénus",
+    Mars: "Mars",
+    Jupiter: "Jupiter",
+    Saturn: "Saturne",
+    ASC: "Ascendant",
+    DSC: "Descendant",
+    MC: "Milieu du Ciel",
+    IC: "Fond du Ciel"
+  },
+  eventType: {
+    new_moon: "Nouvelle Lune",
+    full_moon: "Pleine Lune",
+    solar_eclipse: "Éclipse solaire",
+    lunar_eclipse: "Éclipse lunaire",
+    retrograde_station: "Station rétrograde",
+    direct_station: "Station directe",
+    sign_ingress: "Changement de signe",
+    planetary_aspect: "Aspect planétaire"
+  },
+  phase: {
+    APPLYING: "appliquant",
+    SEPARATING: "séparant",
+    STATIONARY: "stationnaire",
+    INDETERMINATE: "indéterminé"
+  }
+};
+
+function formatShortDate(value) {
+  if (!value) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(new Date(value));
+}
+
+function formatLongDate(value) {
+  if (!value) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value));
+}
+
+function currentSkyTitle(result) {
+  const transitBody = result.contact?.transitBody ?? result.personalTransit?.transitBody ?? "Transit";
+  const transit = CURRENT_SKY_LABELS.body[transitBody] ?? transitBody;
+  const aspect = CURRENT_SKY_LABELS.aspect[result.contact?.aspectType] ?? result.contact?.aspectType ?? "contact";
+  const pointCode = result.contact?.natalPoint ?? "point natal";
+  const point = CURRENT_SKY_LABELS.natalPoint[pointCode] ?? pointCode;
+  return `${transit} ${aspect} votre ${point}`;
+}
+
+function currentSkyEventLabel(result) {
+  const related = result.relatedCelestialEvents?.[0] ?? result.celestialEvent;
+  const eventType = related?.eventType;
+  return CURRENT_SKY_LABELS.eventType[eventType] ?? related?.title ?? "Transit personnel";
+}
+
+function currentSkyPeriod(result) {
+  const start = formatShortDate(result.timing?.startsAt);
+  const end = formatShortDate(result.timing?.endsAt);
+  if (start === end) {
+    return start;
+  }
+  return `Du ${start} au ${end}`;
+}
+
+function renderCurrentSkyCard(result) {
+  const house = result.contact?.natalHouse ? `Maison ${result.contact.natalHouse}${result.contact.houseSystem ? " — Whole Sign" : ""}` : "Maison non utilisée";
+  const reliability = CURRENT_SKY_LABELS.reliability[result.contact?.reliability] ?? "inconnue";
+  const phase = CURRENT_SKY_LABELS.phase[result.timing?.phase] ?? result.timing?.phase ?? "—";
+  const orb = Number.isFinite(Number(result.contact?.orb)) ? `${Number(result.contact.orb).toFixed(2)}°` : "—";
+  return `
+    <article class="item current-sky-card">
+      <div class="item-title">
+        <span>${escapeHtml(currentSkyTitle(result))}</span>
+        <span class="badge">${escapeHtml(CURRENT_SKY_LABELS.status[result.status] ?? result.status)}</span>
+      </div>
+      <div class="current-sky-mainline">
+        <span>${escapeHtml(formatLongDate(result.timing?.exactAt))}</span>
+        <strong>${escapeHtml(CURRENT_SKY_LABELS.relevance[result.relevance] ?? result.relevance)}</strong>
+      </div>
+      <div class="meta">${escapeHtml(currentSkyPeriod(result))} · ${escapeHtml(currentSkyEventLabel(result))}</div>
+      <details class="tech-fold">
+        <summary>Détails du contact</summary>
+        <div class="current-sky-details">
+          <span>Orbe actuel : ${escapeHtml(orb)}</span>
+          <span>${escapeHtml(phase)}</span>
+          <span>${escapeHtml(house)}</span>
+          <span>Fiabilité ${escapeHtml(reliability)}</span>
+        </div>
+      </details>
+      <button class="secondary why-button" type="button" disabled>Pourquoi je lis ça ?</button>
+    </article>
+  `;
+}
+
+function renderCurrentSky(payload) {
+  const current = payload.current ?? [];
+  const upcoming = payload.upcoming ?? [];
+  const recent = payload.recent ?? [];
+  $("#current-sky-current").innerHTML = current.length
+    ? current.map(renderCurrentSkyCard).join("")
+    : '<article class="item"><div class="item-title"><span>Aucun contact en cours</span></div><p class="hint">Votre frise peut quand même contenir des événements à venir.</p></article>';
+  $("#current-sky-upcoming").innerHTML = upcoming.length
+    ? upcoming.map(renderCurrentSkyCard).join("")
+    : '<article class="item"><div class="item-title"><span>Aucun contact à venir dans les 42 jours</span></div></article>';
+  $("#current-sky-recent").innerHTML = recent.length
+    ? `<h3>Vient de se terminer</h3>${recent.map(renderCurrentSkyCard).join("")}`
+    : "";
+}
+
+async function refreshCurrentSky() {
+  try {
+    const payload = await api("/api/personal/current-sky");
+    renderCurrentSky(payload);
+  } catch (error) {
+    $("#current-sky-current").innerHTML = `<article class="item"><div class="item-title"><span>Thème natal requis</span></div><p class="hint">${escapeHtml(error.message)}</p></article>`;
+    $("#current-sky-upcoming").innerHTML = "";
+    $("#current-sky-recent").innerHTML = "";
+  }
+}
+
 function renderDossier() {
   fillProfileForm();
   renderPeople();
@@ -3391,6 +3554,8 @@ function bindForms() {
     }
   });
 
+  $("#refresh-current-sky").addEventListener("click", refreshCurrentSky);
+
   $("#person-resolve-place").addEventListener("click", async () => {
     await resolvePlaceForForm($("#person-form"), "person-place-details");
   });
@@ -3528,6 +3693,9 @@ function bindForms() {
       }
       if (button.dataset.view === "natal") {
         fillNatalForm();
+      }
+      if (button.dataset.view === "current-sky") {
+        await refreshCurrentSky();
       }
       if (button.dataset.view === "methods") {
         await renderMethods();

@@ -12,8 +12,8 @@ import test from "node:test";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
 
-async function startApp() {
-  const { server } = createApp({ store: new JsonStore(null) });
+async function startApp(options = {}) {
+  const { server } = createApp({ store: new JsonStore(null), ...options });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   return {
     baseUrl: `http://127.0.0.1:${server.address().port}`,
@@ -45,6 +45,8 @@ test("le sitemap déclare l'accueil et les guides publics", async () => {
     assert.match(reponse.headers.get("content-type"), /xml/);
     const texte = await reponse.text();
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/ciel\/<\/loc>/);
+    assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/ciel\/octobre-2026\/<\/loc>/);
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/<\/loc>/);
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/theme-astral\.html<\/loc>/);
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/lecture-astrologique-personnalisee\.html<\/loc>/);
@@ -54,6 +56,53 @@ test("le sitemap déclare l'accueil et les guides publics", async () => {
     assert.match(texte, /<loc>https:\/\/www\.lastro\.fr\/guides\/signes\/poissons\.html<\/loc>/);
     // Aucun chemin privé ne doit y figurer.
     assert.doesNotMatch(texte, /\/r\/|\/api\//);
+  } finally {
+    await app.close();
+  }
+});
+
+test("les pages /ciel/ sont indexables et gardent les faits séparés des pages éditoriales", async () => {
+  const app = await startApp({ cielNowUtc: "2026-10-03T12:00:00Z" });
+  try {
+    const index = await fetch(`${app.baseUrl}/ciel/`);
+    assert.equal(index.status, 200);
+    assert.equal(index.headers.get("x-robots-tag"), null);
+    const html = await index.text();
+    assert.match(html, /<link rel="canonical" href="https:\/\/www\.lastro\.fr\/ciel\/">/);
+    assert.match(html, /<meta property="og:title" content="Ciel du moment \| Lastro">/);
+    assert.match(html, /aria-label="Fil d'Ariane"/);
+    assert.match(html, /Aujourd'hui/);
+    assert.match(html, /Cette semaine/);
+    assert.match(html, /Ce mois-ci/);
+    assert.match(html, /Prochaines lunaisons/);
+    assert.match(html, /Rétrogradations/);
+    assert.match(html, /Changements de signe importants/);
+    assert.match(html, /Grands aspects à venir/);
+    assert.match(html, /href="\/ciel\/octobre-2026\/"/);
+
+    const mois = await fetch(`${app.baseUrl}/ciel/octobre-2026/`);
+    assert.equal(mois.status, 200);
+    assert.equal(mois.headers.get("x-robots-tag"), null);
+    const moisHtml = await mois.text();
+    assert.match(moisHtml, /<link rel="canonical" href="https:\/\/www\.lastro\.fr\/ciel\/octobre-2026\/">/);
+    assert.match(moisHtml, /Octobre 2026/);
+    assert.match(moisHtml, /16 faits célestes/);
+    assert.match(moisHtml, /Fait céleste/);
+    assert.match(moisHtml, /Nouvelle Lune/);
+    assert.match(moisHtml, /Pleine Lune/);
+    assert.match(moisHtml, /un événement céleste n'est pas une page éditoriale/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("une page événement céleste non publiée reste un vrai 404 noindex", async () => {
+  const app = await startApp({ cielNowUtc: "2026-10-03T12:00:00Z" });
+  try {
+    const page = await fetch(`${app.baseUrl}/ciel/evenements/aspect-non-publie/`);
+    assert.equal(page.status, 404);
+    assert.equal(page.headers.get("x-robots-tag"), "noindex, nofollow");
+    assert.match(await page.text(), /Page introuvable/);
   } finally {
     await app.close();
   }
@@ -74,6 +123,22 @@ test("le lien de récupération d'une lecture n'est jamais indexable", async () 
     // La page publique, elle, reste indexable.
     const accueil = await fetch(`${app.baseUrl}/`);
     assert.equal(accueil.headers.get("x-robots-tag"), null);
+  } finally {
+    await app.close();
+  }
+});
+
+test("une adresse publique inconnue répond en vrai 404 noindex", async () => {
+  const app = await startApp();
+  try {
+    const page = await fetch(`${app.baseUrl}/cette-page-nexiste-pas`);
+    assert.equal(page.status, 404);
+    assert.equal(page.headers.get("x-robots-tag"), "noindex, nofollow");
+    assert.match(await page.text(), /Page introuvable/);
+
+    const guide = await fetch(`${app.baseUrl}/guides/article-inexistant.html`);
+    assert.equal(guide.status, 404);
+    assert.equal(guide.headers.get("x-robots-tag"), "noindex, nofollow");
   } finally {
     await app.close();
   }
@@ -180,10 +245,10 @@ test("le service de fichiers ne sort jamais du dossier public", async () => {
       );
       // Deux issues acceptables, et seulement deux : le garde-fou de traversée
       // répond 403 (cas des chemins encodés, comme `/..%2f..%2f`), ou l'adresse
-      // inconnue retombe sur la page de l'application. Jamais un fichier.
+      // inconnue répond 404. Jamais un fichier.
       const bloque = reponse.status === 403;
-      const pageApplication = reponse.status === 200 && /<title>Lastro/.test(corps);
-      assert.ok(bloque || pageApplication, `réponse inattendue pour ${chemin} : ${reponse.status}`);
+      const introuvable = reponse.status === 404 && /Page introuvable/.test(corps);
+      assert.ok(bloque || introuvable, `réponse inattendue pour ${chemin} : ${reponse.status}`);
     }
   } finally {
     await app.close();

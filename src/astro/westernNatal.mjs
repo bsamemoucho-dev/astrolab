@@ -16,11 +16,12 @@ import {
 import { calculateBodyPositions } from "./ephemeris.mjs";
 import { evaluateLastroAspects } from "./rules/lastroAspects.mjs";
 import { normalizeSignedDegrees, round } from "./math.mjs";
-import { julianDay, localDateTimeToUtc, parseDate, parseTime, validateCoordinates } from "./time.mjs";
+import { julianDay, localDateTimeToUtc, parseDate, parseTime, timezoneDatabaseVersion, validateCoordinates } from "./time.mjs";
 import { uncertainIntervalAnalysis } from "./signWindows.mjs";
 
 const WHOLE_SIGN_DECISION_STATUS = "validated_product_decision_without_rule_version";
 const INACTIVE_RULE_STATUS = "structure_only_rule_version_not_created";
+const HOUSE_SYSTEM_WHOLE_SIGN = "WHOLE_SIGN";
 
 export { calculateAngles, zodiacPlacement };
 
@@ -260,6 +261,7 @@ function calculateWholeSignHouses(ascendant, normalizedInput, angles) {
       sign,
       ruler: TRADITIONAL_RULERS[sign],
       cuspLongitude: signIndex * 30,
+      houseSystem: HOUSE_SYSTEM_WHOLE_SIGN,
       system: "whole_sign",
       decisionStatus: WHOLE_SIGN_DECISION_STATUS,
       ruleVersionId: null,
@@ -326,6 +328,7 @@ function notCalculatedAngles(reason) {
 function notCalculatedHouses(reason) {
   return {
     status: reason,
+    houseSystem: HOUSE_SYSTEM_WHOLE_SIGN,
     system: "whole_sign",
     houses: [],
     ruleVersionId: null
@@ -433,7 +436,7 @@ function timeWindow(normalizedInput) {
       startUtcInstant: result.utcInstant,
       endUtcInstant: result.utcInstant,
       marginMinutes: null,
-      timezoneOffsetMinutes: result.timezoneOffsetMinutes
+      timezoneOffsetSeconds: result.timezoneOffsetSeconds
     };
   }
   if (normalizedInput.calculationMode === "approximate_time") {
@@ -451,7 +454,7 @@ function timeWindow(normalizedInput) {
       endUtcInstant: new Date(result.utcInstant.getTime() + marginMs),
       marginMinutes: normalizedInput.timeMarginMinutes,
       marginSource: normalizedInput.timeMarginSource,
-      timezoneOffsetMinutes: result.timezoneOffsetMinutes
+      timezoneOffsetSeconds: result.timezoneOffsetSeconds
     };
   }
   if (normalizedInput.calculationMode === "time_interval") {
@@ -470,9 +473,9 @@ function timeWindow(normalizedInput) {
       representativeUtcInstant: null,
       startUtcInstant: start.utcInstant,
       endUtcInstant: end.utcInstant,
-      timezoneOffsetMinutes: {
-        start: start.timezoneOffsetMinutes,
-        end: end.timezoneOffsetMinutes
+      timezoneOffsetSeconds: {
+        start: start.timezoneOffsetSeconds,
+        end: end.timezoneOffsetSeconds
       }
     };
   }
@@ -491,9 +494,9 @@ function timeWindow(normalizedInput) {
     representativeUtcInstant: null,
     startUtcInstant: start.utcInstant,
     endUtcInstant: end.utcInstant,
-    timezoneOffsetMinutes: {
-      start: start.timezoneOffsetMinutes,
-      end: end.timezoneOffsetMinutes
+    timezoneOffsetSeconds: {
+      start: start.timezoneOffsetSeconds,
+      end: end.timezoneOffsetSeconds
     }
   };
 }
@@ -653,12 +656,14 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
         end: round(julianDay(window.endUtcInstant), 8)
       },
       ...(margin ? { marginMinutes: margin.marginMinutes, marginSource: margin.marginSource } : {}),
-      timezoneOffsetMinutes: window.timezoneOffsetMinutes
+      timezoneOffsetSeconds: window.timezoneOffsetSeconds
     },
     parameters: {
       zodiac: "tropical",
-      houseSystem: "whole_sign",
+      houseSystem: HOUSE_SYSTEM_WHOLE_SIGN,
       astronomyEngineVersion: ASTRONOMY_ENGINE_VERSION,
+      methodVersion: WESTERN_NATAL_METHOD_VERSION,
+      timezoneDatabaseVersion: timezoneDatabaseVersion(),
       ephemerisStatus: "astronomy_engine_2_1_19_validated_against_jpl_horizons_reference_fixtures",
       internetUsedAtRuntime: false,
       ruleVersionsCreated: [LASTRO_TIME_MARGIN_RULE_VERSION, aspectConvention.ruleVersionId],
@@ -669,6 +674,7 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
       angles
     },
     structuralAstrology: {
+      houseSystem: HOUSE_SYSTEM_WHOLE_SIGN,
       signs: positions.map((position) => ({
         body: position.body,
         sign: position.sign,
@@ -817,6 +823,7 @@ export function calculateWesternNatalChart(input, options = {}) {
   const inputDataHash = hashPayload(normalizedInput);
   const resultHash = hashPayload(payload);
   const calculatedAt = options.calculatedAt ?? new Date().toISOString();
+  payload.calculatedAt = calculatedAt;
 
   return {
     calculationRun: {

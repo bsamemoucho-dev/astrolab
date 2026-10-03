@@ -73,7 +73,7 @@ export function validateCoordinates(latitude, longitude) {
   return { latitude: lat, longitude: lon };
 }
 
-export function timezoneOffsetMinutes(timeZone, instant) {
+export function timezoneOffsetSeconds(timeZone, instant) {
   let parts;
   try {
     parts = new Intl.DateTimeFormat("en-CA", {
@@ -94,18 +94,103 @@ export function timezoneOffsetMinutes(timeZone, instant) {
 
   const fields = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
   const localAsUtc = Date.UTC(fields.year, fields.month - 1, fields.day, fields.hour, fields.minute, fields.second);
-  return Math.round((localAsUtc - instant.getTime()) / 60000);
+  return Math.round((localAsUtc - instant.getTime()) / 1000);
+}
+
+export function timezoneOffsetMinutes(timeZone, instant) {
+  return timezoneOffsetSeconds(timeZone, instant) / 60;
+}
+
+function localFieldsAt(timeZone, instant) {
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }).formatToParts(instant);
+  } catch (error) {
+    const wrapped = new Error(`Invalid or unsupported timeZone: ${timeZone}`);
+    wrapped.status = 400;
+    throw wrapped;
+  }
+  return Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
+}
+
+export function timezoneDatabaseVersion() {
+  return process.versions.tz ? `icu-tzdata@${process.versions.tz}` : "runtime-icu-tzdata-version-unavailable";
+}
+
+export function resolveLocalDateTimeCandidates({ date, time, timeZone }) {
+  const expected = {
+    year: date.year,
+    month: date.month,
+    day: date.day,
+    hour: time.hour,
+    minute: time.minute,
+    second: time.second
+  };
+  const naiveUtcMs = Date.UTC(date.year, date.month - 1, date.day, time.hour, time.minute, time.second);
+  const startMs = naiveUtcMs - 36 * 60 * 60 * 1000;
+  const endMs = naiveUtcMs + 36 * 60 * 60 * 1000;
+  const offsetCandidates = new Set([timezoneOffsetSeconds(timeZone, new Date(naiveUtcMs))]);
+  for (let utcMs = startMs; utcMs <= endMs; utcMs += 30 * 60 * 1000) {
+    offsetCandidates.add(timezoneOffsetSeconds(timeZone, new Date(utcMs)));
+  }
+  offsetCandidates.add(timezoneOffsetSeconds(timeZone, new Date(endMs)));
+  const matchesByUtc = new Map();
+  for (const offsetSeconds of offsetCandidates) {
+    const instant = new Date(naiveUtcMs - offsetSeconds * 1000);
+    if (instant.getTime() < startMs || instant.getTime() > endMs) {
+      continue;
+    }
+    const fields = localFieldsAt(timeZone, instant);
+    if (
+      fields.year === expected.year &&
+      fields.month === expected.month &&
+      fields.day === expected.day &&
+      fields.hour === expected.hour &&
+      fields.minute === expected.minute &&
+      fields.second === expected.second
+    ) {
+      matchesByUtc.set(instant.toISOString(), {
+        utcInstant: instant,
+        timezoneOffsetSeconds: timezoneOffsetSeconds(timeZone, instant)
+      });
+    }
+  }
+  return [...matchesByUtc.values()].sort((a, b) => a.utcInstant - b.utcInstant);
 }
 
 export function localDateTimeToUtc({ date, time, timeZone }) {
-  const firstGuess = new Date(Date.UTC(date.year, date.month - 1, date.day, time.hour, time.minute, time.second));
-  const firstOffset = timezoneOffsetMinutes(timeZone, firstGuess);
-  const secondGuess = new Date(firstGuess.getTime() - firstOffset * 60000);
-  const secondOffset = timezoneOffsetMinutes(timeZone, secondGuess);
-  const utcInstant = new Date(firstGuess.getTime() - secondOffset * 60000);
+  const matches = resolveLocalDateTimeCandidates({ date, time, timeZone });
+  if (matches.length === 0) {
+    const error = new Error(`Local time does not exist in ${timeZone}: ${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")} ${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`);
+    error.status = 400;
+    error.code = "nonexistent_local_time";
+    throw error;
+  }
+  if (matches.length > 1) {
+    const error = new Error(`Local time is ambiguous in ${timeZone}: ${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")} ${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`);
+    error.status = 400;
+    error.code = "ambiguous_local_time";
+    error.candidates = matches.map((match) => ({
+      utcInstant: match.utcInstant.toISOString(),
+      timezoneOffsetSeconds: match.timezoneOffsetSeconds
+    }));
+    throw error;
+  }
+  const { utcInstant, timezoneOffsetSeconds: offsetSeconds } = matches[0];
   return {
     utcInstant,
-    timezoneOffsetMinutes: secondOffset
+    timezoneOffsetSeconds: offsetSeconds,
+    timezoneOffsetMinutes: offsetSeconds / 60,
+    timezoneDatabaseVersion: timezoneDatabaseVersion()
   };
 }
 

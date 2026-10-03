@@ -119,14 +119,24 @@ export async function sendStatic(publicDir, req, res) {
     if (error.code !== "ENOENT") {
       throw error;
     }
-    // Repli monopage : un chemin inconnu rend l'application. Il ne doit pas pour
-    // autant devenir une page indexable (« soft 404 »).
-    const fallback = await readFile(join(publicDir, "index.html"));
-    res.writeHead(200, {
+    if (url.pathname.startsWith("/r/")) {
+      // Les liens de récupération sont gérés par l'application côté client. Ils
+      // restent servis par le shell HTML, mais jamais indexables.
+      const fallback = await readFile(join(publicDir, "index.html"));
+      res.writeHead(200, {
+        ...securityHeaders(),
+        ...robotsHeader(url.pathname),
+        "content-type": "text/html; charset=utf-8"
+      });
+      res.end(fallback);
+      return;
+    }
+
+    res.writeHead(404, {
       ...securityHeaders(),
-      ...robotsHeader(url.pathname),
+      "x-robots-tag": "noindex, nofollow",
       "content-type": "text/html; charset=utf-8"
     });
-    res.end(fallback);
+    res.end("<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\"><title>Page introuvable | Lastro</title></head><body><h1>Page introuvable</h1></body></html>");
   }
 }
