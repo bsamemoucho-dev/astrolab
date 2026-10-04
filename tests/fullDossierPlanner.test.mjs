@@ -5,7 +5,7 @@ import { calculateWesternNatalChart } from "../src/astro/westernNatal.mjs";
 import { buildDossierEvidence, evidenceById } from "../src/deliverables/dossierEvidence.mjs";
 import { buildFullDossierPlan, sectionPlanById } from "../src/deliverables/fullDossierPlan.mjs";
 import { interpretationRuleById } from "../src/deliverables/interpretationRules.mjs";
-import { generatePilotSections } from "../src/deliverables/structuredSectionWriter.mjs";
+import { generatePilotSections, writeStructuredSectionWithLlm } from "../src/deliverables/structuredSectionWriter.mjs";
 import { validateStructuredSection, validateStructuredSections } from "../src/deliverables/factualClaimsValidator.mjs";
 
 const fixtureInput = {
@@ -213,6 +213,82 @@ test("primary reuse of an already interpreted evidence is detected", () => {
   const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
   assert.equal(result.ok, false);
   assert.ok(result.issues.some((issue) => issue.code === "evidence_reuse_as_primary"));
+});
+
+test("LLM structured writer sends precise validation issues to correction attempts", async () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const sectionPlan = sectionPlanById(fullDossierPlan, "general_synthesis");
+  const warnings = [];
+  const calls = [];
+
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan,
+    options: {
+      logger: { warn: (...args) => warnings.push(args) },
+      structuredWriterFn: async (payload) => {
+        calls.push(payload);
+        if (calls.length === 1) {
+          return {
+            sectionId: "general_synthesis",
+            blocks: [
+              {
+                blockId: "bad_distribution",
+                text: "La distribution des éléments indique cinq corps en terre.",
+                evidenceRefs: ["distribution.element.earth"],
+                interpretationRuleRefs: [],
+                interpretationDepth: "primary",
+                claims: [
+                  {
+                    claimId: "bad_distribution.claim",
+                    type: "DISTRIBUTION_COUNT",
+                    evidenceRefs: ["distribution.element.earth"],
+                    value: { element: "earth", count: 3 }
+                  }
+                ]
+              }
+            ]
+          };
+        }
+        assert.ok(payload.correctionIssues.length >= 1);
+        assert.ok(payload.correctionIssues.some((issue) => issue.code === "distribution_key_mismatch" || issue.code === "distribution_count_mismatch"));
+        assert.equal(payload.correctionIssues[0].blockId, "bad_distribution");
+        assert.equal(payload.correctionIssues[0].claimId, "bad_distribution.claim");
+        assert.equal(payload.correctionIssues[0].claim.value.element, "earth");
+        assert.ok(payload.correctionIssues[0].block.textFragment.includes("distribution des éléments"));
+        assert.ok(payload.correctionIssues[0].expectedHint.includes("DISTRIBUTION_COUNT claims"));
+        assert.ok(payload.correctionIssues[0].allowedEvidenceRefs.includes("distribution.element.earth"));
+        return {
+          sectionId: "general_synthesis",
+          blocks: [
+            {
+              blockId: "good_distribution",
+              text: "La distribution des éléments indique cinq corps en terre.",
+              evidenceRefs: ["distribution.element.earth"],
+              interpretationRuleRefs: [],
+              interpretationDepth: "primary",
+              claims: [
+                {
+                  claimId: "good_distribution.claim",
+                  type: "DISTRIBUTION_COUNT",
+                  evidenceRefs: ["distribution.element.earth"],
+                  element: "earth",
+                  count: 5
+                }
+              ]
+            }
+          ]
+        };
+      }
+    }
+  });
+
+  assert.equal(written.validation.ok, true);
+  assert.equal(calls.length, 2);
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0][1].sectionId, "general_synthesis");
+  assert.equal(warnings[0][1].attempt, 1);
+  assert.ok(warnings[0][1].validationErrorCodes.some((code) => code === "distribution_key_mismatch" || code === "distribution_count_mismatch"));
 });
 
 test("houses section records unavailability when birth time does not allow houses", () => {

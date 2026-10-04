@@ -286,6 +286,82 @@ function sanitizeStructuredSection(section, sectionPlan) {
   };
 }
 
+function blockById(section, blockId) {
+  if (!blockId) return null;
+  return (section?.blocks ?? []).find((block) => block.blockId === blockId) ?? null;
+}
+
+function claimById(section, claimId) {
+  if (!claimId) return null;
+  for (const block of section?.blocks ?? []) {
+    const claim = (block.claims ?? []).find((item) => item.claimId === claimId);
+    if (claim) return claim;
+  }
+  return null;
+}
+
+function blockForIssue(section, issue) {
+  const direct = blockById(section, issue?.blockId);
+  if (direct || !issue?.claimId) return direct;
+  return (section?.blocks ?? []).find((block) => (block.claims ?? []).some((claim) => claim.claimId === issue.claimId)) ?? null;
+}
+
+function claimShapeHelp(issue) {
+  if (issue?.code === "distribution_key_mismatch" || issue?.code === "distribution_count_mismatch") {
+    return "DISTRIBUTION_COUNT claims must place element or modality and count at the claim root, for example { type, evidenceRefs, element: 'earth', count: 3 }.";
+  }
+  if (issue?.code === "unsupported_claim_type") {
+    return "Use the supported claim type names exactly: NATAL_BODY_SIGN, NATAL_BODY_HOUSE, ANGLE_SIGN, NATAL_ASPECT, NATAL_ASPECT_ORB, NATAL_BODY_RETROGRADE, DISTRIBUTION_COUNT, PERSONAL_TRANSIT.";
+  }
+  if (issue?.code === "unknown_evidence_ref") {
+    return "Evidence refs are opaque IDs: copy an evidenceId exactly from the provided evidence list; never translate, pluralize or reconstruct one.";
+  }
+  return null;
+}
+
+function correctionIssuesForPrompt({ validation, section, sectionPlan }) {
+  const allowedEvidenceRefs = [...new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])])];
+  return (validation?.issues ?? []).map((issue) => {
+    const block = blockForIssue(section, issue);
+    const claim = claimById(section, issue.claimId);
+    return {
+      code: issue.code,
+      message: issue.message,
+      blockId: issue.blockId ?? block?.blockId ?? null,
+      claimId: issue.claimId ?? null,
+      evidenceRef: issue.evidenceRef ?? null,
+      ruleId: issue.ruleId ?? null,
+      fact: issue.fact ?? null,
+      expectedHint: claimShapeHelp(issue),
+      allowedEvidenceRefs,
+      allowedInterpretationRuleRefs: sectionPlan.allowedInterpretationRuleRefs ?? [],
+      block: block
+        ? {
+            textFragment: block.text.slice(0, 320),
+            evidenceRefs: block.evidenceRefs ?? [],
+            interpretationRuleRefs: block.interpretationRuleRefs ?? [],
+            interpretationDepth: block.interpretationDepth ?? null,
+            claims: block.claims ?? []
+          }
+        : null,
+      claim: claim ?? null
+    };
+  });
+}
+
+function validationErrorCodes(validation) {
+  return [...new Set((validation?.issues ?? []).map((issue) => issue.code).filter(Boolean))];
+}
+
+function logStructuredValidationFailure({ logger, sectionId, attempt, validation }) {
+  if (!logger?.warn) return;
+  logger.warn("[Lastro] structured section validation failed", {
+    sectionId,
+    attempt,
+    validationErrorCodes: validationErrorCodes(validation)
+  });
+}
+
 function hasWritableMaterial(sectionPlan) {
   return (sectionPlan?.allowedInterpretationRuleRefs ?? []).length > 0 &&
     ((sectionPlan?.primaryEvidenceRefs ?? []).length > 0 || (sectionPlan?.secondaryEvidenceRefs ?? []).length > 0);
@@ -299,6 +375,8 @@ function buildStructuredSystemPrompt(sectionPlan) {
     "Toute affirmation concrète doit être déclarée dans claims et référencer une preuve fournie.",
     "Toute interprétation doit référencer au moins une règle d'interprétation fournie.",
     "N'utilise pas de preuve interdite. N'utilise pas de règle absente de la liste autorisée.",
+    "Les evidenceId sont des identifiants opaques : copie-les exactement depuis la liste evidence, sans les traduire, les compléter ni les reconstruire.",
+    "Pour un claim DISTRIBUTION_COUNT, écris element ou modality et count directement au niveau racine du claim.",
     "Si la matière méthodologique est insuffisante, écris un bloc court qui dit que cette partie reste limitée aux faits disponibles.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
@@ -326,6 +404,15 @@ function buildStructuredUserPrompt({ dossierEvidence, sectionPlan, previousSecti
       previousSections,
       correctionIssues,
       constraints: {
+        evidenceRefsMustBeCopiedExactly: true,
+        doNotInventEvidenceRefs: true,
+        claimShapes: {
+          DISTRIBUTION_COUNT: {
+            element: "required for DISTRIBUTION_ELEMENT_COUNT evidence",
+            modality: "required for DISTRIBUTION_MODALITY_COUNT evidence",
+            count: "required number at claim root"
+          }
+        },
         claimTypesSupported: [
           "NATAL_BODY_SIGN",
           "NATAL_BODY_HOUSE",
@@ -364,6 +451,7 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
 
   const writerFn = options.structuredWriterFn ?? null;
   const config = options.config ?? llmConfiguration();
+  const logger = options.logger ?? console;
   if (!writerFn && !config) {
     const error = new Error("Le générateur complet nécessite ASTROLAB_LLM_API_KEY.");
     error.status = 503;
@@ -419,14 +507,8 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
         validation
       };
     }
-    correctionIssues = validation.issues.map((issue) => ({
-      code: issue.code,
-      message: issue.message,
-      blockId: issue.blockId ?? null,
-      evidenceRef: issue.evidenceRef ?? null,
-      ruleId: issue.ruleId ?? null,
-      fact: issue.fact ?? null
-    }));
+    logStructuredValidationFailure({ logger, sectionId: sectionPlan.sectionId, attempt: attempt + 1, validation });
+    correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan });
   }
 
   const error = new Error(`Section ${sectionPlan.sectionId} rejected after ${MAX_CORRECTION_ATTEMPTS} correction attempts`);
