@@ -200,6 +200,43 @@ function claimlikeForBlock(block, code, message, extra = {}) {
   };
 }
 
+function normalizeArray(value) {
+  return Array.isArray(value) ? value.filter((entry) => entry !== null && entry !== undefined) : [];
+}
+
+function packetById(sectionPlan) {
+  return new Map((sectionPlan?.evidencePackets ?? []).map((packet) => [packet.packetId, packet]));
+}
+
+function expandBlockFromPackets({ block, sectionPlan, issues }) {
+  const packetRefs = normalizeArray(block?.packetRefs).map(String);
+  if (packetRefs.length === 0) {
+    return block;
+  }
+  const packets = packetById(sectionPlan);
+  const resolved = [];
+  for (const packetRef of packetRefs) {
+    const packet = packets.get(packetRef);
+    if (!packet) {
+      issues.push(claimlikeForBlock(block, "unknown_packet_ref", `Packet non autorisé ou introuvable : ${packetRef}.`, { packetRef }));
+      continue;
+    }
+    resolved.push(packet);
+  }
+  const evidenceRefs = [...new Set(resolved.flatMap((packet) => packet.evidenceRefs ?? []))];
+  const interpretationRuleRefs = [...new Set(resolved.flatMap((packet) => packet.interpretationRuleRefs ?? []))];
+  const claims = resolved.flatMap((packet) => packet.claims ?? []);
+  const interpretationDepth = resolved.some((packet) => packet.interpretationDepth === "reference") ? "reference" : "primary";
+  return {
+    ...block,
+    packetRefs,
+    evidenceRefs,
+    interpretationRuleRefs,
+    interpretationDepth,
+    claims
+  };
+}
+
 function requireEvidence(claim, byId) {
   const refs = Array.isArray(claim?.evidenceRefs) ? claim.evidenceRefs : [];
   if (refs.length === 0) {
@@ -351,7 +388,8 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
   const alreadyInterpreted = new Set(sectionPlan.alreadyInterpretedEvidenceRefs ?? []);
   const allClaims = [];
 
-  for (const block of section.blocks ?? []) {
+  for (const rawBlock of section.blocks ?? []) {
+    const block = expandBlockFromPackets({ block: rawBlock, sectionPlan, issues });
     const blockRefs = Array.isArray(block.evidenceRefs) ? block.evidenceRefs : [];
     const resolvedRefs = [];
     for (const ref of blockRefs) {

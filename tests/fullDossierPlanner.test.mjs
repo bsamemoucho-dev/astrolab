@@ -102,6 +102,8 @@ test("FullDossierPlan defines sections, ownership and authorized rules from Doss
   assert.ok(identity.allowedInterpretationRuleRefs.includes("western.body.sun.sign.capricorn@1"));
   assert.ok(emotional.allowedInterpretationRuleRefs.includes("western.aspect.moon_mercury.square@1"));
   assert.equal(evidenceById(dossierEvidence).has("aspect.moon.mercury.square"), true);
+  assert.ok(identity.evidencePackets.some((packet) => packet.packetId === "identity.natal_sun_sign"));
+  assert.ok(emotional.evidencePackets.some((packet) => packet.packetId === "emotional_world.aspect_moon_mercury_square"));
 });
 
 test("interpretation library exposes versioned themes instead of free doctrine", () => {
@@ -132,7 +134,25 @@ test("pilot writer produces four valid structured sections with evidenceRefs and
   assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
 });
 
-test("a text-only wrong aspect is rejected even when the writer omits the claim", () => {
+test("packetRef inconnu is rejected", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const sectionPlan = sectionPlanById(fullDossierPlan, "emotional_world");
+  const section = {
+    sectionId: "emotional_world",
+    blocks: [
+      {
+        blockId: "unknown-packet",
+        text: "Le carré entre votre Lune et Mercure décrit une tension entre ressenti et formulation.",
+        packetRefs: ["emotional_world.packet_inconnu"]
+      }
+    ]
+  };
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "unknown_packet_ref"));
+});
+
+test("a text-only wrong aspect is rejected even with the right packet", () => {
   const { dossierEvidence, fullDossierPlan } = phase2Fixture();
   const sectionPlan = sectionPlanById(fullDossierPlan, "emotional_world");
   const section = {
@@ -141,15 +161,30 @@ test("a text-only wrong aspect is rejected even when the writer omits the claim"
       {
         blockId: "bad-aspect",
         text: "L'opposition entre votre Lune et Mercure structure votre monde intérieur.",
-        evidenceRefs: ["aspect.moon.mercury.square"],
-        interpretationRuleRefs: ["western.aspect.moon_mercury.square@1"],
-        claims: []
+        packetRefs: ["emotional_world.aspect_moon_mercury_square"]
       }
     ]
   };
   const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
   assert.equal(result.ok, false);
   assert.ok(result.issues.some((issue) => issue.code === "undeclared_text_fact"));
+});
+
+test("a good aspect text is accepted with the matching packet", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const sectionPlan = sectionPlanById(fullDossierPlan, "emotional_world");
+  const section = {
+    sectionId: "emotional_world",
+    blocks: [
+      {
+        blockId: "good-aspect",
+        text: "Le carré entre votre Lune et Mercure décrit une tension entre ressenti et formulation.",
+        packetRefs: ["emotional_world.aspect_moon_mercury_square"]
+      }
+    ]
+  };
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
 });
 
 test("an invented house in text is rejected", () => {
@@ -191,6 +226,36 @@ test("an interpretation rule not authorized by the section is rejected", () => {
   assert.equal(result.ok, false);
   assert.ok(result.issues.some((issue) => issue.code === "interpretation_rule_not_allowed"));
   assert.ok(result.issues.some((issue) => issue.code === "interpretation_rule_without_matching_evidence"));
+});
+
+test("packet contract ignores arbitrary LLM claims and rule/evidence associations", async () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const sectionPlan = sectionPlanById(fullDossierPlan, "identity");
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan,
+    options: {
+      structuredWriterFn: async () => ({
+        sectionId: "identity",
+        blocks: [
+          {
+            blockId: "identity-packet",
+            text: "Votre Soleil en Capricorne donne un axe d'identité construit dans le temps.",
+            packetRefs: ["identity.natal_sun_sign"],
+            evidenceRefs: ["natal.moon.sign"],
+            interpretationRuleRefs: ["western.body.moon.sign.libra@1"],
+            claims: [{ claimId: "bad", type: "CLAIM_TYPE_INVENTED", evidenceRefs: ["natal.moon.sign"] }]
+          }
+        ]
+      })
+    }
+  });
+
+  assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
+  assert.deepEqual(written.section.blocks[0].packetRefs, ["identity.natal_sun_sign"]);
+  assert.equal("claims" in written.section.blocks[0], false);
+  assert.equal("evidenceRefs" in written.section.blocks[0], false);
+  assert.equal("interpretationRuleRefs" in written.section.blocks[0], false);
 });
 
 test("primary reuse of an already interpreted evidence is detected", () => {
@@ -235,47 +300,24 @@ test("LLM structured writer sends precise validation issues to correction attemp
               {
                 blockId: "bad_distribution",
                 text: "La distribution des éléments indique cinq corps en terre.",
-                evidenceRefs: ["distribution.element.earth"],
-                interpretationRuleRefs: [],
-                interpretationDepth: "primary",
-                claims: [
-                  {
-                    claimId: "bad_distribution.claim",
-                    type: "DISTRIBUTION_COUNT",
-                    evidenceRefs: ["distribution.element.earth"],
-                    value: { element: "earth", count: 3 }
-                  }
-                ]
+                packetRefs: ["general_synthesis.packet_inconnu"]
               }
             ]
           };
         }
         assert.ok(payload.correctionIssues.length >= 1);
-        assert.ok(payload.correctionIssues.some((issue) => issue.code === "distribution_key_mismatch" || issue.code === "distribution_count_mismatch"));
+        assert.ok(payload.correctionIssues.some((issue) => issue.code === "unknown_packet_ref"));
         assert.equal(payload.correctionIssues[0].blockId, "bad_distribution");
-        assert.equal(payload.correctionIssues[0].claimId, "bad_distribution.claim");
-        assert.equal(payload.correctionIssues[0].claim.value.element, "earth");
         assert.ok(payload.correctionIssues[0].block.textFragment.includes("distribution des éléments"));
-        assert.ok(payload.correctionIssues[0].expectedHint.includes("DISTRIBUTION_COUNT claims"));
-        assert.ok(payload.correctionIssues[0].allowedEvidenceRefs.includes("distribution.element.earth"));
+        assert.ok(payload.correctionIssues[0].expectedHint.includes("packetRefs"));
+        assert.ok(payload.correctionIssues[0].authorizedPackets.some((packet) => packet.packetId === "general_synthesis.distribution_element_earth"));
         return {
           sectionId: "general_synthesis",
           blocks: [
             {
               blockId: "good_distribution",
               text: "La distribution des éléments indique cinq corps en terre.",
-              evidenceRefs: ["distribution.element.earth"],
-              interpretationRuleRefs: [],
-              interpretationDepth: "primary",
-              claims: [
-                {
-                  claimId: "good_distribution.claim",
-                  type: "DISTRIBUTION_COUNT",
-                  evidenceRefs: ["distribution.element.earth"],
-                  element: "earth",
-                  count: 5
-                }
-              ]
+              packetRefs: ["general_synthesis.distribution_element_earth"]
             }
           ]
         };
@@ -288,7 +330,43 @@ test("LLM structured writer sends precise validation issues to correction attemp
   assert.equal(warnings.length, 1);
   assert.equal(warnings[0][1].sectionId, "general_synthesis");
   assert.equal(warnings[0][1].attempt, 1);
-  assert.ok(warnings[0][1].validationErrorCodes.some((code) => code === "distribution_key_mismatch" || code === "distribution_count_mismatch"));
+  assert.ok(warnings[0][1].validationErrorCodes.some((code) => code === "unknown_packet_ref"));
+});
+
+test("general_synthesis can reference owned evidence without blocking owner chapters", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const synthesis = {
+    sectionId: "general_synthesis",
+    blocks: [
+      {
+        blockId: "synthesis-reference",
+        text: "Votre Soleil en Capricorne fait partie des dynamiques centrales du thème.",
+        packetRefs: ["general_synthesis.natal_sun_sign"]
+      }
+    ]
+  };
+  const identity = {
+    sectionId: "identity",
+    blocks: [
+      {
+        blockId: "identity-owner",
+        text: "Votre Soleil en Capricorne donne un axe d'identité construit dans le temps.",
+        packetRefs: ["identity.natal_sun_sign"]
+      }
+    ]
+  };
+  const emotional = {
+    sectionId: "emotional_world",
+    blocks: [
+      {
+        blockId: "emotional-owner",
+        text: "Le carré entre votre Lune et Mercure décrit une tension entre ressenti et formulation.",
+        packetRefs: ["emotional_world.aspect_moon_mercury_square"]
+      }
+    ]
+  };
+  const result = validateStructuredSections({ dossierEvidence, fullDossierPlan, sections: [synthesis, identity, emotional] });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
 });
 
 test("houses section records unavailability when birth time does not allow houses", () => {

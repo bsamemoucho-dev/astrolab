@@ -67,6 +67,117 @@ function sectionsMap() {
   return new Map(FULL_DOSSIER_SECTIONS.map((section) => [section.sectionId, { ...section, primaryEvidenceRefs: [], secondaryEvidenceRefs: [], forbiddenEvidenceRefs: [], allowedInterpretationRuleRefs: [], preconditions: [] }]));
 }
 
+function evidencePriority(ref) {
+  if (ref === "distribution.element.earth") return 1;
+  if (ref === "natal.sun.sign") return 2;
+  if (ref === "natal.moon.sign") return 3;
+  if (ref === "natal.mercury.sign") return 4;
+  if (ref.startsWith("aspect.")) return 5;
+  if (ref === "natal.venus.sign") return 6;
+  if (ref === "natal.mars.sign") return 7;
+  if (ref.startsWith("distribution.")) return 8;
+  if (ref === "transits.snapshot") return 8;
+  if (ref.startsWith("transit.")) return 9;
+  return 50;
+}
+
+function capSectionEvidence(section) {
+  if (section.sectionId === "general_synthesis") {
+    const selected = new Set(
+      [...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs]
+        .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
+        .slice(0, 5)
+    );
+    section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => selected.has(ref));
+    section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
+  }
+  if (section.sectionId === "next_weeks") {
+    section.primaryEvidenceRefs = section.primaryEvidenceRefs.slice(0, 8);
+    section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.slice(0, 4);
+  }
+}
+
+function packetKey(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+}
+
+function claimsForEvidence(evidence) {
+  const value = evidence?.value ?? {};
+  if (evidence?.type === "NATAL_BODY_SIGN") {
+    return [{ type: "NATAL_BODY_SIGN", body: value.body, sign: value.sign, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "NATAL_BODY_HOUSE") {
+    return [{ type: "NATAL_BODY_HOUSE", body: value.body, house: value.house, houseSystem: value.houseSystem, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "ANGLE_SIGN") {
+    return [{ type: "ANGLE_SIGN", angle: value.angle, sign: value.sign, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "NATAL_ASPECT") {
+    return [{ type: "NATAL_ASPECT", bodyA: value.bodyA, bodyB: value.bodyB, aspectType: value.aspectType, orb: value.orb, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "NATAL_BODY_RETROGRADE") {
+    return [{ type: "NATAL_BODY_RETROGRADE", body: value.body, retrograde: value.retrograde, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "DISTRIBUTION_ELEMENT_COUNT") {
+    return [{ type: "DISTRIBUTION_COUNT", element: value.element, count: value.count, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "DISTRIBUTION_MODALITY_COUNT") {
+    return [{ type: "DISTRIBUTION_COUNT", modality: value.modality, count: value.count, evidenceRefs: [evidence.evidenceId] }];
+  }
+  if (evidence?.type === "PERSONAL_TRANSIT") {
+    return [
+      {
+        type: "PERSONAL_TRANSIT",
+        transitBody: value.transitBody,
+        natalPoint: value.natalPoint,
+        aspectType: value.aspectType,
+        exactAt: value.exactAt,
+        startsAt: value.startsAt,
+        endsAt: value.endsAt,
+        phase: value.phase,
+        natalHouse: value.natalHouse,
+        orb: value.orb,
+        evidenceRefs: [evidence.evidenceId]
+      }
+    ];
+  }
+  return [];
+}
+
+function packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef }) {
+  const evidenceOwner = ownerByEvidenceRef[evidence.evidenceId] ?? null;
+  const interpretationDepth = evidenceOwner && evidenceOwner !== section.sectionId ? "reference" : "primary";
+  return {
+    packetId: `${section.sectionId}.${packetKey(evidence.evidenceId)}`,
+    evidenceRefs: [evidence.evidenceId],
+    interpretationRuleRefs: ruleIds,
+    claims: claimsForEvidence(evidence).map((claim, index) => ({
+      claimId: `${section.sectionId}.${packetKey(evidence.evidenceId)}.${index + 1}`,
+      ...claim
+    })),
+    interpretationDepth,
+    themes: ruleIds.flatMap((ruleId) => rulesForEvidence(evidence).filter((rule) => rule.ruleId === ruleId).flatMap((rule) => rule.themes ?? []))
+  };
+}
+
+function buildEvidencePackets({ section, byId, ownerByEvidenceRef }) {
+  const refs = [...new Set([...(section.primaryEvidenceRefs ?? []), ...(section.secondaryEvidenceRefs ?? [])])];
+  return refs
+    .map((ref) => {
+      const evidence = byId.get(ref);
+      if (!evidence) return null;
+      const ruleIds = rulesForEvidence(evidence)
+        .map((rule) => rule.ruleId)
+        .filter((ruleId) => (section.allowedInterpretationRuleRefs ?? []).includes(ruleId));
+      return packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef });
+    })
+    .filter(Boolean);
+}
+
 export function buildFullDossierPlan(dossierEvidence) {
   const byId = evidenceById(dossierEvidence);
   const sections = sectionsMap();
@@ -95,7 +206,12 @@ export function buildFullDossierPlan(dossierEvidence) {
   for (const section of sections.values()) {
     section.primaryEvidenceRefs = [...new Set(section.primaryEvidenceRefs)];
     section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)];
-    section.allowedInterpretationRuleRefs = [...new Set(section.allowedInterpretationRuleRefs)];
+    capSectionEvidence(section);
+    section.allowedInterpretationRuleRefs = [
+      ...new Set(
+        [...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs].flatMap((ref) => rulesForEvidence(byId.get(ref)).map((rule) => rule.ruleId))
+      )
+    ];
     const allowed = new Set([...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs]);
     section.forbiddenEvidenceRefs = allRefs.filter((ref) => !allowed.has(ref));
     section.alreadyInterpretedEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => ownerByEvidenceRef[ref] && ownerByEvidenceRef[ref] !== section.sectionId);
@@ -105,6 +221,7 @@ export function buildFullDossierPlan(dossierEvidence) {
     if (section.sectionId === "current_sky") {
       section.preconditions.push({ status: "snapshot", label: "Calculé le", evidenceRef: "transits.snapshot" });
     }
+    section.evidencePackets = buildEvidencePackets({ section, byId, ownerByEvidenceRef });
   }
 
   return {

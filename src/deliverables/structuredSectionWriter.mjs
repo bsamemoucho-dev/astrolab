@@ -274,14 +274,7 @@ function sanitizeStructuredSection(section, sectionPlan) {
     blocks: normalizeArray(section?.blocks).map((block, index) => ({
       blockId: String(block?.blockId ?? `${sectionPlan.sectionId}.${index + 1}`),
       text: String(block?.text ?? "").trim(),
-      evidenceRefs: normalizeArray(block?.evidenceRefs).map(String),
-      interpretationRuleRefs: normalizeArray(block?.interpretationRuleRefs).map(String),
-      interpretationDepth: String(block?.interpretationDepth ?? "primary"),
-      claims: normalizeArray(block?.claims).map((claim, claimIndex) => ({
-        claimId: String(claim?.claimId ?? `${sectionPlan.sectionId}.${index + 1}.${claimIndex + 1}`),
-        ...claim,
-        evidenceRefs: normalizeArray(claim?.evidenceRefs).map(String)
-      }))
+      packetRefs: normalizeArray(block?.packetRefs).map(String)
     }))
   };
 }
@@ -307,20 +300,17 @@ function blockForIssue(section, issue) {
 }
 
 function claimShapeHelp(issue) {
-  if (issue?.code === "distribution_key_mismatch" || issue?.code === "distribution_count_mismatch") {
-    return "DISTRIBUTION_COUNT claims must place element or modality and count at the claim root, for example { type, evidenceRefs, element: 'earth', count: 3 }.";
+  if (issue?.code === "unknown_packet_ref") {
+    return "Use only packetRefs copied exactly from the authorizedPackets list.";
   }
-  if (issue?.code === "unsupported_claim_type") {
-    return "Use the supported claim type names exactly: NATAL_BODY_SIGN, NATAL_BODY_HOUSE, ANGLE_SIGN, NATAL_ASPECT, NATAL_ASPECT_ORB, NATAL_BODY_RETROGRADE, DISTRIBUTION_COUNT, PERSONAL_TRANSIT.";
-  }
-  if (issue?.code === "unknown_evidence_ref") {
-    return "Evidence refs are opaque IDs: copy an evidenceId exactly from the provided evidence list; never translate, pluralize or reconstruct one.";
+  if (issue?.code === "undeclared_text_fact") {
+    return "Either remove the unsupported factual phrase from the text, or cite a packetRef whose facts explicitly support it.";
   }
   return null;
 }
 
 function correctionIssuesForPrompt({ validation, section, sectionPlan }) {
-  const allowedEvidenceRefs = [...new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])])];
+  const authorizedPackets = packetsForPrompt(sectionPlan);
   return (validation?.issues ?? []).map((issue) => {
     const block = blockForIssue(section, issue);
     const claim = claimById(section, issue.claimId);
@@ -333,15 +323,11 @@ function correctionIssuesForPrompt({ validation, section, sectionPlan }) {
       ruleId: issue.ruleId ?? null,
       fact: issue.fact ?? null,
       expectedHint: claimShapeHelp(issue),
-      allowedEvidenceRefs,
-      allowedInterpretationRuleRefs: sectionPlan.allowedInterpretationRuleRefs ?? [],
+      authorizedPackets,
       block: block
         ? {
             textFragment: block.text.slice(0, 320),
-            evidenceRefs: block.evidenceRefs ?? [],
-            interpretationRuleRefs: block.interpretationRuleRefs ?? [],
-            interpretationDepth: block.interpretationDepth ?? null,
-            claims: block.claims ?? []
+            packetRefs: block.packetRefs ?? []
           }
         : null,
       claim: claim ?? null
@@ -372,57 +358,48 @@ function buildStructuredSystemPrompt(sectionPlan) {
     "Tu rédiges un chapitre du dossier astrologique Lastro.",
     "Tu dois produire UNIQUEMENT un objet JSON valide, sans Markdown autour.",
     "Tu n'as pas le droit d'inventer un fait astrologique, biographique, psychologique ou prédictif.",
-    "Toute affirmation concrète doit être déclarée dans claims et référencer une preuve fournie.",
-    "Toute interprétation doit référencer au moins une règle d'interprétation fournie.",
-    "N'utilise pas de preuve interdite. N'utilise pas de règle absente de la liste autorisée.",
-    "Les evidenceId sont des identifiants opaques : copie-les exactement depuis la liste evidence, sans les traduire, les compléter ni les reconstruire.",
-    "Pour un claim DISTRIBUTION_COUNT, écris element ou modality et count directement au niveau racine du claim.",
+    "Tu n'écris jamais evidenceRefs, interpretationRuleRefs, claims ni claim.type : le serveur les déduit depuis les packetRefs.",
+    "Chaque bloc doit seulement citer des packetRefs autorisés, copiés exactement depuis la liste evidencePackets.",
+    "N'utilise pas de packet absent de la liste autorisée.",
     "Si la matière méthodologique est insuffisante, écris un bloc court qui dit que cette partie reste limitée aux faits disponibles.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
     `Longueur cible: environ ${sectionPlan.targetWords} mots, jamais plus de ${sectionPlan.maxWords}.`,
-    "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\",\"evidenceRefs\":[\"...\"],\"interpretationRuleRefs\":[\"...\"],\"interpretationDepth\":\"primary|reference\",\"claims\":[...]}]}"
+    "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\",\"packetRefs\":[\"...\"]}]}"
   ].join("\n");
 }
 
+function packetsForPrompt(sectionPlan) {
+  return (sectionPlan.evidencePackets ?? []).map((packet) => ({
+    packetId: packet.packetId,
+    evidenceRefs: packet.evidenceRefs,
+    interpretationDepth: packet.interpretationDepth,
+    themes: packet.themes,
+    facts: packet.claims.map((claim) => {
+      const { claimId, evidenceRefs, ...fact } = claim;
+      return fact;
+    })
+  }));
+}
+
 function buildStructuredUserPrompt({ dossierEvidence, sectionPlan, previousSections = [], correctionIssues = [] }) {
-  const allowedRefs = [...new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])])];
   return JSON.stringify(
     {
       sectionPlan: {
         sectionId: sectionPlan.sectionId,
         objective: sectionPlan.objective,
-        primaryEvidenceRefs: sectionPlan.primaryEvidenceRefs,
-        secondaryEvidenceRefs: sectionPlan.secondaryEvidenceRefs,
+        primaryPacketRefs: (sectionPlan.evidencePackets ?? []).filter((packet) => packet.interpretationDepth === "primary").map((packet) => packet.packetId),
+        referencePacketRefs: (sectionPlan.evidencePackets ?? []).filter((packet) => packet.interpretationDepth === "reference").map((packet) => packet.packetId),
         alreadyInterpretedEvidenceRefs: sectionPlan.alreadyInterpretedEvidenceRefs,
-        forbiddenEvidenceRefs: sectionPlan.forbiddenEvidenceRefs,
-        allowedInterpretationRuleRefs: sectionPlan.allowedInterpretationRuleRefs,
         preconditions: sectionPlan.preconditions
       },
-      evidence: compactEvidenceForPrompt(dossierEvidence, allowedRefs),
-      interpretationRules: rulesForPrompt(sectionPlan.allowedInterpretationRuleRefs),
+      evidencePackets: packetsForPrompt(sectionPlan),
       previousSections,
       correctionIssues,
       constraints: {
-        evidenceRefsMustBeCopiedExactly: true,
-        doNotInventEvidenceRefs: true,
-        claimShapes: {
-          DISTRIBUTION_COUNT: {
-            element: "required for DISTRIBUTION_ELEMENT_COUNT evidence",
-            modality: "required for DISTRIBUTION_MODALITY_COUNT evidence",
-            count: "required number at claim root"
-          }
-        },
-        claimTypesSupported: [
-          "NATAL_BODY_SIGN",
-          "NATAL_BODY_HOUSE",
-          "ANGLE_SIGN",
-          "NATAL_ASPECT",
-          "NATAL_ASPECT_ORB",
-          "NATAL_BODY_RETROGRADE",
-          "DISTRIBUTION_COUNT",
-          "PERSONAL_TRANSIT"
-        ],
+        outputOnlyPacketRefs: true,
+        forbiddenOutputKeys: ["evidenceRefs", "interpretationRuleRefs", "claims", "claim", "claimType", "claim.type"],
+        packetRefsMustBeCopiedExactly: true,
         noUndeclaredAstrologicalFactsInText: true,
         noLoveWorkScoring: true
       }
