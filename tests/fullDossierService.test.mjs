@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evidenceById } from "../src/deliverables/dossierEvidence.mjs";
-import { interpretationRuleById, ruleMatchesEvidence } from "../src/deliverables/interpretationRules.mjs";
 import { createFullPublicReading } from "../src/models/fullDossierService.mjs";
 
 const INPUT = {
@@ -68,27 +66,13 @@ function currentSkyFixture() {
   };
 }
 
-function injectedStructuredWriter({ dossierEvidence, sectionPlan }) {
-  const allowed = new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])]);
-  const byId = evidenceById(dossierEvidence);
-  const ruleId = sectionPlan.allowedInterpretationRuleRefs[0] ?? null;
-  const rule = interpretationRuleById(ruleId);
-  const evidenceRef = ruleId
-    ? [...allowed].find((ref) => ruleMatchesEvidence(rule, byId.get(ref)))
-    : null;
-  const interpretationDepth = sectionPlan.alreadyInterpretedEvidenceRefs?.includes(evidenceRef) ? "reference" : "primary";
+function injectedStructuredWriter({ sectionPlan }) {
   return {
     sectionId: sectionPlan.sectionId,
-    blocks: [
-      {
-        blockId: `${sectionPlan.sectionId}.controlled`,
-        text: "Cette section relie uniquement les preuves et règles autorisées pour proposer une lecture symbolique sobre, sans ajouter de fait extérieur.",
-        evidenceRefs: evidenceRef ? [evidenceRef] : [],
-        interpretationRuleRefs: ruleId ? [ruleId] : [],
-        interpretationDepth,
-        claims: []
-      }
-    ]
+    blocks: (sectionPlan.blockPlans ?? []).map((blockPlan) => ({
+      blockId: blockPlan.blockId,
+      text: "Cette section relie uniquement les preuves et règles autorisées pour proposer une lecture symbolique sobre, sans ajouter de fait extérieur."
+    }))
   };
 }
 

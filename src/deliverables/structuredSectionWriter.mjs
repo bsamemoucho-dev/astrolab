@@ -273,10 +273,54 @@ function sanitizeStructuredSection(section, sectionPlan) {
     contractVersion: String(section?.contractVersion ?? STRUCTURED_WRITER_CONTRACT_VERSION),
     blocks: normalizeArray(section?.blocks).map((block, index) => ({
       blockId: String(block?.blockId ?? `${sectionPlan.sectionId}.${index + 1}`),
-      text: String(block?.text ?? "").trim(),
-      packetRefs: normalizeArray(block?.packetRefs).map(String)
+      text: String(block?.text ?? "").trim()
     }))
   };
+}
+
+function mergeSectionBlocks(baseSection, patchSection, sectionPlan) {
+  if (!baseSection) return patchSection;
+  const patchById = new Map((patchSection?.blocks ?? []).map((block) => [block.blockId, block]));
+  const knownIds = new Set((sectionPlan.blockPlans ?? []).map((blockPlan) => blockPlan.blockId));
+  const mergedKnown = (baseSection.blocks ?? []).map((block) => (patchById.has(block.blockId) ? patchById.get(block.blockId) : block));
+  const extra = (patchSection?.blocks ?? []).filter((block) => !knownIds.has(block.blockId) && !(baseSection.blocks ?? []).some((oldBlock) => oldBlock.blockId === block.blockId));
+  return {
+    ...baseSection,
+    blocks: [...mergedKnown, ...extra]
+  };
+}
+
+function unique(values = []) {
+  return [...new Set(values.filter((value) => value !== null && value !== undefined))];
+}
+
+function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
+  const packetRefs = new Set(blockPlan?.packetRefs ?? []);
+  const evidencePackets = (sectionPlan?.evidencePackets ?? []).filter((packet) => packetRefs.has(packet.packetId));
+  const evidenceRefs = unique(evidencePackets.flatMap((packet) => packet.evidenceRefs ?? []));
+  const ruleRefs = unique(evidencePackets.flatMap((packet) => packet.interpretationRuleRefs ?? []));
+  return {
+    ...sectionPlan,
+    primaryEvidenceRefs: (sectionPlan?.primaryEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
+    secondaryEvidenceRefs: (sectionPlan?.secondaryEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
+    forbiddenEvidenceRefs: [],
+    allowedInterpretationRuleRefs: ruleRefs,
+    alreadyInterpretedEvidenceRefs: (sectionPlan?.alreadyInterpretedEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
+    evidencePackets,
+    blockPlans: [blockPlan],
+    preconditions: sectionPlan?.preconditions ?? []
+  };
+}
+
+function deterministicTextForBlock(scopedPlan, blockPlan) {
+  const packet = (scopedPlan.evidencePackets ?? []).find((entry) => (blockPlan.packetRefs ?? []).includes(entry.packetId));
+  const snapshot = (packet?.claims ?? []).find((claim) => claim.type === "TRANSIT_SNAPSHOT");
+  if (snapshot) {
+    const nowUtc = snapshot.nowUtc ? new Date(snapshot.nowUtc).toISOString() : "l'instant de référence";
+    const horizonDays = Number.isFinite(Number(snapshot.horizonDays)) ? Number(snapshot.horizonDays) : 42;
+    return `Ciel calculé le ${nowUtc}, horizon ${horizonDays} jours.`;
+  }
+  return "Ce bloc est calculé automatiquement à partir des faits disponibles.";
 }
 
 function blockById(section, blockId) {
@@ -301,16 +345,16 @@ function blockForIssue(section, issue) {
 
 function claimShapeHelp(issue) {
   if (issue?.code === "unknown_packet_ref") {
-    return "Use only packetRefs copied exactly from the authorizedPackets list.";
+    return "Use only blockId values copied exactly from the authorized BlockPlan.";
   }
   if (issue?.code === "undeclared_text_fact") {
-    return "Either remove the unsupported factual phrase from the text, or cite a packetRef whose facts explicitly support it.";
+    return "Remove the unsupported factual phrase from the text; packets are fixed by the server BlockPlan.";
   }
   return null;
 }
 
 function correctionIssuesForPrompt({ validation, section, sectionPlan }) {
-  const authorizedPackets = packetsForPrompt(sectionPlan);
+  const authorizedBlockPlans = blockPlansForPrompt(sectionPlan);
   return (validation?.issues ?? []).map((issue) => {
     const block = blockForIssue(section, issue);
     const claim = claimById(section, issue.claimId);
@@ -323,11 +367,11 @@ function correctionIssuesForPrompt({ validation, section, sectionPlan }) {
       ruleId: issue.ruleId ?? null,
       fact: issue.fact ?? null,
       expectedHint: claimShapeHelp(issue),
-      authorizedPackets,
+      authorizedBlockPlans,
       block: block
         ? {
             textFragment: block.text.slice(0, 320),
-            packetRefs: block.packetRefs ?? []
+            blockId: block.blockId
           }
         : null,
       claim: claim ?? null
@@ -339,33 +383,38 @@ function validationErrorCodes(validation) {
   return [...new Set((validation?.issues ?? []).map((issue) => issue.code).filter(Boolean))];
 }
 
-function logStructuredValidationFailure({ logger, sectionId, attempt, validation }) {
+function logStructuredValidationFailure({ logger, sectionId, blockId = null, attempt, validation }) {
   if (!logger?.warn) return;
   logger.warn("[Lastro] structured section validation failed", {
     sectionId,
+    blockId,
     attempt,
     validationErrorCodes: validationErrorCodes(validation)
   });
 }
 
 function hasWritableMaterial(sectionPlan) {
+  if ((sectionPlan?.blockPlans ?? []).some((blockPlan) => blockPlan.deterministic)) return true;
   return (sectionPlan?.allowedInterpretationRuleRefs ?? []).length > 0 &&
     ((sectionPlan?.primaryEvidenceRefs ?? []).length > 0 || (sectionPlan?.secondaryEvidenceRefs ?? []).length > 0);
 }
 
 function buildStructuredSystemPrompt(sectionPlan) {
+  const blockIds = (sectionPlan.blockPlans ?? []).map((blockPlan) => blockPlan.blockId).join(", ");
   return [
-    "Tu rédiges un chapitre du dossier astrologique Lastro.",
+    "Tu rédiges un bloc isolé du dossier astrologique Lastro.",
     "Tu dois produire UNIQUEMENT un objet JSON valide, sans Markdown autour.",
     "Tu n'as pas le droit d'inventer un fait astrologique, biographique, psychologique ou prédictif.",
-    "Tu n'écris jamais evidenceRefs, interpretationRuleRefs, claims ni claim.type : le serveur les déduit depuis les packetRefs.",
-    "Chaque bloc doit seulement citer des packetRefs autorisés, copiés exactement depuis la liste evidencePackets.",
-    "N'utilise pas de packet absent de la liste autorisée.",
+    "Tu ne connais que les packets transmis pour ce bloc. N'utilise aucun autre placement natal, transit, aspect, maison ou angle.",
+    "Tu n'écris jamais packetRefs, evidenceRefs, interpretationRuleRefs, claims ni claim.type : le serveur les déduit depuis le BlockPlan.",
+    "Tu dois seulement remplir le texte du ou des blockId prévus par ce BlockPlan isolé.",
+    "N'invente jamais de blockId.",
     "Si la matière méthodologique est insuffisante, écris un bloc court qui dit que cette partie reste limitée aux faits disponibles.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
+    `BlockId autorisé: ${blockIds}.`,
     `Longueur cible: environ ${sectionPlan.targetWords} mots, jamais plus de ${sectionPlan.maxWords}.`,
-    "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\",\"packetRefs\":[\"...\"]}]}"
+    "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\"}]}"
   ].join("\n");
 }
 
@@ -382,24 +431,29 @@ function packetsForPrompt(sectionPlan) {
   }));
 }
 
-function buildStructuredUserPrompt({ dossierEvidence, sectionPlan, previousSections = [], correctionIssues = [] }) {
+function blockPlansForPrompt(sectionPlan) {
+  const packets = new Map(packetsForPrompt(sectionPlan).map((packet) => [packet.packetId, packet]));
+  return (sectionPlan.blockPlans ?? []).map((blockPlan) => ({
+    blockId: blockPlan.blockId,
+    packets: (blockPlan.packetRefs ?? []).map((packetRef) => packets.get(packetRef)).filter(Boolean)
+  }));
+}
+
+function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
   return JSON.stringify(
     {
       sectionPlan: {
         sectionId: sectionPlan.sectionId,
         objective: sectionPlan.objective,
-        primaryPacketRefs: (sectionPlan.evidencePackets ?? []).filter((packet) => packet.interpretationDepth === "primary").map((packet) => packet.packetId),
-        referencePacketRefs: (sectionPlan.evidencePackets ?? []).filter((packet) => packet.interpretationDepth === "reference").map((packet) => packet.packetId),
-        alreadyInterpretedEvidenceRefs: sectionPlan.alreadyInterpretedEvidenceRefs,
+        blockPlans: blockPlansForPrompt(sectionPlan),
         preconditions: sectionPlan.preconditions
       },
-      evidencePackets: packetsForPrompt(sectionPlan),
-      previousSections,
       correctionIssues,
       constraints: {
-        outputOnlyPacketRefs: true,
-        forbiddenOutputKeys: ["evidenceRefs", "interpretationRuleRefs", "claims", "claim", "claimType", "claim.type"],
-        packetRefsMustBeCopiedExactly: true,
+        closedContextPerBlock: true,
+        outputOnlyTextForPlannedBlocks: true,
+        forbiddenOutputKeys: ["packetRefs", "evidenceRefs", "interpretationRuleRefs", "claims", "claim", "claimType", "claim.type"],
+        blockIdsMustBeCopiedExactly: true,
         noUndeclaredAstrologicalFactsInText: true,
         noLoveWorkScoring: true
       }
@@ -409,7 +463,92 @@ function buildStructuredUserPrompt({ dossierEvidence, sectionPlan, previousSecti
   );
 }
 
-export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, previousSections = [], options = {} }) {
+async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, blockPlan, writerFn, config, logger }) {
+  const scopedPlan = scopedSectionPlanForBlock(sectionPlan, blockPlan);
+  if (blockPlan.deterministic) {
+    const section = {
+      sectionId: scopedPlan.sectionId,
+      contractVersion: STRUCTURED_WRITER_CONTRACT_VERSION,
+      blocks: [{ blockId: blockPlan.blockId, text: deterministicTextForBlock(scopedPlan, blockPlan) }]
+    };
+    const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
+    if (!validation.ok) {
+      const error = new Error(`Deterministic block ${blockPlan.blockId} rejected`);
+      error.status = 502;
+      error.code = "structured_deterministic_block_validation_failed";
+      error.sectionId = sectionPlan.sectionId;
+      error.validation = validation;
+      error.section = section;
+      throw error;
+    }
+    return {
+      section,
+      llmCalls: 0,
+      usage: { promptTokens: 0, completionTokens: 0 },
+      model: null,
+      validation
+    };
+  }
+
+  let correctionIssues = [];
+  let lastSection = null;
+  let lastValidation = null;
+  let llmCalls = 0;
+  let usage = { promptTokens: 0, completionTokens: 0 };
+  let model = null;
+
+  for (let attempt = 0; attempt <= MAX_CORRECTION_ATTEMPTS; attempt += 1) {
+    const payload = {
+      sectionPlan: scopedPlan,
+      correctionIssues
+    };
+    let raw;
+    if (writerFn) {
+      raw = await writerFn(payload);
+      raw = typeof raw === "string" ? raw : JSON.stringify(raw);
+    } else {
+      const result = await callChatCompletions(config, {
+        temperature: attempt === 0 ? 0.35 : 0.2,
+        responseFormat: { type: "json_object" },
+        maxTokens: 900,
+        system: buildStructuredSystemPrompt(scopedPlan),
+        user: buildStructuredUserPrompt(payload)
+      });
+      raw = result.text;
+      model = result.model;
+      llmCalls += 1;
+      usage.promptTokens += result.usage?.promptTokens ?? 0;
+      usage.completionTokens += result.usage?.completionTokens ?? 0;
+    }
+    const parsed = parseJsonObject(raw);
+    const section = sanitizeStructuredSection(parsed, scopedPlan);
+    const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
+    lastSection = section;
+    lastValidation = validation;
+    if (validation.ok) {
+      return {
+        section,
+        llmCalls,
+        usage,
+        model,
+        validation
+      };
+    }
+    logStructuredValidationFailure({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
+    correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan: scopedPlan });
+  }
+
+  const error = new Error(`Block ${sectionPlan.sectionId}.${blockPlan.blockId} rejected after ${MAX_CORRECTION_ATTEMPTS} correction attempts`);
+  error.status = 502;
+  error.code = "structured_block_validation_failed";
+  error.sectionId = sectionPlan.sectionId;
+  error.blockId = blockPlan.blockId;
+  error.validation = lastValidation;
+  error.section = lastSection;
+  throw error;
+}
+
+export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, options = {} }) {
   if (!hasWritableMaterial(sectionPlan)) {
     return {
       section: {
@@ -436,65 +575,50 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
     throw error;
   }
 
-  let correctionIssues = [];
-  let lastSection = null;
-  let lastValidation = null;
   let llmCalls = 0;
   let usage = { promptTokens: 0, completionTokens: 0 };
   let model = null;
+  const section = {
+    sectionId: sectionPlan.sectionId,
+    contractVersion: STRUCTURED_WRITER_CONTRACT_VERSION,
+    blocks: []
+  };
 
-  for (let attempt = 0; attempt <= MAX_CORRECTION_ATTEMPTS; attempt += 1) {
-    const payload = {
+  for (const blockPlan of sectionPlan.blockPlans ?? []) {
+    const written = await writeStructuredBlockWithLlm({
       dossierEvidence,
       sectionPlan,
-      previousSections,
-      correctionIssues
-    };
-    let raw;
-    if (writerFn) {
-      raw = await writerFn(payload);
-      raw = typeof raw === "string" ? raw : JSON.stringify(raw);
-    } else {
-      const result = await callChatCompletions(config, {
-        temperature: attempt === 0 ? 0.35 : 0.2,
-        responseFormat: { type: "json_object" },
-        maxTokens: 1800,
-        system: buildStructuredSystemPrompt(sectionPlan),
-        user: buildStructuredUserPrompt(payload)
-      });
-      raw = result.text;
-      model = result.model;
-      llmCalls += 1;
-      usage.promptTokens += result.usage?.promptTokens ?? 0;
-      usage.completionTokens += result.usage?.completionTokens ?? 0;
-    }
-    const parsed = parseJsonObject(raw);
-    const section = sanitizeStructuredSection(parsed, sectionPlan);
-    const validation = validateStructuredSection({ dossierEvidence, sectionPlan, section });
-    lastSection = section;
-    lastValidation = validation;
-    if (validation.ok) {
-      return {
-        section,
-        skipped: false,
-        reason: null,
-        llmCalls,
-        usage,
-        model,
-        validation
-      };
-    }
-    logStructuredValidationFailure({ logger, sectionId: sectionPlan.sectionId, attempt: attempt + 1, validation });
-    correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan });
+      blockPlan,
+      writerFn,
+      config,
+      logger
+    });
+    section.blocks.push(...(written.section.blocks ?? []));
+    llmCalls += written.llmCalls ?? 0;
+    usage.promptTokens += written.usage?.promptTokens ?? 0;
+    usage.completionTokens += written.usage?.completionTokens ?? 0;
+    model = model ?? written.model ?? null;
   }
 
-  const error = new Error(`Section ${sectionPlan.sectionId} rejected after ${MAX_CORRECTION_ATTEMPTS} correction attempts`);
-  error.status = 502;
-  error.code = "structured_section_validation_failed";
-  error.sectionId = sectionPlan.sectionId;
-  error.validation = lastValidation;
-  error.section = lastSection;
-  throw error;
+  const validation = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  if (!validation.ok) {
+    const error = new Error(`Section ${sectionPlan.sectionId} rejected after block generation`);
+    error.status = 502;
+    error.code = "structured_section_validation_failed";
+    error.sectionId = sectionPlan.sectionId;
+    error.validation = validation;
+    error.section = section;
+    throw error;
+  }
+  return {
+    section,
+    skipped: false,
+    reason: null,
+    llmCalls,
+    usage,
+    model,
+    validation
+  };
 }
 
 export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDossierPlan, options = {} }) {
@@ -504,12 +628,8 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
   const metrics = { llmCalls: 0, promptTokens: 0, completionTokens: 0, model: null };
 
   for (const sectionPlan of fullDossierPlan?.sections ?? []) {
-    const previousSections = sections.map((section) => ({
-      sectionId: section.sectionId,
-      excerpt: section.blocks.map((block) => block.text).join(" ").slice(0, 360)
-    }));
     try {
-      const written = await writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, previousSections, options });
+      const written = await writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, options });
       metrics.llmCalls += written.llmCalls ?? 0;
       metrics.promptTokens += written.usage?.promptTokens ?? 0;
       metrics.completionTokens += written.usage?.completionTokens ?? 0;

@@ -128,22 +128,26 @@ function claimsForEvidence(evidence) {
   if (evidence?.type === "DISTRIBUTION_MODALITY_COUNT") {
     return [{ type: "DISTRIBUTION_COUNT", modality: value.modality, count: value.count, evidenceRefs: [evidence.evidenceId] }];
   }
+  if (evidence?.type === "TRANSIT_SNAPSHOT") {
+    return [{ type: "TRANSIT_SNAPSHOT", nowUtc: value.nowUtc, horizonDays: value.horizonDays, evidenceRefs: [evidence.evidenceId] }];
+  }
   if (evidence?.type === "PERSONAL_TRANSIT") {
-    return [
-      {
-        type: "PERSONAL_TRANSIT",
-        transitBody: value.transitBody,
-        natalPoint: value.natalPoint,
-        aspectType: value.aspectType,
-        exactAt: value.exactAt,
-        startsAt: value.startsAt,
-        endsAt: value.endsAt,
-        phase: value.phase,
-        natalHouse: value.natalHouse,
-        orb: value.orb,
-        evidenceRefs: [evidence.evidenceId]
-      }
-    ];
+    const claim = {
+      type: "PERSONAL_TRANSIT",
+      transitBody: value.transitBody,
+      natalPoint: value.natalPoint,
+      aspectType: value.aspectType,
+      exactAt: value.exactAt,
+      startsAt: value.startsAt,
+      endsAt: value.endsAt,
+      phase: value.phase,
+      orb: value.orb,
+      evidenceRefs: [evidence.evidenceId]
+    };
+    if (value.natalHouse !== null && value.natalHouse !== undefined) {
+      claim.natalHouse = value.natalHouse;
+    }
+    return [claim];
   }
   return [];
 }
@@ -176,6 +180,46 @@ function buildEvidencePackets({ section, byId, ownerByEvidenceRef }) {
       return packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef });
     })
     .filter(Boolean);
+}
+
+function buildBlockPlans(section) {
+  const packets = section.evidencePackets ?? [];
+  if (packets.length === 0) return [];
+  if (section.sectionId === "current_sky") {
+    let transitIndex = 0;
+    return packets.map((packet) => {
+      if (packet.evidenceRefs?.includes("transits.snapshot")) {
+        return {
+          blockId: "current_sky.intro",
+          packetRefs: [packet.packetId],
+          deterministic: true
+        };
+      }
+      transitIndex += 1;
+      return {
+        blockId: `current_sky.transit_${String(transitIndex).padStart(2, "0")}`,
+        packetRefs: [packet.packetId]
+      };
+    });
+  }
+  if (section.sectionId === "next_weeks") {
+    return packets.map((packet, index) => ({
+      blockId: `next_weeks.transit_${String(index + 1).padStart(2, "0")}`,
+      packetRefs: [packet.packetId]
+    }));
+  }
+  if (section.sectionId === "general_synthesis") {
+    return [
+      {
+        blockId: "block1",
+        packetRefs: packets.map((packet) => packet.packetId)
+      }
+    ];
+  }
+  return packets.map((packet, index) => ({
+    blockId: `block${index + 1}`,
+    packetRefs: [packet.packetId]
+  }));
 }
 
 export function buildFullDossierPlan(dossierEvidence) {
@@ -222,6 +266,7 @@ export function buildFullDossierPlan(dossierEvidence) {
       section.preconditions.push({ status: "snapshot", label: "Calculé le", evidenceRef: "transits.snapshot" });
     }
     section.evidencePackets = buildEvidencePackets({ section, byId, ownerByEvidenceRef });
+    section.blockPlans = buildBlockPlans(section);
   }
 
   return {

@@ -208,8 +208,18 @@ function packetById(sectionPlan) {
   return new Map((sectionPlan?.evidencePackets ?? []).map((packet) => [packet.packetId, packet]));
 }
 
+function blockPlanById(sectionPlan) {
+  return new Map((sectionPlan?.blockPlans ?? []).map((blockPlan) => [blockPlan.blockId, blockPlan]));
+}
+
 function expandBlockFromPackets({ block, sectionPlan, issues }) {
-  const packetRefs = normalizeArray(block?.packetRefs).map(String);
+  const plans = blockPlanById(sectionPlan);
+  const blockPlan = plans.get(block?.blockId);
+  if ((sectionPlan?.blockPlans ?? []).length > 0 && !blockPlan) {
+    issues.push(claimlikeForBlock(block, "unknown_block_id", `Bloc non prévu par le BlockPlan : ${block?.blockId}.`, { blockId: block?.blockId ?? null }));
+    return block;
+  }
+  const packetRefs = blockPlan ? normalizeArray(blockPlan.packetRefs).map(String) : normalizeArray(block?.packetRefs).map(String);
   if (packetRefs.length === 0) {
     return block;
   }
@@ -351,6 +361,17 @@ function validateAgainstEvidence(claim, refs) {
       if (claim.orb !== undefined && !numberClose(claim.orb, value.orb, claim.orbTolerance ?? 0.05)) issues.push(error(claim, "transit_orb_mismatch", `Orbe attendu ${value.orb}, reçu ${claim.orb}.`));
       return issues;
     }
+    case "TRANSIT_SNAPSHOT": {
+      const item = firstOfType(refs, "TRANSIT_SNAPSHOT");
+      if (!item) return [error(claim, "wrong_evidence_type", "Le claim d'instantané de transit ne référence pas une preuve TRANSIT_SNAPSHOT.")];
+      const value = item.value ?? {};
+      const issues = [];
+      if (claim.nowUtc !== undefined && !sameInstant(claim.nowUtc, value.nowUtc)) issues.push(error(claim, "snapshot_now_mismatch", `nowUtc attendu ${value.nowUtc}, reçu ${claim.nowUtc}.`));
+      if (claim.horizonDays !== undefined && Number(claim.horizonDays) !== Number(value.horizonDays)) {
+        issues.push(error(claim, "snapshot_horizon_mismatch", `Horizon attendu ${value.horizonDays}, reçu ${claim.horizonDays}.`));
+      }
+      return issues;
+    }
     default:
       return [error(claim, "unsupported_claim_type", `Type de claim non supporté : ${claim.type}.`)];
   }
@@ -387,9 +408,14 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
   const allowedRules = new Set(sectionPlan.allowedInterpretationRuleRefs ?? []);
   const alreadyInterpreted = new Set(sectionPlan.alreadyInterpretedEvidenceRefs ?? []);
   const allClaims = [];
+  const seenBlockIds = new Set();
 
   for (const rawBlock of section.blocks ?? []) {
     const block = expandBlockFromPackets({ block: rawBlock, sectionPlan, issues });
+    seenBlockIds.add(block.blockId);
+    if (!String(block.text ?? "").trim()) {
+      issues.push(claimlikeForBlock(block, "missing_block_text", "Le bloc prévu ne contient aucun texte."));
+    }
     const blockRefs = Array.isArray(block.evidenceRefs) ? block.evidenceRefs : [];
     const resolvedRefs = [];
     for (const ref of blockRefs) {
@@ -425,6 +451,12 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
       }
     }
     allClaims.push(...(block.claims ?? []));
+  }
+
+  for (const blockPlan of sectionPlan.blockPlans ?? []) {
+    if (!seenBlockIds.has(blockPlan.blockId)) {
+      issues.push(claimlikeForBlock({ blockId: blockPlan.blockId }, "missing_block", `Bloc prévu absent : ${blockPlan.blockId}.`, { blockId: blockPlan.blockId }));
+    }
   }
 
   const claimResult = validateDossierClaims({ dossierEvidence, claims: allClaims });
