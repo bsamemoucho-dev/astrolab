@@ -10,6 +10,7 @@ const state = {
   recovery: null,
   // Jeton de la livraison affichée : c'est lui qui ouvre le PDF côté serveur.
   readingToken: null,
+  pendingReadingJob: null,
   // Dernier devis de prix reçu du serveur.
   quote: null
 };
@@ -2658,6 +2659,8 @@ function tokenFromDeliveryLink(link) {
   return correspondance ? correspondance[1] : null;
 }
 
+const PENDING_READING_STORAGE_KEY = "lastro_pending_public_reading";
+
 // Adresse du PDF produit par le serveur, quand il sait le produire.
 //
 // Le jeton de la livraison est le même secret que la lecture : sans lui, ou sans
@@ -3064,6 +3067,9 @@ function bindExpressForm() {
     }
   });
 
+  let readingPollTimer = null;
+  let pollReadingJob = async () => {};
+
   const runGeneration = async (paymentSessionId = null, code = null) => {
     const form = $("#express-form");
     const submitButton = form.querySelector('button[type="submit"]');
@@ -3089,6 +3095,21 @@ function bindExpressForm() {
           ...(code ? (state.config?.codesEnabled ? { accessCode: code } : { testCode: code }) : {})
         }
       });
+      if (reading.readingId && ["queued", "generating"].includes(reading.status)) {
+        const token = tokenFromDeliveryLink(reading.delivery?.link);
+        state.readingToken = token ?? state.readingToken;
+        state.pendingReadingJob = { id: reading.readingId, token, reference: reading.reference };
+        localStorage.setItem(PENDING_READING_STORAGE_KEY, JSON.stringify(state.pendingReadingJob));
+        if (reading.delivery) {
+          renderDeliveryBox(reading.delivery, { justPaid: true });
+        }
+        const progress = reading.progress?.totalSections
+          ? ` ${reading.progress.completedSections}/${reading.progress.totalSections}.`
+          : "";
+        showMessage(`Votre lecture est en cours de préparation. Cela peut prendre quelques minutes.${progress}`);
+        await pollReadingJob(reading.readingId, { token });
+        return;
+      }
       state.guestReading = { html: reading.html, markdown: reading.markdown };
       state.readingToken = tokenFromDeliveryLink(reading.delivery?.link) ?? state.readingToken;
       $("#express-viewer").hidden = false;
@@ -3265,6 +3286,14 @@ function bindExpressForm() {
 
   // Affiche une livraison : la lecture si elle est prête, sinon l'état en cours.
   const showDelivery = (delivery, { token } = {}) => {
+    if (delivery?.status === "ready" || delivery?.status === "failed") {
+      localStorage.removeItem(PENDING_READING_STORAGE_KEY);
+      state.pendingReadingJob = null;
+      if (readingPollTimer) {
+        clearTimeout(readingPollTimer);
+        readingPollTimer = null;
+      }
+    }
     state.recovery = delivery ? { token: token ?? delivery.token ?? null, reference: delivery.reference } : null;
     state.readingToken = delivery ? token ?? delivery.token ?? null : null;
     $("#express-payment").hidden = true;
@@ -3299,6 +3328,47 @@ function bindExpressForm() {
     renderRecoveryState("pending");
   };
 
+  pollReadingJob = async (readingId, { token = null } = {}) => {
+    if (!readingId) {
+      return;
+    }
+    if (readingPollTimer) {
+      clearTimeout(readingPollTimer);
+      readingPollTimer = null;
+    }
+    try {
+      const status = await api(`/api/public/readings/${encodeURIComponent(readingId)}/status`);
+      const deliveryToken = token ?? tokenFromDeliveryLink(status.delivery?.link) ?? state.readingToken;
+      state.pendingReadingJob = { id: readingId, token: deliveryToken, reference: status.reference };
+      localStorage.setItem(PENDING_READING_STORAGE_KEY, JSON.stringify(state.pendingReadingJob));
+      if (status.delivery) {
+        renderDeliveryBox(status.delivery, { justPaid: true });
+      }
+      if (status.status === "ready") {
+        if (deliveryToken) {
+          const result = await api(`/api/public/deliveries/${encodeURIComponent(deliveryToken)}`);
+          showDelivery(result.delivery, { token: deliveryToken });
+        }
+        showMessage("Lecture prête — vous pouvez l'ouvrir et la télécharger.");
+        return;
+      }
+      if (status.status === "failed") {
+        showMessage("La génération n'a pas pu être terminée. Vous pouvez réessayer.", true);
+        renderRecoveryState("failed");
+        localStorage.removeItem(PENDING_READING_STORAGE_KEY);
+        return;
+      }
+      const progress = status.progress?.totalSections
+        ? ` ${status.progress.completedSections} sections sur ${status.progress.totalSections} préparées.`
+        : "";
+      showMessage(`Votre lecture est en cours de préparation. Cela peut prendre quelques minutes.${progress}`);
+      readingPollTimer = setTimeout(() => pollReadingJob(readingId, { token: deliveryToken }), 5000);
+    } catch (error) {
+      showMessage(error.message, true);
+      readingPollTimer = setTimeout(() => pollReadingJob(readingId, { token }), 10000);
+    }
+  };
+
   const loadRecovery = async () => {
     const token = recoveryTokenFromPath();
     if (!token) {
@@ -3319,6 +3389,28 @@ function bindExpressForm() {
   };
 
   window.__lastroLoadRecovery = loadRecovery;
+
+  window.__lastroLoadPendingReading = async () => {
+    const raw = localStorage.getItem(PENDING_READING_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+    try {
+      const pending = JSON.parse(raw);
+      if (!pending?.id) {
+        return;
+      }
+      state.pendingReadingJob = pending;
+      state.readingToken = pending.token ?? state.readingToken;
+      $("#express-payment").hidden = true;
+      $("#express-progress").hidden = false;
+      $("#express-viewer").hidden = false;
+      showMessage("Votre lecture est en cours de préparation. Cela peut prendre quelques minutes.");
+      await pollReadingJob(pending.id, { token: pending.token ?? null });
+    } catch {
+      localStorage.removeItem(PENDING_READING_STORAGE_KEY);
+    }
+  };
 
   // « Vous avez déjà payé ? » : le client redonne son numéro de commande et son
   // e-mail ; le lien repart à cette adresse (réponse identique dans tous les cas).
@@ -3769,6 +3861,9 @@ async function boot() {
   } else {
     updateNav();
     setView("express");
+    if (typeof window.__lastroLoadPendingReading === "function") {
+      await window.__lastroLoadPendingReading();
+    }
   }
   await renderMethods();
 }

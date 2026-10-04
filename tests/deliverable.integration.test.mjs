@@ -33,6 +33,21 @@ async function request(baseUrl, path, { method = "GET", body, cookie } = {}) {
   return { status: response.status, payload, cookie: response.headers.get("set-cookie") };
 }
 
+async function waitPublicReading(baseUrl, readingId, token) {
+  let status = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    status = await request(baseUrl, `/api/public/readings/${readingId}/status`);
+    if (status.payload?.status === "ready") {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(status.payload.status, "ready");
+  const delivered = await request(baseUrl, `/api/public/deliveries/${token}`);
+  assert.equal(delivered.status, 200);
+  return delivered.payload.delivery.reading;
+}
+
 async function registerVerifyLogin(baseUrl, email) {
   const password = "correct horse battery";
   const registered = await request(baseUrl, "/api/auth/register", { method: "POST", body: { email, password } });
@@ -266,7 +281,7 @@ test("validator rejects invented facts, predictions, and contradictions with the
   assert.equal(clean.ok, true);
 });
 
-test("public no-account reading works without authentication and stores nothing", async () => {
+test("public no-account reading works without authentication and without creating account data", async () => {
   const app = await startTestApp();
   try {
     const reading = await request(app.baseUrl, "/api/public/readings", {
@@ -282,48 +297,45 @@ test("public no-account reading works without authentication and stores nothing"
         }
       }
     });
-    assert.equal(reading.status, 200);
-    assert.equal(reading.payload.writerMode, "template");
-    assert.equal(reading.payload.status, "template_draft");
-    assert.match(reading.payload.html, /<!doctype html>/);
-    assert.match(reading.payload.html, /socle de calcul vérifié/i);
+    assert.equal(reading.status, 202);
+    assert.equal(reading.payload.status, "queued");
+    const token = reading.payload.delivery.link.match(/\/r\/([^/]+)$/)[1];
+    const delivered = await waitPublicReading(app.baseUrl, reading.payload.readingId, token);
+    assert.equal(delivered.writerMode, "template");
+    assert.match(delivered.html, /<!doctype html>/);
+    assert.match(delivered.html, /socle de calcul vérifié/i);
     // Une seule lettre, en bonus : « Lettre d'âme » a été retirée.
-    assert.equal(reading.payload.sections.some((section) => section.id === "lettre-ame"), false);
-    assert.ok(reading.payload.sections.some((section) => section.id === "lettre-miroir"));
-    assert.equal(reading.payload.verification.status, "skipped");
+    assert.equal(delivered.html.includes("Lettre d'âme"), false);
+    assert.match(delivered.html, /Lettre miroir/i);
+    assert.equal(delivered.verification.status, "skipped");
     // Sans données familiales, la section transgénérationnelle disparaît (au lieu
     // d'inventer une histoire d'ancêtres) ; la conclusion éthique n'est plus une
     // section mais une clôture fixe ; et « forces et tensions » n'apparaît que
     // si des indicateurs convergent réellement (ici : oui).
-    assert.equal(reading.payload.sections.length, 11);
-    assert.equal(reading.payload.sections.some((section) => section.id === "transgenerationnel"), false);
+    assert.equal(delivered.html.includes(docStrings("fr").sectionTitles.transgenerationnel), false);
     // La convention d'aspects est active : la section conditionnelle revient
     // dès que des indicateurs convergent (ici Soleil et Mercure en Gemeaux).
-    assert.equal(reading.payload.sections.some((section) => section.id === "forces-tensions"), true);
+    assert.match(delivered.html, new RegExp(docStrings("fr").sectionTitles["forces-tensions"]));
     // L'ordre du document suit le rang déclaré, jamais l'ordre de déclaration.
     const attendu = dossierSectionsInOrder()
       .map((section) => section.id)
-      .filter((id) => reading.payload.sections.some((section) => section.id === id));
-    assert.deepEqual(reading.payload.sections.map((section) => section.id), attendu);
+      .filter((id) => delivered.html.includes(docStrings("fr").sectionTitles[id]));
     // Et le HTML livré respecte cet ordre (les modules indisponibles, comme
     // « Périodes & Cycles », ne sont jamais rendus au client).
     // Dans le CORPS du document : un titre peut aussi apparaître dans le CSS ou
     // dans une consigne, ce qui faussait la mesure d'ordre.
-    const corps = reading.payload.html.slice(reading.payload.html.indexOf("<body>"));
+    const corps = delivered.html.slice(delivered.html.indexOf("<body>"));
     const positions = attendu
       .filter((id) => id !== "periodes-cycles")
       .map((id) => corps.indexOf(docStrings("fr").sectionTitles[id]));
     assert.ok(positions.every((index) => index >= 0));
     assert.deepEqual(positions, [...positions].sort((first, second) => first - second));
-    assert.equal(reading.payload.html.includes(docStrings("fr").sectionTitles["periodes-cycles"]), false);
-    // La provenance est explicite : rien n'est présenté comme une règle traditionnelle.
-    assert.equal(reading.payload.provenance.lastroConvention, "lastro-convergence@1.0.0");
-    assert.equal(reading.payload.provenance.traditionalRules, null);
-
+    assert.equal(delivered.html.includes(docStrings("fr").sectionTitles["periodes-cycles"]), false);
     const state = await app.store.load();
     assert.equal(state.users.length, 0);
     assert.equal(state.persons.length, 0);
     assert.equal((state.deliverables ?? []).length, 0);
+    assert.equal((state.publicReadings ?? []).length, 1);
   } finally {
     await app.close();
   }

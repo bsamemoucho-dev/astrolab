@@ -71,6 +71,22 @@ function post(baseUrl, path, body) {
   }).then(async (response) => ({ status: response.status, payload: await response.json().catch(() => null) }));
 }
 
+function get(baseUrl, path) {
+  return fetch(`${baseUrl}${path}`).then(async (response) => ({ status: response.status, payload: await response.json().catch(() => null) }));
+}
+
+async function waitForReadingStatus(baseUrl, readingId, wanted = "ready") {
+  let last = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    last = await get(baseUrl, `/api/public/readings/${readingId}/status`);
+    if (last.payload?.status === wanted) {
+      return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return last;
+}
+
 // Faux Stripe : seule la lecture d'une session est simulée. Les appels au
 // rédacteur IA sont comptés séparément par les tests qui en ont besoin.
 function withSession(session, run) {
@@ -169,11 +185,8 @@ test("session au prix de 3 euros : acceptée", async () => {
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, paymentSessionId: "cs_test_paye" });
-        // Pas de rédacteur ici : la commande est enregistrée (récupérable) mais
-        // aucun brouillon n'est livré — c'est le seul statut possible après le
-        // contrôle du paiement, ce qui prouve que la session a été acceptée.
-        assert.equal(reponse.status, 503);
-        assert.match(reponse.payload.error, /commande est enregistrée/i);
+        assert.equal(reponse.status, 202);
+        assert.equal(reponse.payload.status, "queued");
         const state = await app.store.load();
         assert.equal(state.publicReadings.length, 1);
         assert.equal(state.publicReadings[0].amountCents, 300);
@@ -192,8 +205,8 @@ test("session payée avant la marque produit : acceptée, mais signalée", async
         const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, paymentSessionId: "cs_test_paye" });
         // Refuser casserait la reprise d'un client déjà débité pendant le
         // déploiement : on accepte sur le montant.
-        assert.equal(reponse.status, 503);
-        assert.match(reponse.payload.error, /commande est enregistrée/i);
+        assert.equal(reponse.status, 202);
+        assert.equal(reponse.payload.status, "queued");
       } finally {
         await app.close();
       }
@@ -243,12 +256,16 @@ test("le parcours payant complet produit bien la lecture", async () => {
         };
         try {
           const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, paymentSessionId: "cs_test_paye" });
-          assert.equal(reponse.status, 200, JSON.stringify(reponse.payload).slice(0, 400));
-          assert.equal(reponse.payload.writerMode, "llm");
-          assert.match(reponse.payload.html, /<html/i);
+          assert.equal(reponse.status, 202, JSON.stringify(reponse.payload).slice(0, 400));
           assert.ok(reponse.payload.delivery?.link, "le client reçoit son lien");
+          const ready = await waitForReadingStatus(app.baseUrl, reponse.payload.readingId, "ready");
+          assert.equal(ready.payload.status, "ready", JSON.stringify(ready.payload).slice(0, 400));
           // Le rédacteur a bien été appelé : la lecture n'est pas un brouillon.
           assert.equal(sections > 5, true, `appels au rédacteur : ${sections}`);
+          const token = reponse.payload.delivery.link.match(/\/r\/([^/]+)$/)[1];
+          const delivered = await get(app.baseUrl, `/api/public/deliveries/${token}`);
+          assert.equal(delivered.status, 200);
+          assert.match(delivered.payload.delivery.reading.html, /<html/i);
 
           // Un paiement = une lecture : rappeler avec la même session relivre la
           // même lecture, sans régénérer et sans redemander de paiement.
@@ -289,8 +306,10 @@ test("en production, une configuration de paiement absente refuse les lectures",
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", NAISSANCE);
-        assert.equal(reponse.status, 200);
-        assert.equal(reponse.payload.writerMode, "template");
+        assert.equal(reponse.status, 202);
+        assert.equal(reponse.payload.status, "queued");
+        const ready = await waitForReadingStatus(app.baseUrl, reponse.payload.readingId, "ready");
+        assert.equal(ready.payload.status, "ready");
       } finally {
         await app.close();
       }
@@ -312,8 +331,8 @@ test("un code de test reste utilisable même en production sans paiement", async
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, testCode: "code-exploitant-1234" });
-        assert.equal(reponse.status, 200);
-        assert.equal(reponse.payload.freeAccess, true);
+        assert.equal(reponse.status, 202);
+        assert.equal(reponse.payload.status, "queued");
       } finally {
         await app.close();
       }

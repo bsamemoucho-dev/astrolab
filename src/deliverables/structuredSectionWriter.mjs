@@ -626,9 +626,25 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
   const rejected = [];
   const skipped = [];
   const metrics = { llmCalls: 0, promptTokens: 0, completionTokens: 0, model: null };
+  const sectionPlans = fullDossierPlan?.sections ?? [];
+  const writableTotal = sectionPlans.filter(hasWritableMaterial).length;
 
-  for (const sectionPlan of fullDossierPlan?.sections ?? []) {
+  options.onProgress?.({
+    completedSections: 0,
+    totalSections: writableTotal,
+    currentSection: null
+  });
+
+  for (const sectionPlan of sectionPlans) {
     try {
+      const writable = hasWritableMaterial(sectionPlan);
+      if (writable) {
+        options.onProgress?.({
+          completedSections: sections.length,
+          totalSections: writableTotal,
+          currentSection: sectionPlan.sectionId
+        });
+      }
       const written = await writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, options });
       metrics.llmCalls += written.llmCalls ?? 0;
       metrics.promptTokens += written.usage?.promptTokens ?? 0;
@@ -639,6 +655,11 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
         continue;
       }
       sections.push(written.section);
+      options.onProgress?.({
+        completedSections: sections.length,
+        totalSections: writableTotal,
+        currentSection: null
+      });
     } catch (error) {
       if (options.failFast === false) {
         rejected.push({ sectionId: sectionPlan.sectionId, message: error.message, issues: error.validation?.issues ?? [] });

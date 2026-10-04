@@ -44,7 +44,7 @@ test("une commande payée est créée avec un lien secret et une référence lis
   });
 
   assert.equal(created, true);
-  assert.equal(delivery.status, "paid");
+  assert.equal(delivery.status, "queued");
   assert.match(delivery.token, /^[A-HJ-NP-Z2-9]{32}$/);
   assert.match(delivery.reference, /^L-\d{4}-[A-HJ-NP-Z2-9]{6}-[A-HJ-NP-Z2-9]{4}$/);
   assert.equal(delivery.email, "client@example.com");
@@ -91,6 +91,7 @@ test("un échec de rédaction laisse la commande payée récupérable", async ()
   const view = publicDelivery(byToken);
   assert.equal(view.reading, null);
   assert.equal(view.status, "failed");
+  assert.match(view.error, /génération n'a pas pu être terminée/i);
 });
 
 test("l'accès se fait par le lien secret ou par la référence, jamais sans", async () => {

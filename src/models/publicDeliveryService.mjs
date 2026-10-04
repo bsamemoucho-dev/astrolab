@@ -12,7 +12,7 @@
 // Le token n'est renvoyé qu'à la création : il n'apparaît dans aucune réponse
 // de lecture, et une lecture ne s'ouvre qu'avec lui.
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import { consumeAccessCode, markAccessCodeUsed } from "./accessCodeService.mjs";
 
@@ -20,6 +20,7 @@ import { consumeAccessCode, markAccessCodeUsed } from "./accessCodeService.mjs";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const RETENTION_DAYS = 30;
+export const GENERATION_LEASE_MS = 15 * 60 * 1000;
 
 function nowIso(now = Date.now()) {
   return new Date(now).toISOString();
@@ -45,6 +46,22 @@ export function newReference(year = new Date().getFullYear()) {
 
 function expiresAt(createdAt, days = RETENTION_DAYS) {
   return new Date(new Date(createdAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function emptyProgress() {
+  return {
+    completedSections: 0,
+    totalSections: null,
+    currentSection: null
+  };
+}
+
+function normalizeProgress(progress = {}) {
+  return {
+    completedSections: Number.isFinite(Number(progress.completedSections)) ? Number(progress.completedSections) : 0,
+    totalSections: Number.isFinite(Number(progress.totalSections)) ? Number(progress.totalSections) : null,
+    currentSection: progress.currentSection ? String(progress.currentSection) : null
+  };
 }
 
 function normalizeEmail(value) {
@@ -78,8 +95,10 @@ function storedReading(reading) {
 
 export function publicDelivery(delivery) {
   return {
+    id: delivery.id,
     reference: delivery.reference,
     status: delivery.status,
+    progress: delivery.progress ? normalizeProgress(delivery.progress) : null,
     createdAt: delivery.createdAt,
     updatedAt: delivery.updatedAt,
     expiresAt: delivery.expiresAt,
@@ -88,7 +107,7 @@ export function publicDelivery(delivery) {
     currency: delivery.currency ?? null,
     language: delivery.language ?? null,
     reading: delivery.status === "ready" ? delivery.reading : null,
-    error: delivery.status === "failed" ? delivery.error : null
+    error: delivery.status === "failed" ? "La génération n'a pas pu être terminée. Vous pouvez réessayer." : null
   };
 }
 
@@ -113,7 +132,11 @@ export async function purgeExpiredDeliveries(store, now = Date.now()) {
 // transaction que la création. C'est la seule façon de tenir « un code = une
 // lecture » : un contrôle fait avant, hors transaction, laisserait deux requêtes
 // simultanées passer toutes les deux.
-export async function createPaidDelivery(store, { paymentSessionId, email, amountCents, currency, language, input, freeAccess = false, accessCode = null } = {}, now = Date.now()) {
+export async function createPaidDelivery(
+  store,
+  { paymentSessionId, email, amountCents, currency, language, input, freeAccess = false, accessCode = null, sharedFreeAccessQuota = false, sharedFreeAccessQuotaKey = null } = {},
+  now = Date.now()
+) {
   return store.transact((state) => {
     const session = String(paymentSessionId ?? "").trim();
     const existing = session
@@ -134,12 +157,23 @@ export async function createPaidDelivery(store, { paymentSessionId, email, amoun
       currency: currency ?? null,
       language: language ?? null,
       freeAccess: Boolean(freeAccess),
+      sharedFreeAccessQuota: Boolean(sharedFreeAccessQuota),
+      sharedFreeAccessQuotaKey: sharedFreeAccessQuotaKey ? String(sharedFreeAccessQuotaKey).slice(0, 120) : null,
       // Traçabilité : on saura quelle source a ouvert cette lecture gratuite.
       accessCodeId: entreeCode?.id ?? null,
-      status: "paid",
+      status: "queued",
       input: input ?? null,
       reading: null,
       error: null,
+      errorCode: null,
+      progress: emptyProgress(),
+      generation: {
+        attempt: 0,
+        leaseId: null,
+        leaseUntil: null,
+        startedAt: null,
+        finishedAt: null
+      },
       createdAt,
       updatedAt: createdAt,
       expiresAt: expiresAt(createdAt)
@@ -158,7 +192,127 @@ export async function markDeliveryGenerating(store, id) {
       return null;
     }
     delivery.status = "generating";
+    delivery.progress = delivery.progress ? normalizeProgress(delivery.progress) : emptyProgress();
     delivery.updatedAt = nowIso();
+    return publicDelivery(delivery);
+  });
+}
+
+export async function markDeliveryQueued(store, id) {
+  return store.transact((state) => {
+    const delivery = state.publicReadings.find((entry) => entry.id === id);
+    if (!delivery || delivery.status === "ready") {
+      return null;
+    }
+    delivery.status = "queued";
+    delivery.error = null;
+    delivery.errorCode = null;
+    delivery.progress = emptyProgress();
+    delivery.generation = {
+      ...(delivery.generation ?? {}),
+      leaseId: null,
+      leaseUntil: null,
+      finishedAt: null
+    };
+    delivery.updatedAt = nowIso();
+    return publicDelivery(delivery);
+  });
+}
+
+export async function getDeliveryById(store, id, now = Date.now()) {
+  const state = await store.load();
+  const value = String(id ?? "").trim();
+  if (!value) {
+    return null;
+  }
+  purgeExpired(state, now);
+  return state.publicReadings.find((entry) => entry.id === value) ?? null;
+}
+
+function hasActiveLease(delivery, now = Date.now()) {
+  const until = delivery?.generation?.leaseUntil ? new Date(delivery.generation.leaseUntil).getTime() : 0;
+  return delivery?.status === "generating" && until > now;
+}
+
+export async function claimDeliveryGeneration(store, id, { leaseMs = GENERATION_LEASE_MS, now = Date.now(), leaseId = randomUUID() } = {}) {
+  return store.transact((state) => {
+    const delivery = state.publicReadings.find((entry) => entry.id === id);
+    if (!delivery) {
+      return null;
+    }
+    if (delivery.status === "ready" || delivery.status === "failed") {
+      return null;
+    }
+    if (hasActiveLease(delivery, now)) {
+      return null;
+    }
+    const startedAt = nowIso(now);
+    delivery.status = "generating";
+    delivery.error = null;
+    delivery.errorCode = null;
+    delivery.progress = delivery.progress ? normalizeProgress(delivery.progress) : emptyProgress();
+    delivery.generation = {
+      ...(delivery.generation ?? {}),
+      attempt: Number(delivery.generation?.attempt ?? 0) + 1,
+      leaseId,
+      leaseUntil: nowIso(now + leaseMs),
+      startedAt,
+      finishedAt: null
+    };
+    delivery.updatedAt = startedAt;
+    purgeExpired(state, now);
+    return structuredClone(delivery);
+  });
+}
+
+export async function claimNextDeliveryGeneration(store, { leaseMs = GENERATION_LEASE_MS, now = Date.now(), leaseId = randomUUID() } = {}) {
+  return store.transact((state) => {
+    purgeExpired(state, now);
+    const delivery = state.publicReadings.find((entry) => {
+      if (entry.status === "queued") {
+        return true;
+      }
+      if (entry.status === "generating") {
+        return !hasActiveLease(entry, now);
+      }
+      return false;
+    });
+    if (!delivery) {
+      return null;
+    }
+    const startedAt = nowIso(now);
+    delivery.status = "generating";
+    delivery.error = null;
+    delivery.errorCode = null;
+    delivery.progress = delivery.progress ? normalizeProgress(delivery.progress) : emptyProgress();
+    delivery.generation = {
+      ...(delivery.generation ?? {}),
+      attempt: Number(delivery.generation?.attempt ?? 0) + 1,
+      leaseId,
+      leaseUntil: nowIso(now + leaseMs),
+      startedAt,
+      finishedAt: null
+    };
+    delivery.updatedAt = startedAt;
+    return structuredClone(delivery);
+  });
+}
+
+export async function markDeliveryProgress(store, id, progress, { leaseMs = GENERATION_LEASE_MS, now = Date.now() } = {}) {
+  return store.transact((state) => {
+    const delivery = state.publicReadings.find((entry) => entry.id === id);
+    if (!delivery || delivery.status !== "generating") {
+      return null;
+    }
+    delivery.progress = normalizeProgress({
+      ...(delivery.progress ?? {}),
+      ...(progress ?? {})
+    });
+    delivery.generation = {
+      ...(delivery.generation ?? {}),
+      leaseUntil: nowIso(now + leaseMs)
+    };
+    delivery.updatedAt = nowIso(now);
     return publicDelivery(delivery);
   });
 }
@@ -172,12 +326,25 @@ export async function markDeliveryReady(store, id, reading) {
     delivery.status = "ready";
     delivery.reading = storedReading(reading);
     delivery.error = null;
+    delivery.errorCode = null;
+    delivery.progress = normalizeProgress({
+      ...(delivery.progress ?? {}),
+      completedSections: reading?.dossier?.generatedSectionCount ?? delivery.progress?.completedSections ?? 0,
+      totalSections: reading?.dossier?.generatedSectionCount ?? delivery.progress?.totalSections ?? null,
+      currentSection: null
+    });
+    delivery.generation = {
+      ...(delivery.generation ?? {}),
+      leaseId: null,
+      leaseUntil: null,
+      finishedAt: nowIso()
+    };
     delivery.updatedAt = nowIso();
     return publicDelivery(delivery);
   });
 }
 
-export async function markDeliveryFailed(store, id, message) {
+export async function markDeliveryFailed(store, id, message, code = "generation_failed") {
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
     if (!delivery) {
@@ -185,6 +352,13 @@ export async function markDeliveryFailed(store, id, message) {
     }
     delivery.status = "failed";
     delivery.error = String(message ?? "La rédaction a échoué.").slice(0, 300);
+    delivery.errorCode = String(code ?? "generation_failed").slice(0, 80);
+    delivery.generation = {
+      ...(delivery.generation ?? {}),
+      leaseId: null,
+      leaseUntil: null,
+      finishedAt: nowIso()
+    };
     delivery.updatedAt = nowIso();
     return publicDelivery(delivery);
   });

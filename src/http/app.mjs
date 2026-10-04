@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,15 +24,19 @@ import { createFullPublicReading } from "../models/fullDossierService.mjs";
 import { calculateWesternNatalForUser } from "../models/natalCalculationService.mjs";
 import { assertPublicReadingInput, createPublicReading as createLegacyPublicReading } from "../models/publicReadingService.mjs";
 import {
+  claimDeliveryGeneration,
+  claimNextDeliveryGeneration,
   createPaidDelivery,
   deleteDeliveryByToken,
   deliveryLink,
   findDeliveryByReference,
+  getDeliveryById,
   getDeliveryByToken,
   maskEmail,
   markDeliveryFailed,
   findDeliveryByPaymentSession,
-  markDeliveryGenerating,
+  markDeliveryQueued,
+  markDeliveryProgress,
   markDeliveryReady,
   publicDelivery,
   queueDeliveryEmail
@@ -156,6 +161,12 @@ function storableInput(body) {
     timeMarginMinutes: body.timeMarginMinutes ?? null,
     timeStart: body.timeStart ?? null,
     timeEnd: body.timeEnd ?? null,
+    birthPlace: body.birthPlace ?? null,
+    placeName: body.placeName ?? null,
+    country: body.country ?? null,
+    latitude: body.latitude ?? null,
+    longitude: body.longitude ?? null,
+    timeZone: body.timeZone ?? null,
     resolvedPlace: body.resolvedPlace ?? null,
     intention: body.intention ?? null,
     parents: body.parents ?? null
@@ -308,6 +319,101 @@ export function createApp(options = {}) {
     });
     res.end(corps);
   };
+
+  const publicReadingWriterForJob = () => options.publicReadingWriter ?? publicReadingWriter();
+  const activeReadingJobs = new Set();
+
+  const deliveryPayload = (delivery, req, { emailSent = false } = {}) => {
+    if (!delivery) return null;
+    const link = deliveryLink(delivery.token, publicBaseUrl(req));
+    return {
+      reference: delivery.reference,
+      link,
+      expiresAt: delivery.expiresAt,
+      email: maskEmail(delivery.email),
+      emailSent,
+      emailConfigured: emailEnabled()
+    };
+  };
+
+  const readingJobPayload = (delivery, req) => ({
+    schema: "astrolab.public_reading_job",
+    readingId: delivery.id,
+    reference: delivery.reference,
+    status: delivery.status,
+    progress: delivery.progress ?? null,
+    delivery: deliveryPayload(delivery, req)
+  });
+
+  const runClaimedReadingJob = async (delivery, req = null) => {
+    if (!delivery || activeReadingJobs.has(delivery.id)) {
+      return;
+    }
+    activeReadingJobs.add(delivery.id);
+    try {
+      if (stripeConfiguration() && !llmConfiguration() && !options.publicReadingWriter) {
+        const error = new Error(
+          "La rédaction est momentanément indisponible. Votre commande est enregistrée : vous pourrez relancer la rédaction sans repayer."
+        );
+        error.status = 503;
+        error.code = "writer_unavailable";
+        throw error;
+      }
+      const reading = await publicReadingWriterForJob()(delivery.input ?? {}, {
+        onProgress: (progress) => markDeliveryProgress(store, delivery.id, progress).catch((error) => {
+          console.warn(`[Lastro] impossible d'enregistrer la progression ${delivery.reference} — ${error.message}`);
+        })
+      });
+      const ready = await markDeliveryReady(store, delivery.id, reading);
+      const current = await getDeliveryById(store, delivery.id);
+      if (current) {
+        const link = deliveryLink(current.token, req ? publicBaseUrl(req) : DEFAULT_PUBLIC_BASE_URL);
+        await queueDeliveryEmail(store, current, { link });
+        await flushQueuedEmails(store).catch(() => ({ sent: 0, skipped: true }));
+      }
+      console.log(`[Lastro] lecture publique prête — ${ready?.reference ?? delivery.reference}`);
+    } catch (error) {
+      await markDeliveryFailed(store, delivery.id, error.message, error.code ?? "generation_failed");
+      console.error(`[Lastro] generation publique échouée ${delivery.reference} — ${error.message}`, error.cause ?? "");
+    } finally {
+      activeReadingJobs.delete(delivery.id);
+      scheduleNextReadingJob();
+    }
+  };
+
+  const scheduleReadingJob = (deliveryId, req = null) => {
+    if (options.backgroundReadingJobs === false) {
+      return;
+    }
+    if (!deliveryId || activeReadingJobs.has(deliveryId)) {
+      return;
+    }
+    setTimeout(async () => {
+      if (activeReadingJobs.has(deliveryId)) {
+        return;
+      }
+      const claimed = await claimDeliveryGeneration(store, deliveryId, { leaseId: randomUUID() });
+      if (claimed) {
+        await runClaimedReadingJob(claimed, req);
+      }
+    }, 0).unref?.();
+  };
+
+  function scheduleNextReadingJob() {
+    if (options.backgroundReadingJobs === false) {
+      return;
+    }
+    setTimeout(async () => {
+      const claimed = await claimNextDeliveryGeneration(store, { leaseId: randomUUID() });
+      if (claimed) {
+        await runClaimedReadingJob(claimed);
+      }
+    }, 0).unref?.();
+  }
+
+  if (options.backgroundReadingJobs !== false) {
+    scheduleNextReadingJob();
+  }
 
   const routes = [
     route("GET", /^\/healthz$/, async (_req, res) => {
@@ -511,7 +617,11 @@ export function createApp(options = {}) {
       // ne doit pas brûler le code de quelqu'un. La livraison serait de toute
       // façon enregistrée avant la rédaction, donc le code serait consommé pour
       // une lecture qui ne peut pas être écrite.
-      if (freeAccess) {
+      if (
+        freeAccess ||
+        process.env.ASTROLAB_ALLOW_FREE_READINGS === "1" ||
+        (!stripeConfiguration() && process.env.NODE_ENV !== "production" && isLoopbackAddress(client))
+      ) {
         assertPublicReadingInput(body);
       }
 
@@ -624,56 +734,31 @@ export function createApp(options = {}) {
           language: body.language ?? null,
           input: storableInput(body),
           freeAccess,
-          accessCode
+          accessCode,
+          sharedFreeAccessQuota: compteQuotaPartage,
+          sharedFreeAccessQuotaKey: client
         });
         delivery = created.delivery;
-      }
-      await markDeliveryGenerating(store, delivery.id);
-
-      // En reprise, on repart des données enregistrées avec le paiement : le
-      // client a peut-être fermé la page, on ne dépend pas de ce qu'il renvoie.
-      const readingInput = existingDelivery ? (existingDelivery.input ?? body) : body;
-
-      try {
-        // Client déjà débité et rédacteur indisponible : la commande reste
-        // enregistrée (lien conservé, relance sans repayer) mais on ne livre pas un
-        // brouillon technique à quelqu'un qui a payé. L'échec passe par le chemin
-        // habituel : la livraison est marquée en échec et le client peut relancer.
-        if (stripeConfiguration() && !llmConfiguration()) {
-          const error = new Error(
-            "La rédaction est momentanément indisponible. Votre commande est enregistrée : vous pourrez relancer la rédaction sans repayer."
-          );
-          error.status = 503;
-          throw error;
-        }
-        const reading = await publicReadingWriter()(readingInput);
-        await markDeliveryReady(store, delivery.id, reading);
-        // Le quota ne compte que les lectures RÉELLEMENT accordées : une demande
-        // incomplète ou une rédaction en échec ne consomme rien.
-        if (compteQuotaPartage) {
+        if (created.created && compteQuotaPartage) {
           limites.lecturesOffertesParClient.hit(client);
         }
-        const link = deliveryLink(delivery.token, publicBaseUrl(req));
-        await queueDeliveryEmail(store, delivery, { link });
-        // L'envoi ne doit jamais faire échouer la livraison : en cas d'échec,
-        // le message reste dans la file et le client a déjà son lien à l'écran.
-        const mail = await flushQueuedEmails(store).catch(() => ({ sent: 0, skipped: true }));
-        sendJson(res, 200, {
-          ...reading,
-          ...(freeAccess ? { freeAccess: true } : {}),
-          delivery: {
-            reference: delivery.reference,
-            link,
-            expiresAt: delivery.expiresAt,
-            email: maskEmail(delivery.email),
-            emailSent: mail.sent > 0,
-            emailConfigured: emailEnabled()
-          }
-        });
-      } catch (error) {
-        await markDeliveryFailed(store, delivery.id, error.message);
+      }
+      if (delivery.status === "queued" || delivery.status === "generating") {
+        scheduleReadingJob(delivery.id, req);
+      }
+      sendJson(res, 202, readingJobPayload(delivery, req));
+    }),
+    route("GET", /^\/api\/public\/readings\/(?<id>[^/]+)\/status$/, async (req, res, params) => {
+      const delivery = await getDeliveryById(store, params.id);
+      if (!delivery) {
+        const error = new Error("Cette lecture est inconnue ou a expiré.");
+        error.status = 404;
         throw error;
       }
+      if (delivery.status === "queued" || delivery.status === "generating") {
+        scheduleReadingJob(delivery.id, req);
+      }
+      sendJson(res, 200, readingJobPayload(delivery, req));
     }),
     // Vérification de la configuration d'envoi, réservée à l'exploitant : mieux
     // vaut tester l'e-mail avant qu'un client en dépende.
@@ -789,14 +874,8 @@ export function createApp(options = {}) {
         throw error;
       }
       if (delivery.status !== "ready") {
-        await markDeliveryGenerating(store, delivery.id);
-        try {
-          const reading = await publicReadingWriter()(delivery.input ?? {});
-          await markDeliveryReady(store, delivery.id, reading);
-        } catch (error) {
-          await markDeliveryFailed(store, delivery.id, error.message);
-          throw error;
-        }
+        await markDeliveryQueued(store, delivery.id);
+        scheduleReadingJob(delivery.id, _req);
       }
       sendJson(res, 200, { delivery: publicDelivery(await getDeliveryByToken(store, params.token)) });
     }),

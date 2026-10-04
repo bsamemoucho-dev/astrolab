@@ -71,6 +71,16 @@ const STRIPE_ON = {
   STRIPE_SECRET_KEY: "sk_live_abc123456789",
   STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789"
 };
+const VALID_READING_INPUT = {
+  firstName: "Test",
+  birthDate: "1990-01-15",
+  timePrecision: "exact",
+  timeValue: "12:30",
+  resolvedPlace: {
+    selectedName: "Paris, France",
+    normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+  }
+};
 
 test("sans code configuré, /api/config l'annonce et aucun code n'est accepté", async () => {
   await withEnv({}, async () => {
@@ -149,7 +159,7 @@ test("le code de test fonctionne même si les clés Stripe sont inutilisables", 
       const app = await startApp();
       try {
         // Les clés invalides bloquent normalement la lecture (503)…
-        const blocked = await post(app.baseUrl, "/api/public/readings", { firstName: "Test" });
+        const blocked = await post(app.baseUrl, "/api/public/readings", VALID_READING_INPUT);
         assert.equal(blocked.status, 503);
         // …mais le code de test permet de continuer à travailler.
         const withCode = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test" });

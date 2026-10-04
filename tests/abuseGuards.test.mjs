@@ -480,7 +480,7 @@ test("le code de test partagé est plafonné par poste et par jour", async () =>
           method: "POST",
           body: { ...LECTURE_VALIDE, testCode: CODE_DE_TEST }
         });
-        assert.equal(reponse.status, 200, `lecture ${essai + 1} refusée trop tôt`);
+        assert.equal(reponse.status, 202, `lecture ${essai + 1} refusée trop tôt`);
       }
       const auDela = await request(app.baseUrl, "/api/public/readings", {
         method: "POST",
@@ -510,7 +510,7 @@ test("une demande incomplète ne consomme pas le quota de lectures offertes", as
         method: "POST",
         body: { ...LECTURE_VALIDE, testCode: CODE_DE_TEST }
       });
-      assert.equal(valide.status, 200);
+      assert.equal(valide.status, 202);
     } finally {
       await app.close();
     }

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import test from "node:test";
 
 import { createApp } from "../src/http/app.mjs";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 
-async function startApp() {
-  const { server, store } = createApp({ store: new JsonStore(null) });
+async function startApp(options = {}) {
+  const { server, store } = createApp({ store: new JsonStore(null), ...options });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address();
   return {
@@ -24,37 +27,163 @@ async function request(baseUrl, path, { method = "GET", body } = {}) {
   return { status: response.status, payload: await response.json().catch(() => null) };
 }
 
-// Une date de naissance manquante fait échouer la rédaction AVANT tout appel au
-// fournisseur de texte : on teste ainsi l'enregistrement de la commande sans
-// consommer de génération.
-const INVALID_INPUT = { firstName: "Test" };
+async function waitForStatus(baseUrl, readingId, wanted) {
+  let last = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    last = await request(baseUrl, `/api/public/readings/${readingId}/status`);
+    if (last.payload?.status === wanted) {
+      return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return last;
+}
 
-test("une commande est enregistrée avant la rédaction, même si celle-ci échoue", async () => {
+const INVALID_INPUT = { firstName: "Test" };
+const VALID_INPUT = {
+  firstName: "Test",
+  birthDate: "1990-01-15",
+  timePrecision: "exact",
+  timeValue: "12:30",
+  resolvedPlace: {
+    selectedName: "Paris, France",
+    normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
+  }
+};
+
+test("une demande invalide est refusée avant de créer une lecture", async () => {
   const app = await startApp();
   try {
     const failed = await request(app.baseUrl, "/api/public/readings", { method: "POST", body: INVALID_INPUT });
     assert.equal(failed.status, 400);
     assert.match(failed.payload.error, /date de naissance/i);
+    assert.equal((await app.store.load()).publicReadings.length, 0);
+  } finally {
+    await app.close();
+  }
+});
 
-    const state = await app.store.load();
-    assert.equal(state.publicReadings.length, 1);
-    const delivery = state.publicReadings[0];
-    assert.equal(delivery.status, "failed");
-    assert.match(delivery.reference, /^L-\d{4}-/);
-    assert.match(delivery.token, /^[A-HJ-NP-Z2-9]{32}$/);
-    assert.equal(delivery.reading, null);
-    assert.equal(delivery.input.firstName, "Test");
-    // Rien de sensible n'est conservé avec la commande.
-    assert.equal("paymentSessionId" in delivery.input, false);
-    assert.equal("testCode" in delivery.input, false);
+test("le POST crée un job durable et la lecture devient récupérable après génération", async () => {
+  const app = await startApp({
+    publicReadingWriter: async (_input, options = {}) => {
+      await options.onProgress?.({ completedSections: 1, totalSections: 2, currentSection: "identity" });
+      await options.onProgress?.({ completedSections: 2, totalSections: 2, currentSection: null });
+      return { html: "<!doctype html><p>ok</p>", markdown: "ok", writerMode: "test", language: "fr", dossier: { generatedSectionCount: 2 } };
+    }
+  });
+  try {
+    const started = await request(app.baseUrl, "/api/public/readings", { method: "POST", body: VALID_INPUT });
+    assert.equal(started.status, 202);
+    assert.equal(started.payload.status, "queued");
+    assert.ok(started.payload.readingId);
+    assert.ok(started.payload.delivery.link);
 
-    // Le lien permet de retrouver la commande et de comprendre ce qui s'est passé.
-    const view = await request(app.baseUrl, `/api/public/deliveries/${delivery.token}`);
+    let status = started.payload;
+    for (let attempt = 0; attempt < 20 && status.status !== "ready"; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      status = (await request(app.baseUrl, `/api/public/readings/${started.payload.readingId}/status`)).payload;
+    }
+    assert.equal(status.status, "ready");
+    assert.equal(status.progress.completedSections, 2);
+    const token = started.payload.delivery.link.match(/\/r\/([^/]+)$/)[1];
+    const view = await request(app.baseUrl, `/api/public/deliveries/${token}`);
     assert.equal(view.status, 200);
-    assert.equal(view.payload.delivery.status, "failed");
-    assert.equal(view.payload.delivery.reference, delivery.reference);
-    assert.equal(view.payload.delivery.reading, null);
+    assert.equal(view.payload.delivery.status, "ready");
+    assert.match(view.payload.delivery.reading.html, /<!doctype html>/);
     assert.equal("token" in view.payload.delivery, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("une lecture queued survit à un redémarrage simulé et reprend ensuite", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "lastro-reading-job-"));
+  const dbPath = join(dir, "state.json");
+  const first = createApp({
+    dbPath,
+    backgroundReadingJobs: false,
+    publicReadingWriter: async () => {
+      throw new Error("ne doit pas tourner avant redémarrage");
+    }
+  });
+  await new Promise((resolve) => first.server.listen(0, "127.0.0.1", resolve));
+  const firstUrl = `http://127.0.0.1:${first.server.address().port}`;
+  try {
+    const started = await request(firstUrl, "/api/public/readings", { method: "POST", body: VALID_INPUT });
+    assert.equal(started.status, 202);
+    assert.equal(started.payload.status, "queued");
+  } finally {
+    await new Promise((resolve) => first.server.close(resolve));
+  }
+
+  const second = createApp({
+    dbPath,
+    publicReadingWriter: async (_input, options = {}) => {
+      await options.onProgress?.({ completedSections: 1, totalSections: 1, currentSection: null });
+      return { html: "<!doctype html><p>reprise</p>", markdown: "reprise", writerMode: "test", dossier: { generatedSectionCount: 1 } };
+    }
+  });
+  await new Promise((resolve) => second.server.listen(0, "127.0.0.1", resolve));
+  const secondUrl = `http://127.0.0.1:${second.server.address().port}`;
+  try {
+    const state = await second.store.load();
+    const readingId = state.publicReadings[0].id;
+    const ready = await waitForStatus(secondUrl, readingId, "ready");
+    assert.equal(ready.payload.status, "ready");
+  } finally {
+    await new Promise((resolve) => second.server.close(resolve));
+  }
+});
+
+test("les polls répétés ne lancent pas deux générations simultanées", async () => {
+  let resolveWriter;
+  const writerDone = new Promise((resolve) => {
+    resolveWriter = resolve;
+  });
+  let calls = 0;
+  const app = await startApp({
+    publicReadingWriter: async () => {
+      calls += 1;
+      await writerDone;
+      return { html: "<!doctype html><p>ok</p>", markdown: "ok", writerMode: "test", dossier: { generatedSectionCount: 1 } };
+    }
+  });
+  try {
+    const started = await request(app.baseUrl, "/api/public/readings", { method: "POST", body: VALID_INPUT });
+    assert.equal(started.status, 202);
+    await Promise.all([
+      request(app.baseUrl, `/api/public/readings/${started.payload.readingId}/status`),
+      request(app.baseUrl, `/api/public/readings/${started.payload.readingId}/status`),
+      request(app.baseUrl, `/api/public/readings/${started.payload.readingId}/status`)
+    ]);
+    assert.equal(calls, 1);
+    resolveWriter();
+    const ready = await waitForStatus(app.baseUrl, started.payload.readingId, "ready");
+    assert.equal(ready.payload.status, "ready");
+  } finally {
+    await app.close();
+  }
+});
+
+test("une erreur de génération devient un statut failed persistant", async () => {
+  const app = await startApp({
+    publicReadingWriter: async () => {
+      const error = new Error("LLM indisponible pour le test");
+      error.code = "llm_test_failure";
+      throw error;
+    }
+  });
+  try {
+    const started = await request(app.baseUrl, "/api/public/readings", { method: "POST", body: VALID_INPUT });
+    assert.equal(started.status, 202);
+    const failed = await waitForStatus(app.baseUrl, started.payload.readingId, "failed");
+    assert.equal(failed.payload.status, "failed");
+    assert.match(failed.payload.delivery.link, /\/r\//);
+    const state = await app.store.load();
+    assert.equal(state.publicReadings[0].status, "failed");
+    assert.equal(state.publicReadings[0].errorCode, "llm_test_failure");
+    assert.match(state.publicReadings[0].error, /LLM indisponible/);
+    assert.match(failed.payload.delivery.link, /\/r\//);
   } finally {
     await app.close();
   }
@@ -74,9 +203,9 @@ test("un jeton inconnu ne donne accès à rien", async () => {
 test("le client peut supprimer sa lecture, et n'y a plus accès ensuite", async () => {
   const app = await startApp();
   try {
-    await request(app.baseUrl, "/api/public/readings", { method: "POST", body: INVALID_INPUT });
-    const state = await app.store.load();
-    const { token } = state.publicReadings[0];
+    const { createPaidDelivery } = await import("../src/models/publicDeliveryService.mjs");
+    const { delivery } = await createPaidDelivery(app.store, { input: VALID_INPUT });
+    const { token } = delivery;
 
     const removed = await request(app.baseUrl, `/api/public/deliveries/${token}`, { method: "DELETE" });
     assert.equal(removed.status, 200);
@@ -91,20 +220,24 @@ test("le client peut supprimer sa lecture, et n'y a plus accès ensuite", async 
 });
 
 test("une reprise de rédaction ne redemande jamais de paiement", async () => {
-  const app = await startApp();
+  const app = await startApp({
+    publicReadingWriter: async () => {
+      throw new Error("échec de test");
+    }
+  });
   try {
-    await request(app.baseUrl, "/api/public/readings", { method: "POST", body: INVALID_INPUT });
-    const { token } = (await app.store.load()).publicReadings[0];
+    const { createPaidDelivery, markDeliveryFailed } = await import("../src/models/publicDeliveryService.mjs");
+    const { delivery } = await createPaidDelivery(app.store, { input: VALID_INPUT });
+    await markDeliveryFailed(app.store, delivery.id, "échec initial", "test_failure");
+    const { token } = delivery;
 
-    // La reprise échoue à nouveau (données toujours incomplètes) mais elle passe
-    // par la rédaction, sans repasser par la caisse.
     const retry = await request(app.baseUrl, `/api/public/deliveries/${token}/regenerate`, { method: "POST" });
-    assert.equal(retry.status, 400);
-    assert.match(retry.payload.error, /date de naissance/i);
+    assert.equal(retry.status, 200);
+    assert.equal(retry.payload.delivery.status, "queued");
 
     const state = await app.store.load();
     assert.equal(state.publicReadings.length, 1);
-    assert.equal(state.publicReadings[0].status, "failed");
+    assert.equal(["queued", "generating", "failed"].includes(state.publicReadings[0].status), true);
     assert.equal(state.publicReadings[0].token, token);
   } finally {
     await app.close();

@@ -66,6 +66,22 @@ function post(baseUrl, path, body) {
   }).then(async (response) => ({ status: response.status, payload: await response.json().catch(() => null) }));
 }
 
+function get(baseUrl, path) {
+  return fetch(`${baseUrl}${path}`).then(async (response) => ({ status: response.status, payload: await response.json().catch(() => null) }));
+}
+
+async function waitForReadingStatus(baseUrl, readingId, wanted) {
+  let last = null;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    last = await get(baseUrl, `/api/public/readings/${readingId}/status`);
+    if (last.payload?.status === wanted) {
+      return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return last;
+}
+
 test("paiement actif sans rédacteur : la commande est refusée avant tout débit", async () => {
   await withEnv(STRIPE_KEYS, async () => {
     const app = await startApp();
@@ -125,8 +141,10 @@ test("paiement actif sans rédacteur, client déjà débité : commande conserv�
         resolvedPlace: PLACE,
         paymentSessionId: "cs_test_paye"
       });
-      assert.equal(reponse.status, 503);
-      assert.match(reponse.payload.error, /commande est enregistrée/i);
+      assert.equal(reponse.status, 202);
+      assert.equal(reponse.payload.status, "queued");
+      const failed = await waitForReadingStatus(app.baseUrl, reponse.payload.readingId, "failed");
+      assert.equal(failed.payload.status, "failed");
 
       const state = await app.store.load();
       assert.equal(state.publicReadings.length, 1);
@@ -182,9 +200,13 @@ test("sans paiement configuré, le parcours public reste utilisable en brouillon
         timeValue: "12:30",
         resolvedPlace: PLACE
       });
-      assert.equal(reponse.status, 200);
-      assert.equal(reponse.payload.writerMode, "template");
-      assert.match(reponse.payload.html, /brouillon/i);
+      assert.equal(reponse.status, 202);
+      const ready = await waitForReadingStatus(app.baseUrl, reponse.payload.readingId, "ready");
+      assert.equal(ready.payload.status, "ready");
+      const token = reponse.payload.delivery.link.match(/\/r\/([^/]+)$/)[1];
+      const delivery = await get(app.baseUrl, `/api/public/deliveries/${token}`);
+      assert.equal(delivery.payload.delivery.reading.writerMode, "template");
+      assert.match(delivery.payload.delivery.reading.html, /brouillon/i);
     } finally {
       await app.close();
     }
