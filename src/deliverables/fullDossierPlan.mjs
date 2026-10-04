@@ -20,6 +20,23 @@ const BODY_FR = Object.freeze({
   IC: "Fond du Ciel"
 });
 
+const BODY_SUBJECT_FR = Object.freeze({
+  Sun: "Le Soleil",
+  Moon: "La Lune",
+  Mercury: "Mercure",
+  Venus: "Vénus",
+  Mars: "Mars",
+  Jupiter: "Jupiter",
+  Saturn: "Saturne",
+  Uranus: "Uranus",
+  Neptune: "Neptune",
+  Pluto: "Pluton",
+  ASC: "L'Ascendant",
+  DSC: "Le Descendant",
+  MC: "Le Milieu du Ciel",
+  IC: "Le Fond du Ciel"
+});
+
 const ASPECT_FR = Object.freeze({
   conjunction: "conjonction",
   opposition: "opposition",
@@ -308,6 +325,11 @@ function formatFrenchDate(date) {
   }).format(date);
 }
 
+function sameFrenchDate(left, right) {
+  const leftFormatted = formatFrenchDate(left);
+  return leftFormatted !== null && leftFormatted === formatFrenchDate(right);
+}
+
 function exactSentence(exactAt, nowUtc) {
   if (!exactAt) return null;
   const exact = formatFrenchDate(exactAt);
@@ -328,12 +350,15 @@ function aspectWithArticle(aspectType) {
 function transitWindowSentence(claim, { includeSubject = true } = {}) {
   if (!claim) return null;
   const aspect = aspectWithArticle(claim.aspectType);
-  const body = BODY_FR[claim.transitBody] ?? claim.transitBody;
+  const body = BODY_SUBJECT_FR[claim.transitBody] ?? BODY_FR[claim.transitBody] ?? claim.transitBody;
   const point = BODY_FR[claim.natalPoint] ?? claim.natalPoint;
   const startsAt = validDate(claim.startsAt);
   const endsAt = validDate(claim.endsAt);
   const subject = includeSubject ? `${body} forme ${aspect} à votre ${point}` : "passage";
   if (startsAt && endsAt) {
+    if (sameFrenchDate(startsAt, endsAt)) {
+      return `${subject} le ${formatFrenchDate(startsAt)}.`;
+    }
     return `${subject} entre le ${formatFrenchDate(startsAt)} et le ${formatFrenchDate(endsAt)}.`;
   }
   return `${subject}.`;
@@ -352,14 +377,19 @@ function transitTimingPrefix(packetOrPackets, { nowUtc = null } = {}) {
   }
   const first = claims[0];
   const aspect = aspectWithArticle(first.aspectType);
-  const body = BODY_FR[first.transitBody] ?? first.transitBody;
+  const body = BODY_SUBJECT_FR[first.transitBody] ?? BODY_FR[first.transitBody] ?? first.transitBody;
   const point = BODY_FR[first.natalPoint] ?? first.natalPoint;
   const passages = claims
     .map((claim) => {
       const startsAt = validDate(claim.startsAt);
       const endsAt = validDate(claim.endsAt);
       const exactAt = validDate(claim.exactAt);
-      const window = startsAt && endsAt ? `du ${formatFrenchDate(startsAt)} au ${formatFrenchDate(endsAt)}` : null;
+      const window =
+        startsAt && endsAt
+          ? sameFrenchDate(startsAt, endsAt)
+            ? `le ${formatFrenchDate(startsAt)}`
+            : `du ${formatFrenchDate(startsAt)} au ${formatFrenchDate(endsAt)}`
+          : null;
       const exact = exactAt ? `exact ${formatFrenchDate(exactAt)}` : null;
       return [window, exact].filter(Boolean).join(", ");
     })
@@ -408,7 +438,7 @@ function transitBlockPlans({ packets, nowUtc, blockPrefix }) {
 function aspectLeadSentence(claim) {
   if (claim?.type !== "NATAL_ASPECT") return null;
   const aspect = aspectWithArticle(claim.aspectType);
-  const bodyA = BODY_FR[claim.bodyA] ?? claim.bodyA;
+  const bodyA = BODY_SUBJECT_FR[claim.bodyA] ?? BODY_FR[claim.bodyA] ?? claim.bodyA;
   const bodyB = BODY_FR[claim.bodyB] ?? claim.bodyB;
   return `${bodyA} forme ${aspect} avec ${bodyB}.`;
 }

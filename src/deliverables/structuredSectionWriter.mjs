@@ -17,6 +17,16 @@ const BODY_FR = Object.freeze({
   Saturn: "Saturne"
 });
 
+const BODY_SUBJECT_FR = Object.freeze({
+  Sun: "Le Soleil",
+  Moon: "La Lune",
+  Mercury: "Mercure",
+  Venus: "Vénus",
+  Mars: "Mars",
+  Jupiter: "Jupiter",
+  Saturn: "Saturne"
+});
+
 const SIGN_FR = Object.freeze({
   Aries: "Bélier",
   Taurus: "Taureau",
@@ -39,6 +49,25 @@ const ASPECT_FR = Object.freeze({
   trine: "trigone",
   sextile: "sextile"
 });
+
+const ASPECT_WITH_ARTICLE_FR = Object.freeze({
+  conjunction: "une conjonction",
+  opposition: "une opposition",
+  square: "un carré",
+  trine: "un trigone",
+  sextile: "un sextile"
+});
+
+function formatFrenchDate(dateLike) {
+  const date = dateLike ? new Date(dateLike) : null;
+  if (!date || Number.isNaN(date.getTime())) return "l'instant de référence";
+  return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(date);
+}
 
 function block({ blockId, text, evidenceRefs, interpretationRuleRefs, claims = [], interpretationDepth = "primary" }) {
   return { blockId, text, evidenceRefs, interpretationRuleRefs, claims, interpretationDepth };
@@ -165,7 +194,7 @@ function makeCurrentSky(dossierEvidence) {
   const blocks = [
     block({
       blockId: "current-sky.snapshot",
-      text: `Ciel calculé le ${snapshot.value.nowUtc}, horizon ${snapshot.value.horizonDays} jours. Cette partie du PDF est un instantané daté, pas une page dynamique.`,
+      text: `Ciel calculé le ${formatFrenchDate(snapshot.value.nowUtc)}, horizon ${snapshot.value.horizonDays} jours. Cette partie du PDF est un instantané daté, pas une page dynamique.`,
       evidenceRefs: [snapshot.evidenceId],
       interpretationRuleRefs: ["western.current_sky.snapshot@1"],
       interpretationDepth: "reference",
@@ -176,7 +205,7 @@ function makeCurrentSky(dossierEvidence) {
     blocks.push(
       block({
         blockId: "current-sky.transit",
-        text: `${BODY_FR[value.transitBody] ?? value.transitBody} forme un ${ASPECT_FR[value.aspectType] ?? value.aspectType} à votre ${BODY_FR[value.natalPoint] ?? value.natalPoint}, exact le ${value.exactAt}. Le thème autorisé est ${firstTheme(ruleId)}.`,
+        text: `${BODY_SUBJECT_FR[value.transitBody] ?? BODY_FR[value.transitBody] ?? value.transitBody} forme ${ASPECT_WITH_ARTICLE_FR[value.aspectType] ?? `un ${ASPECT_FR[value.aspectType] ?? value.aspectType}`} à votre ${BODY_FR[value.natalPoint] ?? value.natalPoint}, exact le ${formatFrenchDate(value.exactAt)}. Le thème autorisé est ${firstTheme(ruleId)}.`,
         evidenceRefs: [transit.evidenceId],
         interpretationRuleRefs: [ruleId],
         claims: [claimForEvidence(transit, "current_sky.jupiter_sun")]
@@ -351,7 +380,14 @@ function deterministicTextForBlock(scopedPlan, blockPlan) {
   const packet = (scopedPlan.evidencePackets ?? []).find((entry) => (blockPlan.packetRefs ?? []).includes(entry.packetId));
   const snapshot = (packet?.claims ?? []).find((claim) => claim.type === "TRANSIT_SNAPSHOT");
   if (snapshot) {
-    const nowUtc = snapshot.nowUtc ? new Date(snapshot.nowUtc).toISOString() : "l'instant de référence";
+    const nowUtc = snapshot.nowUtc
+      ? new Intl.DateTimeFormat("fr-FR", {
+          timeZone: "UTC",
+          day: "numeric",
+          month: "long",
+          year: "numeric"
+        }).format(new Date(snapshot.nowUtc))
+      : "l'instant de référence";
     const horizonDays = Number.isFinite(Number(snapshot.horizonDays)) ? Number(snapshot.horizonDays) : 42;
     return `Ciel calculé le ${nowUtc}, horizon ${horizonDays} jours.`;
   }

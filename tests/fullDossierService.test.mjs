@@ -91,7 +91,10 @@ test("createFullPublicReading assembles a validated full dossier without using l
   assert.ok(reading.sections.some((section) => section.id === "current_sky"));
   assert.equal(reading.sections.some((section) => section.id === "lettre-miroir"), false);
   assert.match(reading.html, /Votre ciel actuellement|Synthèse générale|Identité/);
+  assert.match(reading.html, /Validation factuelle structurée : \d+ chapitre\(s\) validé\(s\)\. Contrôle automatique des faits et des règles documentées activé\./);
+  assert.doesNotMatch(reading.html, /non rédigé\(s\)|faute de règle documentée/);
   assert.match(reading.markdown, /Annexe/);
+  assert.doesNotMatch(reading.markdown, /non rédigé\(s\)|faute de règle documentée/);
   assert.equal(reading.dossier.sectionCount, 17);
   assert.equal(reading.observability.llmCalls, 0);
 });

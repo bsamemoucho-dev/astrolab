@@ -109,6 +109,21 @@ function phase2Fixture({ currentSky = currentSkyFixture(), input = fixtureInput 
   return { dossierEvidence, fullDossierPlan };
 }
 
+function courbevoie1986Fixture() {
+  return phase2Fixture({
+    input: {
+      ...fixtureInput,
+      birthDate: "1986-01-02",
+      timePrecision: "exact",
+      timeValue: "16:40",
+      birthPlace: "Courbevoie",
+      latitude: 48.89672,
+      longitude: 2.25666,
+      timeZone: "Europe/Paris"
+    }
+  });
+}
+
 function blockIdForPacket(sectionPlan, packetId) {
   return sectionPlan.blockPlans.find((blockPlan) => blockPlan.packetRefs.includes(packetId))?.blockId;
 }
@@ -358,7 +373,7 @@ test("aspect BlockPlan writes deterministic leads for shared-body aspect groups"
   assert.equal(aspectBlock.forbidAspectVocabulary, true);
   assert.equal(
     aspectBlock.deterministicPrefix,
-    "Soleil forme un trigone avec Mars. Soleil forme une conjonction avec Mercure. Soleil forme un trigone avec Saturne."
+    "Le Soleil forme un trigone avec Mars. Le Soleil forme une conjonction avec Mercure. Le Soleil forme un trigone avec Saturne."
   );
 
   const facts = detectAstrologicalTextFacts(aspectBlock.deterministicPrefix).filter((fact) => fact.type === "ASPECT");
@@ -378,8 +393,8 @@ test("aspect BlockPlan handles two same-type aspects and three aspects in one de
   assert.equal(firstBlock.forbidAspectVocabulary, true);
   assert.ok(firstBlock.deterministicPrefix.includes("Mercure forme un trigone avec Jupiter."));
   assert.ok(firstBlock.deterministicPrefix.includes("Mercure forme un trigone avec Mars."));
-  assert.ok(firstBlock.deterministicPrefix.includes("Lune forme un trigone avec Vénus."));
-  assert.ok(firstBlock.deterministicPrefix.includes("Soleil forme un trigone avec Mars."));
+  assert.ok(firstBlock.deterministicPrefix.includes("La Lune forme un trigone avec Vénus."));
+  assert.ok(firstBlock.deterministicPrefix.includes("Le Soleil forme un trigone avec Mars."));
   assert.equal(detectAstrologicalTextFacts(firstBlock.deterministicPrefix).filter((fact) => fact.type === "ASPECT").length, 4);
 });
 
@@ -551,6 +566,56 @@ test("an invented house in text is rejected", () => {
   assert.ok(result.issues.some((issue) => issue.code === "undeclared_text_fact"));
 });
 
+test("house mentions are validated by allowed house numbers, not body-house reconstruction", () => {
+  const { dossierEvidence, fullDossierPlan } = courbevoie1986Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "emotional_world");
+  const blockPlan = fullSectionPlan.blockPlans.find((entry) => entry.blockId === "block1");
+  const sectionPlan = planForPackets(fullSectionPlan, blockPlan.packetRefs);
+  const acceptedTexts = [
+    "La Lune forme un carré avec Mercure. La Lune se trouve en maison 3.",
+    "La Lune en maison 3 dialogue avec Mercure.",
+    "Mercure, maître de la maison 3, décrit ici une fonction de traduction émotionnelle.",
+    "Mercure est important. La Lune est en maison 3.",
+    "La Lune se trouve en maison III.",
+    "La Lune se trouve en 3e maison.",
+    "La Lune se trouve en 3ème maison.",
+    "La Lune se trouve en troisième maison."
+  ];
+
+  for (const text of acceptedTexts) {
+    const result = validateStructuredSection({
+      dossierEvidence,
+      sectionPlan,
+      section: { sectionId: "emotional_world", blocks: [{ blockId: "block1", text }] }
+    });
+    assert.equal(result.ok, true, `${text}\n${JSON.stringify(result.issues, null, 2)}`);
+  }
+
+  const facts = detectAstrologicalTextFacts("La Lune forme un carré avec Mercure. La Lune se trouve dans la maison 3.");
+  assert.deepEqual(facts.filter((fact) => fact.type === "NATAL_BODY_HOUSE"), [{ type: "NATAL_BODY_HOUSE", house: 3 }]);
+});
+
+test("an undeclared house number is rejected without assigning houses to planets", () => {
+  const { dossierEvidence, fullDossierPlan } = courbevoie1986Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "emotional_world");
+  const blockPlan = fullSectionPlan.blockPlans.find((entry) => entry.blockId === "block1");
+  const sectionPlan = planForPackets(fullSectionPlan, blockPlan.packetRefs);
+  const section = {
+    sectionId: "emotional_world",
+    blocks: [
+      {
+        blockId: "block1",
+        text: "La Lune en maison 3 dialogue avec Mercure, mais la maison 5 devient aussi importante."
+      }
+    ]
+  };
+
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "undeclared_text_fact" && issue.fact?.type === "NATAL_BODY_HOUSE" && issue.fact?.house === 5));
+  assert.equal(result.issues.some((issue) => issue.fact?.body === "Mercury" && issue.fact?.house === 3), false);
+});
+
 test("targeted correction keeps the same server-owned packets", async () => {
   const { dossierEvidence, fullDossierPlan } = phase2Fixture();
   const sectionPlan = planForPacket(sectionPlanById(fullDossierPlan, "affectivity"), "affectivity.natal_venus_sign");
@@ -606,6 +671,8 @@ test("current_sky writer payload is closed to the current block packets", async 
   assert.equal(payloads.length, 1);
   assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
   assert.deepEqual(written.section.blocks.map((block) => block.blockId), ["current_sky.intro", "current_sky.transit_01"]);
+  assert.match(written.section.blocks[0].text, /Ciel calculé le 3 octobre 2026, horizon 42 jours\./);
+  assert.doesNotMatch(written.section.blocks[0].text, /2026-10-03T12:00:00\.000Z/);
 });
 
 test("a natal context packet explicitly added to current_sky can be used", async () => {
@@ -1016,6 +1083,21 @@ test("transit block plans expose deterministic temporal wording from calculated 
   assert.ok(transitBlock.deterministicPrefix.includes("entre le 1 octobre 2026 et le 24 octobre 2026"));
   assert.ok(transitBlock.deterministicPrefix.includes("L'aspect sera exact le 12 octobre 2026"));
   assert.equal(transitBlock.deterministicPrefix.includes("APPLYING"), false);
+});
+
+test("transit block plans use a single date when the orb window starts and ends the same day", () => {
+  const { fullDossierPlan } = phase2Fixture({
+    currentSky: skyWithTransitTiming({
+      startsAt: "2026-10-05T00:00:00.000Z",
+      endsAt: "2026-10-05T22:00:00.000Z",
+      exactAt: "2026-10-05T12:00:00.000Z"
+    })
+  });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
+
+  assert.ok(transitBlock.deterministicPrefix.includes("Jupiter forme un carré à votre Soleil le 5 octobre 2026."));
+  assert.equal(transitBlock.deterministicPrefix.includes("entre le 5 octobre 2026 et le 5 octobre 2026"), false);
 });
 
 test("current_sky deterministic lead says a été exact when exactAt is before now", () => {

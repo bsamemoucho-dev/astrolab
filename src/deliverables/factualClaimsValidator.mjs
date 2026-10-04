@@ -95,6 +95,24 @@ const ROMAN_HOUSES = Object.freeze({
   xii: 12
 });
 
+const FRENCH_ORDINAL_HOUSES = Object.freeze({
+  premiere: 1,
+  premier: 1,
+  deuxieme: 2,
+  seconde: 2,
+  second: 2,
+  troisieme: 3,
+  quatrieme: 4,
+  cinquieme: 5,
+  sixieme: 6,
+  septieme: 7,
+  huitieme: 8,
+  neuvieme: 9,
+  dixieme: 10,
+  onzieme: 11,
+  douzieme: 12
+});
+
 function hasAny(text, words) {
   const source = norm(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return words.some((word) => source.includes(norm(word).normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
@@ -144,11 +162,33 @@ function hasAngleSignClaim(text, angle, sign) {
   return angleThenSign.test(source);
 }
 
-function parseHouse(text) {
-  const match = norm(text).match(/\bmaison\s*(?:n[°o]\s*)?([0-9]{1,2}|i{1,3}|iv|v|vi{0,3}|ix|x|xi|xii)\b/iu);
-  if (!match) return null;
-  const raw = match[1].toLowerCase();
-  return ROMAN_HOUSES[raw] ?? Number(raw);
+function houseNumberFromRaw(raw) {
+  const key = normalizedText(raw);
+  return ROMAN_HOUSES[key] ?? FRENCH_ORDINAL_HOUSES[key] ?? Number(key);
+}
+
+function mentionedHouseNumbers(text) {
+  const source = normalizedText(text);
+  const houses = [];
+  const seen = new Set();
+  const addHouse = (raw) => {
+    const house = houseNumberFromRaw(raw);
+    if (!Number.isInteger(house) || house < 1 || house > 12 || seen.has(house)) return;
+    seen.add(house);
+    houses.push(house);
+  };
+  const houseNumber = "[0-9]{1,2}|i{1,3}|iv|v|vi{0,3}|ix|x|xi|xii";
+  const ordinalWords = Object.keys(FRENCH_ORDINAL_HOUSES).join("|");
+  for (const match of source.matchAll(new RegExp(`\\bmaison\\s*(?:n[°o]\\s*)?(${houseNumber}|${ordinalWords})\\b`, "giu"))) {
+    addHouse(match[1]);
+  }
+  for (const match of source.matchAll(new RegExp(`\\b(${houseNumber})\\s*(?:e|eme|eme)?\\s+maison\\b`, "giu"))) {
+    addHouse(match[1]);
+  }
+  for (const match of source.matchAll(new RegExp(`\\b(${ordinalWords})\\s+maison\\b`, "giu"))) {
+    addHouse(match[1]);
+  }
+  return houses;
 }
 
 function sortedBodies(a, b) {
@@ -161,6 +201,10 @@ function refSupportsBodySign(ref, body, sign) {
 
 function refSupportsBodyHouse(ref, body, house) {
   return ref?.type === "NATAL_BODY_HOUSE" && norm(ref.value?.body) === norm(body) && Number(ref.value?.house) === Number(house);
+}
+
+function refSupportsHouse(ref, house) {
+  return ref?.type === "NATAL_BODY_HOUSE" && Number(ref.value?.house) === Number(house);
 }
 
 function refSupportsAngleSign(ref, angle, sign) {
@@ -221,7 +265,7 @@ function detectAspectFacts(text) {
 
 export function detectAstrologicalTextFacts(text) {
   const bodies = mentionedKeys(text, BODY_WORDS);
-  const house = parseHouse(text);
+  const houses = mentionedHouseNumbers(text);
   const facts = [];
   for (const body of Object.keys(BODY_WORDS)) {
     for (const sign of Object.keys(SIGN_WORDS)) {
@@ -229,10 +273,8 @@ export function detectAstrologicalTextFacts(text) {
       facts.push({ type: "NATAL_BODY_SIGN", body, sign });
     }
   }
-  for (const body of bodies) {
-    if (house) {
-      facts.push({ type: "NATAL_BODY_HOUSE", body, house });
-    }
+  for (const house of houses) {
+    facts.push({ type: "NATAL_BODY_HOUSE", house });
   }
   for (const angle of Object.keys(ANGLE_WORDS)) {
     for (const sign of Object.keys(SIGN_WORDS)) {
@@ -246,7 +288,10 @@ export function detectAstrologicalTextFacts(text) {
 
 function textFactSupported(fact, refs) {
   if (fact.type === "NATAL_BODY_SIGN") return refs.some((ref) => refSupportsBodySign(ref, fact.body, fact.sign));
-  if (fact.type === "NATAL_BODY_HOUSE") return refs.some((ref) => refSupportsBodyHouse(ref, fact.body, fact.house));
+  if (fact.type === "NATAL_BODY_HOUSE") {
+    if (fact.body) return refs.some((ref) => refSupportsBodyHouse(ref, fact.body, fact.house));
+    return refs.some((ref) => refSupportsHouse(ref, fact.house));
+  }
   if (fact.type === "ANGLE_SIGN") return refs.some((ref) => refSupportsAngleSign(ref, fact.angle, fact.sign));
   if (fact.type === "ASPECT") return refs.some((ref) => refSupportsAspect(ref, fact.bodyA, fact.bodyB, fact.aspectType));
   return false;

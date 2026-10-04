@@ -234,7 +234,7 @@ export async function createFullPublicReading(input = {}, options = {}) {
   const title = personLabel ? `${strings.titlePrefix} — ${personLabel}` : strings.titlePrefix;
   const author = process.env.ASTROLAB_AUTHOR_LINE?.trim() || null;
   const aiReview = aiNotice(language);
-  const verificationNote = `Validation factuelle structurée : ${generated.sections.length} chapitre(s) validé(s), ${generated.skipped.length} chapitre(s) non rédigé(s) faute de règle documentée.`;
+  const verificationNote = `Validation factuelle structurée : ${generated.sections.length} chapitre(s) validé(s). Contrôle automatique des faits et des règles documentées activé.`;
   const markdown = renderDossierMarkdown({
     title,
     personLabel,
@@ -306,4 +306,3 @@ export async function createFullPublicReading(input = {}, options = {}) {
   logFullDossier({ startedAt, generated, dossierEvidence, fullDossierPlan, validation, reading });
   return reading;
 }
-
