@@ -6,7 +6,7 @@ import { buildDossierEvidence, evidenceById } from "../src/deliverables/dossierE
 import { buildFullDossierPlan, sectionPlanById } from "../src/deliverables/fullDossierPlan.mjs";
 import { interpretationRuleById } from "../src/deliverables/interpretationRules.mjs";
 import { generatePilotSections, writeStructuredSectionWithLlm } from "../src/deliverables/structuredSectionWriter.mjs";
-import { validateStructuredSection, validateStructuredSections } from "../src/deliverables/factualClaimsValidator.mjs";
+import { detectAstrologicalTextFacts, validateStructuredSection, validateStructuredSections } from "../src/deliverables/factualClaimsValidator.mjs";
 
 const fixtureInput = {
   personId: "person_phase2",
@@ -71,6 +71,29 @@ function currentSkyFixture() {
   };
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function skyWithTransitTiming({ status = "CURRENT", exactAt, startsAt = "2026-10-01T00:00:00.000Z", endsAt = "2026-10-24T00:00:00.000Z", phase = "APPLYING" } = {}) {
+  const sky = clone(currentSkyFixture());
+  const transit = {
+    ...sky.current[0],
+    status,
+    timing: {
+      ...sky.current[0].timing,
+      startsAt,
+      exactAt,
+      endsAt,
+      phase
+    }
+  };
+  sky.current = status === "CURRENT" ? [transit] : [];
+  sky.upcoming = status === "UPCOMING" ? [transit] : [];
+  sky.recent = status === "RECENT" ? [transit] : [];
+  return sky;
+}
+
 function phase2Fixture({ currentSky = currentSkyFixture(), input = fixtureInput } = {}) {
   const calculation = calculateWesternNatalChart(input, {
     calculatedAt: "2026-10-03T00:00:00.000Z",
@@ -91,10 +114,17 @@ function blockIdForPacket(sectionPlan, packetId) {
 }
 
 function planForPacket(sectionPlan, packetId) {
+  const originalBlockPlan = sectionPlan.blockPlans.find((blockPlan) => blockPlan.packetRefs.includes(packetId)) ?? {};
   return {
     ...sectionPlan,
     evidencePackets: sectionPlan.evidencePackets.filter((packet) => packet.packetId === packetId),
-    blockPlans: sectionPlan.blockPlans.filter((blockPlan) => blockPlan.packetRefs.includes(packetId))
+    blockPlans: [
+      {
+        ...originalBlockPlan,
+        blockId: originalBlockPlan.blockId ?? blockIdForPacket(sectionPlan, packetId),
+        packetRefs: [packetId]
+      }
+    ]
   };
 }
 
@@ -105,6 +135,28 @@ function planForPackets(sectionPlan, packetIds) {
     evidencePackets: sectionPlan.evidencePackets.filter((packet) => allowed.has(packet.packetId)),
     blockPlans: [{ blockId: "block1", packetRefs: packetIds }]
   };
+}
+
+function transitClaim(packet) {
+  return packet.claims.find((claim) => claim.type === "PERSONAL_TRANSIT");
+}
+
+function transitStoryKey(packet) {
+  const claim = transitClaim(packet);
+  return [claim.transitBody, claim.natalPoint, claim.aspectType].join("|");
+}
+
+function transitOccurrenceKey(packet) {
+  const claim = transitClaim(packet);
+  return [claim.transitBody, claim.natalPoint, claim.aspectType, claim.exactAt].join("|");
+}
+
+function transitBlocks(sectionPlan) {
+  return sectionPlan.blockPlans.filter((blockPlan) => blockPlan.blockId.includes(".transit_"));
+}
+
+function packetsForBlock(sectionPlan, blockPlan) {
+  return blockPlan.packetRefs.map((packetId) => sectionPlan.evidencePackets.find((packet) => packet.packetId === packetId)).filter(Boolean);
 }
 
 test("FullDossierPlan defines sections, ownership and authorized rules from DossierEvidence only", () => {
@@ -125,7 +177,9 @@ test("FullDossierPlan defines sections, ownership and authorized rules from Doss
   assert.equal(evidenceById(dossierEvidence).has("aspect.moon.mercury.square"), true);
   assert.ok(identity.evidencePackets.some((packet) => packet.packetId === "identity.natal_sun_sign"));
   assert.ok(emotional.evidencePackets.some((packet) => packet.packetId === "emotional_world.aspect_moon_mercury_square"));
-  assert.deepEqual(identity.blockPlans[0], { blockId: "block1", packetRefs: ["identity.natal_sun_sign"] });
+  assert.ok(identity.blockPlans[0].packetRefs.includes("identity.natal_sun_sign"));
+  assert.ok(identity.blockPlans[0].packetRefs.length > 1);
+  assert.ok(identity.blockPlans.length < identity.evidencePackets.length);
 });
 
 test("interpretation library exposes versioned themes instead of free doctrine", () => {
@@ -211,6 +265,241 @@ test("a good aspect text is accepted with the matching packet", () => {
   };
   const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
   assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("aspect fact extraction keeps each aspect tied to its explicit local bodies", () => {
+  const facts = detectAstrologicalTextFacts(
+    "L'aspect sextile entre votre Soleil et Mars renforce votre dynamisme, tandis que le carré entre votre Lune et Mercure souligne une tension entre ce que vous ressentez et ce que vous exprimez."
+  ).filter((fact) => fact.type === "ASPECT");
+
+  assert.deepEqual(facts, [
+    { type: "ASPECT", bodyA: "Sun", bodyB: "Mars", aspectType: "sextile" },
+    { type: "ASPECT", bodyA: "Moon", bodyB: "Mercury", aspectType: "square" }
+  ]);
+  assert.equal(facts.some((fact) => fact.bodyA === "Sun" && fact.bodyB === "Moon" && fact.aspectType === "sextile"), false);
+  assert.equal(facts.some((fact) => fact.bodyA === "Sun" && fact.bodyB === "Moon" && fact.aspectType === "square"), false);
+  assert.equal(facts.some((fact) => fact.bodyA === "Mars" && fact.bodyB === "Mercury" && fact.aspectType === "square"), false);
+});
+
+test("an unauthorized explicit aspect is rejected without contaminating nearby allowed aspects", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "emotional_world");
+  const sectionPlan = planForPacket(fullSectionPlan, "emotional_world.aspect_moon_mercury_square");
+  const section = {
+    sectionId: "emotional_world",
+    blocks: [
+      {
+        blockId: blockIdForPacket(fullSectionPlan, "emotional_world.aspect_moon_mercury_square"),
+        text: "Soleil carré Lune alors que le carré entre votre Lune et Mercure décrit une tension entre ressenti et formulation."
+      }
+    ]
+  };
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "undeclared_text_fact" && issue.fact?.bodyA === "Sun" && issue.fact?.bodyB === "Moon"));
+});
+
+test("two different aspects in the same sentence are each linked to the correct bodies", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "major_aspects");
+  const sectionPlan = planForPackets(fullSectionPlan, ["major_aspects.aspect_sun_moon_square", "major_aspects.aspect_mercury_mars_trine"]);
+  const section = {
+    sectionId: "major_aspects",
+    blocks: [
+      {
+        blockId: "block1",
+        text: "Le carré entre votre Soleil et Lune met une tension de fond en évidence, tandis que Mercure trigone Mars soutient une circulation plus fluide entre pensée et action."
+      }
+    ]
+  };
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("the same body can be distinguished across two different aspects", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "major_aspects");
+  const sectionPlan = planForPackets(fullSectionPlan, ["major_aspects.aspect_sun_moon_square", "major_aspects.aspect_sun_mars_trine"]);
+  const section = {
+    sectionId: "major_aspects",
+    blocks: [
+      {
+        blockId: "block1",
+        text: "Soleil carré Lune décrit une tension structurante, tandis que Soleil trigone Mars indique une manière plus directe de mobiliser l'élan personnel."
+      }
+    ]
+  };
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("aspect extraction does not contaminate separate sentences", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "major_aspects");
+  const sectionPlan = planForPackets(fullSectionPlan, ["major_aspects.aspect_sun_moon_square", "major_aspects.aspect_mercury_mars_trine"]);
+  const section = {
+    sectionId: "major_aspects",
+    blocks: [
+      {
+        blockId: "block1",
+        text: "Votre Soleil carré Lune décrit une tension entre identité et réactivité. Mercure trigone Mars soutient une expression plus rapide de l'action."
+      }
+    ]
+  };
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("aspect BlockPlan writes deterministic leads for shared-body aspect groups", () => {
+  const { fullDossierPlan } = phase2Fixture();
+  const identity = sectionPlanById(fullDossierPlan, "identity");
+  const aspectBlock = identity.blockPlans.find((blockPlan) => blockPlan.blockId === "block2");
+
+  assert.equal(aspectBlock.forbidAspectVocabulary, true);
+  assert.equal(
+    aspectBlock.deterministicPrefix,
+    "Soleil forme un trigone avec Mars. Soleil forme une conjonction avec Mercure. Soleil forme un trigone avec Saturne."
+  );
+
+  const facts = detectAstrologicalTextFacts(aspectBlock.deterministicPrefix).filter((fact) => fact.type === "ASPECT");
+  assert.deepEqual(facts, [
+    { type: "ASPECT", bodyA: "Sun", bodyB: "Mars", aspectType: "trine" },
+    { type: "ASPECT", bodyA: "Sun", bodyB: "Mercury", aspectType: "conjunction" },
+    { type: "ASPECT", bodyA: "Sun", bodyB: "Saturn", aspectType: "trine" }
+  ]);
+  assert.equal(facts.some((fact) => fact.bodyA === "Mars" && fact.bodyB === "Mercury" && fact.aspectType === "trine"), false);
+});
+
+test("aspect BlockPlan handles two same-type aspects and three aspects in one deterministic lead", () => {
+  const { fullDossierPlan } = phase2Fixture();
+  const supporting = sectionPlanById(fullDossierPlan, "supporting_resources");
+  const firstBlock = supporting.blockPlans.find((blockPlan) => blockPlan.blockId === "block1");
+
+  assert.equal(firstBlock.forbidAspectVocabulary, true);
+  assert.ok(firstBlock.deterministicPrefix.includes("Mercure forme un trigone avec Jupiter."));
+  assert.ok(firstBlock.deterministicPrefix.includes("Mercure forme un trigone avec Mars."));
+  assert.ok(firstBlock.deterministicPrefix.includes("Lune forme un trigone avec Vénus."));
+  assert.ok(firstBlock.deterministicPrefix.includes("Soleil forme un trigone avec Mars."));
+  assert.equal(detectAstrologicalTextFacts(firstBlock.deterministicPrefix).filter((fact) => fact.type === "ASPECT").length, 4);
+});
+
+test("aspect deterministic lead is accepted while interpretation can cite planets without aspect vocabulary", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "identity");
+  const aspectBlock = fullSectionPlan.blockPlans.find((blockPlan) => blockPlan.blockId === "block2");
+  const sectionPlan = {
+    ...fullSectionPlan,
+    evidencePackets: fullSectionPlan.evidencePackets.filter((packet) => aspectBlock.packetRefs.includes(packet.packetId)),
+    blockPlans: [aspectBlock]
+  };
+  const section = {
+    sectionId: "identity",
+    blocks: [
+      {
+        blockId: aspectBlock.blockId,
+        text: `${aspectBlock.deterministicPrefix}\n\nMars apporte ici une dimension active, tandis que Mercure nuance la façon de formuler l'élan et Saturne lui donne une tenue plus structurée.`
+      }
+    ]
+  };
+
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("declared aspect vocabulary is accepted in interpretationText after a deterministic lead", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "identity");
+  const aspectBlock = fullSectionPlan.blockPlans.find((blockPlan) => blockPlan.blockId === "block2");
+  const sectionPlan = {
+    ...fullSectionPlan,
+    evidencePackets: fullSectionPlan.evidencePackets.filter((packet) => aspectBlock.packetRefs.includes(packet.packetId)),
+    blockPlans: [aspectBlock]
+  };
+  const section = {
+    sectionId: "identity",
+    blocks: [
+      {
+        blockId: aspectBlock.blockId,
+        text: `${aspectBlock.deterministicPrefix}\n\nCe trigone renforce l'élan personnel et cette conjonction donne une coloration mentale.`
+      }
+    ]
+  };
+
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("undeclared aspect type vocabulary is rejected in interpretationText after a deterministic lead", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const sectionPlan = sectionPlanById(fullDossierPlan, "identity");
+  const aspectBlock = sectionPlan.blockPlans.find((blockPlan) => blockPlan.blockId === "block2");
+  const section = {
+    sectionId: "identity",
+    blocks: [
+      {
+        blockId: aspectBlock.blockId,
+        text: `${aspectBlock.deterministicPrefix}\n\nCe carré crée une tension supplémentaire dans l'identité consciente.`
+      }
+    ]
+  };
+
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "aspect_vocabulary_in_interpretation" && issue.disallowedAspectTypes.includes("square")));
+});
+
+test("non-astrological aspect words remain lexical and are rejected when undeclared", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "identity");
+  const aspectBlock = fullSectionPlan.blockPlans.find((blockPlan) => blockPlan.blockId === "block2");
+  const sectionPlan = {
+    ...fullSectionPlan,
+    evidencePackets: fullSectionPlan.evidencePackets.filter((packet) => aspectBlock.packetRefs.includes(packet.packetId)),
+    blockPlans: [aspectBlock]
+  };
+  const section = {
+    sectionId: "identity",
+    blocks: [
+      {
+        blockId: aspectBlock.blockId,
+        text: `${aspectBlock.deterministicPrefix}\n\nUne opposition intérieure peut émerger entre affirmation et recherche d'accord.`
+      }
+    ]
+  };
+
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "aspect_vocabulary_in_interpretation" && issue.disallowedAspectTypes.includes("opposition")));
+});
+
+test("structured writer prepends aspect facts and keeps interpretation text geometry-free", async () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const fullSectionPlan = sectionPlanById(fullDossierPlan, "identity");
+  const aspectBlock = fullSectionPlan.blockPlans.find((blockPlan) => blockPlan.blockId === "block2");
+  const sectionPlan = {
+    ...fullSectionPlan,
+    evidencePackets: fullSectionPlan.evidencePackets.filter((packet) => aspectBlock.packetRefs.includes(packet.packetId)),
+    blockPlans: [aspectBlock]
+  };
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan,
+    options: {
+      structuredWriterFn: async (payload) => ({
+        sectionId: "identity",
+        blocks: [
+          {
+            blockId: payload.sectionPlan.blockPlans[0].blockId,
+            text: "Mars met l'accent sur l'action, Mercure sur la formulation, et Saturne sur la structuration progressive de l'identité consciente."
+          }
+        ]
+      })
+    }
+  });
+
+  const text = written.section.blocks[0].text;
+  assert.ok(text.startsWith(aspectBlock.deterministicPrefix));
+  assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
 });
 
 test("Venus sign text is accepted when the BlockPlan carries the Venus packet", () => {
@@ -307,7 +596,7 @@ test("current_sky writer payload is closed to the current block packets", async 
           blocks: [
             {
               blockId: payload.sectionPlan.blockPlans[0].blockId,
-              text: "Jupiter forme un carré à votre Soleil, exact le 2026-10-12T06:00:00.000Z."
+              text: "Cette dynamique attire l'attention sur la manière d'ajuster l'élan d'expansion à l'identité consciente, avec prudence et clarté."
             }
           ]
         };
@@ -413,7 +702,7 @@ test("current_sky works with unknown birth time without house or angle context",
           blocks: [
             {
               blockId: payload.sectionPlan.blockPlans[0].blockId,
-              text: "Jupiter forme un carré à votre Soleil, exact le 2026-10-12T06:00:00.000Z."
+              text: "Cette dynamique reste lisible sans maison ni angle : elle concerne un point natal stable et peut être observée comme un climat personnel temporaire."
             }
           ]
         };
@@ -441,7 +730,7 @@ test("targeted correction for current_sky does not widen evidence", async () => 
             blocks: [
               {
                 blockId: payload.sectionPlan.blockPlans[0].blockId,
-                text: "Jupiter forme un carré à votre Soleil, avec Vénus en Verseau en arrière-plan."
+                text: "Cette dynamique personnelle se mélange aussi à Vénus en Verseau en arrière-plan."
               }
             ]
           };
@@ -453,7 +742,7 @@ test("targeted correction for current_sky does not widen evidence", async () => 
           blocks: [
             {
               blockId: payload.sectionPlan.blockPlans[0].blockId,
-              text: "Jupiter forme un carré à votre Soleil, exact le 2026-10-12T06:00:00.000Z."
+              text: "Cette dynamique met l'accent sur une tension symbolique à observer avec calme, sans ajouter de contexte natal non autorisé."
             }
           ]
         };
@@ -610,15 +899,7 @@ test("general_synthesis can reference owned evidence without blocking owner chap
       if (section.sectionId === "general_synthesis") return planForPackets(section, ["general_synthesis.natal_sun_sign"]);
       if (section.sectionId === "identity") return planForPacket(section, "identity.natal_sun_sign");
       if (section.sectionId === "emotional_world") {
-        return {
-          ...section,
-          evidencePackets: section.evidencePackets.filter((packet) =>
-            ["emotional_world.natal_moon_sign", "emotional_world.aspect_moon_mercury_square"].includes(packet.packetId)
-          ),
-          blockPlans: section.blockPlans.filter((blockPlan) =>
-            blockPlan.packetRefs.some((packetRef) => ["emotional_world.natal_moon_sign", "emotional_world.aspect_moon_mercury_square"].includes(packetRef))
-          )
-        };
+        return planForPackets(section, ["emotional_world.natal_moon_sign", "emotional_world.aspect_moon_mercury_square"]);
       }
       return section;
     })
@@ -645,17 +926,247 @@ test("general_synthesis can reference owned evidence without blocking owner chap
     sectionId: "emotional_world",
     blocks: [
       {
-        blockId: blockIdForPacket(sectionPlanById(fullDossierPlan, "emotional_world"), "emotional_world.natal_moon_sign"),
-        text: "Votre Lune en Balance introduit le chapitre émotionnel."
-      },
-      {
-        blockId: blockIdForPacket(sectionPlanById(fullDossierPlan, "emotional_world"), "emotional_world.aspect_moon_mercury_square"),
-        text: "Le carré entre votre Lune et Mercure décrit une tension entre ressenti et formulation."
+        blockId: "block1",
+        text: "Votre Lune en Balance introduit le chapitre émotionnel. Le carré entre votre Lune et Mercure décrit une tension entre ressenti et formulation."
       }
     ]
   };
   const result = validateStructuredSections({ dossierEvidence, fullDossierPlan: scopedPlan, sections: [synthesis, identity, emotional] });
   assert.equal(result.ok, true, JSON.stringify(result.issues, null, 2));
+});
+
+test("planner groups convergent packets and caps the conclusion instead of creating one micro-block per evidence", () => {
+  const { fullDossierPlan } = phase2Fixture();
+  const conclusion = sectionPlanById(fullDossierPlan, "conclusion");
+  const identity = sectionPlanById(fullDossierPlan, "identity");
+  const majorAspects = sectionPlanById(fullDossierPlan, "major_aspects");
+
+  assert.equal(conclusion.blockPlans.length, 1);
+  assert.ok(conclusion.evidencePackets.length <= 7);
+  assert.ok(identity.blockPlans.length < identity.evidencePackets.length);
+  assert.ok(majorAspects.blockPlans.every((blockPlan) => blockPlan.packetRefs.length <= 4));
+});
+
+test("current_sky block plans never tell the same transit occurrence twice", () => {
+  const currentSky = currentSkyFixture();
+  const duplicate = clone(currentSky.current[0]);
+  duplicate.resultId = "current_sky.fixture_jupiter_sun_square_duplicate";
+  currentSky.current.push(duplicate);
+  const { fullDossierPlan } = phase2Fixture({ currentSky });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const blocks = transitBlocks(current);
+  const occurrenceKeys = blocks.flatMap((blockPlan) => packetsForBlock(current, blockPlan).map(transitOccurrenceKey));
+
+  assert.equal(blocks.length, 1);
+  assert.deepEqual(occurrenceKeys, ["Jupiter|Sun|square|2026-10-12T06:00:00.000Z"]);
+  assert.equal(new Set(occurrenceKeys).size, occurrenceKeys.length);
+});
+
+test("planner groups multiple exact passages of one transit story in the current_sky owner block", () => {
+  const currentSky = currentSkyFixture();
+  const futurePassage = clone(currentSky.current[0]);
+  futurePassage.resultId = "current_sky.fixture_jupiter_sun_square_second_passage";
+  futurePassage.status = "UPCOMING";
+  futurePassage.timing = {
+    startsAt: "2026-11-01T00:00:00.000Z",
+    exactAt: "2026-11-12T06:00:00.000Z",
+    endsAt: "2026-11-24T00:00:00.000Z",
+    phase: "APPLYING"
+  };
+  currentSky.upcoming = [futurePassage];
+  const { fullDossierPlan } = phase2Fixture({ currentSky });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const nextWeeks = sectionPlanById(fullDossierPlan, "next_weeks");
+  const currentBlocks = transitBlocks(current);
+  const storyKeys = currentBlocks.map((blockPlan) => packetsForBlock(current, blockPlan).map(transitStoryKey));
+  const occurrenceKeys = currentBlocks.flatMap((blockPlan) => packetsForBlock(current, blockPlan).map(transitOccurrenceKey));
+  const nextStoryKeys = transitBlocks(nextWeeks).flatMap((blockPlan) => packetsForBlock(nextWeeks, blockPlan).map(transitStoryKey));
+
+  assert.equal(currentBlocks.length, 1);
+  assert.deepEqual(storyKeys, [["Jupiter|Sun|square", "Jupiter|Sun|square"]]);
+  assert.deepEqual(occurrenceKeys, [
+    "Jupiter|Sun|square|2026-10-12T06:00:00.000Z",
+    "Jupiter|Sun|square|2026-11-12T06:00:00.000Z"
+  ]);
+  assert.ok(currentBlocks[0].deterministicPrefix.includes("Passages retenus"));
+  assert.equal(nextStoryKeys.includes("Jupiter|Sun|square"), false);
+});
+
+test("planner does not split one transit story into several blocks inside a section", () => {
+  const currentSky = currentSkyFixture();
+  const secondStory = clone(currentSky.current[0]);
+  secondStory.resultId = "current_sky.fixture_jupiter_sun_square_second_passage";
+  secondStory.timing.exactAt = "2026-11-12T06:00:00.000Z";
+  secondStory.timing.startsAt = "2026-11-01T00:00:00.000Z";
+  secondStory.timing.endsAt = "2026-11-24T00:00:00.000Z";
+  currentSky.current.push(secondStory);
+  const { fullDossierPlan } = phase2Fixture({ currentSky });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const storyKeysByBlock = transitBlocks(current).map((blockPlan) => transitStoryKey(packetsForBlock(current, blockPlan)[0]));
+
+  assert.equal(storyKeysByBlock.length, new Set(storyKeysByBlock).size);
+});
+
+test("transit block plans expose deterministic temporal wording from calculated timing", () => {
+  const { fullDossierPlan } = phase2Fixture();
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
+
+  assert.ok(transitBlock.deterministicPrefix.includes("Jupiter forme un carré à votre Soleil"));
+  assert.ok(transitBlock.deterministicPrefix.includes("entre le 1 octobre 2026 et le 24 octobre 2026"));
+  assert.ok(transitBlock.deterministicPrefix.includes("L'aspect sera exact le 12 octobre 2026"));
+  assert.equal(transitBlock.deterministicPrefix.includes("APPLYING"), false);
+});
+
+test("current_sky deterministic lead says a été exact when exactAt is before now", () => {
+  const { fullDossierPlan } = phase2Fixture({
+    currentSky: skyWithTransitTiming({ exactAt: "2026-09-12T06:00:00.000Z", phase: "SEPARATING" })
+  });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
+
+  assert.ok(transitBlock.deterministicPrefix.includes("L'aspect a été exact le 12 septembre 2026"));
+  assert.equal(/prévu|prevu|à venir|a venir|se produira/.test(transitBlock.deterministicPrefix), false);
+});
+
+test("current_sky deterministic lead says est exact when exactAt equals now", () => {
+  const { fullDossierPlan } = phase2Fixture({
+    currentSky: skyWithTransitTiming({ exactAt: "2026-10-03T12:00:00.000Z" })
+  });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
+
+  assert.ok(transitBlock.deterministicPrefix.includes("L'aspect est exact le 3 octobre 2026"));
+});
+
+test("next_weeks deterministic lead uses the same future exactAt wording", () => {
+  const { fullDossierPlan } = phase2Fixture({
+    currentSky: skyWithTransitTiming({ status: "UPCOMING", exactAt: "2026-10-12T06:00:00.000Z" })
+  });
+  const nextWeeks = sectionPlanById(fullDossierPlan, "next_weeks");
+  const transitBlock = nextWeeks.blockPlans.find((blockPlan) => blockPlan.blockId === "next_weeks.transit_01");
+
+  assert.ok(transitBlock.deterministicPrefix.includes("Jupiter forme un carré à votre Soleil"));
+  assert.ok(transitBlock.deterministicPrefix.includes("L'aspect sera exact le 12 octobre 2026"));
+  assert.equal(transitBlock.deterministicPrefix.includes("a été exact"), false);
+});
+
+test("deterministic transit lead removes LLM temporal rewording from current_sky", async () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture({
+    currentSky: skyWithTransitTiming({ exactAt: "2026-09-12T06:00:00.000Z", phase: "SEPARATING" })
+  });
+  const currentPlan = sectionPlanById(fullDossierPlan, "current_sky");
+  const transitPacket = currentPlan.evidencePackets.find((packet) => packet.evidenceRefs.some((ref) => ref.startsWith("transit.")));
+  const sectionPlan = planForPacket(currentPlan, transitPacket.packetId);
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan,
+    options: {
+      structuredWriterFn: async (payload) => ({
+        sectionId: "current_sky",
+        blocks: [
+          {
+            blockId: payload.sectionPlan.blockPlans[0].blockId,
+            text: "Ce passage sera exact le 12 septembre 2026 et reste à venir. Ce transit met l'accent sur une tension symbolique à observer avec calme."
+          }
+        ]
+      })
+    }
+  });
+  const text = written.section.blocks[0].text;
+  assert.ok(text.includes("L'aspect a été exact le 12 septembre 2026"));
+  assert.equal(text.includes("sera exact"), false);
+  assert.equal(text.includes("à venir"), false);
+  assert.ok(text.includes("tension symbolique"));
+  assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
+});
+
+test("deterministic transit lead removes LLM temporal rewording from next_weeks", async () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture({
+    currentSky: skyWithTransitTiming({ status: "UPCOMING", exactAt: "2026-10-12T06:00:00.000Z" })
+  });
+  const nextPlan = sectionPlanById(fullDossierPlan, "next_weeks");
+  const transitPacket = nextPlan.evidencePackets.find((packet) => packet.evidenceRefs.some((ref) => ref.startsWith("transit.")));
+  const sectionPlan = planForPacket(nextPlan, transitPacket.packetId);
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan,
+    options: {
+      structuredWriterFn: async (payload) => ({
+        sectionId: "next_weeks",
+        blocks: [
+          {
+            blockId: payload.sectionPlan.blockPlans[0].blockId,
+            text: "Ce passage a été exact le 12 octobre 2026. Ce transit propose une lecture symbolique de l'élan et de l'ajustement."
+          }
+        ]
+      })
+    }
+  });
+  const text = written.section.blocks[0].text;
+  assert.ok(text.includes("L'aspect sera exact le 12 octobre 2026"));
+  assert.equal(text.includes("a été exact"), false);
+  assert.ok(text.includes("lecture symbolique"));
+  assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
+});
+
+test("global coherence rejects birth-time uncertainty prose when the birth time is exact", () => {
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture();
+  const scopedPlan = {
+    ...fullDossierPlan,
+    sections: fullDossierPlan.sections.map((section) =>
+      section.sectionId === "identity" ? planForPacket(section, "identity.natal_sun_sign") : section
+    )
+  };
+  const result = validateStructuredSections({
+    dossierEvidence,
+    fullDossierPlan: scopedPlan,
+    sections: [
+      {
+        sectionId: "identity",
+        blocks: [
+          {
+            blockId: "block1",
+            text: "Votre Soleil en Capricorne reste lisible malgré une heure de naissance inconnue."
+          }
+        ]
+      }
+    ]
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "birth_time_precision_contradiction"));
+});
+
+test("global coherence rejects future wording when transit exactAt is already past", () => {
+  const pastSky = currentSkyFixture();
+  pastSky.current[0].timing.exactAt = "2026-09-12T06:00:00.000Z";
+  pastSky.current[0].timing.phase = "SEPARATING";
+  const { dossierEvidence, fullDossierPlan } = phase2Fixture({ currentSky: pastSky });
+  const current = sectionPlanById(fullDossierPlan, "current_sky");
+  const transitPacket = current.evidencePackets.find((packet) => packet.evidenceRefs.some((ref) => ref.startsWith("transit.")));
+  const scopedPlan = {
+    ...fullDossierPlan,
+    sections: fullDossierPlan.sections.map((section) =>
+      section.sectionId === "current_sky" ? planForPacket(section, transitPacket.packetId) : section
+    )
+  };
+  const result = validateStructuredSections({
+    dossierEvidence,
+    fullDossierPlan: scopedPlan,
+    sections: [
+      {
+        sectionId: "current_sky",
+        blocks: [
+          {
+            blockId: "current_sky.transit_01",
+            text: "Jupiter forme un carré à votre Soleil et sera exact le 12 septembre."
+          }
+        ]
+      }
+    ]
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.issues.some((issue) => issue.code === "transit_temporal_direction_mismatch"));
 });
 
 test("houses section records unavailability when birth time does not allow houses", () => {

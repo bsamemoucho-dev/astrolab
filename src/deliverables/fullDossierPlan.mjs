@@ -3,24 +3,57 @@ import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpret
 
 export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.1.0";
 
+const BODY_FR = Object.freeze({
+  Sun: "Soleil",
+  Moon: "Lune",
+  Mercury: "Mercure",
+  Venus: "Vénus",
+  Mars: "Mars",
+  Jupiter: "Jupiter",
+  Saturn: "Saturne",
+  Uranus: "Uranus",
+  Neptune: "Neptune",
+  Pluto: "Pluton",
+  ASC: "Ascendant",
+  DSC: "Descendant",
+  MC: "Milieu du Ciel",
+  IC: "Fond du Ciel"
+});
+
+const ASPECT_FR = Object.freeze({
+  conjunction: "conjonction",
+  opposition: "opposition",
+  square: "carré",
+  trine: "trigone",
+  sextile: "sextile"
+});
+
+const ASPECT_WITH_ARTICLE_FR = Object.freeze({
+  conjunction: "une conjonction",
+  opposition: "une opposition",
+  square: "un carré",
+  trine: "un trigone",
+  sextile: "un sextile"
+});
+
 export const FULL_DOSSIER_SECTIONS = Object.freeze([
-  { sectionId: "general_synthesis", objective: "Identifier les dynamiques centrales sans tout interpréter en détail.", minWords: 350, targetWords: 650, maxWords: 900 },
-  { sectionId: "identity", objective: "Traiter l'identité consciente et l'axe solaire.", minWords: 500, targetWords: 900, maxWords: 1300 },
-  { sectionId: "emotional_world", objective: "Traiter la vie émotionnelle et les aspects lunaires.", minWords: 500, targetWords: 900, maxWords: 1300 },
-  { sectionId: "communication", objective: "Traiter pensée, langage et circulation mentale.", minWords: 450, targetWords: 800, maxWords: 1100 },
-  { sectionId: "affectivity", objective: "Traiter l'affectivité à partir des faits vénusiens disponibles.", minWords: 450, targetWords: 800, maxWords: 1100 },
-  { sectionId: "action", objective: "Traiter désir, action, défense et élan à partir de Mars.", minWords: 450, targetWords: 800, maxWords: 1100 },
-  { sectionId: "relationships", objective: "Relier les faits relationnels exploitables sans inventer de relation réelle.", minWords: 450, targetWords: 850, maxWords: 1200 },
-  { sectionId: "creativity", objective: "Décrire les modes d'expression créative uniquement depuis des preuves autorisées.", minWords: 350, targetWords: 650, maxWords: 950 },
-  { sectionId: "work_realization", objective: "Décrire réalisation et travail sans prédire de métier.", minWords: 450, targetWords: 850, maxWords: 1200 },
-  { sectionId: "security_resources", objective: "Décrire sécurité, ressources et ancrage depuis les preuves disponibles.", minWords: 400, targetWords: 750, maxWords: 1050 },
-  { sectionId: "internal_tensions", objective: "Traiter les tensions structurantes définies par convention Lastro.", minWords: 450, targetWords: 850, maxWords: 1200 },
-  { sectionId: "supporting_resources", objective: "Traiter les soutiens structurants définis par convention Lastro.", minWords: 400, targetWords: 750, maxWords: 1050 },
-  { sectionId: "houses", objective: "Lire les maisons Whole Sign seulement lorsqu'elles sont exploitables.", minWords: 450, targetWords: 900, maxWords: 1300 },
-  { sectionId: "major_aspects", objective: "Présenter les grands aspects sans reclasser librement leur portée.", minWords: 550, targetWords: 1000, maxWords: 1500 },
-  { sectionId: "current_sky", objective: "Présenter l'instantané daté des transits CURRENT.", minWords: 300, targetWords: 600, maxWords: 900 },
-  { sectionId: "next_weeks", objective: "Présenter l'instantané daté des transits UPCOMING sur l'horizon disponible.", minWords: 300, targetWords: 650, maxWords: 950 },
-  { sectionId: "conclusion", objective: "Conclure par dynamiques, tensions, ressources et questions ouvertes.", minWords: 450, targetWords: 850, maxWords: 1200 }
+  { sectionId: "general_synthesis", objective: "Synthétiser les 3 à 5 dynamiques centrales sans refaire les chapitres.", minWords: 180, targetWords: 360, maxWords: 620 },
+  { sectionId: "identity", objective: "Traiter l'identité consciente et l'axe solaire dans un texte cohérent.", minWords: 220, targetWords: 480, maxWords: 820 },
+  { sectionId: "emotional_world", objective: "Traiter la vie émotionnelle et les aspects lunaires sans répétition.", minWords: 220, targetWords: 500, maxWords: 860 },
+  { sectionId: "communication", objective: "Traiter pensée, langage et circulation mentale à partir des preuves utiles.", minWords: 180, targetWords: 380, maxWords: 680 },
+  { sectionId: "affectivity", objective: "Traiter l'affectivité à partir des faits vénusiens utiles.", minWords: 180, targetWords: 380, maxWords: 680 },
+  { sectionId: "action", objective: "Traiter désir, action, défense et élan à partir de Mars.", minWords: 180, targetWords: 380, maxWords: 680 },
+  { sectionId: "relationships", objective: "Relier les faits relationnels exploitables sans inventer de relation réelle.", minWords: 160, targetWords: 340, maxWords: 620 },
+  { sectionId: "creativity", objective: "Décrire les modes d'expression créative uniquement depuis des preuves autorisées.", minWords: 140, targetWords: 300, maxWords: 560 },
+  { sectionId: "work_realization", objective: "Décrire réalisation et travail sans prédire de métier.", minWords: 180, targetWords: 400, maxWords: 720 },
+  { sectionId: "security_resources", objective: "Décrire sécurité, ressources et ancrage depuis les preuves disponibles.", minWords: 160, targetWords: 340, maxWords: 620 },
+  { sectionId: "internal_tensions", objective: "Traiter les tensions structurantes en les regroupant par dynamique.", minWords: 180, targetWords: 420, maxWords: 760 },
+  { sectionId: "supporting_resources", objective: "Traiter les soutiens structurants sans remplir artificiellement.", minWords: 160, targetWords: 340, maxWords: 620 },
+  { sectionId: "houses", objective: "Lire les maisons Whole Sign seulement lorsqu'elles sont exploitables.", minWords: 160, targetWords: 360, maxWords: 680 },
+  { sectionId: "major_aspects", objective: "Présenter les grands aspects par familles de dynamiques.", minWords: 220, targetWords: 520, maxWords: 920 },
+  { sectionId: "current_sky", objective: "Présenter l'instantané daté des transits CURRENT.", minWords: 140, targetWords: 300, maxWords: 560 },
+  { sectionId: "next_weeks", objective: "Présenter les transits UPCOMING sur l'horizon disponible.", minWords: 140, targetWords: 320, maxWords: 620 },
+  { sectionId: "conclusion", objective: "Relier les grandes dynamiques, tensions, ressources et questions ouvertes sans réinterpréter chaque fait.", minWords: 180, targetWords: 420, maxWords: 760 }
 ]);
 
 function keyBody(value) {
@@ -52,15 +85,67 @@ function sectionOwnerForEvidence(evidence) {
   return null;
 }
 
+function transitStoryKeyFromValue(value = {}) {
+  if (!value.transitBody || !value.natalPoint || !value.aspectType) return null;
+  return [value.transitBody, value.natalPoint, value.aspectType].join("|");
+}
+
+function transitOccurrenceKeyFromClaim(claim = {}) {
+  if (!claim.transitBody || !claim.natalPoint || !claim.aspectType || !claim.exactAt) return null;
+  return [claim.transitBody, claim.natalPoint, claim.aspectType, claim.exactAt].join("|");
+}
+
+function personalTransitClaim(packet) {
+  return (packet?.claims ?? []).find((item) => item.type === "PERSONAL_TRANSIT") ?? null;
+}
+
+function transitStoryKeyFromPacket(packet) {
+  const claim = personalTransitClaim(packet);
+  return claim ? transitStoryKeyFromValue(claim) : null;
+}
+
+function transitOccurrenceKeyFromPacket(packet) {
+  const claim = personalTransitClaim(packet);
+  return claim ? transitOccurrenceKeyFromClaim(claim) : null;
+}
+
+function precomputeTransitStoryOwners(byId) {
+  const priority = { current_sky: 2, next_weeks: 1 };
+  const owners = new Map();
+  for (const evidence of byId.values()) {
+    if (evidence?.type !== "PERSONAL_TRANSIT") continue;
+    const key = transitStoryKeyFromValue(evidence.value);
+    if (!key) continue;
+    const status = evidence.value?.status;
+    const owner = status === "UPCOMING" ? "next_weeks" : "current_sky";
+    const previous = owners.get(key);
+    if (!previous || priority[owner] > priority[previous]) {
+      owners.set(key, owner);
+    }
+  }
+  return owners;
+}
+
+function ownerForEvidence(evidence, transitStoryOwners) {
+  if (evidence?.type === "PERSONAL_TRANSIT") {
+    const storyKey = transitStoryKeyFromValue(evidence.value);
+    return transitStoryOwners.get(storyKey) ?? sectionOwnerForEvidence(evidence);
+  }
+  return sectionOwnerForEvidence(evidence);
+}
+
 function secondarySectionsForEvidence(evidence) {
   if (!evidence) return [];
   const value = evidence.value ?? {};
-  if (evidence.type === "NATAL_BODY_SIGN" && value.body === "Venus") return ["relationships", "security_resources"];
+  if (evidence.type === "NATAL_BODY_SIGN" && value.body === "Venus") return ["relationships", "security_resources", "conclusion"];
   if (evidence.type === "NATAL_BODY_SIGN" && value.body === "Sun") return ["general_synthesis", "work_realization", "conclusion"];
   if (evidence.type === "NATAL_BODY_SIGN" && value.body === "Moon") return ["general_synthesis", "relationships", "conclusion"];
-  if (evidence.type === "NATAL_ASPECT") return ["general_synthesis", "internal_tensions", "major_aspects", "conclusion"];
-  if (evidence.type === "PERSONAL_TRANSIT") return ["general_synthesis"];
-  return ["general_synthesis", "conclusion"];
+  if (evidence.type === "NATAL_ASPECT") {
+    const tension = ["conjunction", "square", "opposition"].includes(value.aspectType);
+    return ["general_synthesis", tension ? "internal_tensions" : "supporting_resources", "major_aspects", "conclusion"];
+  }
+  if (evidence.type?.startsWith("DISTRIBUTION_")) return ["general_synthesis", "conclusion"];
+  return [];
 }
 
 function sectionsMap() {
@@ -94,6 +179,21 @@ function capSectionEvidence(section) {
   if (section.sectionId === "next_weeks") {
     section.primaryEvidenceRefs = section.primaryEvidenceRefs.slice(0, 8);
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.slice(0, 4);
+  }
+  if (section.sectionId === "conclusion") {
+    const selected = new Set(
+      [...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs]
+        .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
+        .slice(0, 7)
+    );
+    section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => selected.has(ref));
+    section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
+  }
+  if (["internal_tensions", "supporting_resources", "major_aspects"].includes(section.sectionId)) {
+    section.secondaryEvidenceRefs = section.secondaryEvidenceRefs
+      .filter((ref) => ref.startsWith("aspect."))
+      .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
+      .slice(0, section.sectionId === "major_aspects" ? 8 : 5);
   }
 }
 
@@ -177,58 +277,210 @@ function buildEvidencePackets({ section, byId, ownerByEvidenceRef }) {
       const ruleIds = rulesForEvidence(evidence)
         .map((rule) => rule.ruleId)
         .filter((ruleId) => (section.allowedInterpretationRuleRefs ?? []).includes(ruleId));
+      if (evidence.type === "NATAL_BODY_RETROGRADE") return null;
       return packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef });
     })
     .filter(Boolean);
 }
 
-function buildBlockPlans(section) {
+function chunk(values, size) {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+const EXACT_NOW_TOLERANCE_MS = 60 * 1000;
+
+function validDate(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function formatFrenchDate(date) {
+  if (!date) return null;
+  return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(date);
+}
+
+function exactSentence(exactAt, nowUtc) {
+  if (!exactAt) return null;
+  const exact = formatFrenchDate(exactAt);
+  if (!exact) return null;
+  if (!nowUtc || Math.abs(exactAt.getTime() - nowUtc.getTime()) <= EXACT_NOW_TOLERANCE_MS) {
+    return `L'aspect est exact le ${exact}.`;
+  }
+  if (exactAt.getTime() < nowUtc.getTime()) {
+    return `L'aspect a été exact le ${exact}.`;
+  }
+  return `L'aspect sera exact le ${exact}.`;
+}
+
+function aspectWithArticle(aspectType) {
+  return ASPECT_WITH_ARTICLE_FR[aspectType] ?? `un ${ASPECT_FR[aspectType] ?? aspectType}`;
+}
+
+function transitWindowSentence(claim, { includeSubject = true } = {}) {
+  if (!claim) return null;
+  const aspect = aspectWithArticle(claim.aspectType);
+  const body = BODY_FR[claim.transitBody] ?? claim.transitBody;
+  const point = BODY_FR[claim.natalPoint] ?? claim.natalPoint;
+  const startsAt = validDate(claim.startsAt);
+  const endsAt = validDate(claim.endsAt);
+  const subject = includeSubject ? `${body} forme ${aspect} à votre ${point}` : "passage";
+  if (startsAt && endsAt) {
+    return `${subject} entre le ${formatFrenchDate(startsAt)} et le ${formatFrenchDate(endsAt)}.`;
+  }
+  return `${subject}.`;
+}
+
+function transitTimingPrefix(packetOrPackets, { nowUtc = null } = {}) {
+  const packets = Array.isArray(packetOrPackets) ? packetOrPackets : [packetOrPackets];
+  const claims = packets.map(personalTransitClaim).filter(Boolean);
+  if (claims.length === 0) return null;
+  const now = validDate(nowUtc);
+  if (claims.length === 1) {
+    const claim = claims[0];
+    const window = transitWindowSentence(claim);
+    const exact = exactSentence(validDate(claim.exactAt), now);
+    return [window, exact].filter(Boolean).join(" ");
+  }
+  const first = claims[0];
+  const aspect = aspectWithArticle(first.aspectType);
+  const body = BODY_FR[first.transitBody] ?? first.transitBody;
+  const point = BODY_FR[first.natalPoint] ?? first.natalPoint;
+  const passages = claims
+    .map((claim) => {
+      const startsAt = validDate(claim.startsAt);
+      const endsAt = validDate(claim.endsAt);
+      const exactAt = validDate(claim.exactAt);
+      const window = startsAt && endsAt ? `du ${formatFrenchDate(startsAt)} au ${formatFrenchDate(endsAt)}` : null;
+      const exact = exactAt ? `exact ${formatFrenchDate(exactAt)}` : null;
+      return [window, exact].filter(Boolean).join(", ");
+    })
+    .filter(Boolean)
+    .join(" ; ");
+  const lead = `${body} forme ${aspect} à votre ${point}.`;
+  return passages ? `${lead} Passages retenus : ${passages}.` : lead;
+}
+
+function dedupeTransitPacketsByOccurrence(packets) {
+  const seen = new Set();
+  const unique = [];
+  for (const packet of packets) {
+    const occurrenceKey = transitOccurrenceKeyFromPacket(packet) ?? packet.packetId;
+    if (seen.has(occurrenceKey)) continue;
+    seen.add(occurrenceKey);
+    unique.push(packet);
+  }
+  return unique;
+}
+
+function groupTransitPacketsByStory(packets) {
+  const groups = [];
+  const byStory = new Map();
+  for (const packet of packets) {
+    const storyKey = transitStoryKeyFromPacket(packet) ?? packet.packetId;
+    if (!byStory.has(storyKey)) {
+      const group = [];
+      byStory.set(storyKey, group);
+      groups.push(group);
+    }
+    byStory.get(storyKey).push(packet);
+  }
+  return groups.map(dedupeTransitPacketsByOccurrence).filter((group) => group.length > 0);
+}
+
+function transitBlockPlans({ packets, nowUtc, blockPrefix }) {
+  return groupTransitPacketsByStory(packets).map((group, index) => ({
+    blockId: `${blockPrefix}.transit_${String(index + 1).padStart(2, "0")}`,
+    packetRefs: group.map((packet) => packet.packetId),
+    deterministicPrefix: transitTimingPrefix(group, { nowUtc }),
+    forbidAspectVocabulary: true
+  }));
+}
+
+function aspectLeadSentence(claim) {
+  if (claim?.type !== "NATAL_ASPECT") return null;
+  const aspect = aspectWithArticle(claim.aspectType);
+  const bodyA = BODY_FR[claim.bodyA] ?? claim.bodyA;
+  const bodyB = BODY_FR[claim.bodyB] ?? claim.bodyB;
+  return `${bodyA} forme ${aspect} avec ${bodyB}.`;
+}
+
+function aspectPrefixForPackets(packets = []) {
+  return packets
+    .flatMap((packet) => packet.claims ?? [])
+    .map(aspectLeadSentence)
+    .filter(Boolean)
+    .join(" ");
+}
+
+function blockPlanForPacketGroup(group, blockId) {
+  const aspectPrefix = aspectPrefixForPackets(group);
+  return {
+    blockId,
+    packetRefs: group.map((packet) => packet.packetId),
+    ...(aspectPrefix ? { deterministicPrefix: aspectPrefix, forbidAspectVocabulary: true } : {})
+  };
+}
+
+function compactBlockPlans(section, packets, { blockPrefix = "block", chunkSize = 4 } = {}) {
+  return chunk(packets, chunkSize).map((group, index) => blockPlanForPacketGroup(group, `${blockPrefix}${index + 1}`));
+}
+
+function nowUtcForSection(byId) {
+  return byId?.get("transits.snapshot")?.value?.nowUtc ?? null;
+}
+
+function buildBlockPlans(section, byId = null) {
   const packets = section.evidencePackets ?? [];
+  const nowUtc = nowUtcForSection(byId);
   if (packets.length === 0) return [];
   if (section.sectionId === "current_sky") {
-    let transitIndex = 0;
-    return packets.map((packet) => {
-      if (packet.evidenceRefs?.includes("transits.snapshot")) {
-        return {
-          blockId: "current_sky.intro",
-          packetRefs: [packet.packetId],
-          deterministic: true
-        };
-      }
-      transitIndex += 1;
-      return {
-        blockId: `current_sky.transit_${String(transitIndex).padStart(2, "0")}`,
-        packetRefs: [packet.packetId]
-      };
-    });
+    const introPackets = packets.filter((packet) => packet.evidenceRefs?.includes("transits.snapshot"));
+    const transitPackets = packets.filter((packet) => !packet.evidenceRefs?.includes("transits.snapshot"));
+    return [
+      ...introPackets.map((packet) => ({
+        blockId: "current_sky.intro",
+        packetRefs: [packet.packetId],
+        deterministic: true
+      })),
+      ...transitBlockPlans({ packets: transitPackets, nowUtc, blockPrefix: "current_sky" })
+    ];
   }
   if (section.sectionId === "next_weeks") {
-    return packets.map((packet, index) => ({
-      blockId: `next_weeks.transit_${String(index + 1).padStart(2, "0")}`,
-      packetRefs: [packet.packetId]
-    }));
+    return transitBlockPlans({ packets, nowUtc, blockPrefix: "next_weeks" });
   }
-  if (section.sectionId === "general_synthesis") {
+  if (section.sectionId === "general_synthesis" || section.sectionId === "conclusion") {
+    const aspectPrefix = aspectPrefixForPackets(packets);
     return [
       {
         blockId: "block1",
-        packetRefs: packets.map((packet) => packet.packetId)
+        packetRefs: packets.map((packet) => packet.packetId),
+        ...(aspectPrefix ? { deterministicPrefix: aspectPrefix, forbidAspectVocabulary: true } : {})
       }
     ];
   }
-  return packets.map((packet, index) => ({
-    blockId: `block${index + 1}`,
-    packetRefs: [packet.packetId]
-  }));
+  if (["internal_tensions", "supporting_resources", "major_aspects"].includes(section.sectionId)) {
+    return compactBlockPlans(section, packets, { chunkSize: 4 });
+  }
+  return compactBlockPlans(section, packets, { chunkSize: 6 });
 }
 
 export function buildFullDossierPlan(dossierEvidence) {
   const byId = evidenceById(dossierEvidence);
   const sections = sectionsMap();
   const ownerByEvidenceRef = {};
+  const transitStoryOwners = precomputeTransitStoryOwners(byId);
 
   for (const evidence of byId.values()) {
-    const owner = sectionOwnerForEvidence(evidence);
+    const owner = ownerForEvidence(evidence, transitStoryOwners);
     if (owner && sections.has(owner)) {
       sections.get(owner).primaryEvidenceRefs.push(evidence.evidenceId);
       ownerByEvidenceRef[evidence.evidenceId] = owner;
@@ -266,7 +518,7 @@ export function buildFullDossierPlan(dossierEvidence) {
       section.preconditions.push({ status: "snapshot", label: "Calculé le", evidenceRef: "transits.snapshot" });
     }
     section.evidencePackets = buildEvidencePackets({ section, byId, ownerByEvidenceRef });
-    section.blockPlans = buildBlockPlans(section);
+    section.blockPlans = buildBlockPlans(section, byId);
   }
 
   return {

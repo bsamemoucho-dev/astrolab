@@ -36,7 +36,10 @@ const BODY_WORDS = Object.freeze({
   Venus: ["vénus", "venus"],
   Mars: ["mars"],
   Jupiter: ["jupiter"],
-  Saturn: ["saturne", "saturn"]
+  Saturn: ["saturne", "saturn"],
+  Uranus: ["uranus"],
+  Neptune: ["neptune"],
+  Pluto: ["pluton", "pluto"]
 });
 
 const SIGN_WORDS = Object.freeze({
@@ -60,6 +63,14 @@ const ASPECT_WORDS = Object.freeze({
   square: ["carré", "carre", "square"],
   trine: ["trigone", "trine"],
   sextile: ["sextile"]
+});
+
+const INTERPRETATION_ASPECT_WORDS = Object.freeze({
+  conjunction: ["conjonction", "conjonctions"],
+  opposition: ["opposition", "oppositions"],
+  square: ["carré", "carre", "carrés", "carres"],
+  trine: ["trigone", "trigones"],
+  sextile: ["sextile", "sextiles"]
 });
 
 const ANGLE_WORDS = Object.freeze({
@@ -99,6 +110,20 @@ function mentionedKeys(text, vocabulary) {
 
 function wordAlternatives(words) {
   return words.map((word) => normalizedText(word).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+}
+
+function vocabularyPattern(vocabulary) {
+  return Object.values(vocabulary).flatMap((words) => words.map((word) => normalizedText(word))).sort((a, b) => b.length - a.length).map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+}
+
+const BODY_PATTERN = vocabularyPattern(BODY_WORDS);
+const ASPECT_PATTERN = vocabularyPattern(ASPECT_WORDS);
+const INTERPRETATION_ASPECT_PATTERN = vocabularyPattern(INTERPRETATION_ASPECT_WORDS);
+const ASPECT_VOCABULARY_PATTERN = new RegExp(`\\b(${INTERPRETATION_ASPECT_PATTERN})\\b`, "giu");
+
+function keyForVocabularyMatch(value, vocabulary) {
+  const source = normalizedText(value);
+  return Object.entries(vocabulary).find(([, words]) => words.some((word) => normalizedText(word) === source))?.[0] ?? null;
 }
 
 function hasBodySignClaim(text, body, sign) {
@@ -150,9 +175,52 @@ function refSupportsAspect(ref, bodyA, bodyB, aspectType) {
   return sortedBodies(ref.value?.transitBody, ref.value?.natalPoint) === sortedBodies(bodyA, bodyB) && norm(ref.value?.aspectType) === norm(aspectType);
 }
 
+function pushAspectFact(facts, seen, bodyA, aspectType, bodyB) {
+  if (!bodyA || !bodyB || !aspectType || norm(bodyA) === norm(bodyB)) return;
+  const key = `${sortedBodies(bodyA, bodyB)}|${norm(aspectType)}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  facts.push({ type: "ASPECT", bodyA, bodyB, aspectType });
+}
+
+function detectAspectFacts(text) {
+  const source = normalizedText(text);
+  const facts = [];
+  const seen = new Set();
+  const shortText = "[^.!?;\\n]{0,36}?";
+  const connector = "(?:et|avec|a|au|à|-|–|—)";
+  const patterns = [
+    new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${BODY_PATTERN})\\b${shortText}${connector}${shortText}\\b(${BODY_PATTERN})\\b`, "giu"),
+    new RegExp(`\\b(${BODY_PATTERN})\\b${shortText}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortText}\\b(${ASPECT_PATTERN})\\b${shortText}(?:avec|a|au|vers|-|–|—)${shortText}\\b(${BODY_PATTERN})\\b`, "giu"),
+    new RegExp(`\\b(${BODY_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${BODY_PATTERN})\\b`, "giu")
+  ];
+
+  for (const match of source.matchAll(patterns[0])) {
+    pushAspectFact(
+      facts,
+      seen,
+      keyForVocabularyMatch(match[2], BODY_WORDS),
+      keyForVocabularyMatch(match[1], ASPECT_WORDS),
+      keyForVocabularyMatch(match[3], BODY_WORDS)
+    );
+  }
+  for (const pattern of patterns.slice(1)) {
+    for (const match of source.matchAll(pattern)) {
+      pushAspectFact(
+        facts,
+        seen,
+        keyForVocabularyMatch(match[1], BODY_WORDS),
+        keyForVocabularyMatch(match[2], ASPECT_WORDS),
+        keyForVocabularyMatch(match[3], BODY_WORDS)
+      );
+    }
+  }
+
+  return facts;
+}
+
 export function detectAstrologicalTextFacts(text) {
   const bodies = mentionedKeys(text, BODY_WORDS);
-  const aspects = mentionedKeys(text, ASPECT_WORDS);
   const house = parseHouse(text);
   const facts = [];
   for (const body of Object.keys(BODY_WORDS)) {
@@ -172,11 +240,7 @@ export function detectAstrologicalTextFacts(text) {
       facts.push({ type: "ANGLE_SIGN", angle, sign });
     }
   }
-  if (bodies.length >= 2 && aspects.length > 0) {
-    for (const aspectType of aspects) {
-      facts.push({ type: "ASPECT", bodyA: bodies[0], bodyB: bodies[1], aspectType });
-    }
-  }
+  facts.push(...detectAspectFacts(text));
   return facts;
 }
 
@@ -186,6 +250,11 @@ function textFactSupported(fact, refs) {
   if (fact.type === "ANGLE_SIGN") return refs.some((ref) => refSupportsAngleSign(ref, fact.angle, fact.sign));
   if (fact.type === "ASPECT") return refs.some((ref) => refSupportsAspect(ref, fact.bodyA, fact.bodyB, fact.aspectType));
   return false;
+}
+
+function hasPhrase(text, phrases) {
+  const source = normalizedText(text);
+  return phrases.some((phrase) => source.includes(normalizedText(phrase)));
 }
 
 function claimlikeForBlock(block, code, message, extra = {}) {
@@ -198,6 +267,28 @@ function claimlikeForBlock(block, code, message, extra = {}) {
     message,
     ...extra
   };
+}
+
+function interpretationTextForDeterministicLead(block, blockPlan) {
+  const prefix = String(blockPlan?.deterministicPrefix ?? "").trim();
+  const text = String(block?.text ?? "").trim();
+  if (!prefix || !text.startsWith(prefix)) return null;
+  return text.slice(prefix.length).trim();
+}
+
+function aspectTypesInText(text) {
+  const source = normalizedText(text);
+  return [...new Set([...source.matchAll(ASPECT_VOCABULARY_PATTERN)]
+    .map((match) => keyForVocabularyMatch(match[1], INTERPRETATION_ASPECT_WORDS))
+    .filter(Boolean))];
+}
+
+function allowedAspectTypesForBlock(block) {
+  return new Set((block?.claims ?? [])
+    .filter((claim) => claim.type === "NATAL_ASPECT" || claim.type === "PERSONAL_TRANSIT")
+    .map((claim) => claim.aspectType)
+    .filter(Boolean)
+    .map(norm));
 }
 
 function normalizeArray(value) {
@@ -411,6 +502,7 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
   const seenBlockIds = new Set();
 
   for (const rawBlock of section.blocks ?? []) {
+    const blockPlan = blockPlanById(sectionPlan).get(rawBlock?.blockId);
     const block = expandBlockFromPackets({ block: rawBlock, sectionPlan, issues });
     seenBlockIds.add(block.blockId);
     if (!String(block.text ?? "").trim()) {
@@ -450,6 +542,24 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
         issues.push(claimlikeForBlock(block, "undeclared_text_fact", "Le texte contient un fait astrologique concret non couvert par les evidenceRefs du bloc.", { fact }));
       }
     }
+    const interpretationText = blockPlan?.forbidAspectVocabulary ? interpretationTextForDeterministicLead(block, blockPlan) : null;
+    const disallowedAspectTypes = interpretationText
+      ? aspectTypesInText(interpretationText).filter((aspectType) => !allowedAspectTypesForBlock(block).has(norm(aspectType)))
+      : [];
+    if (disallowedAspectTypes.length > 0) {
+      issues.push(
+        claimlikeForBlock(
+          block,
+          "aspect_vocabulary_in_interpretation",
+          "Le texte d'interprétation ne peut citer que les types d'aspect déjà déclarés par le serveur dans ce bloc.",
+          {
+            deterministicLead: blockPlan.deterministicPrefix,
+            disallowedAspectTypes,
+            allowedAspectTypes: [...allowedAspectTypesForBlock(block)]
+          }
+        )
+      );
+    }
     allClaims.push(...(block.claims ?? []));
   }
 
@@ -468,6 +578,66 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
   };
 }
 
+function expandedBlocksForSection({ section, sectionPlan, issues }) {
+  return (section?.blocks ?? []).map((rawBlock) => expandBlockFromPackets({ block: rawBlock, sectionPlan, issues }));
+}
+
+function birthContext(dossierEvidence) {
+  return evidenceById(dossierEvidence).get("birth.identity") ?? null;
+}
+
+function snapshotNow(dossierEvidence) {
+  const value = evidenceById(dossierEvidence).get("transits.snapshot")?.value ?? {};
+  const now = value.nowUtc ? new Date(value.nowUtc) : null;
+  return now && !Number.isNaN(now.getTime()) ? now : null;
+}
+
+function validateGlobalCoherence({ dossierEvidence, fullDossierPlan, sections = [] } = {}) {
+  const issues = [];
+  const birth = birthContext(dossierEvidence);
+  const timePrecision = norm(birth?.value?.timePrecision);
+  const now = snapshotNow(dossierEvidence);
+  const plans = new Map((fullDossierPlan?.sections ?? []).map((plan) => [plan.sectionId, plan]));
+
+  for (const section of sections) {
+    const sectionPlan = plans.get(section.sectionId);
+    if (!sectionPlan) continue;
+    const localIssues = [];
+    for (const block of expandedBlocksForSection({ section, sectionPlan, issues: localIssues })) {
+      const text = String(block.text ?? "");
+      if (timePrecision === "exact" && hasPhrase(text, [
+        "heure de naissance inconnue",
+        "heure de naissance approximative",
+        "heure de naissance incertaine",
+        "incertitude liée à l'heure de naissance",
+        "incertitude liee a l'heure de naissance",
+        "faute d'heure précise",
+        "faute d'heure precise"
+      ])) {
+        issues.push(claimlikeForBlock(block, "birth_time_precision_contradiction", "Le texte parle d'une heure de naissance inconnue ou approximative alors que la donnée est exacte."));
+      }
+
+      if (!now) continue;
+      const personalTransits = (block.claims ?? []).filter((claim) => claim.type === "PERSONAL_TRANSIT");
+      for (const transit of personalTransits) {
+        const exactAt = transit.exactAt ? new Date(transit.exactAt) : null;
+        if (!exactAt || Number.isNaN(exactAt.getTime())) continue;
+        const futureExact = exactAt.getTime() > now.getTime();
+        const pastExact = exactAt.getTime() < now.getTime();
+        const saysFuture = hasPhrase(text, ["sera exact", "va être exact", "va etre exact", "deviendra exact"]);
+        const saysPast = hasPhrase(text, ["a été exact", "a ete exact", "était exact", "etait exact"]);
+        if ((pastExact && saysFuture) || (futureExact && saysPast)) {
+          issues.push(claimlikeForBlock(block, "transit_temporal_direction_mismatch", "La prose contredit la position temporelle calculée de exactAt par rapport à nowUtc.", {
+            exactAt: transit.exactAt,
+            nowUtc: now.toISOString()
+          }));
+        }
+      }
+    }
+  }
+  return issues;
+}
+
 export function validateStructuredSections({ dossierEvidence, fullDossierPlan, sections = [] } = {}) {
   const issues = [];
   for (const section of sections) {
@@ -479,5 +649,6 @@ export function validateStructuredSections({ dossierEvidence, fullDossierPlan, s
     const result = validateStructuredSection({ dossierEvidence, sectionPlan: plan, section });
     issues.push(...result.issues);
   }
+  issues.push(...validateGlobalCoherence({ dossierEvidence, fullDossierPlan, sections }));
   return { ok: issues.length === 0, validatorVersion: CLAIM_VALIDATOR_VERSION, issues };
 }

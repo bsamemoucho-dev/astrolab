@@ -278,6 +278,41 @@ function sanitizeStructuredSection(section, sectionPlan) {
   };
 }
 
+const TEMPORAL_REWORDING_PATTERN =
+  /\b(?:prévu|prevu|à venir|a venir|se produira|sera exact|va être exact|va etre exact|deviendra exact|a été exact|a ete exact|était exact|etait exact|est exact|exactitude|fenêtre d'orbe|fenetre d'orbe|applying|separating|stationary|indeterminate)\b/i;
+
+const DATE_REWORDING_PATTERN =
+  /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)(?:\s+\d{4})?)\b/i;
+
+function splitSentences(text) {
+  return String(text ?? "")
+    .split(/(?<=[.!?])\s+|\n+/u)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function sanitizeTemporalRewording(text) {
+  return splitSentences(text)
+    .filter((sentence) => !TEMPORAL_REWORDING_PATTERN.test(sentence) && !DATE_REWORDING_PATTERN.test(sentence))
+    .join(" ")
+    .trim();
+}
+
+function applyDeterministicPrefix(section, blockPlan) {
+  const prefix = String(blockPlan?.deterministicPrefix ?? "").trim();
+  if (!prefix) return section;
+  return {
+    ...section,
+    blocks: (section.blocks ?? []).map((item) => {
+      if (item.blockId !== blockPlan.blockId) return item;
+      const text = sanitizeTemporalRewording(item.text);
+      if (!text) return { ...item, text: prefix };
+      if (text.startsWith(prefix)) return item;
+      return { ...item, text: `${prefix}\n\n${text}` };
+    })
+  };
+}
+
 function mergeSectionBlocks(baseSection, patchSection, sectionPlan) {
   if (!baseSection) return patchSection;
   const patchById = new Map((patchSection?.blocks ?? []).map((block) => [block.blockId, block]));
@@ -410,6 +445,12 @@ function buildStructuredSystemPrompt(sectionPlan) {
     "Tu dois seulement remplir le texte du ou des blockId prévus par ce BlockPlan isolé.",
     "N'invente jamais de blockId.",
     "Si la matière méthodologique est insuffisante, écris un bloc court qui dit que cette partie reste limitée aux faits disponibles.",
+    "N'écris pas d'introduction générique ni de mini-conclusion automatique. Chaque phrase doit ajouter une information utile.",
+    "Si plusieurs packets décrivent la même dynamique, fusionne-les en un passage cohérent au lieu de les commenter un par un.",
+    "Si un packet est marqué interpretationDepth=reference, utilise-le seulement comme rappel bref et ne le développe pas comme sujet principal.",
+    "Si le BlockPlan fournit deterministicLead, cette phrase factuelle sera ajoutée par le serveur avant ton texte.",
+    "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
+    "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
     `BlockId autorisé: ${blockIds}.`,
@@ -435,6 +476,12 @@ function blockPlansForPrompt(sectionPlan) {
   const packets = new Map(packetsForPrompt(sectionPlan).map((packet) => [packet.packetId, packet]));
   return (sectionPlan.blockPlans ?? []).map((blockPlan) => ({
     blockId: blockPlan.blockId,
+    deterministicLead: blockPlan.deterministicPrefix ?? null,
+    llmTask: blockPlan.forbidAspectVocabulary
+      ? "Interpréter symboliquement ces faits sans reformuler les aspects, leur vocabulaire géométrique, la temporalité, les dates, l'exactitude ou la phase."
+      : blockPlan.deterministicPrefix
+        ? "Interpréter symboliquement ce transit sans reformuler sa temporalité, ses dates, son exactitude ou sa phase."
+        : null,
     packets: (blockPlan.packetRefs ?? []).map((packetRef) => packets.get(packetRef)).filter(Boolean)
   }));
 }
@@ -455,6 +502,9 @@ function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
         forbiddenOutputKeys: ["packetRefs", "evidenceRefs", "interpretationRuleRefs", "claims", "claim", "claimType", "claim.type"],
         blockIdsMustBeCopiedExactly: true,
         noUndeclaredAstrologicalFactsInText: true,
+        noTemporalRewordingWhenDeterministicLeadExists: true,
+        noDatesWhenDeterministicLeadExists: true,
+        noAspectVocabularyWhenDeterministicLeadHasAspects: true,
         noLoveWorkScoring: true
       }
     },
@@ -521,7 +571,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       usage.completionTokens += result.usage?.completionTokens ?? 0;
     }
     const parsed = parseJsonObject(raw);
-    const section = sanitizeStructuredSection(parsed, scopedPlan);
+    const section = applyDeterministicPrefix(sanitizeStructuredSection(parsed, scopedPlan), blockPlan);
     const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
     lastSection = section;
     lastValidation = validation;
