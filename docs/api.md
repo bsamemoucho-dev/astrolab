@@ -337,6 +337,10 @@ The API returns `402` when the balance is insufficient.
 ## Administration
 
 Admin endpoints require a verified session whose public user has `primaryRole: "admin"`.
+The operator page is served at `/rouflaquette` and uses the same session; `/admin/readings`
+is not an alias. The page shows at most the 200 newest public readings, with actions to
+view, copy the `/r/<token>` link, and resend the delivery e-mail. V1 does not expose a
+generation retry action.
 
 ### `GET /api/admin/summary`
 
@@ -351,6 +355,21 @@ Returns redacted audit log rows. Query parameters:
 - `ownerUserId`.
 
 The response omits raw `before` and `after` payloads to avoid exposing dossier or authentication details in the audit overview.
+
+### `GET /api/admin/readings`
+
+Returns the protected operational view for public readings. Query parameters:
+
+- `filter`: `all`, `active`, `ready`, `failed`, or `email_action`;
+- `q`: simple search by client e-mail, reference, or reading id.
+
+The response is capped at 200 rows and includes no prompts, evidence packets, or API secrets.
+
+### `POST /api/admin/readings/resend-email`
+
+Queues and flushes one delivery e-mail for one ready reading. The request must include
+`readingId`, an identical `confirm` value, and the `x-astrolab-admin-action: resend-email`
+header. There is no bulk resend endpoint.
 
 ## Method Registry
 

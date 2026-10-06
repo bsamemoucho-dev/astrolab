@@ -266,6 +266,14 @@ Variables d'environnement :
 
 Endpoints de service : `GET /healthz` (santé) et `GET /api/config` (configuration publique, sans secret).
 
+Interface opérateur : `/rouflaquette`. L'accès réutilise la session existante :
+seuls les comptes dont `primaryRole` vaut `admin` peuvent ouvrir la page et les
+API `/api/admin/...`. L'inscription publique crée toujours des comptes `user` ;
+le rôle admin doit donc être accordé côté stockage/exploitation, puis la
+connexion se fait par l'onglet « Connexion » normal. La page affiche au maximum
+les 200 dernières lectures et permet seulement de voir une lecture prête, copier
+son lien et renvoyer son e-mail. Il n'y a pas de relance de génération en V1.
+
 ### Avec Docker
 
 ```bash

@@ -6,6 +6,7 @@ import { access, constants, mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { createApp } from "./http/app.mjs";
+import { bootstrapAdminFromEnv } from "./models/adminService.mjs";
 import { stripeConfiguration, stripeKeyNotice, stripeKeyProblem } from "./payments/stripe.mjs";
 
 const port = Number(process.env.PORT ?? 4173);
@@ -14,7 +15,8 @@ const host = process.env.HOST; // absent → écoute IPv6+IPv4 (localhost et 127
 await reportStorage();
 reportPayments();
 
-const { server } = createApp();
+const { server, store } = createApp();
+await bootstrapAdminFromEnv(store);
 
 if (host) {
   server.listen(port, host, onListen);

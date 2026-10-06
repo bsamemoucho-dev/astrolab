@@ -16,7 +16,8 @@ import { llmConfiguration } from "../deliverables/writers.mjs";
 import { JsonStore } from "../db/jsonStore.mjs";
 import { resolvePlaceForEntry, searchPlacesForEntryDetailed } from "../geo/placeResolver.mjs";
 import { renderCielEventPageBySlug, renderCielHomePage, renderCielOctober2026Page } from "../models/cielService.mjs";
-import { getAdminSummary, listAdminAuditLogs } from "../models/adminService.mjs";
+import { getAdminSummary, listAdminAuditLogs, listAdminReadings, resendAdminReadingEmail } from "../models/adminService.mjs";
+import { renderAdminReadingsPage } from "./adminReadingsPage.mjs";
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { getPersonalCurrentSky } from "../models/currentSkyService.mjs";
@@ -557,6 +558,17 @@ export function createApp(options = {}) {
         "content-type": "text/html; charset=utf-8"
       });
       res.end(html);
+    }),
+    route("GET", /^\/rouflaquette\/?$/, async (req, res) => {
+      const user = await requireUser(store, req);
+      await getAdminSummary(store, user);
+      res.writeHead(200, {
+        ...securityHeaders(),
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "x-robots-tag": "noindex, nofollow"
+      });
+      res.end(renderAdminReadingsPage());
     }),
     // Parcours public « sans compte » : résolution de lieu et lecture, aucune
     // inscription, aucune donnée personnelle persistée.
@@ -1258,11 +1270,31 @@ export function createApp(options = {}) {
     }),
     route("GET", /^\/api\/admin\/summary$/, async (req, res) => {
       const user = await requireUser(store, req);
-      sendJson(res, 200, await getAdminSummary(store, user));
+      sendJson(res, 200, await getAdminSummary(store, user), { "cache-control": "no-store" });
     }),
     route("GET", /^\/api\/admin\/audit$/, async (req, res, _params, url) => {
       const user = await requireUser(store, req);
-      sendJson(res, 200, await listAdminAuditLogs(store, user, Object.fromEntries(url.searchParams.entries())));
+      sendJson(res, 200, await listAdminAuditLogs(store, user, Object.fromEntries(url.searchParams.entries())), { "cache-control": "no-store" });
+    }),
+    route("GET", /^\/api\/admin\/readings$/, async (req, res, _params, url) => {
+      const user = await requireUser(store, req);
+      sendJson(
+        res,
+        200,
+        await listAdminReadings(store, user, Object.fromEntries(url.searchParams.entries()), { baseUrl: publicBaseUrl(req) }),
+        { "cache-control": "no-store" }
+      );
+    }),
+    route("POST", /^\/api\/admin\/readings\/resend-email$/, async (req, res) => {
+      const user = await requireUser(store, req);
+      if (String(req.headers["x-astrolab-admin-action"] ?? "") !== "resend-email") {
+        const error = new Error("Confirmation d'action admin requise.");
+        error.status = 403;
+        throw error;
+      }
+      sendJson(res, 200, await resendAdminReadingEmail(store, user, await readJson(req), { baseUrl: publicBaseUrl(req) }), {
+        "cache-control": "no-store"
+      });
     }),
     route("GET", /^\/api\/methods$/, async (_req, res) => {
       sendJson(res, 200, { methods: await listMethodRegistry(store) });
@@ -1319,8 +1351,11 @@ export function createApp(options = {}) {
       // on le déclare avant tout routage, y compris pour les erreurs. Posé ici
       // plutôt que dans sendStatic, sinon les réponses JSON y échappent.
       const cheminDemande = new URL(req.url, "http://localhost").pathname;
-      if (cheminDemande.startsWith("/api/") || cheminDemande.startsWith("/r/")) {
+      if (cheminDemande.startsWith("/api/") || cheminDemande.startsWith("/r/") || cheminDemande.startsWith("/rouflaquette")) {
         res.setHeader("x-robots-tag", "noindex, nofollow");
+      }
+      if (cheminDemande.startsWith("/api/admin/") || cheminDemande.startsWith("/rouflaquette")) {
+        res.setHeader("cache-control", "no-store");
       }
 
       const matched = matchRoute(routes, req);
