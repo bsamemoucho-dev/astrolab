@@ -117,7 +117,7 @@ function withSession(session, run) {
 const SESSION_PAYEE = (extra = {}) => ({
   id: "cs_test_paye",
   payment_status: "paid",
-  amount_total: 300,
+  amount_total: 500,
   currency: "eur",
   metadata: { purpose: "lastro_lecture", pricing: "lastro-pricing@1.0.0" },
   customer_details: { email: "client@example.test" },
@@ -187,10 +187,10 @@ test("session payée pour un autre produit ou à un autre prix : refus", async (
   });
 });
 
-test("session au prix de 3 euros : acceptée", async () => {
-  // 3 € est le prix payé maintenant.
+test("session au prix de 5 euros : acceptée", async () => {
+  // 5 € est le prix payé maintenant.
   await withEnv({ ...STRIPE_KEYS }, () =>
-    withSession(SESSION_PAYEE({ amount_total: 300 }), async () => {
+    withSession(SESSION_PAYEE({ amount_total: 500 }), async () => {
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, paymentSessionId: "cs_test_paye" });
@@ -198,7 +198,7 @@ test("session au prix de 3 euros : acceptée", async () => {
         assert.equal(reponse.payload.status, "queued");
         const state = await app.store.load();
         assert.equal(state.publicReadings.length, 1);
-        assert.equal(state.publicReadings[0].amountCents, 300);
+        assert.equal(state.publicReadings[0].amountCents, 500);
       } finally {
         await app.close();
       }

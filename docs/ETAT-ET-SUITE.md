@@ -369,9 +369,8 @@ avec la fenêtre d'impression en secours.
 
 ## Prix fixe et offre de lancement (12/09/2026)
 
-Décision : **une seule formule, 25 €**, avec un code de lancement **`bessbousse10`**
-qui enlève **10 €** — soit **15 €**, le code étant **pré-rempli** dans le formulaire
-pour que l'offre s'applique sans rien faire.
+Décision actuelle : **une seule formule, 5 €**, sans code de lancement public
+pré-rempli par défaut. Les codes privés restent possibles via l'environnement.
 
 Ce qui a changé, et pourquoi ce n'est pas qu'un texte :
 
@@ -383,7 +382,7 @@ Ce qui a changé, et pourquoi ce n'est pas qu'un texte :
 - Le **montant est calculé par le serveur** (`src/payments/pricing.mjs`, convention
   versionnée `lastro-pricing@1.0.0`) : le navigateur n'envoie qu'un **code**. Un
   `amountCents` glissé dans la requête n'est pas corrigé, il n'est pas lu — vérifié
-  par un test qui envoie 1 € et constate que Stripe reçoit 15 €.
+  par un test qui envoie 1 € et constate que Stripe reçoit le prix serveur.
 - Le site **ne calcule jamais un prix** : il demande un devis
   (`POST /api/public/price-quote`) et affiche la réponse. Si le devis échoue, il
   réaffiche le tarif sans remise et n'annonce aucune promotion.
@@ -392,9 +391,9 @@ Ce qui a changé, et pourquoi ce n'est pas qu'un texte :
 - Le code se compare **sans casse ni espaces** (`Bess Bousse-10` fonctionne), la
   remise est bornée (jamais plus que le prix, jamais sous le minimum Stripe), et
   l'offre se change par variables d'environnement sans toucher au code.
-- Le **reçu Stripe** porte la remise : la ligne de commande s'intitule
-  « Lecture symbolique personnalisée (Lastro) — 25,00 € moins 10,00 € (offre de
-  lancement) », dans la langue du client (neuf langues).
+- Le **reçu Stripe** porte la remise quand un code est appliqué : la ligne de
+  commande distingue l'offre publique éventuelle d'un code privé, dans la langue
+  du client (neuf langues).
 - Le prestataire de paiement annoncé côté client était **SumUp** dans les neuf
   langues alors que le paiement est **Stripe** : corrigé. Le libellé de bouton
   mort (`payButton`) a été retiré.
@@ -423,7 +422,7 @@ manquaient. Cinq verrous, dans l'ordre où ils s'appliquent :
    non payée → `402`, session inconnue → refus (vérifié : 502, 0 livraison
    enregistrée).
 3. **Le paiement doit correspondre à CETTE lecture.** `checkoutSessionProblem()`
-   exige un `amount_total` égal à l'un des deux prix légitimes (25 € ou 15 €) et la
+   exige un `amount_total` égal à un tarif légitime calculé côté serveur et la
    bonne devise, et refuse une session marquée pour un autre produit. La session
    porte désormais `metadata[purpose]=lastro_lecture` et la version de prix. Sans ce
    contrôle, une session payée pour n'importe quoi d'autre sur le même compte Stripe
@@ -565,8 +564,8 @@ Ce qui a été construit (`src/payments/pricing.mjs`) :
 - le plancher du transport n'est plus 5 € (ancien prix libre) mais **0,50 €**, le
   minimum de Stripe : sans ce changement, un code à 1 € était refusé au paiement.
   Le plancher produit, lui, vit dans `pricing.mjs` ;
-- le reçu Stripe distingue la nature du code : « 25,00 € moins 10,00 € (offre de
-  lancement) » pour le code public, « … (code promotionnel) » pour un code privé —
+- le reçu Stripe distingue la nature du code : « offre de lancement » pour un
+  éventuel code public, « code promotionnel » pour un code privé —
   dans les neuf langues, et sans jamais nommer le code privé.
 
 **Action côté Render** : `ASTROLAB_PROMO_CODES=KDMjf87Gh=100`. Sans cette variable,

@@ -96,7 +96,7 @@ function reading(overrides = {}) {
     token: overrides.token ?? "TOKENADMINTESTTOKENADMINTEST1234",
     paymentSessionId: overrides.paymentSessionId ?? "cs_live_admin",
     email: overrides.email ?? "client@example.test",
-    amountCents: 300,
+    amountCents: 500,
     currency: "eur",
     language: "fr",
     freeAccess: false,

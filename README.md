@@ -14,14 +14,14 @@ structured result, a transversal inference, and an AI-written explanation.
   paying again.
 - **Payment**: Stripe Checkout embedded in the page (card, Apple Pay, Google Pay;
   Link excluded). **Live and taking payments** — verify with
-  `curl -s https://www.lastro.fr/api/config`. **One fixed price: 25 €**, and 15 €
-  with the launch code `bessbousse10`, which is pre-filled in the form. The amount
-  is computed server-side from the code alone (`lastro-pricing@1.0.0`): the browser
+  `curl -s https://www.lastro.fr/api/config`. **One fixed price: 5 €**, with no
+  public launch code pre-filled by default. The amount
+  is computed server-side from the submitted code alone (`lastro-pricing@1.0.0`): the browser
   never sends a price, and an unknown code is refused instead of being charged at
   full price. **Private codes** (`ASTROLAB_PROMO_CODES=CODE=montant`, positive = the
   price paid, negative = a discount) live only in the environment — never in the
   page, never in `/api/config`, never in this public repository. **No reading is generated without a payment verified server-side
-  against Stripe** — the session must be paid, at one of the two legitimate prices,
+  against Stripe** — the session must be paid, at a legitimate server-computed price,
   and marked as a reading; one payment always yields exactly one reading. The paid
   path refuses to sell when no AI writer is configured, refuses free readings in
   production when Stripe is not configured, and keeps an already-paid order

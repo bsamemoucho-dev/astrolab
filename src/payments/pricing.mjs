@@ -1,4 +1,4 @@
-// Prix de la lecture : 3 EUR.
+// Prix de la lecture : 5 EUR.
 //
 // Convention versionnée `lastro-pricing@1.0.0`. Le prix est décidé par le
 // SERVEUR, jamais par le client : le navigateur n'envoie qu'un code promo, et le
@@ -13,8 +13,8 @@ import { MAX_AMOUNT_CENTS, MIN_AMOUNT_CENTS as STRIPE_MINIMUM_CENTS } from "./st
 
 export const LASTRO_PRICING_VERSION = "lastro-pricing@1.0.0";
 
-// 3 EUR — prix paye maintenant.
-export const DEFAULT_PRICE_CENTS = 300;
+// 5 EUR — prix paye maintenant.
+export const DEFAULT_PRICE_CENTS = 500;
 export const DEFAULT_PROMO_CODE = "";
 export const DEFAULT_PROMO_DISCOUNT_CENTS = 0;
 

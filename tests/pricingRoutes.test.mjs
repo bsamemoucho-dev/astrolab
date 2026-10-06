@@ -81,19 +81,19 @@ async function post(baseUrl, path, body) {
 
 const SESSION_OK = () => ({
   ok: true,
-  payload: { id: "cs_test_1", client_secret: "cs_test_1_secret", amount_total: 300, currency: "eur" }
+  payload: { id: "cs_test_1", client_secret: "cs_test_1_secret", amount_total: 500, currency: "eur" }
 });
 
-test("la configuration annonce le prix de 3 euros sans code public", async () => {
+test("la configuration annonce le prix de 5 euros sans code public", async () => {
   const app = await startApp();
   try {
     const config = await (await fetch(`${app.baseUrl}/api/config`)).json();
     assert.equal(config.pricing.version, "lastro-pricing@1.0.0");
     assert.equal(config.pricing.currency, "eur");
-    assert.equal(config.pricing.baseCents, 300);
+    assert.equal(config.pricing.baseCents, 500);
     assert.equal(config.pricing.promoCode, null);
     assert.equal(config.pricing.promoDiscountCents, 0);
-    assert.equal(config.pricing.totalCents, 300);
+    assert.equal(config.pricing.totalCents, 500);
   } finally {
     await app.close();
   }
@@ -104,18 +104,18 @@ test("le devis est public : c'est le serveur qui calcule, le site affiche", asyn
   try {
     const avec = await post(app.baseUrl, "/api/public/price-quote", {});
     assert.equal(avec.status, 200);
-    assert.equal(avec.payload.quote.baseCents, 300);
+    assert.equal(avec.payload.quote.baseCents, 500);
     assert.equal(avec.payload.quote.discountCents, 0);
-    assert.equal(avec.payload.quote.totalCents, 300);
+    assert.equal(avec.payload.quote.totalCents, 500);
     assert.equal(avec.payload.quote.valid, false);
 
     const sans = await post(app.baseUrl, "/api/public/price-quote", {});
-    assert.equal(sans.payload.quote.totalCents, 300);
+    assert.equal(sans.payload.quote.totalCents, 500);
     assert.equal(sans.payload.quote.valid, false);
     assert.equal(sans.payload.quote.reason, "empty");
 
     const faux = await post(app.baseUrl, "/api/public/price-quote", { promoCode: "gratuit" });
-    assert.equal(faux.payload.quote.totalCents, 300);
+    assert.equal(faux.payload.quote.totalCents, 500);
     assert.equal(faux.payload.quote.reason, "unknown");
   } finally {
     await app.close();
@@ -127,7 +127,7 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
     withFakeStripe(SESSION_OK, async (calls) => {
       const app = await startApp();
       try {
-        // Le prix s'applique : 3 €, quoi que raconte le client.
+        // Le prix s'applique : 5 €, quoi que raconte le client.
         const session = await post(app.baseUrl, "/api/public/checkout-session", {
           amountCents: 100,
           promoCode: "",
@@ -135,14 +135,14 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
         });
         assert.equal(session.status, 201);
         assert.equal(calls.length, 1);
-        assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "300");
+        assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "500");
         assert.doesNotMatch(calls[0].body["line_items[0][price_data][product_data][name]"], /offre de lancement/);
         assert.equal(calls[0].body["line_items[0][quantity]"], "1");
 
         // Sans code : même tarif, toujours sans lire le montant du client.
         await post(app.baseUrl, "/api/public/checkout-session", { amountCents: 100, label: "cadeau" });
         assert.equal(calls.length, 2);
-        assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "300");
+        assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "500");
         assert.doesNotMatch(calls[1].body["line_items[0][price_data][product_data][name]"], /cadeau/);
       } finally {
         await app.close();
@@ -225,7 +225,7 @@ test("le site n'a plus de montant libre, et parle des neuf langues", () => {
   assert.doesNotMatch(page, /id="price-slider"/);
   assert.doesNotMatch(source, /bindPriceSlider/);
   // Aucun champ promo n'est affiché dans le parcours public : l'interface reste
-  // simplement à 3 €.
+  // simplement à 5 €.
   assert.doesNotMatch(page, /id="pay-promo"/);
   assert.doesNotMatch(page, /Code promo|Code éventuel/);
   assert.match(page, /id="pay-price-base" hidden/);
@@ -281,7 +281,7 @@ test("un code privé facture 1 € sans jamais apparaître dans la page", async 
           const publique = JSON.stringify(config);
           assert.doesNotMatch(publique, /kdmjf87gh/i);
           assert.equal(config.pricing.promoCode, null);
-          assert.equal(config.pricing.totalCents, 300);
+          assert.equal(config.pricing.totalCents, 500);
 
           // Le devis le reconnaît et annonce 1 €.
           const devis = await post(app.baseUrl, "/api/public/price-quote", { promoCode: "KDMjf87Gh" });
