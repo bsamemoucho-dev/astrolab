@@ -192,28 +192,80 @@ Pour qu'il le reçoive aussi par e-mail :
 BREVO_API_KEY=xkeysib-...
 BREVO_SENDER_EMAIL=info@lastro.fr
 BREVO_SENDER_NAME=Lastro
+BREVO_REPLY_TO=contact@lastro.fr
+PUBLIC_BASE_URL=https://www.lastro.fr
+ADMIN_ALERT_EMAIL=admin@lastro.fr
 ```
+
+`ADMIN_ALERT_EMAIL` doit correspondre à une boîte réellement consultée : une alerte
+admin n'est pas seulement une trace technique, elle signale une demande client qui
+peut nécessiter une relance, un contact ou un remboursement.
 
 Tant que ces variables ne sont pas définies, **rien n'est perdu** : le lien reste affiché au
 client et le message attend dans la file interne (`outbox` du stockage) avec la raison de
 l'échec. Dès que la configuration est là, les messages en attente partent au prochain envoi.
 
+### Test réel et limites de vérification
+
+Ne déclare jamais confirmée une chose non vérifiée :
+
+- Render : si la configuration est lisible via les outils/CLI disponibles, vérifier uniquement
+  la présence des variables, jamais leurs valeurs. Sinon, s'arrêter et configurer dans le
+  dashboard Render les variables listées ci-dessus.
+- Brevo : si l'API est accessible, vérifier les statuts exposés par l'API ou le journal
+  transactionnel. Sinon, vérifier dans le dashboard Brevo :
+  **Expéditeurs, domaines & IP → Domaines** pour SPF/DKIM/DMARC, puis
+  **Transactionnel → Journal des événements** pour les trois e-mails de test.
+- Réception : l'outil peut confirmer que Brevo accepte l'envoi, éventuellement que Brevo le
+  marque délivré si cette information est disponible. Il ne peut pas confirmer lui-même que
+  l'e-mail est bien arrivé dans la boîte, ni qu'il n'est pas en spam : cette confirmation doit
+  venir du destinataire.
+
 ### Vérifier l'envoi en une commande
 
-Une fois les variables posées, teste l'envoi **sans faire de paiement** (le code de test est
-requis) :
+Une fois les variables posées, teste les templates transactionnels **sans faire de paiement**
+et sans toucher à une vraie commande client :
 
 ```bash
-curl -s https://lastro.fr/api/public/test-email -X POST -H 'content-type: application/json' \
-  -d '{"testCode":"TON_CODE_DE_TEST","to":"ton.adresse@exemple.fr"}'
+node tools/delivery-email.mjs test --kind ready --to ton.adresse@exemple.fr \
+  --base-url https://www.lastro.fr --token TEST-EMAIL-LINK-NOT-A-REAL-READING
+node tools/delivery-email.mjs test --kind failure --to ton.adresse@exemple.fr
+node tools/delivery-email.mjs test --kind admin --to "$ADMIN_ALERT_EMAIL" \
+  --base-url https://www.lastro.fr --token TEST-EMAIL-LINK-NOT-A-REAL-READING
 ```
 
-Réponse attendue : `{"sent":true,"to":"t***@exemple.fr"}`. Si l'e-mail n'arrive pas, regarde
+Chaque commande doit répondre `{"sent":true,...}`. Si un e-mail n'arrive pas, regarde
 **Brevo → Transactionnel → Journal des événements** : on y voit si le message a été remis,
-rejeté ou mis en spam, avec la raison.
+rejeté ou mis en spam, avec la raison. Ne teste pas avec une lecture ready d'un vrai client :
+cela pourrait lui renvoyer un message.
+
+Le lien du test `ready` peut contenir un token fictif. Il est normal qu'il ne corresponde pas
+à une vraie lecture : ne crée pas de fausse commande client pour le rendre valide. Ces tests
+n'écrivent pas dans l'outbox de production.
+
+Après les trois envois, demander au destinataire de confirmer : réception, spam/non-spam,
+rendu, expéditeur, Reply-To et absence de doublon.
 
 ⚠️ Vérifie que `BREVO_SENDER_EMAIL` correspond bien à une adresse **vérifiée** chez Brevo,
 sinon l'API refuse l'envoi (le message d'erreur est journalisé).
+
+### Smoke test après déploiement
+
+Parcours payant :
+
+- aller jusqu'à la création correcte de la session de paiement ;
+- ne pas effectuer de paiement réel uniquement pour ce smoke test.
+
+Parcours code d'accès :
+
+- effectuer une seule génération complète réelle vers une adresse de test contrôlée ;
+- après lancement, fermer la page ou ne plus dépendre du polling ;
+- vérifier côté serveur `queued → generating → ready` ;
+- vérifier que l'e-mail `ready` est envoyé malgré l'absence du navigateur ;
+- vérifier que `/r/<token>` fonctionne.
+
+Cette génération complète unique valide réellement le scénario « le client peut fermer la
+page ». Ne multiplie pas les générations coûteuses.
 
 ### Tests
 

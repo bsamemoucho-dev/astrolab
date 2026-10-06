@@ -315,13 +315,13 @@ test("un en-tête Host forgé ne détourne pas le lien envoyé par e-mail", asyn
   // L'en-tête Host vient du client : s'en servir pour construire un lien envoyé
   // par e-mail permettait de faire pointer le client vers le domaine de
   // l'attaquant, et de lui prendre le jeton de sa lecture au clic.
-  await avecEnv({ NODE_ENV: "production", ASTROLAB_PUBLIC_URL: undefined }, async () => {
+  await avecEnv({ NODE_ENV: "production", PUBLIC_BASE_URL: "https://preversion.lastro.fr", ASTROLAB_PUBLIC_URL: undefined }, async () => {
     const app = await startApp();
     try {
       const { lien, token } = await lienEnvoye(app, {
         entetes: { "x-forwarded-host": "attaquant.example", "x-forwarded-proto": "http" }
       });
-      assert.equal(lien, `https://www.lastro.fr/r/${token}`);
+      assert.equal(lien, `https://preversion.lastro.fr/r/${token}`);
       assert.doesNotMatch(lien, /attaquant\.example/);
     } finally {
       await app.close();
@@ -329,8 +329,8 @@ test("un en-tête Host forgé ne détourne pas le lien envoyé par e-mail", asyn
   });
 });
 
-test("ASTROLAB_PUBLIC_URL fixe la base des liens, même en production", async () => {
-  await avecEnv({ NODE_ENV: "production", ASTROLAB_PUBLIC_URL: "https://preversion.lastro.fr/" }, async () => {
+test("PUBLIC_BASE_URL fixe la base des liens, même en production", async () => {
+  await avecEnv({ NODE_ENV: "production", PUBLIC_BASE_URL: "https://preversion.lastro.fr/" }, async () => {
     const app = await startApp();
     try {
       const { lien, token } = await lienEnvoye(app, { entetes: { "x-forwarded-host": "attaquant.example" } });
@@ -356,12 +356,23 @@ test("hors production, l'hôte de la requête reste utilisé", async () => {
   });
 });
 
-test("une ASTROLAB_PUBLIC_URL mal formée est ignorée au profit du domaine connu", async () => {
-  await avecEnv({ NODE_ENV: "production", ASTROLAB_PUBLIC_URL: "pas-une-url" }, async () => {
+test("une PUBLIC_BASE_URL mal formée refuse de fabriquer un domaine de production implicite", async () => {
+  await avecEnv({ NODE_ENV: "production", PUBLIC_BASE_URL: "pas-une-url", ASTROLAB_PUBLIC_URL: undefined }, async () => {
     const app = await startApp();
     try {
-      const { lien } = await lienEnvoye(app);
-      assert.match(lien, /^https:\/\/www\.lastro\.fr\/r\//);
+      const { delivery } = await createPaidDelivery(app.store, {
+        paymentSessionId: "cs_test_bad_public_url",
+        email: "client@example.test"
+      });
+      await markDeliveryReady(app.store, delivery.id, { html: "<p>x</p>", markdown: "x" });
+      const reponse = await fetch(`${app.baseUrl}/api/public/deliveries/recover`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reference: delivery.reference, email: "client@example.test" })
+      });
+      assert.equal(reponse.status, 503);
+      assert.match((await reponse.json()).error, /PUBLIC_BASE_URL/i);
+      assert.equal((await app.store.load()).outbox.length, 0);
     } finally {
       await app.close();
     }
@@ -410,6 +421,7 @@ const CODE_DE_TEST = "code-de-test-partage-2026";
 // modèle), ce qui permet de tester le quota sans appeler de service externe.
 const LECTURE_VALIDE = {
   firstName: "Essai",
+  deliveryEmail: "client@example.com",
   birthDate: "1990-01-15",
   timePrecision: "exact",
   timeValue: "12:30",
@@ -442,7 +454,7 @@ test("un attaquant ne peut pas bloquer le code de test de l'exploitant", async (
         dernier = await fetch(`${app.baseUrl}/api/public/readings`, {
           method: "POST",
           headers: { "content-type": "application/json", ...attaquant },
-          body: JSON.stringify({ testCode: `mauvais-${essai}-123456`, firstName: "Test" })
+          body: JSON.stringify({ testCode: `mauvais-${essai}-123456`, firstName: "Test", deliveryEmail: "client@example.com" })
         });
       }
       assert.equal(dernier.status, 429, "l'attaquant doit finir limité");
@@ -452,14 +464,14 @@ test("un attaquant ne peut pas bloquer le code de test de l'exploitant", async (
       const encore = await fetch(`${app.baseUrl}/api/public/readings`, {
         method: "POST",
         headers: { "content-type": "application/json", ...attaquant },
-        body: JSON.stringify({ testCode: "mauvais-encore-123456", firstName: "Test" })
+        body: JSON.stringify({ testCode: "mauvais-encore-123456", firstName: "Test", deliveryEmail: "client@example.com" })
       });
       assert.equal(encore.status, 429);
 
       // …mais l'exploitant, depuis son poste, garde son accès.
       const exploitant = await request(app.baseUrl, "/api/public/readings", {
         method: "POST",
-        body: { testCode: CODE_DE_TEST, firstName: "Test" }
+        body: { testCode: CODE_DE_TEST, firstName: "Test", deliveryEmail: "client@example.com" }
       });
       assert.equal(exploitant.status, 400, "le code correct doit rester utilisable");
       assert.match(exploitant.payload.error, /date de naissance/i);
@@ -501,7 +513,7 @@ test("une demande incomplète ne consomme pas le quota de lectures offertes", as
       for (let essai = 0; essai < 6; essai += 1) {
         const reponse = await request(app.baseUrl, "/api/public/readings", {
           method: "POST",
-          body: { testCode: CODE_DE_TEST, firstName: "Test" }
+          body: { testCode: CODE_DE_TEST, firstName: "Test", deliveryEmail: "client@example.com" }
         });
         assert.equal(reponse.status, 400, "date manquante : refus attendu, pas un plafond");
       }
@@ -533,7 +545,7 @@ test("sans paiement configuré, une préversion ne sert pas de lectures à dista
         // Depuis la machine elle-même : le développement local fonctionne.
         const local = await request(app.baseUrl, "/api/public/readings", {
           method: "POST",
-          body: { firstName: "Test" }
+          body: { firstName: "Test", deliveryEmail: "client@example.com" }
         });
         assert.equal(local.status, 400, "en local, on doit atteindre la validation des données");
 
@@ -541,7 +553,7 @@ test("sans paiement configuré, une préversion ne sert pas de lectures à dista
         const distant = await fetch(`${app.baseUrl}/api/public/readings`, {
           method: "POST",
           headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" },
-          body: JSON.stringify({ firstName: "Test" })
+          body: JSON.stringify({ firstName: "Test", deliveryEmail: "client@example.com" })
         });
         assert.equal(distant.status, 503);
         assert.equal((await distant.json()).code, "payment_not_configured");
@@ -568,7 +580,7 @@ test("le drapeau explicite rouvre le mode gratuit sans paiement", async () => {
         const distant = await fetch(`${app.baseUrl}/api/public/readings`, {
           method: "POST",
           headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" },
-          body: JSON.stringify({ firstName: "Test" })
+          body: JSON.stringify({ firstName: "Test", deliveryEmail: "client@example.com" })
         });
         // 400 (données incomplètes) et non 503 : le drapeau a bien ouvert la porte.
         assert.equal(distant.status, 400);

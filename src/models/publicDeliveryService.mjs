@@ -21,6 +21,7 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const RETENTION_DAYS = 30;
 export const GENERATION_LEASE_MS = 15 * 60 * 1000;
+export const DELIVERY_EMAIL_TYPES = ["public_reading_link", "public_reading_failure", "admin_alert"];
 
 function nowIso(now = Date.now()) {
   return new Date(now).toISOString();
@@ -67,6 +68,26 @@ function normalizeProgress(progress = {}) {
 function normalizeEmail(value) {
   const email = String(value ?? "").trim().toLowerCase();
   return email.includes("@") ? email : null;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export function validateDeliveryEmail(value) {
+  const email = normalizeEmail(value);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const error = new Error("Votre adresse e-mail est requise pour recevoir votre lecture.");
+    error.status = 400;
+    error.code = "invalid_delivery_email";
+    throw error;
+  }
+  return email;
 }
 
 export function maskEmail(value) {
@@ -152,7 +173,7 @@ export async function createPaidDelivery(
       reference: newReference(new Date(now).getFullYear()),
       token: newToken(),
       paymentSessionId: session || null,
-      email: normalizeEmail(email),
+      email: email === null || email === undefined ? null : validateDeliveryEmail(email),
       amountCents: Number.isFinite(amountCents) ? amountCents : null,
       currency: currency ?? null,
       language: language ?? null,
@@ -405,19 +426,197 @@ export async function deleteDeliveryByToken(store, token) {
   });
 }
 
+export function deliveryReadyEmail({ link, reference }) {
+  const safeLink = String(link ?? "");
+  const safeReference = String(reference ?? "");
+  return {
+    subject: "Votre lecture Lastro est prête",
+    body: `Votre lecture est disponible ici : ${safeLink}\n\nNuméro de commande : ${safeReference}\nCe lien est personnel ; il reste valable ${RETENTION_DAYS} jours.`,
+    html:
+      "<p>Bonjour,</p>" +
+      "<p>Votre lecture Lastro est prête.</p>" +
+      `<p><a href="${escapeHtml(safeLink)}" style="display:inline-block;padding:12px 18px;background:#151515;color:#ffffff;text-decoration:none;border-radius:6px;">Ouvrir ma lecture</a></p>` +
+      `<p>Si le bouton ne fonctionne pas, copiez ce lien :<br><a href="${escapeHtml(safeLink)}">${escapeHtml(safeLink)}</a></p>` +
+      `<p>Numéro de commande : ${escapeHtml(safeReference)}</p>` +
+      "<p>À bientôt,<br>Lastro</p>"
+  };
+}
+
+export function deliveryFailureEmail() {
+  return {
+    subject: "Un problème est survenu avec votre lecture Lastro",
+    body:
+      "Bonjour,\n\n" +
+      "Un problème est survenu pendant la préparation de votre lecture.\n\n" +
+      "Votre demande a bien été enregistrée. Si nécessaire, nous vous contacterons à cette adresse.\n\n" +
+      "À bientôt,\n" +
+      "Lastro",
+    html:
+      "<p>Bonjour,</p>" +
+      "<p>Un problème est survenu pendant la préparation de votre lecture.</p>" +
+      "<p>Votre demande a bien été enregistrée. Si nécessaire, nous vous contacterons à cette adresse.</p>" +
+      "<p>À bientôt,<br>Lastro</p>"
+  };
+}
+
 // Met le lien de récupération dans la file d'envoi d'e-mails. Tant qu'aucun
 // fournisseur n'est configuré, le message reste dans la file (visible côté
 // exploitation) au lieu d'être perdu.
-export async function queueDeliveryEmail(store, delivery, { link }) {
+export async function queueDeliveryEmail(store, delivery, { link, purpose = "ready" }) {
+  if (!delivery?.email) {
+    return false;
+  }
+  const deliveryId = delivery.id ?? null;
+  const emailKey = deliveryId ? `public_reading_link:${deliveryId}:${purpose}` : null;
   return store.transact((state) => {
+    if (emailKey && purpose === "ready") {
+      const existing = state.outbox.find((mail) => mail.emailKey === emailKey);
+      if (existing) {
+        return false;
+      }
+    }
+    const template = deliveryReadyEmail({ link, reference: delivery.reference });
     state.outbox.push({
       id: store.id("mail"),
       to: delivery.email,
       type: "public_reading_link",
-      subject: "Votre lecture Lastro est prête",
-      body: `Votre lecture est disponible ici : ${link}\n\nNuméro de commande : ${delivery.reference}\nCe lien est personnel ; il reste valable ${RETENTION_DAYS} jours.`,
+      status: "pending",
+      attempts: 0,
+      subject: template.subject,
+      body: template.body,
+      html: template.html,
       link,
       reference: delivery.reference,
+      deliveryId,
+      emailKey,
+      purpose,
+      createdAt: nowIso()
+    });
+    return true;
+  });
+}
+
+export async function queueDeliveryFailureEmail(store, delivery) {
+  if (!delivery?.email) {
+    return false;
+  }
+  const deliveryId = delivery.id ?? null;
+  const emailKey = deliveryId ? `public_reading_failure:${deliveryId}` : null;
+  return store.transact((state) => {
+    if (emailKey && state.outbox.some((mail) => mail.emailKey === emailKey)) {
+      return false;
+    }
+    const template = deliveryFailureEmail();
+    state.outbox.push({
+      id: store.id("mail"),
+      to: delivery.email,
+      type: "public_reading_failure",
+      status: "pending",
+      attempts: 0,
+      subject: template.subject,
+      body: template.body,
+      html: template.html,
+      deliveryId,
+      emailKey,
+      purpose: "generation_failed",
+      reference: delivery.reference,
+      createdAt: nowIso()
+    });
+    return true;
+  });
+}
+
+export function adminAlertEmail() {
+  return normalizeEmail(process.env.ADMIN_ALERT_EMAIL);
+}
+
+function alertActions({ failureType }) {
+  if (failureType === "generation_failed") {
+    return [
+      "ACTION REQUISE",
+      "- vérifier l’erreur",
+      "- relancer la génération si approprié",
+      "- contacter le client si nécessaire",
+      "- envisager un remboursement si la lecture ne peut pas être produite"
+    ];
+  }
+  if (String(failureType ?? "").startsWith("email_public_reading_link_failed")) {
+    return [
+      "ACTION REQUISE",
+      "- dossier disponible",
+      "- renvoyer manuellement l’e-mail ou transmettre le lien au client"
+    ];
+  }
+  if (failureType === "email_sending_stale") {
+    return [
+      "ACTION REQUISE",
+      "- vérifier le statut fournisseur avant tout renvoi",
+      "- ne pas renvoyer automatiquement si le statut de livraison est inconnu",
+      "- contacter le client si nécessaire"
+    ];
+  }
+  return [
+    "ACTION REQUISE",
+    "- vérifier l’incident",
+    "- décider de la suite manuelle appropriée"
+  ];
+}
+
+function alertBody({ delivery, failureType, status, attempts = null, error = null, link = null, mail = null }) {
+  return [
+    "Alerte Lastro : intervention requise",
+    "Cette alerte doit arriver dans une boîte réellement consultée.",
+    "",
+    ...alertActions({ failureType }),
+    "",
+    `readingId: ${delivery?.id ?? mail?.deliveryId ?? "inconnu"}`,
+    `référence: ${delivery?.reference ?? mail?.reference ?? "inconnue"}`,
+    `clientEmail: ${delivery?.email ?? mail?.to ?? "inconnu"}`,
+    `type: ${failureType}`,
+    `statut: ${status}`,
+    `attempts: ${attempts ?? mail?.attempts ?? 0}`,
+    `erreur: ${error ?? mail?.error ?? delivery?.error ?? "non renseignée"}`,
+    `lien: ${link ?? "non disponible"}`,
+    mail?.id ? `mailId: ${mail.id}` : null,
+    mail?.providerMessageId ? `providerMessageId: ${mail.providerMessageId}` : null,
+    mail?.sendingStartedAt ? `sendingStartedAt: ${mail.sendingStartedAt}` : null
+  ].filter(Boolean).join("\n");
+}
+
+export function adminAlertEmailContent(input) {
+  return {
+    subject: `[Lastro] Intervention requise — ${input.failureType}`,
+    body: alertBody(input),
+    html: `<pre style="font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;">${escapeHtml(alertBody(input))}</pre>`
+  };
+}
+
+export async function queueAdminAlert(store, { delivery = null, failureType, status, attempts = null, error = null, link = null, mail = null }) {
+  const to = adminAlertEmail();
+  if (!to) {
+    console.warn(`[Lastro][ADMIN_ALERT_FAILED] ADMIN_ALERT_EMAIL absent — ${failureType} — ${delivery?.reference ?? mail?.reference ?? "sans référence"}`);
+    return false;
+  }
+  const sourceId = mail?.id ?? delivery?.id ?? "unknown";
+  const emailKey = `admin_alert:${failureType}:${sourceId}:${status}`;
+  return store.transact((state) => {
+    if (state.outbox.some((entry) => entry.emailKey === emailKey)) {
+      return false;
+    }
+    const template = adminAlertEmailContent({ delivery, failureType, status, attempts, error, link, mail });
+    state.outbox.push({
+      id: store.id("mail"),
+      to,
+      type: "admin_alert",
+      status: "pending",
+      attempts: 0,
+      subject: template.subject,
+      body: template.body,
+      html: template.html,
+      deliveryId: delivery?.id ?? mail?.deliveryId ?? null,
+      emailKey,
+      purpose: failureType,
+      reference: delivery?.reference ?? mail?.reference ?? null,
       createdAt: nowIso()
     });
     return true;

@@ -229,13 +229,17 @@ test("un code à usage unique remplace le paiement, et survit à une demande inc
         assert.equal(config.testCodeEnabled, false, "aucun code de test n'est configuré ici");
 
         // Sans code : le paiement reste exigé.
-        const sansCode = await post(app.baseUrl, "/api/public/readings", { firstName: "Test" });
+        const sansCode = await post(app.baseUrl, "/api/public/readings", {
+          firstName: "Test",
+          deliveryEmail: "client@example.com"
+        });
         assert.equal(sansCode.status, 402);
 
         // Avec le code mais une demande incomplète : on a dépassé le garde-fou de
         // paiement (400 sur la date, plus 402)…
         const incomplete = await post(app.baseUrl, "/api/public/readings", {
           accessCode: cree.code,
+          deliveryEmail: "client@example.com",
           firstName: "Test"
         });
         assert.equal(incomplete.status, 400);
@@ -247,6 +251,7 @@ test("un code à usage unique remplace le paiement, et survit à une demande inc
         // Un code inconnu est refusé, sans révéler quoi que ce soit.
         const inconnu = await post(app.baseUrl, "/api/public/readings", {
           accessCode: "ZZZZ-ZZZZ-ZZZZ-ZZZZ",
+          deliveryEmail: "client@example.com",
           firstName: "Test"
         });
         assert.equal(inconnu.status, 403);
@@ -256,6 +261,7 @@ test("un code à usage unique remplace le paiement, et survit à une demande inc
         markAccessCodeUsed(checkAccessCode(await app.store.load(), cree.code).entry);
         const dejaUtilise = await post(app.baseUrl, "/api/public/readings", {
           accessCode: cree.code,
+          deliveryEmail: "client@example.com",
           firstName: "Test"
         });
         assert.equal(dejaUtilise.status, 409);

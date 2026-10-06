@@ -39,9 +39,13 @@ import {
   markDeliveryProgress,
   markDeliveryReady,
   publicDelivery,
-  queueDeliveryEmail
+  queueAdminAlert,
+  queueDeliveryEmail,
+  queueDeliveryFailureEmail,
+  DELIVERY_EMAIL_TYPES,
+  validateDeliveryEmail
 } from "../models/publicDeliveryService.mjs";
-import { emailEnabled, emailVerificationMode, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
+import { detectStaleSendingEmails, emailEnabled, emailVerificationMode, flushQueuedEmails, sendEmail } from "../notifications/mailer.mjs";
 import { registerResend, resendRateLimited, resendVerification } from "../auth/verification.mjs";
 import {
   checkoutLineLabel,
@@ -123,22 +127,19 @@ function route(method, pattern, handler) {
 // transfert d'e-mail).
 //
 // L'ordre est donc : configuration explicite, puis l'hôte de la requête
-// UNIQUEMENT hors production (confort du développement local), puis le domaine
-// de production. Le défaut est le domaine déjà publié (canonical de la page,
-// sitemap) : s'il change, c'est la configuration qui change, pas le code.
-const DEFAULT_PUBLIC_BASE_URL = "https://www.lastro.fr";
-
+// UNIQUEMENT hors production (confort du développement local). En production,
+// l'URL publique doit être configurée : le domaine ne doit pas être codé en dur.
 function publicBaseUrl(req) {
-  const configure = String(process.env.ASTROLAB_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
+  const configure = String(process.env.PUBLIC_BASE_URL ?? process.env.ASTROLAB_PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
   if (configure) {
-    // Une valeur mal formée produirait des liens morts dans les e-mails : on
-    // retombe sur le domaine connu plutôt que d'envoyer n'importe quoi.
+    // Une valeur mal formée produirait des liens morts dans les e-mails : on la
+    // refuse plutôt que de retomber sur un domaine implicite.
     if (/^https?:\/\/[^\s/]+/i.test(configure)) {
       return configure;
     }
-    console.warn(`[Lastro] ASTROLAB_PUBLIC_URL ignorée (URL absolue attendue) : ${configure.slice(0, 60)}`);
+    console.warn(`[Lastro] PUBLIC_BASE_URL ignorée (URL absolue attendue) : ${configure.slice(0, 60)}`);
   }
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && req) {
     // `http` par défaut : le serveur de développement écoute en clair, et
     // supposer `https` produisait des liens morts en local. Derrière un proxy
     // qui termine le TLS, l'en-tête transmis fait foi.
@@ -146,7 +147,9 @@ function publicBaseUrl(req) {
     const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost").split(",")[0].trim();
     return `${proto}://${host}`;
   }
-  return DEFAULT_PUBLIC_BASE_URL;
+  const error = new Error("PUBLIC_BASE_URL doit être configurée pour envoyer les liens de lecture.");
+  error.status = 503;
+  throw error;
 }
 
 // Seules les données nécessaires à une reprise de rédaction sont conservées :
@@ -322,6 +325,8 @@ export function createApp(options = {}) {
 
   const publicReadingWriterForJob = () => options.publicReadingWriter ?? publicReadingWriter();
   const activeReadingJobs = new Set();
+  let outboxMaintenanceRunning = false;
+  let outboxMaintenanceTimer = null;
 
   const deliveryPayload = (delivery, req, { emailSent = false } = {}) => {
     if (!delivery) return null;
@@ -366,18 +371,107 @@ export function createApp(options = {}) {
       });
       const ready = await markDeliveryReady(store, delivery.id, reading);
       const current = await getDeliveryById(store, delivery.id);
-      if (current) {
-        const link = deliveryLink(current.token, req ? publicBaseUrl(req) : DEFAULT_PUBLIC_BASE_URL);
-        await queueDeliveryEmail(store, current, { link });
-        await flushQueuedEmails(store).catch(() => ({ sent: 0, skipped: true }));
-      }
+      await deliverReadyReadingEmail(current, req);
       console.log(`[Lastro] lecture publique prête — ${ready?.reference ?? delivery.reference}`);
     } catch (error) {
       await markDeliveryFailed(store, delivery.id, error.message, error.code ?? "generation_failed");
+      await notifyFailedReading(delivery.id, error, req);
       console.error(`[Lastro] generation publique échouée ${delivery.reference} — ${error.message}`, error.cause ?? "");
     } finally {
       activeReadingJobs.delete(delivery.id);
       scheduleNextReadingJob();
+    }
+  };
+
+  const deliverReadyReadingEmail = async (delivery, req = null) => {
+    if (!delivery || delivery.status !== "ready" || !delivery.email) {
+      return { queued: false, sent: 0, failed: 0, skipped: true };
+    }
+    try {
+      const link = deliveryLink(delivery.token, req ? publicBaseUrl(req) : publicBaseUrl(null));
+      await queueDeliveryEmail(store, delivery, { link });
+      return await flushOutboxWithAlerts().catch(() => ({ sent: 0, failed: 0, skipped: true }));
+    } catch (error) {
+      console.warn(`[Lastro] e-mail de lecture non préparé — ${delivery.reference} — ${error.message}`);
+      return { queued: false, sent: 0, failed: 1, skipped: true };
+    }
+  };
+
+  const deliveryPublicLink = (delivery, req = null) => {
+    if (!delivery?.token || delivery.status !== "ready") {
+      return null;
+    }
+    try {
+      return deliveryLink(delivery.token, req ? publicBaseUrl(req) : publicBaseUrl(null));
+    } catch {
+      return null;
+    }
+  };
+
+  const flushOutboxWithAlerts = async () => flushQueuedEmails(store, {
+    types: DELIVERY_EMAIL_TYPES,
+    onFinalFailure: async (mail) => {
+      if (mail.type === "admin_alert") {
+        return;
+      }
+      const delivery = mail.deliveryId ? await getDeliveryById(store, mail.deliveryId) : null;
+      await queueAdminAlert(store, {
+        delivery,
+        mail,
+        failureType: `email_${mail.type}_failed`,
+        status: mail.status,
+        attempts: mail.attempts,
+        error: mail.error,
+        link: deliveryPublicLink(delivery)
+      });
+    }
+  });
+
+  const notifyFailedReading = async (deliveryId, cause, req = null) => {
+    const delivery = await getDeliveryById(store, deliveryId);
+    if (!delivery || delivery.status !== "failed") {
+      return;
+    }
+    try {
+      await queueDeliveryFailureEmail(store, delivery);
+      await queueAdminAlert(store, {
+        delivery,
+        failureType: "generation_failed",
+        status: delivery.status,
+        attempts: delivery.generation?.attempt ?? null,
+        error: cause?.message ?? delivery.error,
+        link: deliveryPublicLink(delivery, req)
+      });
+      await flushOutboxWithAlerts().catch(() => null);
+    } catch (alertError) {
+      console.warn(`[Lastro][ADMIN_ALERT_FAILED] impossible de préparer l'alerte génération — ${delivery.reference} — ${alertError.message}`);
+    }
+  };
+
+  const runOutboxMaintenance = async () => {
+    if (outboxMaintenanceRunning) {
+      return;
+    }
+    outboxMaintenanceRunning = true;
+    try {
+      const stale = await detectStaleSendingEmails(store, { types: DELIVERY_EMAIL_TYPES });
+      for (const mail of stale) {
+        const delivery = mail.deliveryId ? await getDeliveryById(store, mail.deliveryId) : null;
+        await queueAdminAlert(store, {
+          delivery,
+          mail,
+          failureType: "email_sending_stale",
+          status: mail.status,
+          attempts: mail.attempts,
+          error: mail.error,
+          link: deliveryPublicLink(delivery)
+        });
+      }
+      await flushOutboxWithAlerts();
+    } catch (error) {
+      console.warn(`[Lastro] entretien outbox impossible — ${error.message}`);
+    } finally {
+      outboxMaintenanceRunning = false;
     }
   };
 
@@ -413,6 +507,12 @@ export function createApp(options = {}) {
 
   if (options.backgroundReadingJobs !== false) {
     scheduleNextReadingJob();
+  }
+
+  if (options.outboxMaintenance !== false) {
+    outboxMaintenanceTimer = setInterval(runOutboxMaintenance, options.outboxMaintenanceIntervalMs ?? 15 * 1000);
+    outboxMaintenanceTimer.unref?.();
+    setTimeout(runOutboxMaintenance, 0).unref?.();
   }
 
   const routes = [
@@ -525,6 +625,7 @@ export function createApp(options = {}) {
     }),
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
       const body = await readJson(req);
+      const deliveryEmail = validateDeliveryEmail(body.deliveryEmail);
 
       // Accès gratuit : deux sources, un seul chemin.
       //
@@ -728,7 +829,7 @@ export function createApp(options = {}) {
       if (!delivery) {
         const created = await createPaidDelivery(store, {
           paymentSessionId: payment?.sessionId ?? null,
-          email: payment?.email ?? null,
+          email: deliveryEmail,
           amountCents: payment?.amountCents ?? null,
           currency: payment?.currency ?? null,
           language: body.language ?? null,
@@ -828,8 +929,8 @@ export function createApp(options = {}) {
 
       if (delivery && delivery.email && delivery.email === email) {
         const link = deliveryLink(delivery.token, publicBaseUrl(req));
-        await queueDeliveryEmail(store, delivery, { link });
-        await flushQueuedEmails(store).catch(() => null);
+        await queueDeliveryEmail(store, delivery, { link, purpose: "recovery" });
+        await flushOutboxWithAlerts().catch(() => null);
         console.log(`[Lastro] lien de lecture renvoyé — ${delivery.reference}`);
       }
       sendJson(res, 200, { requested: true });
@@ -1252,6 +1353,12 @@ export function createApp(options = {}) {
       // le bouton PDF du site s'en sert pour retomber sur l'impression du
       // navigateur plutôt que d'afficher une erreur au client.
       sendJson(res, status, error.code ? { error: message, code: error.code } : { error: message });
+    }
+  });
+  server.on("close", () => {
+    if (outboxMaintenanceTimer) {
+      clearInterval(outboxMaintenanceTimer);
+      outboxMaintenanceTimer = null;
     }
   });
 

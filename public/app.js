@@ -834,6 +834,10 @@ function showMessage(text, isError = false) {
   box.classList.toggle("error", isError);
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value ?? "").trim());
+}
+
 function asForm(target) {
   if (target?.tagName === "FORM") {
     return target;
@@ -3106,7 +3110,7 @@ function bindExpressForm() {
         const progress = reading.progress?.totalSections
           ? ` ${reading.progress.completedSections}/${reading.progress.totalSections}.`
           : "";
-        showMessage(`Votre lecture est en cours de préparation. Cela peut prendre quelques minutes.${progress}`);
+        showMessage(`Votre lecture est en cours de préparation.\nVous pouvez fermer cette page : nous vous enverrons un e-mail dès qu’elle sera prête.${progress}`);
         await pollReadingJob(reading.readingId, { token });
         return;
       }
@@ -3148,6 +3152,10 @@ function bindExpressForm() {
       return;
     }
     const payload = formPayload(form);
+    if (!isValidEmail(payload.deliveryEmail)) {
+      showMessage("Indiquez une adresse e-mail valide.", true);
+      return;
+    }
     // Marge d'incertitude : seulement pour une heure approximative. Le serveur
     // applique ±30 min par défaut si rien n'est envoyé.
     const marginField = field(form, "timeMarginMinutes");
@@ -3164,6 +3172,7 @@ function bindExpressForm() {
       timeEnd: payload.timeEnd || null,
       birthPlace: payload.birthPlace || null,
       resolvedPlace: payload.resolvedPlace ?? null,
+      deliveryEmail: payload.deliveryEmail,
       intention: payload.intention || null,
       parents: deliverableParentsFromForm(form)
     };
@@ -3361,7 +3370,7 @@ function bindExpressForm() {
       const progress = status.progress?.totalSections
         ? ` ${status.progress.completedSections} sections sur ${status.progress.totalSections} préparées.`
         : "";
-      showMessage(`Votre lecture est en cours de préparation. Cela peut prendre quelques minutes.${progress}`);
+      showMessage(`Votre lecture est en cours de préparation.\nVous pouvez fermer cette page : nous vous enverrons un e-mail dès qu’elle sera prête.${progress}`);
       readingPollTimer = setTimeout(() => pollReadingJob(readingId, { token: deliveryToken }), 5000);
     } catch (error) {
       showMessage(error.message, true);
@@ -3405,7 +3414,7 @@ function bindExpressForm() {
       $("#express-payment").hidden = true;
       $("#express-progress").hidden = false;
       $("#express-viewer").hidden = false;
-      showMessage("Votre lecture est en cours de préparation. Cela peut prendre quelques minutes.");
+      showMessage("Votre lecture est en cours de préparation.\nVous pouvez fermer cette page : nous vous enverrons un e-mail dès qu’elle sera prête.");
       await pollReadingJob(pending.id, { token: pending.token ?? null });
     } catch {
       localStorage.removeItem(PENDING_READING_STORAGE_KEY);

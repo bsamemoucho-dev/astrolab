@@ -73,6 +73,7 @@ const STRIPE_ON = {
 };
 const VALID_READING_INPUT = {
   firstName: "Test",
+  deliveryEmail: "client@example.com",
   birthDate: "1990-01-15",
   timePrecision: "exact",
   timeValue: "12:30",
@@ -88,7 +89,7 @@ test("sans code configuré, /api/config l'annonce et aucun code n'est accepté",
     try {
       const config = await fetch(`${app.baseUrl}/api/config`).then((r) => r.json());
       assert.equal(config.testCodeEnabled, false);
-      const refused = await post(app.baseUrl, "/api/public/readings", { testCode: CODE });
+      const refused = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, deliveryEmail: "client@example.com" });
       assert.equal(refused.status, 400);
       assert.match(refused.payload.error, /aucun code de test/i);
     } finally {
@@ -103,7 +104,7 @@ test("un code trop court est refusé à la configuration", async () => {
     try {
       const config = await fetch(`${app.baseUrl}/api/config`).then((r) => r.json());
       assert.equal(config.testCodeEnabled, false);
-      const refused = await post(app.baseUrl, "/api/public/readings", { testCode: "court" });
+      const refused = await post(app.baseUrl, "/api/public/readings", { testCode: "court", deliveryEmail: "client@example.com" });
       assert.equal(refused.status, 400);
     } finally {
       await app.close();
@@ -120,13 +121,13 @@ test("le code de test remplace le paiement obligatoire", async () => {
       assert.equal(config.payments.configured, true);
 
       // Sans code : le paiement est exigé.
-      const withoutCode = await post(app.baseUrl, "/api/public/readings", { firstName: "Test" });
+      const withoutCode = await post(app.baseUrl, "/api/public/readings", { firstName: "Test", deliveryEmail: "client@example.com" });
       assert.equal(withoutCode.status, 402);
       assert.match(withoutCode.payload.error, /paiement est requis/i);
 
       // Avec le bon code : on passe le garde-fou de paiement et on arrive à la
       // validation des données (400 sur la date manquante) — donc plus de 402.
-      const withCode = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test" });
+      const withCode = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test", deliveryEmail: "client@example.com" });
       assert.equal(withCode.status, 400);
       assert.match(withCode.payload.error, /date de naissance/i);
     } finally {
@@ -141,6 +142,7 @@ test("un mauvais code est refusé sans révéler le bon", async () => {
     try {
       const refused = await post(app.baseUrl, "/api/public/readings", {
         testCode: "mauvais-code-123456",
+        deliveryEmail: "client@example.com",
         firstName: "Test"
       });
       assert.equal(refused.status, 403);
@@ -162,7 +164,7 @@ test("le code de test fonctionne même si les clés Stripe sont inutilisables", 
         const blocked = await post(app.baseUrl, "/api/public/readings", VALID_READING_INPUT);
         assert.equal(blocked.status, 503);
         // …mais le code de test permet de continuer à travailler.
-        const withCode = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test" });
+        const withCode = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test", deliveryEmail: "client@example.com" });
         assert.equal(withCode.status, 400);
         assert.match(withCode.payload.error, /date de naissance/i);
       } finally {
@@ -178,13 +180,17 @@ test("les tentatives répétées de code invalide sont limitées", async () => {
     try {
       let last = null;
       for (let attempt = 0; attempt < 21; attempt += 1) {
-        last = await post(app.baseUrl, "/api/public/readings", { testCode: `mauvais-${attempt}-123456`, firstName: "Test" });
+        last = await post(app.baseUrl, "/api/public/readings", {
+          testCode: `mauvais-${attempt}-123456`,
+          firstName: "Test",
+          deliveryEmail: "client@example.com"
+        });
       }
       assert.equal(last.status, 429);
       assert.match(last.payload.error, /trop de codes/i);
 
       // Le bon code reste accepté (la limite ne porte que sur les échecs).
-      const good = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test" });
+      const good = await post(app.baseUrl, "/api/public/readings", { testCode: CODE, firstName: "Test", deliveryEmail: "client@example.com" });
       assert.equal(good.status, 400);
     } finally {
       await app.close();

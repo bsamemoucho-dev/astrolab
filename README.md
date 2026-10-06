@@ -26,8 +26,8 @@ structured result, a transversal inference, and an AI-written explanation.
   path refuses to sell when no AI writer is configured, refuses free readings in
   production when Stripe is not configured, and keeps an already-paid order
   recoverable rather than delivering a draft.
-- **E-mail**: Brevo, used for recovery links (`BREVO_API_KEY`,
-  `BREVO_SENDER_EMAIL`).
+- **E-mail**: Brevo, used for delivery, recovery, failure notices and internal
+  alerts (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `ADMIN_ALERT_EMAIL`).
 - **The reading document**: full-page premium cover with the three key placements,
   a **computed birth-chart wheel** (SVG) and computed element/modality
   distributions, narrative sections, and a technical annex (the verified
@@ -256,7 +256,9 @@ Variables d'environnement :
 | `STRIPE_PUBLISHABLE_KEY` | Clé publique Stripe (`pk_…`), envoyée au navigateur | — |
 | `STRIPE_CURRENCY` | Devise du paiement | `eur` |
 | `ASTROLAB_TEST_CODE` | Code d'accès gratuit réservé aux tests de l'exploitant (12 caractères minimum) | désactivé |
-| `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` | Envoi du lien de récupération par e-mail (Brevo) | désactivé |
+| `PUBLIC_BASE_URL` | Base absolue des liens `/r/<token>` envoyés par e-mail | requis en production |
+| `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` / `BREVO_REPLY_TO` | Envoi transactionnel Brevo | désactivé |
+| `ADMIN_ALERT_EMAIL` | Alertes internes non bloquantes quand une intervention est nécessaire | désactivé |
 | `GOOGLE_API_KEY` / `GEMINI_API_KEY` | Vérification croisée du texte par Google Gemini (optionnelle) | désactivée |
 | `GEMINI_MODEL` | Modèle Gemini utilisé pour la vérification | `gemini-2.5-flash` |
 | `ASTROLAB_CROSS_CHECK` | `0` désactive la vérification croisée | activée si clé fournie |

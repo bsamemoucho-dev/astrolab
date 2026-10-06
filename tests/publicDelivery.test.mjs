@@ -155,6 +155,19 @@ test("le lien de récupération part dans la file d'envoi d'e-mails", async () =
   assert.match(mail.body, new RegExp(delivery.reference));
 });
 
+test("une ancienne lecture sans e-mail reste compatible et ne crée pas d'envoi", async () => {
+  const store = freshStore();
+  const { delivery } = await createPaidDelivery(store, { paymentSessionId: "cs_live_old" });
+  await markDeliveryReady(store, delivery.id, READING);
+  const queued = await queueDeliveryEmail(store, delivery, { link: deliveryLink(delivery.token, "https://lastro.fr/") });
+
+  const state = await store.load();
+  assert.equal(delivery.email, null);
+  assert.equal(queued, false);
+  assert.equal(state.publicReadings[0].status, "ready");
+  assert.equal((state.outbox ?? []).length, 0);
+});
+
 test("le masquage d'e-mail reste lisible", () => {
   assert.equal(maskEmail("bassam@lastro.fr"), "b***@lastro.fr");
   assert.equal(maskEmail("a@b.fr"), "a*@b.fr");

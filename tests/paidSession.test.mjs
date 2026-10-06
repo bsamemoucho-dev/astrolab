@@ -15,7 +15,15 @@ import test from "node:test";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
 
-const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "ASTROLAB_LLM_API_KEY", "ASTROLAB_LLM_BASE_URL", "ASTROLAB_ALLOW_FREE_READINGS", "ASTROLAB_TEST_CODE"];
+const KEYS = [
+  "STRIPE_SECRET_KEY",
+  "STRIPE_PUBLISHABLE_KEY",
+  "ASTROLAB_LLM_API_KEY",
+  "ASTROLAB_LLM_BASE_URL",
+  "ASTROLAB_ALLOW_FREE_READINGS",
+  "ASTROLAB_TEST_CODE",
+  "PUBLIC_BASE_URL"
+];
 const STRIPE_KEYS = {
   STRIPE_SECRET_KEY: "sk_test_abc123456789",
   STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789"
@@ -27,6 +35,7 @@ const PLACE = {
 };
 const NAISSANCE = {
   firstName: "Test",
+  deliveryEmail: "client@example.com",
   birthDate: "1990-01-15",
   timePrecision: "exact",
   timeValue: "12:30",
@@ -302,7 +311,7 @@ test("en production, une configuration de paiement absente refuse les lectures",
     });
 
     // Le mode gratuit reste possible, mais il faut l'écrire.
-    await withEnv({ ASTROLAB_ALLOW_FREE_READINGS: "1" }, async () => {
+    await withEnv({ ASTROLAB_ALLOW_FREE_READINGS: "1", PUBLIC_BASE_URL: "https://preversion.lastro.test" }, async () => {
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", NAISSANCE);
@@ -327,7 +336,7 @@ test("un code de test reste utilisable même en production sans paiement", async
   const precedent = process.env.NODE_ENV;
   process.env.NODE_ENV = "production";
   try {
-    await withEnv({ ASTROLAB_TEST_CODE: "code-exploitant-1234" }, async () => {
+    await withEnv({ ASTROLAB_TEST_CODE: "code-exploitant-1234", PUBLIC_BASE_URL: "https://preversion.lastro.test" }, async () => {
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, testCode: "code-exploitant-1234" });

@@ -791,10 +791,11 @@ dépendances, conteneur, CI, stockage, et l'échappement HTML du client.
    client. Il suffisait de forger `X-Forwarded-Host` pour que l'e-mail envoyé à un
    client pointe vers le domaine de l'attaquant : au clic, le jeton de sa lecture
    — seul secret du document — partait chez lui. La base vient maintenant de
-   `ASTROLAB_PUBLIC_URL`, sinon de l'hôte de la requête **hors production
-   seulement**, sinon du domaine connu. Au passage, le protocole par défaut en
-   développement passe de `https` à `http` : le serveur local écoute en clair, les
-   liens générés étaient morts.
+   `PUBLIC_BASE_URL` (`ASTROLAB_PUBLIC_URL` reste toléré pour compatibilité),
+   sinon de l'hôte de la requête **hors production seulement**. En production,
+   aucune base de domaine n'est codée en dur : la variable doit être posée. Au
+   passage, le protocole par défaut en développement passe de `https` à `http` :
+   le serveur local écoute en clair, les liens générés étaient morts.
 6. **`.dockerignore` désaligné de `.gitignore`** : `lastroVgpt/` (que `.gitignore`
    décrit comme « ne jamais commiter : contient .env et données »), `.env.local`,
    `.env.production`, `*.pem` et les fichiers de travail de la racine entraient

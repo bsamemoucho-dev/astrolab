@@ -28,6 +28,7 @@ const PLACE = {
   country: "France",
   normalizedForCalculation: { latitude: 48.8566, longitude: 2.3522, timeZone: "Europe/Paris" }
 };
+const DELIVERY_EMAIL = "client@example.com";
 
 async function withEnv(values, run) {
   const saved = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
@@ -92,6 +93,7 @@ test("paiement actif sans rédacteur : la commande est refusée avant tout débi
 
       const refus = await post(app.baseUrl, "/api/public/readings", {
         firstName: "Test",
+        deliveryEmail: DELIVERY_EMAIL,
         birthDate: "1990-01-15",
         timePrecision: "exact",
         timeValue: "12:30",
@@ -135,6 +137,7 @@ test("paiement actif sans rédacteur, client déjà débité : commande conserv�
     try {
       const reponse = await post(app.baseUrl, "/api/public/readings", {
         firstName: "Test",
+        deliveryEmail: DELIVERY_EMAIL,
         birthDate: "1990-01-15",
         timePrecision: "exact",
         timeValue: "12:30",
@@ -171,6 +174,7 @@ test("paiement actif avec rédacteur : le paiement reste exigé normalement", as
 
       const sansPaiement = await post(app.baseUrl, "/api/public/readings", {
         firstName: "Test",
+        deliveryEmail: DELIVERY_EMAIL,
         birthDate: "1990-01-15",
         timePrecision: "exact",
         timeValue: "12:30",
@@ -195,6 +199,7 @@ test("sans paiement configuré, le parcours public reste utilisable en brouillon
 
       const reponse = await post(app.baseUrl, "/api/public/readings", {
         firstName: "Test",
+        deliveryEmail: DELIVERY_EMAIL,
         birthDate: "1990-01-15",
         timePrecision: "exact",
         timeValue: "12:30",

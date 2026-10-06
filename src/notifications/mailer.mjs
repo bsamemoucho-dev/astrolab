@@ -4,12 +4,16 @@
 //   BREVO_API_KEY        clé API Brevo (xkeysib-…), jamais exposée au navigateur
 //   BREVO_SENDER_EMAIL   adresse d'expédition (ex. contact@lastro.fr), vérifiée chez Brevo
 //   BREVO_SENDER_NAME    nom affiché (par défaut « Lastro »)
+//   BREVO_REPLY_TO       adresse de réponse éventuelle
 //
 // Les e-mails ne sont pas critiques pour le paiement : si l'envoi échoue, le
 // message reste dans la file (outbox) du stockage, avec la raison, au lieu
 // d'être perdu.
 
 const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
+export const OUTBOX_MAX_ATTEMPTS = 3;
+export const OUTBOX_RETRY_DELAY_MS = 60 * 1000;
+export const OUTBOX_STALE_SENDING_MS = 10 * 60 * 1000;
 
 export function emailConfiguration() {
   const apiKey = String(process.env.BREVO_API_KEY ?? "").trim();
@@ -20,7 +24,8 @@ export function emailConfiguration() {
   return {
     apiKey,
     senderEmail,
-    senderName: String(process.env.BREVO_SENDER_NAME ?? "").trim() || "Lastro"
+    senderName: String(process.env.BREVO_SENDER_NAME ?? "").trim() || "Lastro",
+    replyTo: String(process.env.BREVO_REPLY_TO ?? "").trim() || null
   };
 }
 
@@ -96,6 +101,7 @@ export async function sendEmail({ to, subject, text, html = null }) {
       body: JSON.stringify({
         sender: { email: config.senderEmail, name: config.senderName },
         to: [{ email: recipient }],
+        ...(config.replyTo && config.replyTo.includes("@") ? { replyTo: { email: config.replyTo } } : {}),
         subject: String(subject ?? "Lastro").slice(0, 200),
         textContent: String(text ?? ""),
         ...(html ? { htmlContent: html } : {})
@@ -116,16 +122,99 @@ export async function sendEmail({ to, subject, text, html = null }) {
     error.publicMessage = "L'envoi de l'e-mail a échoué. Votre lecture reste accessible avec votre lien.";
     throw error;
   }
-  return { delivered: true };
+  const payload = await response.json().catch(() => ({}));
+  return { delivered: true, providerMessageId: payload.messageId ?? payload.messageIds?.[0] ?? null };
 }
 
-// Vide la file d'envoi : chaque message est marqué comme envoyé, ou conservé
-// avec la raison de l'échec pour être renvoyé plus tard.
-export async function flushQueuedEmails(store, { send = sendEmail, types = ["public_reading_link"] } = {}) {
-  const state = await store.load();
+async function reserveQueuedEmail(store, types) {
   const attendus = new Set(types);
-  const pending = state.outbox.filter((mail) => attendus.has(mail.type) && !mail.sentAt);
-  if (pending.length === 0) {
+  const now = Date.now();
+  return store.transact((state) => {
+    const mail = state.outbox.find((entry) => {
+      if (!attendus.has(entry.type) || entry.sentAt) {
+        return false;
+      }
+      const status = entry.status ?? "pending";
+      const attempts = Number(entry.attempts ?? 0);
+      const nextAttemptAt = entry.nextAttemptAt ? new Date(entry.nextAttemptAt).getTime() : 0;
+      return status === "pending" && attempts < OUTBOX_MAX_ATTEMPTS && nextAttemptAt <= now;
+    });
+    if (!mail) {
+      return null;
+    }
+    mail.status = "sending";
+    mail.sendingStartedAt = new Date().toISOString();
+    mail.attempts = Number(mail.attempts ?? 0) + 1;
+    return structuredClone(mail);
+  });
+}
+
+async function markQueuedEmailSent(store, id, result) {
+  await store.transact((state) => {
+    const entry = state.outbox.find((mail) => mail.id === id);
+    if (entry) {
+      entry.status = "sent";
+      entry.sentAt = new Date().toISOString();
+      entry.error = null;
+      entry.nextAttemptAt = null;
+      entry.providerMessageId = result?.providerMessageId ?? null;
+    }
+  });
+}
+
+async function markQueuedEmailFailed(store, id, error) {
+  return store.transact((state) => {
+    const entry = state.outbox.find((mail) => mail.id === id);
+    if (entry) {
+      entry.status = Number(entry.attempts ?? 0) >= OUTBOX_MAX_ATTEMPTS ? "failed" : "pending";
+      entry.error = String(error.message ?? "envoi impossible").slice(0, 300);
+      entry.failedAt = new Date().toISOString();
+      entry.nextAttemptAt = entry.status === "pending" ? new Date(Date.now() + OUTBOX_RETRY_DELAY_MS).toISOString() : null;
+      return structuredClone(entry);
+    }
+    return null;
+  });
+}
+
+export async function detectStaleSendingEmails(
+  store,
+  { types = ["public_reading_link", "public_reading_failure", "admin_alert"], staleMs = OUTBOX_STALE_SENDING_MS, now = Date.now() } = {}
+) {
+  const attendus = new Set(types);
+  return store.transact((state) => {
+    const stale = [];
+    for (const entry of state.outbox) {
+      if (!attendus.has(entry.type) || entry.status !== "sending" || entry.sentAt) {
+        continue;
+      }
+      const started = entry.sendingStartedAt ? new Date(entry.sendingStartedAt).getTime() : 0;
+      if (!started || now - started < staleMs) {
+        continue;
+      }
+      entry.status = "failed";
+      entry.manualReviewRequired = true;
+      entry.failureKind = "sending_stale";
+      entry.error = "Envoi resté en statut sending après crash ou arrêt serveur ; statut fournisseur inconnu.";
+      entry.failedAt = new Date(now).toISOString();
+      entry.nextAttemptAt = null;
+      stale.push(structuredClone(entry));
+    }
+    return stale;
+  });
+}
+
+// Vide la file d'envoi : chaque message est réservé avant appel Brevo, puis
+// marqué comme envoyé ou conservé avec la raison de l'échec.
+export async function flushQueuedEmails(
+  store,
+  { send = sendEmail, types = ["public_reading_link"], onFinalFailure = null } = {}
+) {
+  const state = await store.load();
+  const hasPending = state.outbox.some((mail) => {
+    const status = mail.status ?? "pending";
+    return types.includes(mail.type) && status === "pending" && !mail.sentAt && Number(mail.attempts ?? 0) < OUTBOX_MAX_ATTEMPTS;
+  });
+  if (!hasPending) {
     return { sent: 0, failed: 0, skipped: !emailEnabled() };
   }
   if (!emailEnabled()) {
@@ -134,28 +223,28 @@ export async function flushQueuedEmails(store, { send = sendEmail, types = ["pub
 
   let sent = 0;
   let failed = 0;
-  for (const mail of pending) {
+  const finalFailures = [];
+  for (;;) {
+    const mail = await reserveQueuedEmail(store, types);
+    if (!mail) {
+      break;
+    }
     try {
-      await send({ to: mail.to, subject: mail.subject, text: mail.body });
-      await store.transact((current) => {
-        const entry = current.outbox.find((item) => item.id === mail.id);
-        if (entry) {
-          entry.sentAt = new Date().toISOString();
-          entry.error = null;
-        }
-      });
+      const result = await send({ to: mail.to, subject: mail.subject, text: mail.body, html: mail.html ?? null });
+      await markQueuedEmailSent(store, mail.id, result);
       sent += 1;
     } catch (error) {
       failed += 1;
-      await store.transact((current) => {
-        const entry = current.outbox.find((item) => item.id === mail.id);
-        if (entry) {
-          entry.error = String(error.message ?? "envoi impossible").slice(0, 300);
-          entry.attempts = (entry.attempts ?? 0) + 1;
+      const marked = await markQueuedEmailFailed(store, mail.id, error);
+      if (marked?.status === "failed") {
+        finalFailures.push(marked);
+        if (marked.type === "admin_alert") {
+          console.error(`[Lastro][ADMIN_ALERT_FAILED] alerte admin non envoyée après ${marked.attempts} tentative(s) — ${marked.reference ?? marked.id} — ${marked.error}`);
         }
-      });
-      console.warn(`[Lastro] e-mail non envoyé à ${mail.to} — ${error.message}`);
+        await onFinalFailure?.(marked, error);
+      }
+      console.warn(`[Lastro] e-mail non envoyé — ${error.message}`);
     }
   }
-  return { sent, failed, skipped: false };
+  return { sent, failed, finalFailures, skipped: false };
 }

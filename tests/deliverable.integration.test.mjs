@@ -288,6 +288,7 @@ test("public no-account reading works without authentication and without creatin
       method: "POST",
       body: {
         firstName: "Test",
+        deliveryEmail: "client@example.com",
         birthDate: "1990-01-15",
         timePrecision: "exact",
         timeValue: "12:30",
@@ -451,7 +452,7 @@ test("public reading rejects invalid birth data without crashing", async () => {
   try {
     const missing = await request(app.baseUrl, "/api/public/readings", {
       method: "POST",
-      body: { firstName: "X" }
+      body: { firstName: "X", deliveryEmail: "client@example.com" }
     });
     assert.equal(missing.status, 400);
     assert.match(missing.payload.error, /date de naissance/i);
