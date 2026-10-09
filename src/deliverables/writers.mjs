@@ -13,23 +13,43 @@ import { FRAME_DIRECTIVES } from "./plan.mjs";
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_MODEL = "gpt-4o-mini";
 
+function isNodeTestRuntime() {
+  return Boolean(process.env.NODE_TEST_CONTEXT);
+}
+
+function llmTestOptInEnabled() {
+  return process.env.ASTROLAB_RUN_LLM_TESTS === "1";
+}
+
 export function llmConfiguration() {
   const apiKey = process.env.ASTROLAB_LLM_API_KEY?.trim();
   if (!apiKey) {
     return null;
   }
+  const baseUrl = process.env.ASTROLAB_LLM_BASE_URL?.trim() || DEFAULT_BASE_URL;
+  if (isNodeTestRuntime() && !llmTestOptInEnabled() && baseUrl === DEFAULT_BASE_URL) {
+    return null;
+  }
   return {
     apiKey,
-    baseUrl: process.env.ASTROLAB_LLM_BASE_URL?.trim() || DEFAULT_BASE_URL,
+    baseUrl,
     model: process.env.ASTROLAB_LLM_MODEL?.trim() || DEFAULT_MODEL
   };
 }
 
-export async function callChatCompletions(config, { system, user, temperature = 0.7, responseFormat = null, maxTokens = null }) {
+function requestIdFromHeaders(headers) {
+  return headers?.get?.("x-request-id") ?? headers?.get?.("request-id") ?? headers?.get?.("openai-request-id") ?? null;
+}
+
+export async function callChatCompletions(config, { system, user, temperature = 0.7, responseFormat = null, maxTokens = null, instrumentation = null }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const fetchFn = config.fetchFn ?? globalThis.fetch;
+  let requestId = null;
   try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+    const response = await fetchFn(`${config.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
@@ -47,10 +67,13 @@ export async function callChatCompletions(config, { system, user, temperature = 
       }),
       signal: controller.signal
     });
+    requestId = requestIdFromHeaders(response.headers);
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       const error = new Error(`LLM request failed (${response.status}) ${detail.slice(0, 300)}`);
       error.status = 502;
+      error.providerStatus = response.status;
+      error.requestId = requestId;
       throw error;
     }
     const data = await response.json();
@@ -64,6 +87,7 @@ export async function callChatCompletions(config, { system, user, temperature = 
     return {
       text: text.trim(),
       model: config.model,
+      requestId,
       usage: usage
         ? {
             promptTokens: usage.prompt_tokens ?? null,
@@ -72,6 +96,11 @@ export async function callChatCompletions(config, { system, user, temperature = 
           }
         : null
     };
+  } catch (error) {
+    error.requestId ??= requestId;
+    error.startedAt ??= startedAt;
+    error.durationMs ??= Date.now() - startedAtMs;
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

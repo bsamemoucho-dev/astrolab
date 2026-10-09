@@ -314,6 +314,91 @@ function claimlikeForBlock(block, code, message, extra = {}) {
   };
 }
 
+function warningForBlock(block, code, message, extra = {}) {
+  return {
+    severity: "warning",
+    code,
+    claimId: null,
+    type: "BLOCK",
+    blockId: block?.blockId ?? null,
+    message,
+    ...extra
+  };
+}
+
+function hasStandalonePhrase(text, phrase) {
+  const source = normalizedText(text);
+  const target = normalizedText(phrase).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${target}([^a-z0-9]|$)`, "iu").test(source);
+}
+
+function hasAffirmativeAlways(text) {
+  const source = normalizedText(text);
+  for (const match of source.matchAll(/(^|[^a-z0-9])toujours([^a-z0-9]|$)/giu)) {
+    const before = source.slice(Math.max(0, match.index - 48), match.index);
+    if (/(^|[^a-z0-9])(pas|jamais)\s*$/iu.test(before)) continue;
+    if (/(^|[^a-z0-9])(?:ne\b|n['’]).{0,40}(^|[^a-z0-9])pas\s*$/iu.test(before)) continue;
+    return true;
+  }
+  return false;
+}
+
+function detectStyleWarnings(block) {
+  const text = String(block?.text ?? "");
+  const warnings = [];
+  const schoolOpeners = [
+    "il est important de",
+    "il est essentiel de",
+    "il est nécessaire de",
+    "il est necessaire de",
+    "vous devez"
+  ];
+  for (const phrase of schoolOpeners) {
+    if (hasStandalonePhrase(text, phrase)) {
+      warnings.push(warningForBlock(block, "style_school_or_injunctive_opener", "Formulation scolaire ou injonctive non bloquante.", { phrase }));
+    }
+  }
+
+  const absolutePhrases = [
+    "est essentiel",
+    "est essentielle",
+    "systématiquement",
+    "systematiquement",
+    "sans effort"
+  ];
+  for (const phrase of absolutePhrases) {
+    if (hasStandalonePhrase(text, phrase)) {
+      warnings.push(warningForBlock(block, "style_absolute_wording", "Formulation trop absolue non bloquante.", { phrase }));
+    }
+  }
+  if (hasAffirmativeAlways(text)) {
+    warnings.push(warningForBlock(block, "style_absolute_wording", "Formulation trop absolue non bloquante.", { phrase: "toujours" }));
+  }
+
+  const genericNatalPhrases = [
+    "souvenirs affectifs",
+    "atmosphère intime",
+    "atmosphere intime",
+    "climat intime",
+    "mémoire affective",
+    "memoire affective",
+    "approche protectrice"
+  ];
+  for (const phrase of genericNatalPhrases) {
+    if (hasStandalonePhrase(text, phrase)) {
+      warnings.push(warningForBlock(block, "style_generic_natal_wording", "Vocabulaire natal générique non bloquant.", { phrase }));
+    }
+  }
+  return warnings;
+}
+
+function countSentences(text) {
+  return String(text ?? "")
+    .split(/(?<=[.!?])\s+|\n+/u)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean).length;
+}
+
 function interpretationTextForDeterministicLead(block, blockPlan) {
   const prefix = String(blockPlan?.deterministicPrefix ?? "").trim();
   const text = String(block?.text ?? "").trim();
@@ -536,9 +621,10 @@ export function validateGeneratedSection({ dossierEvidence, section } = {}) {
 export function validateStructuredSection({ dossierEvidence, sectionPlan, section } = {}) {
   const byId = evidenceById(dossierEvidence);
   const issues = [];
+  const warnings = [];
   if (!section || section.sectionId !== sectionPlan?.sectionId) {
     issues.push(claimlikeForBlock(null, "section_id_mismatch", `Section attendue ${sectionPlan?.sectionId}, reçue ${section?.sectionId}.`));
-    return { ok: false, validatorVersion: CLAIM_VALIDATOR_VERSION, issues };
+    return { ok: false, validatorVersion: CLAIM_VALIDATOR_VERSION, issues, warnings };
   }
   const allowedEvidence = new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])]);
   const allowedRules = new Set(sectionPlan.allowedInterpretationRuleRefs ?? []);
@@ -553,6 +639,18 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     if (!String(block.text ?? "").trim()) {
       issues.push(claimlikeForBlock(block, "missing_block_text", "Le bloc prévu ne contient aucun texte."));
     }
+    if (Number.isInteger(blockPlan?.maxSentences) && blockPlan.maxSentences >= 0) {
+      const sentenceCount = countSentences(block.text);
+      if (sentenceCount > blockPlan.maxSentences) {
+        issues.push(claimlikeForBlock(
+          block,
+          "block_sentence_limit_exceeded",
+          `Le bloc contient ${sentenceCount} phrase(s), pour une limite de ${blockPlan.maxSentences}.`,
+          { sentenceCount, maxSentences: blockPlan.maxSentences }
+        ));
+      }
+    }
+    warnings.push(...detectStyleWarnings(block));
     const blockRefs = Array.isArray(block.evidenceRefs) ? block.evidenceRefs : [];
     const resolvedRefs = [];
     for (const ref of blockRefs) {
@@ -619,12 +717,24 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
   return {
     ok: issues.length === 0,
     validatorVersion: CLAIM_VALIDATOR_VERSION,
-    issues
+    issues,
+    warnings
   };
 }
 
 function expandedBlocksForSection({ section, sectionPlan, issues }) {
   return (section?.blocks ?? []).map((rawBlock) => expandBlockFromPackets({ block: rawBlock, sectionPlan, issues }));
+}
+
+export function expandStructuredSectionFromPackets({ section, sectionPlan } = {}) {
+  const issues = [];
+  return {
+    section: {
+      ...section,
+      blocks: expandedBlocksForSection({ section, sectionPlan, issues })
+    },
+    issues
+  };
 }
 
 function birthContext(dossierEvidence) {
@@ -685,6 +795,7 @@ function validateGlobalCoherence({ dossierEvidence, fullDossierPlan, sections = 
 
 export function validateStructuredSections({ dossierEvidence, fullDossierPlan, sections = [] } = {}) {
   const issues = [];
+  const warnings = [];
   for (const section of sections) {
     const plan = (fullDossierPlan?.sections ?? []).find((entry) => entry.sectionId === section.sectionId);
     if (!plan) {
@@ -693,7 +804,8 @@ export function validateStructuredSections({ dossierEvidence, fullDossierPlan, s
     }
     const result = validateStructuredSection({ dossierEvidence, sectionPlan: plan, section });
     issues.push(...result.issues);
+    warnings.push(...(result.warnings ?? []));
   }
   issues.push(...validateGlobalCoherence({ dossierEvidence, fullDossierPlan, sections }));
-  return { ok: issues.length === 0, validatorVersion: CLAIM_VALIDATOR_VERSION, issues };
+  return { ok: issues.length === 0, validatorVersion: CLAIM_VALIDATOR_VERSION, issues, warnings };
 }

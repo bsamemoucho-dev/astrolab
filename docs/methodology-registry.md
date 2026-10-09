@@ -19,6 +19,7 @@ No method in this registry may use Internet access at runtime for production cal
 - `RESEARCH_BACKLOG`: identified but not yet documented.
 - `DOCUMENTATION_IN_PROGRESS`: method sheet being prepared.
 - `LABORATORY`: documented enough for experiments only.
+- `APPROVED_FOR_V1_DEVELOPMENT`: approved for product/method development, but not implemented, not validated, and not production eligible.
 - `CANDIDATE_FOR_PRODUCTION`: ready for validation tests.
 - `VALIDATED_FOR_PRODUCTION`: approved for production.
 - `EXCLUDED_FROM_AUTOMATED_NATAL`: not eligible for automatic natal calculation.
@@ -32,22 +33,31 @@ Initial product scope:
 - architecture: Western multi-school, with explicit school separation;
 - first school: Hellenistic;
 - first method: Western Natal;
-- initial analysis type: natal only;
+- initial production analysis type: natal;
 - V1 zodiac convention: tropical;
 - V1 house system: Whole Sign;
 - initial Hellenistic corpora: Vettius Valens, Dorotheus of Sidon, Ptolemy;
 - the three initial corpora must remain separate;
-- no transits;
-- no synastry;
 - no other traditions;
-- no AI-generated interpretation text.
+- no AI-generated interpretation text for unvalidated methods.
+
+Current roadmap clarification:
+
+- the current production method remains the natal/public-reading pipeline;
+- relational product work separates individual relational readings from two-person synastry;
+- `individual_relational` is a future one-person vertical: "Moi en relation";
+- `western-synastry` is now approved for V1 development as a future two-person relational method;
+- approval for development does not mean implemented, validated, or production eligible;
+- current relationship architecture reference: [Relationship Analysis Architecture V2](relationship-analysis-architecture-v2.md).
+- `individual_relational.communication` is the first V1 axis under validation; its structured writer uses `gpt-4.1-mini` only for that axis after two controlled synthetic-fixture checks.
 
 ## Registry
 
 | Method ID | Tradition Family | School | Method | Type | V1 Priority | Current Status | Production Eligible | Sheet |
 |---|---|---|---|---|---:|---|---|---|
 | `western-natal` | Western astrology | Hellenistic | Natal chart analysis | `natal` | 1 | `DOCUMENTATION_IN_PROGRESS` | No | [Western Natal](methods/western-natal.md) |
-| `western-synastry` | Western astrology | To validate | Synastry | `relational` | Later | `RESEARCH_BACKLOG` | No | Not created |
+| `individual-relational` | Western astrology | To validate | Individual relational reading | `relational_individual` | 2 | `APPROVED_FOR_V1_DEVELOPMENT` | No | [Architecture V2](relationship-analysis-architecture-v2.md) |
+| `western-synastry` | Western astrology | To validate | Synastry | `relational` | 3 | `APPROVED_FOR_V1_DEVELOPMENT` | No | [Architecture V2](relationship-analysis-architecture-v2.md) |
 | `western-transits` | Western astrology | To validate | Transits | `temporal` | Later | `DOCUMENTATION_IN_PROGRESS` | No | [Western Transits](methods/western-transits.md) |
 | `jyotisha-natal` | Jyotisha | To validate | Natal analysis | `natal` | Later | `RESEARCH_BACKLOG` | No | Not created |
 | `jyotisha-dashas` | Jyotisha | To validate | Dashas | `temporal` | Later | `RESEARCH_BACKLOG` | No | Not created |
@@ -80,7 +90,7 @@ A method becomes `VALIDATED_FOR_PRODUCTION` only when:
 
 ## Current Decision Queue
 
-The next decisions concern only `western-natal`:
+The next decisions for `western-natal` remain:
 
 - exact rule extraction protocol per corpus;
 - editions and translations to use for each corpus;
@@ -91,6 +101,41 @@ The next decisions concern only `western-natal`:
 - how Valens, Dorotheus, and Ptolemy claims are compared without merging them;
 - minimum documentary status needed before a claim can become a `RuleVersion`;
 - reference test fixtures and expected outputs.
+
+Additional decisions for `individual-relational`:
+
+- exact structure of "Moi en relation";
+- exact structure of "Moi en amour";
+- source facts and Lastro interpretation grid;
+- public navigation and naming;
+- mapping to the existing `scope` field or a future structure.
+
+Additional decisions for `western-synastry` before implementation or validation:
+
+- exact synastry orb values;
+- official synastry `methodVersion`;
+- treatment of time uncertainty in cross-chart facts;
+- evidence shape for A↔B aspects;
+- validation extension for crossed claims;
+- product guardrails for the Amour lens;
+- data minimization and third-party data policy before public production;
+- whether and when angles, houses, and overlays can enter after external validation.
+
+## Relational Scope Notes
+
+The relational roadmap separates:
+
+- `individual_relational`: one-person reading, "Moi en relation";
+- `western-synastry`: two-person reading, "Nous";
+- `temporal_relational`: future two-person + current-sky reading, deferred.
+
+`relationshipType` answers "Who is this person to me?". A future `analysisLens`
+concept answers "What do I want to explore?". `analysisLens` is not currently a
+persisted model field.
+
+Relationship context and analysis lens may influence editorial selection,
+ordering, vocabulary, and interpretation. They must never change astronomical
+positions, calculated aspects, or orbs.
 
 ## Hellenistic Corpus Separation
 

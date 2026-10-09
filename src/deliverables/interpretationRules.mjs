@@ -1,4 +1,5 @@
-export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.1.0";
+export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.2.0";
+export const RELATIONAL_COMMUNICATION_SCOPE = "individual_relational.communication";
 
 export const LASTRO_INTERPRETATION_CONVENTIONS = Object.freeze({
   aspectTensionV1: {
@@ -97,6 +98,27 @@ function personalTransitRule(transitBody, natalPoint, aspectType) {
   };
 }
 
+function natalAspectRule(bodyA, bodyB, aspectType, { themes, resourceThemes = [], attentionThemes = [], forbidden = [], editorialWeight = "primary", scope = null }) {
+  return {
+    ruleId: `western.natal.${ruleSlug(bodyA)}_${ruleSlug(bodyB)}.${ruleSlug(aspectType)}@1`,
+    evidenceType: "NATAL_ASPECT",
+    match: { bodies: [bodyA, bodyB], aspectType },
+    categories: ["conjunction", "square", "opposition"].includes(aspectType)
+      ? [LASTRO_INTERPRETATION_CONVENTIONS.aspectTensionV1.ruleId]
+      : [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
+    scope: scope ? [scope] : null,
+    themes,
+    relationalCommunication: {
+      function: null,
+      editorialWeight,
+      spontaneousThemes: themes,
+      resourceThemes,
+      attentionThemes
+    },
+    forbidden: [...COMMON_FORBIDDEN, ...forbidden]
+  };
+}
+
 const GENERATED_NATAL_SIGN_RULES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].flatMap((body) =>
   Object.keys(SIGN_THEMES).map((sign) => natalBodySignRule(body, sign))
 );
@@ -106,6 +128,66 @@ const GENERATED_PERSONAL_TRANSIT_RULES = ["Sun", "Moon", "Mercury", "Venus", "Ma
     Object.keys(ASPECT_KIND_THEMES).map((aspectType) => personalTransitRule(transitBody, natalPoint, aspectType))
   )
 );
+
+const RELATIONAL_COMMUNICATION_NATAL_ASPECT_RULES = [
+  natalAspectRule("Mercury", "Mars", "conjunction", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["pensée, parole et réaction tendent à partir ensemble"],
+    resourceThemes: ["capacité à formuler rapidement une position et à la défendre"],
+    attentionThemes: ["le rythme de réponse peut être rapide et le ton plus tranché"],
+    forbidden: ["agressivité", "colère", "violence verbale", "coupe forcément la parole"]
+  }),
+  natalAspectRule("Mercury", "Mars", "trine", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["circulation fluide entre idée, parole et prise de position"],
+    resourceThemes: ["argumenter, réagir et transformer facilement une idée en échange concret"],
+    attentionThemes: ["le rythme peut être plus rapide que celui d'un interlocuteur ayant besoin de davantage de temps"]
+  }),
+  natalAspectRule("Mercury", "Mars", "sextile", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["facilité mobilisable pour passer de la discussion à la proposition ou à l'action"],
+    resourceThemes: ["capacité à formuler une initiative ou une solution lorsque la situation le demande"],
+    attentionThemes: []
+  }),
+  natalAspectRule("Mercury", "Mars", "square", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["friction entre formulation et impulsion d'affirmation"],
+    resourceThemes: ["énergie pour confronter les idées et clarifier un désaccord"],
+    attentionThemes: ["sous tension, le rythme ou le ton de l'échange peut se durcir"],
+    forbidden: ["personne agressive", "disputes certaines", "mots qui dépassent forcément la pensée", "toujours sur la défensive"]
+  }),
+  natalAspectRule("Mercury", "Mars", "opposition", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["polarité entre raisonnement et affirmation de positions"],
+    resourceThemes: ["la contradiction peut aider à préciser ce qui est réellement défendu"],
+    attentionThemes: ["l'échange peut parfois devenir un face-à-face de positions"]
+  }),
+  natalAspectRule("Mercury", "Venus", "conjunction", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["parole et recherche d'harmonie relationnelle sont fortement associées"],
+    resourceThemes: ["attention portée au ton, tact, capacité à rendre un message plus recevable"],
+    attentionThemes: ["tendance à adoucir un désaccord ou à privilégier une formulation agréable"],
+    forbidden: ["besoin viscéral de validation", "langage de l'amour obligatoire", "charme irrésistible", "séduction certaine par la parole"]
+  }),
+  natalAspectRule("Mercury", "Venus", "sextile", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["facilité disponible pour ajuster la manière de dire au contexte relationnel"],
+    resourceThemes: ["diplomatie, négociation, recherche d'une formulation acceptable pour l'autre"],
+    attentionThemes: []
+  }),
+  natalAspectRule("Sun", "Mercury", "conjunction", {
+    scope: RELATIONAL_COMMUNICATION_SCOPE,
+    themes: ["pensée, parole et position personnelle sont étroitement associées"],
+    resourceThemes: ["cohérence entre ce qui est pensé et ce qui est exprimé"],
+    attentionThemes: ["dans un désaccord, une critique d'une idée peut parfois être reçue plus personnellement"],
+    editorialWeight: "secondary"
+  })
+].map((rule) => ({
+  ...rule,
+  provenance: "LASTRO_RULE",
+  subtype: "RELATIONAL_INTERPRETATION",
+  version: INTERPRETATION_LIBRARY_VERSION
+}));
 
 const BASE_INTERPRETATION_RULES = [
   {
@@ -168,7 +250,7 @@ const BASE_INTERPRETATION_RULES = [
 ];
 
 export const INTERPRETATION_RULES = Object.freeze(
-  [...BASE_INTERPRETATION_RULES, ...GENERATED_NATAL_SIGN_RULES, ...GENERATED_PERSONAL_TRANSIT_RULES].filter(
+  [...BASE_INTERPRETATION_RULES, ...GENERATED_NATAL_SIGN_RULES, ...GENERATED_PERSONAL_TRANSIT_RULES, ...RELATIONAL_COMMUNICATION_NATAL_ASPECT_RULES].filter(
     (rule, index, rules) => rules.findIndex((candidate) => candidate.ruleId === rule.ruleId) === index
   )
 );
@@ -198,8 +280,14 @@ export function ruleMatchesEvidence(rule, evidence) {
   return true;
 }
 
-export function rulesForEvidence(evidence) {
-  return INTERPRETATION_RULES.filter((rule) => ruleMatchesEvidence(rule, evidence));
+function ruleInScope(rule, scope) {
+  const scopes = Array.isArray(rule?.scope) ? rule.scope : [];
+  if (scopes.length === 0) return true;
+  return Boolean(scope) && scopes.includes(scope);
+}
+
+export function rulesForEvidence(evidence, { scope = null } = {}) {
+  return INTERPRETATION_RULES.filter((rule) => ruleInScope(rule, scope) && ruleMatchesEvidence(rule, evidence));
 }
 
 export function allInterpretationRuleIds() {

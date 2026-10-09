@@ -878,10 +878,11 @@ test("LLM cannot introduce claim types or arbitrary packet associations", async 
 
   assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
   assert.equal(written.section.blocks[0].blockId, "block1");
-  assert.equal("packetRefs" in written.section.blocks[0], false);
-  assert.equal("claims" in written.section.blocks[0], false);
-  assert.equal("evidenceRefs" in written.section.blocks[0], false);
-  assert.equal("interpretationRuleRefs" in written.section.blocks[0], false);
+  assert.deepEqual(written.section.blocks[0].packetRefs, ["identity.natal_sun_sign"]);
+  assert.deepEqual(written.section.blocks[0].evidenceRefs, ["natal.sun.sign"]);
+  assert.deepEqual(written.section.blocks[0].interpretationRuleRefs, ["western.body.sun.sign.capricorn@1"]);
+  assert.deepEqual(written.section.blocks[0].claims.map((claim) => claim.type), ["NATAL_BODY_SIGN"]);
+  assert.equal(written.section.blocks[0].claims[0].body, "Sun");
 });
 
 test("primary reuse of an already interpreted evidence is detected", () => {

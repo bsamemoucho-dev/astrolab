@@ -2,9 +2,12 @@ import { evidenceById } from "./dossierEvidence.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 import { sectionPlanById } from "./fullDossierPlan.mjs";
 import { callChatCompletions, llmConfiguration } from "./writers.mjs";
-import { validateStructuredSection } from "./factualClaimsValidator.mjs";
+import { expandStructuredSectionFromPackets, validateStructuredSection } from "./factualClaimsValidator.mjs";
 
 export const STRUCTURED_WRITER_CONTRACT_VERSION = "structured-section-writer@0.1.0";
+export const STRUCTURED_SECTION_MODEL_OVERRIDES = Object.freeze({
+  relational_communication: "gpt-4.1-mini"
+});
 const MAX_CORRECTION_ATTEMPTS = 2;
 
 const BODY_FR = Object.freeze({
@@ -464,13 +467,18 @@ function logStructuredValidationFailure({ logger, sectionId, blockId = null, att
   });
 }
 
+function enrichedStructuredSection(section, sectionPlan) {
+  const expanded = expandStructuredSectionFromPackets({ section, sectionPlan });
+  return expanded.section;
+}
+
 function hasWritableMaterial(sectionPlan) {
   if ((sectionPlan?.blockPlans ?? []).some((blockPlan) => blockPlan.deterministic)) return true;
   return (sectionPlan?.allowedInterpretationRuleRefs ?? []).length > 0 &&
     ((sectionPlan?.primaryEvidenceRefs ?? []).length > 0 || (sectionPlan?.secondaryEvidenceRefs ?? []).length > 0);
 }
 
-function buildStructuredSystemPrompt(sectionPlan) {
+export function buildStructuredSystemPrompt(sectionPlan) {
   const blockIds = (sectionPlan.blockPlans ?? []).map((blockPlan) => blockPlan.blockId).join(", ");
   return [
     "Tu rédiges un bloc isolé du dossier astrologique Lastro.",
@@ -489,6 +497,9 @@ function buildStructuredSystemPrompt(sectionPlan) {
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
+    ...(Array.isArray(sectionPlan.writerGuidance) && sectionPlan.writerGuidance.length > 0
+      ? ["Consignes spécifiques:", ...sectionPlan.writerGuidance.map((line) => `- ${line}`)]
+      : []),
     `BlockId autorisé: ${blockIds}.`,
     `Longueur cible: environ ${sectionPlan.targetWords} mots, jamais plus de ${sectionPlan.maxWords}.`,
     "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\"}]}"
@@ -500,6 +511,9 @@ function packetsForPrompt(sectionPlan) {
     packetId: packet.packetId,
     evidenceRefs: packet.evidenceRefs,
     interpretationDepth: packet.interpretationDepth,
+    sourceRole: packet.sourceRole ?? "primary_interpretation",
+    maxSentences: packet.maxSentences ?? null,
+    openingAllowed: packet.openingAllowed !== false,
     themes: packet.themes,
     facts: packet.claims.map((claim) => {
       const { claimId, evidenceRefs, ...fact } = claim;
@@ -512,6 +526,8 @@ function blockPlansForPrompt(sectionPlan) {
   const packets = new Map(packetsForPrompt(sectionPlan).map((packet) => [packet.packetId, packet]));
   return (sectionPlan.blockPlans ?? []).map((blockPlan) => ({
     blockId: blockPlan.blockId,
+    narrativeRole: blockPlan.narrativeRole ?? null,
+    maxSentences: Number.isInteger(blockPlan.maxSentences) ? blockPlan.maxSentences : null,
     deterministicLead: blockPlan.deterministicPrefix ?? null,
     llmTask: blockPlan.forbidAspectVocabulary
       ? "Interpréter symboliquement ces faits sans reformuler les aspects, leur vocabulaire géométrique, la temporalité, les dates, l'exactitude ou la phase."
@@ -568,7 +584,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       throw error;
     }
     return {
-      section,
+      section: enrichedStructuredSection(section, scopedPlan),
       llmCalls: 0,
       usage: { promptTokens: 0, completionTokens: 0 },
       model: null,
@@ -582,29 +598,138 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
   let llmCalls = 0;
   let usage = { promptTokens: 0, completionTokens: 0 };
   let model = null;
+  const instrumentation = config?.instrumentation ?? null;
+  const logicalCallId = !writerFn && instrumentation
+    ? instrumentation.startLogicalCall({ sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId })
+    : null;
 
-  for (let attempt = 0; attempt <= MAX_CORRECTION_ATTEMPTS; attempt += 1) {
+  try {
+    for (let attempt = 0; attempt <= MAX_CORRECTION_ATTEMPTS; attempt += 1) {
     const payload = {
       sectionPlan: scopedPlan,
       correctionIssues
     };
     let raw;
+    const attemptStartedAtMs = Date.now();
+    const attemptStartedAt = new Date(attemptStartedAtMs).toISOString();
+    const retryReason = attempt === 0 ? "initial" : "validation_correction";
     if (writerFn) {
       raw = await writerFn(payload);
       raw = typeof raw === "string" ? raw : JSON.stringify(raw);
     } else {
-      const result = await callChatCompletions(config, {
-        temperature: attempt === 0 ? 0.35 : 0.2,
-        responseFormat: { type: "json_object" },
-        maxTokens: 900,
-        system: buildStructuredSystemPrompt(scopedPlan),
-        user: buildStructuredUserPrompt(payload)
+      let result;
+      try {
+        result = await callChatCompletions(config, {
+          temperature: attempt === 0 ? 0.35 : 0.2,
+          responseFormat: { type: "json_object" },
+          maxTokens: 900,
+          system: buildStructuredSystemPrompt(scopedPlan),
+          user: buildStructuredUserPrompt(payload)
+        });
+        raw = result.text;
+        model = result.model;
+        llmCalls += 1;
+        usage.promptTokens += result.usage?.promptTokens ?? 0;
+        usage.completionTokens += result.usage?.completionTokens ?? 0;
+      } catch (error) {
+        instrumentation?.recordApplicationAttempt({
+          sectionId: sectionPlan.sectionId,
+          blockId: blockPlan.blockId,
+          logicalCallId,
+          applicationAttempt: attempt + 1,
+          isRetry: attempt > 0,
+          retryReason,
+          model: config?.model ?? null,
+          startedAt: attemptStartedAt,
+          durationMs: Date.now() - attemptStartedAtMs,
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: null,
+          requestId: error.requestId ?? null,
+          status: "error",
+          errorType: instrumentation?.errorTypeFor?.(error) ?? error.name ?? "other"
+        });
+        instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
+        throw error;
+      }
+      let parsed;
+      let section;
+      let validation;
+      try {
+        parsed = parseJsonObject(raw);
+        section = applyDeterministicPrefix(sanitizeStructuredSection(parsed, scopedPlan), blockPlan);
+        validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
+      } catch (error) {
+        error.code ??= "structured_parse_error";
+        instrumentation?.recordApplicationAttempt({
+          sectionId: sectionPlan.sectionId,
+          blockId: blockPlan.blockId,
+          logicalCallId,
+          applicationAttempt: attempt + 1,
+          isRetry: attempt > 0,
+          retryReason,
+          model: result?.model ?? config?.model ?? null,
+          startedAt: attemptStartedAt,
+          durationMs: Date.now() - attemptStartedAtMs,
+          inputTokens: result?.usage?.promptTokens ?? 0,
+          outputTokens: result?.usage?.completionTokens ?? 0,
+          totalTokens: result?.usage?.totalTokens ?? null,
+          requestId: result?.requestId ?? null,
+          status: "error",
+          errorType: instrumentation?.errorTypeFor?.(error) ?? "parse_error"
+        });
+        instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
+        throw error;
+      }
+      lastSection = section;
+      lastValidation = validation;
+      if (validation.ok) {
+        instrumentation?.recordApplicationAttempt({
+          sectionId: sectionPlan.sectionId,
+          blockId: blockPlan.blockId,
+          logicalCallId,
+          applicationAttempt: attempt + 1,
+          isRetry: attempt > 0,
+          retryReason,
+          model: result?.model ?? config?.model ?? null,
+          startedAt: attemptStartedAt,
+          durationMs: Date.now() - attemptStartedAtMs,
+          inputTokens: result?.usage?.promptTokens ?? 0,
+          outputTokens: result?.usage?.completionTokens ?? 0,
+          totalTokens: result?.usage?.totalTokens ?? null,
+          requestId: result?.requestId ?? null,
+          status: "success",
+          errorType: null
+        });
+        instrumentation?.finishLogicalCall({ logicalCallId, status: "success" });
+        return {
+          section: enrichedStructuredSection(section, scopedPlan),
+          llmCalls,
+          usage,
+          model,
+          validation
+        };
+      }
+      instrumentation?.recordApplicationAttempt({
+        sectionId: sectionPlan.sectionId,
+        blockId: blockPlan.blockId,
+        logicalCallId,
+        applicationAttempt: attempt + 1,
+        isRetry: attempt > 0,
+        retryReason,
+        model: result?.model ?? config?.model ?? null,
+        startedAt: attemptStartedAt,
+        durationMs: Date.now() - attemptStartedAtMs,
+        inputTokens: result?.usage?.promptTokens ?? 0,
+        outputTokens: result?.usage?.completionTokens ?? 0,
+        totalTokens: result?.usage?.totalTokens ?? null,
+        requestId: result?.requestId ?? null,
+        status: "error",
+        errorType: "validation_correction"
       });
-      raw = result.text;
-      model = result.model;
-      llmCalls += 1;
-      usage.promptTokens += result.usage?.promptTokens ?? 0;
-      usage.completionTokens += result.usage?.completionTokens ?? 0;
+      logStructuredValidationFailure({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
+      correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan: scopedPlan });
+      continue;
     }
     const parsed = parseJsonObject(raw);
     const section = applyDeterministicPrefix(sanitizeStructuredSection(parsed, scopedPlan), blockPlan);
@@ -613,7 +738,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     lastValidation = validation;
     if (validation.ok) {
       return {
-        section,
+        section: enrichedStructuredSection(section, scopedPlan),
         llmCalls,
         usage,
         model,
@@ -631,7 +756,20 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
   error.blockId = blockPlan.blockId;
   error.validation = lastValidation;
   error.section = lastSection;
+  instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
   throw error;
+  } catch (error) {
+    if (logicalCallId) {
+      instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
+    }
+    throw error;
+  }
+}
+
+export function structuredSectionLlmConfiguration(sectionPlan, baseConfig = llmConfiguration()) {
+  if (!baseConfig) return null;
+  const model = STRUCTURED_SECTION_MODEL_OVERRIDES[sectionPlan?.sectionId];
+  return model ? { ...baseConfig, model } : baseConfig;
 }
 
 export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, options = {} }) {
@@ -652,7 +790,10 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
   }
 
   const writerFn = options.structuredWriterFn ?? null;
-  const config = options.config ?? llmConfiguration();
+  const configured = structuredSectionLlmConfiguration(sectionPlan, options.config ?? llmConfiguration());
+  const config = configured && options.llmInstrumentation
+    ? { ...configured, instrumentation: options.llmInstrumentation }
+    : configured;
   const logger = options.logger ?? console;
   if (!writerFn && !config) {
     const error = new Error("Le générateur complet nécessite ASTROLAB_LLM_API_KEY.");
@@ -697,7 +838,7 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
     throw error;
   }
   return {
-    section,
+    section: enrichedStructuredSection(section, sectionPlan),
     skipped: false,
     reason: null,
     llmCalls,
