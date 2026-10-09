@@ -45,11 +45,13 @@ Current roadmap clarification:
 
 - the current production method remains the natal/public-reading pipeline;
 - relational product work separates individual relational readings from two-person synastry;
-- `individual_relational` is a future one-person vertical: "Moi en relation";
+- `individual_relational` is a one-person vertical: "Moi en relation", structured around seven axes;
 - `western-synastry` is now approved for V1 development as a future two-person relational method;
 - approval for development does not mean implemented, validated, or production eligible;
 - current relationship architecture reference: [Relationship Analysis Architecture V2](relationship-analysis-architecture-v2.md).
-- `individual_relational.communication` is the first V1 axis under validation; its structured writer uses `gpt-4.1-mini` only for that axis after two controlled synthetic-fixture checks.
+- `individual_relational.communication` / Communication relationnelle V1 is validated at checkpoint `75ea178`: `gpt-4.1-mini` is used only for that axis, Mercury sign is excluded from its V1, two real fixtures passed, and technical, doctrinal, and traceability validation are PASS.
+- the six other `individual_relational` axes remain non-implemented and without validated doctrine.
+- `resource` and `attention_point` are transversal writer blocks, not autonomous axes; `attention_point` is emitted only when a validated rule provides an `attentionTheme`.
 
 ## Registry
 
@@ -104,9 +106,9 @@ The next decisions for `western-natal` remain:
 
 Additional decisions for `individual-relational`:
 
-- exact structure of "Moi en relation";
+- doctrine and rules for the six non-implemented "Moi en relation" axes;
 - exact structure of "Moi en amour";
-- source facts and Lastro interpretation grid;
+- source facts and Lastro interpretation grid for non-validated axes;
 - public navigation and naming;
 - mapping to the existing `scope` field or a future structure.
 
@@ -125,7 +127,7 @@ Additional decisions for `western-synastry` before implementation or validation:
 
 The relational roadmap separates:
 
-- `individual_relational`: one-person reading, "Moi en relation";
+- `individual_relational`: one-person reading, "Moi en relation", with seven axes;
 - `western-synastry`: two-person reading, "Nous";
 - `temporal_relational`: future two-person + current-sky reading, deferred.
 

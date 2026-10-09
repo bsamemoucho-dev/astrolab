@@ -226,33 +226,43 @@ Lecture "Moi en relation" :
 
 Cette verticale produit n'est pas une synastrie incomplète.
 
-Axes possibles :
+Axes validés pour la structure V1 de "Moi en relation" :
 
-- manière d'exprimer son affection ;
-- manière d'entrer en relation ;
-- communication dans la relation ;
-- besoin d'espace et de proximité ;
-- manière d'aborder les désaccords ;
-- désir, initiative et manière d'agir ;
-- besoins relationnels ;
-- ressources relationnelles ;
-- zones demandant de l'attention.
+- Communication relationnelle ;
+- Manière d'exprimer son affection ;
+- Manière d'entrer en relation ;
+- Besoin d'espace et de proximité ;
+- Manière d'aborder les désaccords ;
+- Désir, initiative et manière d'agir ;
+- Besoins relationnels.
+
+"Ressources relationnelles" et "Zones demandant de l'attention" ne sont pas
+des axes autonomes. Elles correspondent aux blocs transversaux du writer
+structuré :
+
+- `resource` ;
+- `attention_point`.
+
+`attention_point` est facultatif et ne doit jamais être produit si aucune règle
+ne fournit d'`attentionTheme`.
 
 Cette lecture doit être transversale. Elle ne doit pas répéter Soleil, Lune,
 Mercure, Vénus, Mars, etc. sous forme de nouvelles sections. Elle construit des
 axes relationnels à partir de plusieurs faits.
 
-Exemples conceptuels :
+Etat validé :
 
-- Expression de l'affection : Vénus + aspects pertinents.
-- Communication relationnelle V1 : aspects Mercury-Mars, Mercury-Venus et
-  Sun-Mercury pertinents. Mercury sign et Moon sign sont differes pour cet axe
-  V1, sans etre retires de la doctrine natale globale.
-- Writer Communication relationnelle V1 : validation controlee sur deux fixtures
-  synthetiques, avec `gpt-4.1-mini` retenu uniquement pour cet axe. Les autres
-  writers conservent la configuration LLM generale.
-- Besoin d'espace et de proximité : indicateurs convergents.
-- Manière d'aborder les tensions : Mars + Saturne + aspects pertinents.
+- Communication relationnelle V1 : validée au checkpoint `75ea178` ;
+- writer : `gpt-4.1-mini`, uniquement pour cet axe ;
+- Mercury sign : exclu de la V1 de cet axe ;
+- fixtures réelles validées : 2 ;
+- validation technique : PASS ;
+- validation doctrinale : PASS ;
+- traçabilité : PASS.
+
+Les six autres axes restent non implémentés et sans doctrine validée. Les pistes
+documentaires existantes ne doivent pas être transformées en règles tant qu'une
+décision méthodologique humaine ne les a pas validées.
 
 Ces axes sont une grille interprétative Lastro. Ils ne doivent pas être présentés
 comme une doctrine astrologique traditionnelle autonome.
@@ -286,8 +296,10 @@ destinés au lecteur français doivent être en français :
 
 Le mapping complet vers les autres langues est futur.
 
-La structure narrative exacte de "Moi en relation" et "Moi en amour" reste une
-question ouverte : descriptive, ressources, vigilances, pistes, ou combinaison.
+La structure générale de "Moi en relation" retient sept axes. Les blocs
+`resource` et `attention_point` sont transversaux ; `attention_point` reste
+facultatif et dépend strictement de la présence d'un `attentionTheme` validé.
+La structure exacte de "Moi en amour" reste ouverte.
 
 ## D. Synastrie à deux
 
@@ -478,7 +490,7 @@ ouvertes.
 
 | Elément | Statut |
 |---|---|
-| Lecture "Moi en relation" | TARGET V1, non implémentée |
+| Lecture "Moi en relation" | TARGET V1, partiellement implémentée : Communication relationnelle V1 validée ; six autres axes non implémentés |
 | Lecture "Moi en amour" | TARGET V1 possible, structure ouverte |
 | `western-synastry` Amour | APPROVED FOR V1 DEVELOPMENT, non implémentée |
 | Corps synastrie | Sept corps natals V1 |
@@ -725,7 +737,7 @@ silencieusement l'historique.
 
 1. Valeurs exactes des orbes de synastrie.
 2. Future `methodVersion` officielle de la synastrie.
-3. Structure précise du dossier "Moi en relation".
+3. Doctrine et règles précises des six axes non implémentés de "Moi en relation".
 4. Structure précise de "Moi en amour".
 5. Structure précise du dossier "Nous en amour".
 6. Modalités de rédaction des faits `sensitive / variable`.
@@ -750,7 +762,7 @@ silencieusement l'historique.
 |---|---|
 | Documenter l'état réel du code | CURRENT |
 | Corriger le registre méthodologique | CURRENT |
-| Définir "Moi en relation" | TARGET |
+| Stabiliser "Moi en relation" | PARTIAL : Communication relationnelle V1 validée, six axes restants à définir |
 | Définir `western-synastry` Amour | TARGET |
 | Fixer les orbes et la `methodVersion` | OPEN |
 | Implémenter moteur synastrie | FUTURE |
