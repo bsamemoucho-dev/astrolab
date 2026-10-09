@@ -1,14 +1,15 @@
-# Doctrine Affection V1 — DRAFT
+# Doctrine Affection V1 — VALIDATED
 
 Statut :
 
 ```text
 28 règles doctrinales rédigées
 implémentation: NON
-validation produit finale: NON
-décisions encore ouvertes:
-  - priorité entre plusieurs aspects simultanément disponibles
-  - limite éventuelle d'un seul attention_point par axe
+validation produit finale: OUI
+décisions validées:
+  - priorité déterministe entre plusieurs aspects simultanément disponibles
+  - maximum un attention_point par axe
+  - fallback Venus sign seulement si le signe est stable
 ```
 
 ## Périmètre
@@ -33,6 +34,20 @@ ne couvre pas:
 sélection:
   aspects prioritaires
   maximum de deux aspects développés
+
+si plus de deux aspects Affection certains et éligibles existent:
+  calculer pour chaque aspect:
+    exactitudeNormalisée = orb absolue / orb maximale autorisée
+  classer par exactitudeNormalisée croissante
+  puis par orb absolue croissante
+  puis par interpretationRuleRef lexicographique
+  retenir au maximum les deux premiers
+
+note:
+  ce classement ne crée aucune hiérarchie doctrinale
+  entre les familles planétaires
+  il sert uniquement à choisir les aspects les plus exacts
+  relativement à leurs orbes autorisées
 
 si au moins un aspect certain est sélectionné:
   Venus sign non utilisé
@@ -70,6 +85,27 @@ note doctrinale:
 fallback Venus sign:
   uniquement si le signe est stable
   sur toute la plage applicable
+
+stabilité du fallback Venus sign:
+  heure exacte:
+    position calculée à l'heure exacte
+  heure approximative:
+    même signe sur toute la marge déclarée
+  intervalle:
+    même signe sur tout l'intervalle
+  heure inconnue:
+    même signe pendant toute la journée civile locale
+
+si aucun aspect Affection certain n'est disponible
+et que le signe de Vénus n'est pas stable:
+  l'axe ne produit aucun bloc interprétatif
+
+interdit:
+  - utiliser un signe représentatif incertain
+  - choisir arbitrairement le signe du début ou de la fin
+    de la plage
+  - fixer une heure fictive
+  - réutiliser une règle natale générique
 ```
 
 ## Politique des points d'attention
@@ -93,6 +129,24 @@ opposition:
 interdit:
   le writer ne déduit jamais lui-même
   un point d'attention à partir du type d'aspect
+
+maximum:
+  un seul bloc attention_point par axe
+
+si plusieurs aspects sélectionnés possèdent explicitement
+un attentionTheme:
+  utiliser celui qui arrive en premier selon le même
+  classement déterministe que la sélection d'aspects
+
+absence:
+  l'absence de point d'attention est valide
+
+interdictions:
+  aucun point d'attention ne doit être:
+    - déduit du type d'aspect
+    - inventé par le planner ou le writer
+    - construit par inversion d'une ressource
+    - produit depuis une règle dont attentionTheme est absent
 ```
 
 ## Inventaire
@@ -1753,17 +1807,23 @@ Venus–Saturn:
   constance, sérieux et engagement
 ```
 
-## DÉCISIONS OUVERTES — NON IMPLÉMENTABLES ENCORE
+## DÉCISIONS VALIDÉES — À IMPLÉMENTER ULTÉRIEUREMENT
 
 1. Priorité entre aspects :
-   lorsque plus de deux aspects Affection sont disponibles,
-   la règle de sélection reste à définir.
+   lorsque plus de deux aspects Affection certains et éligibles
+   sont disponibles, le classement déterministe par exactitude
+   normalisée, orb absolue, puis `interpretationRuleRef`
+   lexicographique sélectionne au maximum deux aspects.
 
 2. Points d'attention :
-   décider si un axe final peut développer plusieurs
-   attentionThemes ou un seul maximum.
+   l'axe Affection produit au maximum un seul `attention_point`.
+   S'il existe plusieurs `attentionThemes` explicites parmi les
+   aspects sélectionnés, le même classement déterministe choisit
+   celui qui est développé.
 
 3. Stabilité du fallback :
-   buildDossierEvidence doit respecter la stabilité
-   du signe pour les heures approximatives avant
-   l'implémentation du fallback Venus sign.
+   le fallback Venus sign ne peut être utilisé que si le signe de
+   Vénus est certain sur toute la plage temporelle applicable.
+   Si aucun aspect certain n'est disponible et que le signe de
+   Vénus n'est pas stable, l'axe ne produit aucun bloc
+   interprétatif.
