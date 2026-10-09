@@ -11,10 +11,10 @@ import test from "node:test";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
 
-const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", "ASTROLAB_PRICE_CENTS", "ASTROLAB_PROMO_CODE", "ASTROLAB_PROMO_DISCOUNT_CENTS", "ASTROLAB_PROMO_CODES", "ASTROLAB_LLM_API_KEY"];
+const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", "ASTROLAB_PRICE_CENTS", "ASTROLAB_PROMO_CODE", "ASTROLAB_PROMO_DISCOUNT_CENTS", "ASTROLAB_PROMO_CODES", "ASTROLAB_LLM_API_KEY", "ASTROLAB_LLM_BASE_URL"];
 // Le paiement n est ouvert que si un redacteur est configure : les tests du
 // tunnel fournissent donc aussi cette cle.
-const WRITER_KEY = { ASTROLAB_LLM_API_KEY: "cle-de-test" };
+const WRITER_KEY = { ASTROLAB_LLM_API_KEY: "cle-de-test", ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1" };
 
 async function withKeys(values, run) {
   const saved = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));

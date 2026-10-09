@@ -440,7 +440,7 @@ test("le planner est testable sans LLM et utilise la provenance canonique", () =
 test("npm test ne déclenche pas le LLM réel si seule la clé locale est présente", async () => {
   await withEnv(
     {
-      ASTROLAB_LLM_API_KEY: "sk-local-real-looking-key",
+      ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
       ASTROLAB_RUN_LLM_TESTS: undefined
     },
@@ -466,7 +466,7 @@ test("npm test ne déclenche pas le LLM réel si seule la clé locale est prése
 test("l'opt-in explicite est requis pour exposer une vraie configuration LLM en test", async () => {
   await withEnv(
     {
-      ASTROLAB_LLM_API_KEY: "sk-local-real-looking-key",
+      ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
       ASTROLAB_RUN_LLM_TESTS: undefined
     },
@@ -476,7 +476,7 @@ test("l'opt-in explicite est requis pour exposer une vraie configuration LLM en 
   );
   await withEnv(
     {
-      ASTROLAB_LLM_API_KEY: "sk-local-real-looking-key",
+      ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
       ASTROLAB_RUN_LLM_TESTS: "1"
     },
@@ -489,7 +489,7 @@ test("l'opt-in explicite est requis pour exposer une vraie configuration LLM en 
 test("Communication relationnelle utilise gpt-4.1-mini sans changer les autres sections", async () => {
   await withEnv(
     {
-      ASTROLAB_LLM_API_KEY: "sk-local-real-looking-key",
+      ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
       ASTROLAB_LLM_MODEL: undefined,
       ASTROLAB_RUN_LLM_TESTS: "1"

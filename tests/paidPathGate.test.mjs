@@ -18,7 +18,7 @@ import test from "node:test";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { createApp } from "../src/http/app.mjs";
 
-const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "ASTROLAB_LLM_API_KEY"];
+const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "ASTROLAB_LLM_API_KEY", "ASTROLAB_LLM_BASE_URL"];
 const STRIPE_KEYS = {
   STRIPE_SECRET_KEY: "sk_live_abc123456789",
   STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789"
@@ -166,7 +166,7 @@ test("paiement actif sans rédacteur, client déjà débité : commande conserv�
 });
 
 test("paiement actif avec rédacteur : le paiement reste exigé normalement", async () => {
-  await withEnv({ ...STRIPE_KEYS, ASTROLAB_LLM_API_KEY: "cle-de-test" }, async () => {
+  await withEnv({ ...STRIPE_KEYS, ASTROLAB_LLM_API_KEY: "cle-de-test", ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1" }, async () => {
     const app = await startApp();
     try {
       const config = await fetch(`${app.baseUrl}/api/config`).then((r) => r.json());

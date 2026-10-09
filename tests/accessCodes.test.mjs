@@ -30,7 +30,7 @@ import { createPaidDelivery } from "../src/models/publicDeliveryService.mjs";
 const executer = promisify(execFile);
 const RACINE = fileURLToPath(new URL("..", import.meta.url));
 
-const KEYS = ["ASTROLAB_TEST_CODE", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "ASTROLAB_LLM_API_KEY"];
+const KEYS = ["ASTROLAB_TEST_CODE", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "ASTROLAB_LLM_API_KEY", "ASTROLAB_LLM_BASE_URL"];
 
 async function avecEnv(values, run) {
   const sauve = Object.fromEntries(KEYS.map((cle) => [cle, process.env[cle]]));
@@ -215,7 +215,8 @@ test("un code à usage unique remplace le paiement, et survit à une demande inc
     {
       STRIPE_SECRET_KEY: "sk_live_abc123456789",
       STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789",
-      ASTROLAB_LLM_API_KEY: "cle-de-test"
+      ASTROLAB_LLM_API_KEY: "cle-de-test",
+      ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1"
     },
     async () => {
       const app = await startApp();

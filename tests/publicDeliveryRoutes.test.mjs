@@ -249,7 +249,10 @@ test("une lecture queued survit à un redémarrage simulé et reprend ensuite", 
             assert.equal(ready.payload.status, "ready");
             await request(secondUrl, `/api/public/readings/${readingId}/status`);
             await request(secondUrl, `/api/public/readings/${readingId}/status`);
-            const finalState = await second.store.load();
+            const finalState = await waitForStore(
+              second.store,
+              (state) => state.outbox.filter((mail) => mail.purpose === "ready" && mail.status === "sent").length === 1
+            );
             assert.equal(sent.length, 1);
             assert.equal(finalState.outbox.filter((mail) => mail.purpose === "ready").length, 1);
             assert.equal(finalState.outbox[0].providerMessageId, "restart-1");

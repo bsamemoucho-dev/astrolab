@@ -307,7 +307,7 @@ test("LLM instrumentation reports zero calls when key is present without default
   const collector = createLlmInstrumentationCollector({ runId: "run-key-no-opt-in" });
   await withEnv(
     {
-      ASTROLAB_LLM_API_KEY: "sk-local-real-looking-key",
+      ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
       ASTROLAB_RUN_LLM_TESTS: undefined
     },

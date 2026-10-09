@@ -28,6 +28,10 @@ const STRIPE_KEYS = {
   STRIPE_SECRET_KEY: "sk_test_abc123456789",
   STRIPE_PUBLISHABLE_KEY: "pk_test_abc123456789"
 };
+const WRITER_KEYS = {
+  ASTROLAB_LLM_API_KEY: "cle-de-test",
+  ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1"
+};
 const PLACE = {
   selectedName: "Paris, France",
   country: "France",
@@ -125,7 +129,7 @@ const SESSION_PAYEE = (extra = {}) => ({
 });
 
 test("aucune session : le paiement est exigé, aucune lecture n'est produite", async () => {
-  await withEnv({ ...STRIPE_KEYS, ASTROLAB_LLM_API_KEY: "cle-de-test" }, async () => {
+  await withEnv({ ...STRIPE_KEYS, ...WRITER_KEYS }, async () => {
     const app = await startApp();
     try {
       const reponse = await post(app.baseUrl, "/api/public/readings", NAISSANCE);
@@ -141,7 +145,7 @@ test("aucune session : le paiement est exigé, aucune lecture n'est produite", a
 });
 
 test("session non payée : refus, et aucune lecture", async () => {
-  await withEnv({ ...STRIPE_KEYS, ASTROLAB_LLM_API_KEY: "cle-de-test" }, () =>
+  await withEnv({ ...STRIPE_KEYS, ...WRITER_KEYS }, () =>
     withSession(SESSION_PAYEE({ payment_status: "unpaid" }), async () => {
       const app = await startApp();
       try {
@@ -157,7 +161,7 @@ test("session non payée : refus, et aucune lecture", async () => {
 });
 
 test("session payée pour un autre produit ou à un autre prix : refus", async () => {
-  await withEnv({ ...STRIPE_KEYS, ASTROLAB_LLM_API_KEY: "cle-de-test" }, async () => {
+  await withEnv({ ...STRIPE_KEYS, ...WRITER_KEYS }, async () => {
     const app = await startApp();
     try {
       // Payée 1 € : ce n'est pas le prix de la lecture.
@@ -239,7 +243,7 @@ test("le paiement n'est pas ouvert quand la rédaction ne peut pas suivre", asyn
 
 test("le parcours payant complet produit bien la lecture", async () => {
   await withEnv(
-    { ...STRIPE_KEYS, ASTROLAB_LLM_API_KEY: "cle-de-test", ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1" },
+    { ...STRIPE_KEYS, ...WRITER_KEYS },
     () =>
       withSession(SESSION_PAYEE(), async () => {
         const app = await startApp();

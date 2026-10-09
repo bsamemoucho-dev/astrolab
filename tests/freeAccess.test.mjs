@@ -15,7 +15,8 @@ const KEYS = [
   "ASTROLAB_TEST_CODE",
   "STRIPE_SECRET_KEY",
   "STRIPE_PUBLISHABLE_KEY",
-  "ASTROLAB_LLM_API_KEY"
+  "ASTROLAB_LLM_API_KEY",
+  "ASTROLAB_LLM_BASE_URL"
 ];
 // Un site qui encaisse doit pouvoir rédiger : ces scénarios de paiement ne sont
 // atteignables qu'avec un rédacteur configuré (sinon le service refuse AVANT tout
@@ -23,7 +24,8 @@ const KEYS = [
 const STRIPE_ON_WITH_WRITER = {
   STRIPE_SECRET_KEY: "sk_live_abc123456789",
   STRIPE_PUBLISHABLE_KEY: "pk_live_abc123456789",
-  ASTROLAB_LLM_API_KEY: "cle-de-test"
+  ASTROLAB_LLM_API_KEY: "cle-de-test",
+  ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1"
 };
 
 async function startApp() {
