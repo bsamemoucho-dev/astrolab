@@ -164,6 +164,20 @@ test("un warning de longueur Communication ne bloque pas le dossier complet", as
   assert.match(reading.html, /Communication relationnelle/);
 });
 
+test("Communication relationnelle est omise proprement sans règle scoped autorisée", async () => {
+  const reading = await createFixtureReading(inputForBirthDate("1950-01-26"));
+
+  assert.equal(reading.status, "ready_for_human_review");
+  assert.equal(reading.verification.status, "structured_validated");
+  assert.equal(reading.relationship.sections.some((section) => section.sectionId === "relational_communication"), false);
+  assert.ok(reading.relationship.skippedSections.some((section) =>
+    section.sectionId === "relational_communication" &&
+    section.reason === "no_authorized_interpretation_rules"
+  ));
+  assert.doesNotMatch(reading.html, /Communication relationnelle/);
+  assert.match(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+});
+
 test("Affection can be generated from the Venus sign fallback inside the client dossier", async () => {
   const reading = await createFixtureReading(inputForBirthDate("1950-01-01", { timeValue: "00:00" }));
   const affection = reading.relationship.sections.find((section) => section.sectionId === "relational_affection");

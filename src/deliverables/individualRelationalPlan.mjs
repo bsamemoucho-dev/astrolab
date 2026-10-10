@@ -31,7 +31,8 @@ function key(value) {
 }
 
 function communicationRulesForEvidence(evidence) {
-  return rulesForEvidence(evidence, { scope: RELATIONAL_COMMUNICATION_SCOPE });
+  return rulesForEvidence(evidence, { scope: RELATIONAL_COMMUNICATION_SCOPE })
+    .filter((rule) => Array.isArray(rule.scope) && rule.scope.includes(RELATIONAL_COMMUNICATION_SCOPE));
 }
 
 function affectionRulesForEvidence(evidence) {
@@ -265,22 +266,25 @@ export function buildIndividualRelationalCommunicationPlan(dossierEvidence) {
   const evidencePackets = [...spontaneousPackets, ...resourcePackets, ...attentionPackets];
   const evidenceRefs = selection.selected.map((item) => item.evidenceId);
   const allowedInterpretationRuleRefs = [...new Set(evidencePackets.flatMap((packet) => packet.interpretationRuleRefs ?? []))];
-  const blockPlans = [
-    {
+  const blockPlans = [];
+  if (spontaneousPackets.length > 0) {
+    blockPlans.push({
       blockId: "spontaneous_dynamic",
       packetRefs: spontaneousPackets.map((packet) => packet.packetId),
       narrativeRole: "spontaneous_dynamic",
       maxSentences: COMMUNICATION_SENTENCE_LIMITS.spontaneous_dynamic,
       sentenceLimitMode: "warning"
-    },
-    {
+    });
+  }
+  if (resourcePackets.length > 0) {
+    blockPlans.push({
       blockId: "resource",
       packetRefs: resourcePackets.map((packet) => packet.packetId),
       narrativeRole: "resource",
       maxSentences: COMMUNICATION_SENTENCE_LIMITS.resource,
       sentenceLimitMode: "warning"
-    }
-  ];
+    });
+  }
   if (attentionPackets.length > 0) {
     blockPlans.push({
       blockId: "attention_point",

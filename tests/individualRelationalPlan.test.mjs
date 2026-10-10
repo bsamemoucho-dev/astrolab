@@ -245,6 +245,54 @@ test("aspect hors whitelist ne fournit aucun thème", () => {
   assert.ok(sectionPlan.forbiddenEvidenceRefs.includes("aspect.mars.venus.trine"));
 });
 
+test("Moon-Mercury square reste hors scope Communication relationnelle", () => {
+  const { plan, sectionPlan } = planFor([natalAspect("Moon", "Mercury", "square")]);
+  assert.deepEqual(plan.selection.candidateAspectRuleRefs, []);
+  assert.deepEqual(plan.selection.selectedAspectRuleRefs, []);
+  assert.deepEqual(sectionPlan.primaryEvidenceRefs, []);
+  assert.deepEqual(sectionPlan.allowedInterpretationRuleRefs, []);
+  assert.deepEqual(sectionPlan.evidencePackets, []);
+  assert.deepEqual(sectionPlan.blockPlans, []);
+  assert.ok(sectionPlan.forbiddenEvidenceRefs.includes("aspect.mercury.moon.square"));
+});
+
+test("les règles sans scope explicite sont rejetées par Communication relationnelle", () => {
+  const { sectionPlan } = planFor([natalAspect("Moon", "Mercury", "square")]);
+  assert.equal(interpretationRuleById("western.aspect.moon_mercury.square@1").scope, undefined);
+  assert.equal(sectionPlan.allowedInterpretationRuleRefs.includes("western.aspect.moon_mercury.square@1"), false);
+});
+
+test("les règles d'un autre scope sont rejetées par Communication relationnelle", () => {
+  const { sectionPlan } = planFor([natalAspect("Sun", "Venus", "conjunction")]);
+  assert.deepEqual(interpretationRuleById("western.relational.affection.sun_venus.conjunction@1").scope, [
+    "individual_relational.affection"
+  ]);
+  assert.deepEqual(sectionPlan.allowedInterpretationRuleRefs, []);
+  assert.deepEqual(sectionPlan.evidencePackets, []);
+  assert.deepEqual(sectionPlan.blockPlans, []);
+});
+
+test("le thème de reading_3764 n'alimente pas Communication relationnelle", () => {
+  const { sectionPlan } = planFor([
+    natalAspect("Venus", "Mars", "sextile"),
+    natalAspect("Moon", "Mercury", "square"),
+    natalAspect("Sun", "Mars", "sextile"),
+    natalAspect("Sun", "Venus", "conjunction")
+  ]);
+  assert.deepEqual(sectionPlan.primaryEvidenceRefs, []);
+  assert.deepEqual(sectionPlan.allowedInterpretationRuleRefs, []);
+  assert.deepEqual(sectionPlan.evidencePackets, []);
+  assert.deepEqual(sectionPlan.blockPlans, []);
+  for (const ref of [
+    "aspect.mars.venus.sextile",
+    "aspect.mercury.moon.square",
+    "aspect.mars.sun.sextile",
+    "aspect.sun.venus.conjunction"
+  ]) {
+    assert.ok(sectionPlan.forbiddenEvidenceRefs.includes(ref), ref);
+  }
+});
+
 test("fact réel sans règle reste calculé mais non interprété", () => {
   const { sectionPlan } = planFor([natalAspect("Mercury", "Saturn", "opposition")]);
   assert.ok(sectionPlan.forbiddenEvidenceRefs.includes("aspect.mercury.saturn.opposition"));
