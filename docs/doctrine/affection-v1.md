@@ -804,7 +804,8 @@ ne permet pas d'affirmer:
   - facilité relationnelle générale
   - réussite ou stabilité de la relation
   - manière de recevoir l'affection
-  - compatibilité émotionnelle avec une autre personne
+  - compatibilité ou incompatibilité émotionnelle
+    avec une autre personne
     (relèverait d'une future synastrie)
 ```
 
@@ -878,7 +879,8 @@ ne permet pas d'affirmer:
   - réussite ou stabilité de la relation
   - manière de recevoir l'affection
     (relève de « Besoins relationnels »)
-  - compatibilité émotionnelle avec une autre personne
+  - compatibilité ou incompatibilité émotionnelle
+    avec une autre personne
     (relèverait d'une future synastrie)
 ```
 
@@ -923,7 +925,8 @@ ne permet pas d'affirmer:
   - facilité relationnelle générale
   - réussite ou stabilité de la relation
   - manière de recevoir l'affection
-  - compatibilité émotionnelle avec une autre personne
+  - compatibilité ou incompatibilité émotionnelle
+    avec une autre personne
     (relèverait d'une future synastrie)
 ```
 
@@ -967,7 +970,8 @@ ne permet pas d'affirmer:
   - facilité relationnelle générale
   - réussite ou stabilité de la relation
   - manière de recevoir l'affection
-  - compatibilité émotionnelle avec une autre personne
+  - compatibilité ou incompatibilité émotionnelle
+    avec une autre personne
     (relèverait d'une future synastrie)
 ```
 
@@ -1020,7 +1024,8 @@ ne permet pas d'affirmer:
   - incompréhension garantie de la part de l'autre
   - échec ou instabilité de la relation
   - manière de recevoir l'affection
-  - incompatibilité émotionnelle avec une autre personne
+  - compatibilité ou incompatibilité émotionnelle
+    avec une autre personne
     (relèverait d'une future synastrie)
 ```
 
@@ -1075,7 +1080,8 @@ ne permet pas d'affirmer:
   - incompréhension garantie de la part de l'autre
   - échec ou instabilité de la relation
   - manière de recevoir l'affection
-  - incompatibilité émotionnelle avec une autre personne
+  - compatibilité ou incompatibilité émotionnelle
+    avec une autre personne
     (relèverait d'une future synastrie)
 ```
 
