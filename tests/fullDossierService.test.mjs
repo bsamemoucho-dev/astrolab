@@ -71,16 +71,35 @@ function injectedStructuredWriter({ sectionPlan }) {
     sectionId: sectionPlan.sectionId,
     blocks: (sectionPlan.blockPlans ?? []).map((blockPlan) => ({
       blockId: blockPlan.blockId,
-      text: "Cette section relie uniquement les preuves et règles autorisées pour proposer une lecture symbolique sobre, sans ajouter de fait extérieur."
+      text: `Cette section ${sectionPlan.sectionId} ${blockPlan.blockId} relie uniquement les preuves et règles autorisées pour proposer une lecture symbolique sobre.`
     }))
   };
 }
 
-test("createFullPublicReading assembles a validated full dossier without using legacy free-text sections", async () => {
-  const reading = await createFullPublicReading(INPUT, {
+function inputForBirthDate(birthDate, overrides = {}) {
+  return {
+    ...INPUT,
+    firstName: "Fixture",
+    birthDate,
+    timePrecision: "exact",
+    timeValue: "12:00",
+    ...overrides
+  };
+}
+
+async function createFixtureReading(input = INPUT, extraOptions = {}) {
+  return createFullPublicReading(input, {
     currentSky: currentSkyFixture(),
     nowUtc: "2026-10-03T12:00:00.000Z",
-    structuredWriterFn: injectedStructuredWriter
+    structuredWriterFn: injectedStructuredWriter,
+    ...extraOptions
+  });
+}
+
+test("createFullPublicReading assembles a validated full dossier without using legacy free-text sections", async () => {
+  const progress = [];
+  const reading = await createFixtureReading(INPUT, {
+    onProgress: (event) => progress.push(event)
   });
 
   assert.equal(reading.schema, "astrolab.public_reading");
@@ -95,6 +114,71 @@ test("createFullPublicReading assembles a validated full dossier without using l
   assert.doesNotMatch(reading.html, /non rédigé\(s\)|faute de règle documentée/);
   assert.match(reading.markdown, /Annexe/);
   assert.doesNotMatch(reading.markdown, /non rédigé\(s\)|faute de règle documentée/);
-  assert.equal(reading.dossier.sectionCount, 17);
+  assert.equal(reading.dossier.sectionCount, 19);
+  assert.equal(reading.relationship.schema, "astrolab.individual_relational_public_v1");
+  assert.equal(reading.relationship.generatedSectionCount, 2);
+  const ids = reading.sections.map((section) => section.id);
+  assert.equal(ids.includes("relational_communication"), true);
+  assert.equal(ids.includes("relational_affection"), true);
+  assert.equal(ids.indexOf("relational_affection"), ids.indexOf("relational_communication") + 1);
+  assert.match(reading.html, /Communication relationnelle/);
+  assert.match(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+  assert.doesNotMatch(reading.html, /Manière d'entrer en relation|Besoin d'espace|Manière d'aborder les désaccords|Besoins relationnels|Désir, initiative/);
+  assert.doesNotMatch(reading.markdown, /Manière d'entrer en relation|Besoin d'espace|Manière d'aborder les désaccords|Besoins relationnels|Désir, initiative/);
+  assert.ok(reading.relationship.sections[0].blocks.some((block) => block.claims?.length > 0));
+  assert.ok(reading.relationship.sections[0].blocks.some((block) => block.evidenceRefs?.length > 0));
+  assert.ok(reading.relationship.sections[0].blocks.some((block) => block.interpretationRuleRefs?.length > 0));
+  assert.doesNotMatch(reading.html, /claims|evidenceRefs|interpretationRuleRefs/);
+  assert.doesNotMatch(reading.markdown, /claims|evidenceRefs|interpretationRuleRefs/);
+  assert.equal(progress.at(-1).completedSections, reading.dossier.generatedSectionCount);
+  assert.equal(progress.at(-1).totalSections, reading.dossier.generatedSectionCount);
   assert.equal(reading.observability.llmCalls, 0);
+});
+
+test("Affection can be generated from the Venus sign fallback inside the client dossier", async () => {
+  const reading = await createFixtureReading(inputForBirthDate("1950-01-01", { timeValue: "00:00" }));
+  const affection = reading.relationship.sections.find((section) => section.sectionId === "relational_affection");
+
+  assert.ok(affection);
+  assert.deepEqual([...new Set(affection.blocks.flatMap((block) => block.interpretationRuleRefs))], [
+    "western.relational.affection.venus.sign.aquarius@1"
+  ]);
+  assert.match(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+});
+
+test("Affection is omitted cleanly when no certain affection material is available", async () => {
+  const reading = await createFixtureReading(inputForBirthDate("1950-04-06", {
+    timePrecision: "unknown",
+    timeValue: null
+  }));
+
+  assert.equal(reading.sections.some((section) => section.id === "relational_affection"), false);
+  assert.equal(reading.relationship.sections.some((section) => section.sectionId === "relational_affection"), false);
+  assert.ok(reading.relationship.skippedSections.some((section) => section.sectionId === "relational_affection"));
+  assert.doesNotMatch(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+  assert.equal(reading.verification.status, "structured_validated");
+});
+
+test("relationship dossier generation remains deterministic and does not call the network without opt-in", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("fetch should not be called");
+  };
+  try {
+    const first = await createFixtureReading(INPUT, {
+      config: { apiKey: "test-only-key", baseUrl: "https://example.invalid", model: "test-model" }
+    });
+    const second = await createFixtureReading(INPUT, {
+      config: { apiKey: "test-only-key", baseUrl: "https://example.invalid", model: "test-model" }
+    });
+    assert.deepEqual(first.sections.map((section) => section.id), second.sections.map((section) => section.id));
+    assert.deepEqual(first.relationship.sections.map((section) => section.sectionId), second.relationship.sections.map((section) => section.sectionId));
+    assert.equal(first.observability.llmCalls, 0);
+    assert.equal(second.observability.llmCalls, 0);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

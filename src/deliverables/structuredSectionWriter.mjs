@@ -6,7 +6,8 @@ import { expandStructuredSectionFromPackets, validateStructuredSection } from ".
 
 export const STRUCTURED_WRITER_CONTRACT_VERSION = "structured-section-writer@0.1.0";
 export const STRUCTURED_SECTION_MODEL_OVERRIDES = Object.freeze({
-  relational_communication: "gpt-4.1-mini"
+  relational_communication: "gpt-4.1-mini",
+  relational_affection: "gpt-4.1-mini"
 });
 const MAX_CORRECTION_ATTEMPTS = 2;
 

@@ -7,7 +7,7 @@ import { buildDossierEvidence } from "../src/deliverables/dossierEvidence.mjs";
 import { buildIndividualRelationalAffectionPlan, relationalAffectionSectionForRender } from "../src/deliverables/individualRelationalPlan.mjs";
 import { allInterpretationRuleIds, interpretationRuleById, rulesForEvidence } from "../src/deliverables/interpretationRules.mjs";
 import { renderDossierHtml, renderDossierMarkdown } from "../src/deliverables/render.mjs";
-import { writeStructuredSectionWithLlm } from "../src/deliverables/structuredSectionWriter.mjs";
+import { structuredSectionLlmConfiguration, writeStructuredSectionWithLlm } from "../src/deliverables/structuredSectionWriter.mjs";
 import { validateStructuredSection } from "../src/deliverables/factualClaimsValidator.mjs";
 
 function stableCertainty(extra = {}) {
@@ -640,4 +640,19 @@ test("l'exactitude normalisée utilise l'orbe observée absolue divisée par l'o
   assert.equal(aspect.value.orb, -2.5);
   assert.equal(aspect.value.orbLimit, 10);
   assert.equal(aspect.certainty.normalizedExactness, 0.25);
+});
+
+test("l'axe Affection utilise le modèle dédié gpt-4.1-mini", () => {
+  const { sectionPlan } = planFor([natalAspect("Moon", "Venus", "trine")]);
+  const config = structuredSectionLlmConfiguration(sectionPlan, {
+    apiKey: "test-only-key",
+    baseUrl: "https://example.invalid",
+    model: "base-model",
+    temperature: 0.35,
+    correctionTemperature: 0.2,
+    maxTokens: 900,
+    responseFormat: { type: "json_object" }
+  });
+
+  assert.equal(config.model, "gpt-4.1-mini");
 });
