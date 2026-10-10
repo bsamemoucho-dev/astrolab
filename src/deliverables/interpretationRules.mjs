@@ -1,5 +1,8 @@
+import { RELATIONAL_AFFECTION_RULES, RELATIONAL_AFFECTION_SCOPE } from "./relationalAffectionRules.mjs";
+
 export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.2.0";
 export const RELATIONAL_COMMUNICATION_SCOPE = "individual_relational.communication";
+export { RELATIONAL_AFFECTION_SCOPE };
 
 export const LASTRO_INTERPRETATION_CONVENTIONS = Object.freeze({
   aspectTensionV1: {
@@ -250,7 +253,7 @@ const BASE_INTERPRETATION_RULES = [
 ];
 
 export const INTERPRETATION_RULES = Object.freeze(
-  [...BASE_INTERPRETATION_RULES, ...GENERATED_NATAL_SIGN_RULES, ...GENERATED_PERSONAL_TRANSIT_RULES, ...RELATIONAL_COMMUNICATION_NATAL_ASPECT_RULES].filter(
+  [...BASE_INTERPRETATION_RULES, ...GENERATED_NATAL_SIGN_RULES, ...GENERATED_PERSONAL_TRANSIT_RULES, ...RELATIONAL_COMMUNICATION_NATAL_ASPECT_RULES, ...RELATIONAL_AFFECTION_RULES].filter(
     (rule, index, rules) => rules.findIndex((candidate) => candidate.ruleId === rule.ruleId) === index
   )
 );

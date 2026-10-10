@@ -642,12 +642,17 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     if (Number.isInteger(blockPlan?.maxSentences) && blockPlan.maxSentences >= 0) {
       const sentenceCount = countSentences(block.text);
       if (sentenceCount > blockPlan.maxSentences) {
-        issues.push(claimlikeForBlock(
+        const sentenceLimitFinding = claimlikeForBlock(
           block,
           "block_sentence_limit_exceeded",
           `Le bloc contient ${sentenceCount} phrase(s), pour une limite de ${blockPlan.maxSentences}.`,
           { sentenceCount, maxSentences: blockPlan.maxSentences }
-        ));
+        );
+        if (blockPlan.sentenceLimitMode === "warning" || sectionPlan.sentenceLimitMode === "warning") {
+          warnings.push(sentenceLimitFinding);
+        } else {
+          issues.push(sentenceLimitFinding);
+        }
       }
     }
     warnings.push(...detectStyleWarnings(block));

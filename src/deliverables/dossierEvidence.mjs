@@ -1,4 +1,5 @@
 import { ASTRONOMY_ENGINE_VERSION } from "../astro/constants.mjs";
+import { uncertainIntervalAnalysis } from "../astro/signWindows.mjs";
 import { hashPayload } from "../astro/westernNatal.mjs";
 import { timezoneDatabaseVersion } from "../astro/time.mjs";
 import { ELEMENT_BY_SIGN, MODALITY_BY_SIGN, LASTRO_DISTRIBUTION_RULE_VERSION } from "./chart.mjs";
@@ -63,11 +64,94 @@ function add(evidence, item) {
   return item;
 }
 
+function intervalTargetForBody(natalResult, bodyName, daySignStability = null) {
+  if (daySignStability) {
+    return daySignStability.get(bodyName) ?? daySignStability.get(key(bodyName)) ?? null;
+  }
+  const targets = natalResult.uncertainty?.intervalAnalysis?.targets;
+  if (!Array.isArray(targets)) return null;
+  return targets.find((target) => key(target.target) === key(bodyName)) ?? null;
+}
+
+function unknownCivilDaySignStability(natalResult, birth) {
+  if ((natalResult.uncertainty?.timePrecision ?? birth.timePrecision ?? null) !== "unknown") return null;
+  try {
+    const analysis = uncertainIntervalAnalysis({
+      birthDate: birth.birthDate,
+      timeZone: birth.timeZone,
+      latitude: birth.latitude,
+      longitude: birth.longitude,
+      timeStart: "00:00:00",
+      timeEnd: "23:59:59"
+    });
+    return new Map(analysis.targets.map((target) => [key(target.target), target]));
+  } catch {
+    return new Map();
+  }
+}
+
+function bodySignCertainty({ body, natalResult, birth, daySignStability = null }) {
+  const timePrecision = natalResult.uncertainty?.timePrecision ?? birth.timePrecision ?? null;
+  if (timePrecision === "exact") {
+    return {
+      stableAcrossApplicableWindow: true,
+      timePrecision,
+      basis: "exact_time"
+    };
+  }
+  if (timePrecision === "approximate") {
+    return {
+      stableAcrossApplicableWindow: body.marginWindow?.signStable === true,
+      timePrecision,
+      basis: "declared_time_margin",
+      marginMinutes: body.marginWindow?.marginMinutes ?? birth.timeMarginMinutes ?? null
+    };
+  }
+  if (timePrecision === "interval") {
+    const target = intervalTargetForBody(natalResult, body.body);
+    return {
+      stableAcrossApplicableWindow: target ? target.status === "stable" : false,
+      timePrecision,
+      basis: "declared_time_interval"
+    };
+  }
+  if (timePrecision === "unknown") {
+    const target = intervalTargetForBody(natalResult, body.body, daySignStability);
+    return {
+      stableAcrossApplicableWindow: target ? target.status === "stable" : false,
+      timePrecision,
+      basis: "local_civil_day_sign_boundary_analysis"
+    };
+  }
+  return {
+    stableAcrossApplicableWindow: null,
+    timePrecision,
+    basis: "unknown_time_policy"
+  };
+}
+
+function aspectCertainty({ aspect, natalResult, birth }) {
+  const timePrecision = natalResult.uncertainty?.timePrecision ?? birth.timePrecision ?? null;
+  const marginStable = aspect.marginStability?.stable;
+  const stableAcrossApplicableWindow = timePrecision === "exact"
+    ? true
+    : marginStable === true;
+  return {
+    stableAcrossApplicableWindow,
+    timePrecision,
+    basis: marginStable === undefined ? "engine_retained_aspect" : "aspect_margin_stability",
+    normalizedExactness: Number.isFinite(Number(aspect.orbUsed)) && Number(aspect.orbUsed) > 0
+      ? round(Math.abs(Number(aspect.exactness)) / Number(aspect.orbUsed))
+      : null
+  };
+}
+
 function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
   const birth = natalResult.normalizedInput ?? {};
   const houses = Array.isArray(natalResult.structuralAstrology?.houses) ? natalResult.structuralAstrology.houses : [];
   const houseUsable = houses.length > 0 && natalResult.structuralAstrology?.houseUncertainty?.housesDecidableWithinMargin !== false;
   const base = (ruleVersion = null, reliability = "HIGH") => provenance({ natalResult, natalRun, ruleVersion, reliability, generatedAt });
+  const daySignStability = unknownCivilDaySignStability(natalResult, birth);
 
   add(evidence, {
     evidenceId: "birth.identity",
@@ -92,6 +176,7 @@ function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
         evidenceId: `natal.${bodyKey}.sign`,
         type: "NATAL_BODY_SIGN",
         value: { body: body.body, sign: body.sign, degreeInSign: round(body.degreeInSign), longitude: round(body.longitude) },
+        certainty: bodySignCertainty({ body, natalResult, birth, daySignStability }),
         provenance: base(null, reliability)
       });
     }
@@ -141,6 +226,7 @@ function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
         exactness: round(item.exactness),
         ruleVersion: item.ruleVersionId ?? aspects.ruleVersionId ?? null
       },
+      certainty: aspectCertainty({ aspect: item, natalResult, birth }),
       provenance: base(item.ruleVersionId ?? aspects.ruleVersionId ?? null, item.marginStability?.stable === false ? "LOW" : "HIGH")
     });
   }
