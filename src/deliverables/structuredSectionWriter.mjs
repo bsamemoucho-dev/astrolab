@@ -458,6 +458,10 @@ function validationErrorCodes(validation) {
   return [...new Set((validation?.issues ?? []).map((issue) => issue.code).filter(Boolean))];
 }
 
+function sentenceLimitWarnings(validation) {
+  return (validation?.warnings ?? []).filter((warning) => warning.code === "block_sentence_limit_exceeded");
+}
+
 function logStructuredValidationFailure({ logger, sectionId, blockId = null, attempt, validation }) {
   if (!logger?.warn) return;
   logger.warn("[Lastro] structured section validation failed", {
@@ -466,6 +470,20 @@ function logStructuredValidationFailure({ logger, sectionId, blockId = null, att
     attempt,
     validationErrorCodes: validationErrorCodes(validation)
   });
+}
+
+function logStructuredValidationWarnings({ logger, sectionId, blockId = null, attempt, validation }) {
+  if (!logger?.warn) return;
+  for (const warning of sentenceLimitWarnings(validation)) {
+    logger.warn("[Lastro] structured section validation warning", {
+      sectionId,
+      blockId: warning.blockId ?? blockId,
+      attempt,
+      validationWarningCode: warning.code,
+      sentenceCount: warning.sentenceCount,
+      maxSentences: warning.maxSentences
+    });
+  }
 }
 
 function enrichedStructuredSection(section, sectionPlan) {
@@ -685,6 +703,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       lastSection = section;
       lastValidation = validation;
       if (validation.ok) {
+        logStructuredValidationWarnings({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
         instrumentation?.recordApplicationAttempt({
           sectionId: sectionPlan.sectionId,
           blockId: blockPlan.blockId,
@@ -738,6 +757,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     lastSection = section;
     lastValidation = validation;
     if (validation.ok) {
+      logStructuredValidationWarnings({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
       return {
         section: enrichedStructuredSection(section, scopedPlan),
         llmCalls,

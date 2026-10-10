@@ -10,6 +10,11 @@ const SECTION_ID = "relational_communication";
 const AFFECTION_SECTION_ID = "relational_affection";
 const MAX_ASPECT_RULES_IN_PROSE = 2;
 const MAX_AFFECTION_ASPECT_RULES_IN_PROSE = RELATIONAL_AFFECTION_SELECTION_POLICY.maxAspectRulesInProse;
+const COMMUNICATION_SENTENCE_LIMITS = Object.freeze({
+  spontaneous_dynamic: 2,
+  resource: 3,
+  attention_point: 2
+});
 const ASPECT_PAIR_PRIORITY = Object.freeze({
   mars_mercury: 1,
   mercury_venus: 1,
@@ -265,13 +270,15 @@ export function buildIndividualRelationalCommunicationPlan(dossierEvidence) {
       blockId: "spontaneous_dynamic",
       packetRefs: spontaneousPackets.map((packet) => packet.packetId),
       narrativeRole: "spontaneous_dynamic",
-      maxSentences: maxSentencesForPackets(spontaneousPackets)
+      maxSentences: COMMUNICATION_SENTENCE_LIMITS.spontaneous_dynamic,
+      sentenceLimitMode: "warning"
     },
     {
       blockId: "resource",
       packetRefs: resourcePackets.map((packet) => packet.packetId),
       narrativeRole: "resource",
-      maxSentences: maxSentencesForPackets(resourcePackets)
+      maxSentences: COMMUNICATION_SENTENCE_LIMITS.resource,
+      sentenceLimitMode: "warning"
     }
   ];
   if (attentionPackets.length > 0) {
@@ -279,7 +286,8 @@ export function buildIndividualRelationalCommunicationPlan(dossierEvidence) {
       blockId: "attention_point",
       packetRefs: attentionPackets.map((packet) => packet.packetId),
       narrativeRole: "attention_point",
-      maxSentences: maxSentencesForPackets(attentionPackets)
+      maxSentences: COMMUNICATION_SENTENCE_LIMITS.attention_point,
+      sentenceLimitMode: "warning"
     });
   }
 
@@ -317,11 +325,16 @@ export function buildIndividualRelationalCommunicationPlan(dossierEvidence) {
       "Nomme la dynamique, pas le mécanisme astrologique : évite conjonction, trigone, sextile, carré, opposition, ainsi que les formulations comme grâce à la conjonction de ou facilité par le trigone entre.",
       "Respect sémantique strict : reformulation stylistique autorisée, élargissement du sens interdit. Par exemple, transformer une idée en échange concret ne devient pas transformer les idées en actions concrètes, et adoucir un désaccord ne devient pas atténuer les conflits.",
       "Reformule uniquement les thèmes transmis au bloc courant.",
-      "Écris une seule phrase maximum par thème transmis au bloc courant.",
-      "Chaque phrase doit reformuler un seul thème du bloc courant.",
+      "Aucune longueur minimale : une phrase courte suffit lorsqu'elle couvre correctement le thème transmis.",
+      "N'ajoute jamais une phrase uniquement pour remplir.",
+      "Pour spontaneous_dynamic et attention_point, vise au plus deux phrases.",
+      "Pour resource, vise habituellement deux phrases ; une troisième phrase est permise seulement si elle aide réellement à exprimer clairement les thèmes disponibles.",
+      "Ces plafonds sont des maximums éditoriaux, jamais des longueurs à atteindre.",
+      "Chaque phrase doit rester au plus près d'un thème du bloc courant.",
       "N'ajoute ni introduction générale, ni transition, ni synthèse, ni conclusion.",
       "Ne reprends pas dans un bloc un thème réservé à un autre bloc.",
       "Ne pas ajouter une capacité, une motivation, une faiblesse, une conséquence ou un résultat relationnel absent du thème transmis.",
+      "Ne pas ajouter de conséquence, motivation, qualité psychologique ou résultat relationnel absent des thèmes transmis.",
       "Ne pas ajouter de bénéfice relationnel global après un thème.",
       "Ne répète pas un thème déjà exprimé dans le même bloc.",
       "Ne pas compléter une idée par ce qu'elle pourrait logiquement produire.",

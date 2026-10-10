@@ -161,9 +161,9 @@ test("LLM instrumentation counts one validation retry without changing logical c
   assert.equal(report.applicationAttemptDetails.find((attempt) => attempt.blockId === "resource" && attempt.applicationAttempt === 2).retryReason, "validation_correction");
 });
 
-test("LLM instrumentation counts a retry caused by the block sentence limit", async () => {
+test("LLM instrumentation does not count a retry for the non-blocking sentence warning", async () => {
   const { dossierEvidence, sectionPlan } = planForFixture();
-  const collector = createLlmInstrumentationCollector({ runId: "run-sentence-limit-retry" });
+  const collector = createLlmInstrumentationCollector({ runId: "run-sentence-limit-warning" });
   const attemptsByBlock = new Map();
   const fetchFn = async (url, options) => {
     const blockId = blockIdFromRequest(url, options);
@@ -173,7 +173,7 @@ test("LLM instrumentation counts a retry caused by the block sentence limit", as
     return response({
       blockId,
       text: invalid
-        ? "Le ton rend le message recevable. Une idée devient un échange concret. Cette phrase ajoute une synthèse."
+        ? "Le ton rend le message recevable. Une idée devient un échange concret. Le rythme aide à clarifier. Cette phrase ajoute une synthèse."
         : "Dans la relation, ce bloc reste limité aux thèmes autorisés par le serveur.",
       requestId: `req-${blockId}-${count}`
     });
@@ -187,10 +187,12 @@ test("LLM instrumentation counts a retry caused by the block sentence limit", as
   const report = collector.finalize();
 
   assert.equal(report.logicalCalls, 3);
-  assert.equal(report.applicationAttempts, 4);
-  assert.equal(report.applicationRetries, 1);
-  assert.equal(report.attemptsByBlock.resource.applicationAttempts, 2);
-  assert.equal(report.applicationAttemptDetails.find((attempt) => attempt.blockId === "resource" && attempt.applicationAttempt === 1).errorType, "validation_correction");
+  assert.equal(report.applicationAttempts, 3);
+  assert.equal(report.applicationRetries, 0);
+  assert.equal(report.attemptsByBlock.resource.applicationAttempts, 1);
+  const resourceAttempt = report.applicationAttemptDetails.find((attempt) => attempt.blockId === "resource" && attempt.applicationAttempt === 1);
+  assert.equal(resourceAttempt.status, "success");
+  assert.equal(resourceAttempt.errorType, null);
 });
 
 test("LLM instrumentation preserves a partial report when one logical call fails three attempts", async () => {

@@ -135,6 +135,35 @@ test("createFullPublicReading assembles a validated full dossier without using l
   assert.equal(reading.observability.llmCalls, 0);
 });
 
+test("un warning de longueur Communication ne bloque pas le dossier complet", async () => {
+  const callsByBlock = new Map();
+  const reading = await createFixtureReading(INPUT, {
+    structuredWriterFn: ({ sectionPlan }) => {
+      const blockPlan = sectionPlan.blockPlans[0];
+      const key = `${sectionPlan.sectionId}.${blockPlan.blockId}`;
+      callsByBlock.set(key, (callsByBlock.get(key) ?? 0) + 1);
+      const communicationResource =
+        sectionPlan.sectionId === "relational_communication" && blockPlan.blockId === "resource";
+      return {
+        sectionId: sectionPlan.sectionId,
+        contractVersion: "structured-section-writer@0.1.0",
+        blocks: [{
+          blockId: blockPlan.blockId,
+          text: communicationResource
+            ? "Le ton et le tact rendent le message plus recevable. Une idée peut devenir un échange concret. Le rythme de parole peut aider à clarifier le désaccord. Cette phrase reste un dépassement éditorial."
+            : `Cette section ${sectionPlan.sectionId} ${blockPlan.blockId} relie uniquement les preuves et règles autorisées pour proposer une lecture symbolique sobre.`
+        }]
+      };
+    }
+  });
+
+  assert.equal(reading.status, "ready_for_human_review");
+  assert.equal(reading.verification.status, "structured_validated");
+  assert.equal(callsByBlock.get("relational_communication.resource"), 1);
+  assert.ok(reading.relationship.sections.some((section) => section.sectionId === "relational_communication"));
+  assert.match(reading.html, /Communication relationnelle/);
+});
+
 test("Affection can be generated from the Venus sign fallback inside the client dossier", async () => {
   const reading = await createFixtureReading(inputForBirthDate("1950-01-01", { timeValue: "00:00" }));
   const affection = reading.relationship.sections.find((section) => section.sectionId === "relational_affection");

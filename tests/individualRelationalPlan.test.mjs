@@ -374,26 +374,24 @@ test("attention_point existe uniquement avec des attentionThemes explicites", ()
   }
 });
 
-test("maxSentences est dérivé du nombre de thèmes réellement attribués au bloc", () => {
+test("maxSentences de Communication suit les plafonds éditoriaux non bloquants", () => {
   const { sectionPlan } = planFor([
     natalAspect("Mercury", "Mars", "trine"),
     natalAspect("Mercury", "Venus", "conjunction")
   ]);
-  const packets = packetById(sectionPlan);
   for (const block of sectionPlan.blockPlans) {
-    const themeCount = block.packetRefs.reduce((sum, packetRef) => sum + (packets.get(packetRef)?.themes.length ?? 0), 0);
-    assert.equal(block.maxSentences, themeCount);
+    assert.equal(block.sentenceLimitMode, "warning");
   }
   assert.equal(blockPlan(sectionPlan, "spontaneous_dynamic").maxSentences, 2);
-  assert.equal(blockPlan(sectionPlan, "resource").maxSentences, 2);
+  assert.equal(blockPlan(sectionPlan, "resource").maxSentences, 3);
   assert.equal(blockPlan(sectionPlan, "attention_point").maxSentences, 2);
 });
 
-test("un bloc d'un thème est limité à une phrase sans codage fixture", () => {
+test("les plafonds Communication ne deviennent jamais une longueur minimale", () => {
   const { sectionPlan } = planFor([natalAspect("Mercury", "Mars", "trine")]);
-  assert.equal(blockPlan(sectionPlan, "spontaneous_dynamic").maxSentences, 1);
-  assert.equal(blockPlan(sectionPlan, "resource").maxSentences, 1);
-  assert.equal(blockPlan(sectionPlan, "attention_point").maxSentences, 1);
+  assert.equal(blockPlan(sectionPlan, "spontaneous_dynamic").maxSentences, 2);
+  assert.equal(blockPlan(sectionPlan, "resource").maxSentences, 3);
+  assert.equal(blockPlan(sectionPlan, "attention_point").maxSentences, 2);
 });
 
 test("un bloc respectant la limite de phrases est accepté", () => {
@@ -411,22 +409,60 @@ test("un bloc respectant la limite de phrases est accepté", () => {
   assert.equal(result.issues.length, 0);
 });
 
-test("une phrase supplémentaire est rejetée comme problème structurel", () => {
+test("une troisième phrase resource Communication reste acceptée sans warning de longueur", () => {
   const { dossierEvidence, sectionPlan } = planFor([
     natalAspect("Mercury", "Mars", "trine"),
     natalAspect("Mercury", "Venus", "conjunction")
   ]);
   const section = sectionWithText(sectionPlan, {
-    spontaneous_dynamic: "La parole cherche une harmonie relationnelle. L'idée circule vers la prise de position. Cette synthèse ajoute une conclusion."
+    resource: "Le ton et le tact rendent le message plus recevable. Une idée peut devenir un échange concret. Le rythme de parole peut aider à clarifier le désaccord."
   });
   const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true);
+  assert.equal(result.issues.length, 0);
+  assert.equal(result.warnings.some((warning) => warning.code === "block_sentence_limit_exceeded"), false);
+});
+
+test("un dépassement de phrases Communication est un warning non bloquant", () => {
+  const { dossierEvidence, sectionPlan } = planFor([
+    natalAspect("Mercury", "Mars", "trine"),
+    natalAspect("Mercury", "Venus", "conjunction")
+  ]);
+  const section = sectionWithText(sectionPlan, {
+    resource: "Le ton et le tact rendent le message plus recevable. Une idée peut devenir un échange concret. Le rythme de parole peut aider à clarifier le désaccord. Cette phrase reste un dépassement éditorial."
+  });
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true);
+  assert.equal(result.issues.some((issue) => issue.code === "block_sentence_limit_exceeded"), false);
+  const warning = result.warnings.find((entry) => entry.code === "block_sentence_limit_exceeded" && entry.blockId === "resource");
+  assert.ok(warning);
+  assert.equal(warning.sentenceCount, 4);
+  assert.equal(warning.maxSentences, 3);
+});
+
+test("un dépassement dans les autres blocs Communication reste un warning", () => {
+  const { dossierEvidence, sectionPlan } = planFor([
+    natalAspect("Mercury", "Mars", "trine"),
+    natalAspect("Mercury", "Venus", "conjunction")
+  ]);
+  const section = sectionWithText(sectionPlan, {
+    spontaneous_dynamic: "La parole cherche une harmonie relationnelle. L'idée circule vers la prise de position. Cette phrase dépasse la cible.",
+    attention_point: "Un désaccord peut être adouci par une formulation agréable. Le rythme peut dépasser celui de l'interlocuteur. Cette phrase dépasse la cible."
+  });
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
+  assert.equal(result.ok, true);
+  assert.equal(result.issues.some((issue) => issue.code === "block_sentence_limit_exceeded"), false);
+  assert.equal(result.warnings.filter((warning) => warning.code === "block_sentence_limit_exceeded").length, 2);
+  assert.ok(result.warnings.some((warning) => warning.blockId === "spontaneous_dynamic" && warning.sentenceCount === 3 && warning.maxSentences === 2));
+  assert.ok(result.warnings.some((warning) => warning.blockId === "attention_point" && warning.sentenceCount === 3 && warning.maxSentences === 2));
+});
+
+test("les vraies erreurs bloquantes Communication restent bloquantes", () => {
+  const { dossierEvidence, sectionPlan } = planFor([natalAspect("Mercury", "Mars", "trine")]);
+  const section = sectionWithText(sectionPlan, { resource: "" });
+  const result = validateStructuredSection({ dossierEvidence, sectionPlan, section });
   assert.equal(result.ok, false);
-  assert.ok(result.issues.some((issue) =>
-    issue.code === "block_sentence_limit_exceeded" &&
-    issue.blockId === "spontaneous_dynamic" &&
-    issue.sentenceCount === 3 &&
-    issue.maxSentences === 2
-  ));
+  assert.ok(result.issues.some((issue) => issue.code === "missing_block_text"));
 });
 
 test("le planner est testable sans LLM et utilise la provenance canonique", () => {
@@ -554,10 +590,12 @@ test("le prompt demande l'isolation des thèmes et la concision", () => {
   const { sectionPlan } = planFor([natalAspect("Mercury", "Mars", "trine")]);
   const prompt = buildStructuredSystemPrompt(sectionPlan);
   assert.match(prompt, /Reformule uniquement les thèmes transmis au bloc courant/i);
-  assert.match(prompt, /une seule phrase maximum par thème transmis/i);
+  assert.match(prompt, /Aucune longueur minimale/i);
+  assert.match(prompt, /Pour resource, vise habituellement deux phrases/i);
+  assert.match(prompt, /une troisième phrase est permise seulement/i);
+  assert.match(prompt, /jamais une phrase uniquement pour remplir/i);
   assert.match(prompt, /ni introduction générale, ni transition, ni synthèse, ni conclusion/i);
   assert.match(prompt, /Ne reprends pas dans un bloc un thème réservé à un autre bloc/i);
-  assert.match(prompt, /Aucun remplissage ni longueur minimale/i);
   assert.match(prompt, /Il est important de, Il est essentiel de, Il est nécessaire de/i);
   assert.match(prompt, /Formule le point d'attention directement/i);
   assert.doesNotMatch(prompt, /Mercury sign est un contexte secondaire/i);
@@ -652,6 +690,51 @@ test("structured writer can render the one-axis prototype without LLM", async ()
   assert.match(html, /Moi en relation/);
   assert.match(html, /Communication relationnelle/);
   assert.match(markdown, /## Communication relationnelle/);
+});
+
+test("un warning de longueur Communication ne déclenche aucun retry", async () => {
+  const { dossierEvidence, sectionPlan } = planFor([
+    natalAspect("Mercury", "Mars", "trine"),
+    natalAspect("Mercury", "Venus", "conjunction")
+  ]);
+  const callsByBlock = new Map();
+  const logs = [];
+  const textByBlock = {
+    spontaneous_dynamic: "La parole cherche une harmonie relationnelle. L'idée circule vers la prise de position.",
+    resource: "Le ton et le tact rendent le message plus recevable. Une idée peut devenir un échange concret. Le rythme de parole peut aider à clarifier le désaccord. Cette phrase reste un dépassement éditorial.",
+    attention_point: "Un désaccord peut être adouci par une formulation agréable. Le rythme peut dépasser celui de l'interlocuteur."
+  };
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan,
+    options: {
+      logger: { warn: (message, payload) => logs.push({ message, payload }) },
+      structuredWriterFn: ({ sectionPlan: scopedPlan }) => {
+        const blockId = scopedPlan.blockPlans[0].blockId;
+        callsByBlock.set(blockId, (callsByBlock.get(blockId) ?? 0) + 1);
+        return {
+          sectionId: scopedPlan.sectionId,
+          contractVersion: "structured-section-writer@0.1.0",
+          blocks: [{ blockId, text: textByBlock[blockId] }]
+        };
+      }
+    }
+  });
+
+  assert.equal(written.validation.ok, true);
+  assert.equal(written.validation.issues.length, 0);
+  assert.equal(callsByBlock.get("resource"), 1);
+  const warning = written.validation.warnings.find((entry) => entry.code === "block_sentence_limit_exceeded" && entry.blockId === "resource");
+  assert.ok(warning);
+  assert.equal(warning.sentenceCount, 4);
+  assert.equal(warning.maxSentences, 3);
+  assert.ok(logs.some((entry) =>
+    entry.message.includes("validation warning") &&
+    entry.payload.sectionId === "relational_communication" &&
+    entry.payload.blockId === "resource" &&
+    entry.payload.sentenceCount === 4 &&
+    entry.payload.maxSentences === 3
+  ));
 });
 
 test("la sortie brute sans références est enrichie depuis les packets déterministes", async () => {
