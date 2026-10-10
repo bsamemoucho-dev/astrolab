@@ -233,8 +233,11 @@ Axes validés pour la structure V1 de "Moi en relation" :
 - Manière d'entrer en relation ;
 - Besoin d'espace et de proximité ;
 - Manière d'aborder les désaccords ;
-- Désir, initiative et manière d'agir ;
 - Besoins relationnels.
+
+L'ancien axe "Désir, initiative et manière d'agir" est reporté à une éventuelle
+V2/V3. Aucune doctrine sexuelle ou comportementale n'est ajoutée dans la V1
+publique, et `Venus-Mars` reste inutilisé pour le moment.
 
 "Ressources relationnelles" et "Zones demandant de l'attention" ne sont pas
 des axes autonomes. Elles correspondent aux blocs transversaux du writer
@@ -259,10 +262,14 @@ Etat validé :
 - validation technique : PASS ;
 - validation doctrinale : PASS ;
 - traçabilité : PASS.
+- Manière d'exprimer son affection V1 : doctrine validée dans
+  `docs/doctrine/affection-v1.md`, implémentée par les règles
+  `western.relational.affection.*@1`, writer `gpt-4.1-mini`, et intégrée au
+  dossier client après Communication relationnelle.
 
-Les six autres axes restent non implémentés et sans doctrine validée. Les pistes
-documentaires existantes ne doivent pas être transformées en règles tant qu'une
-décision méthodologique humaine ne les a pas validées.
+Les quatre autres axes V1 restent non implémentés et sans doctrine validée. Les
+pistes documentaires existantes ne doivent pas être transformées en règles tant
+qu'une décision méthodologique humaine ne les a pas validées.
 
 Ces axes sont une grille interprétative Lastro. Ils ne doivent pas être présentés
 comme une doctrine astrologique traditionnelle autonome.
@@ -296,7 +303,7 @@ destinés au lecteur français doivent être en français :
 
 Le mapping complet vers les autres langues est futur.
 
-La structure générale de "Moi en relation" retient sept axes. Les blocs
+La structure générale de "Moi en relation" retient six axes en V1. Les blocs
 `resource` et `attention_point` sont transversaux ; `attention_point` reste
 facultatif et dépend strictement de la présence d'un `attentionTheme` validé.
 La structure exacte de "Moi en amour" reste ouverte.
@@ -490,7 +497,7 @@ ouvertes.
 
 | Elément | Statut |
 |---|---|
-| Lecture "Moi en relation" | TARGET V1, partiellement implémentée : Communication relationnelle V1 validée ; six autres axes non implémentés |
+| Lecture "Moi en relation" | TARGET V1, partiellement implémentée : Communication relationnelle V1 et Affection V1 validées ; quatre autres axes V1 non implémentés ; Désir/initiative reporté V2/V3 |
 | Lecture "Moi en amour" | TARGET V1 possible, structure ouverte |
 | `western-synastry` Amour | APPROVED FOR V1 DEVELOPMENT, non implémentée |
 | Corps synastrie | Sept corps natals V1 |
@@ -737,7 +744,7 @@ silencieusement l'historique.
 
 1. Valeurs exactes des orbes de synastrie.
 2. Future `methodVersion` officielle de la synastrie.
-3. Doctrine et règles précises des six axes non implémentés de "Moi en relation".
+3. Doctrine et règles précises des quatre axes V1 non implémentés de "Moi en relation".
 4. Structure précise de "Moi en amour".
 5. Structure précise du dossier "Nous en amour".
 6. Modalités de rédaction des faits `sensitive / variable`.
@@ -762,7 +769,7 @@ silencieusement l'historique.
 |---|---|
 | Documenter l'état réel du code | CURRENT |
 | Corriger le registre méthodologique | CURRENT |
-| Stabiliser "Moi en relation" | PARTIAL : Communication relationnelle V1 validée, six axes restants à définir |
+| Stabiliser "Moi en relation" | PARTIAL : Communication relationnelle V1 et Affection V1 validées, quatre axes V1 restants à définir |
 | Définir `western-synastry` Amour | TARGET |
 | Fixer les orbes et la `methodVersion` | OPEN |
 | Implémenter moteur synastrie | FUTURE |

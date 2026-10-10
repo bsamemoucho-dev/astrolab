@@ -45,12 +45,14 @@ Current roadmap clarification:
 
 - the current production method remains the natal/public-reading pipeline;
 - relational product work separates individual relational readings from two-person synastry;
-- `individual_relational` is a one-person vertical: "Moi en relation", structured around seven axes;
+- `individual_relational` is a one-person vertical: "Moi en relation", structured around six V1 axes;
 - `western-synastry` is now approved for V1 development as a future two-person relational method;
 - approval for development does not mean implemented, validated, or production eligible;
 - current relationship architecture reference: [Relationship Analysis Architecture V2](relationship-analysis-architecture-v2.md).
-- `individual_relational.communication` / Communication relationnelle V1 is validated at checkpoint `75ea178`: `gpt-4.1-mini` is used only for that axis, Mercury sign is excluded from its V1, two real fixtures passed, and technical, doctrinal, and traceability validation are PASS.
-- the six other `individual_relational` axes remain non-implemented and without validated doctrine.
+- `individual_relational.communication` / Communication relationnelle V1 is validated at checkpoint `75ea178`: `gpt-4.1-mini` is used for that axis, Mercury sign is excluded from its V1, two real fixtures passed, and technical, doctrinal, and traceability validation are PASS.
+- `individual_relational.affection` / Manière d'exprimer son affection V1 is validated from `docs/doctrine/affection-v1.md`, uses the validated `western.relational.affection.*@1` rules and `gpt-4.1-mini`, and is the second implemented client axis after Communication relationnelle.
+- the four other V1 `individual_relational` axes remain non-implemented and without validated doctrine.
+- the former "Désir, initiative et manière d'agir" axis is deferred to a possible V2/V3; no sexual or behavioral doctrine is added to V1, and `Venus-Mars` remains unused for now.
 - `resource` and `attention_point` are transversal writer blocks, not autonomous axes; `attention_point` is emitted only when a validated rule provides an `attentionTheme`.
 
 ## Registry
@@ -106,7 +108,7 @@ The next decisions for `western-natal` remain:
 
 Additional decisions for `individual-relational`:
 
-- doctrine and rules for the six non-implemented "Moi en relation" axes;
+- doctrine and rules for the four non-implemented V1 "Moi en relation" axes;
 - exact structure of "Moi en amour";
 - source facts and Lastro interpretation grid for non-validated axes;
 - public navigation and naming;
@@ -127,7 +129,7 @@ Additional decisions for `western-synastry` before implementation or validation:
 
 The relational roadmap separates:
 
-- `individual_relational`: one-person reading, "Moi en relation", with seven axes;
+- `individual_relational`: one-person reading, "Moi en relation", with six V1 axes;
 - `western-synastry`: two-person reading, "Nous";
 - `temporal_relational`: future two-person + current-sky reading, deferred.
 
