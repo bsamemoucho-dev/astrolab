@@ -683,13 +683,13 @@ sens central:
   en accordant de l'importance à la singularité de l'autre
 
 dynamique spontanée:
-  manifester son affection par des attentions liées
-  aux goûts, aux intérêts ou aux particularités de l'autre,
-  parfois sous une forme inattendue
+  manifester son affection par des attentions personnalisées,
+  inspirées par les goûts, les intérêts ou les particularités
+  de l'autre
 
 ressource:
-  capacité à donner à son affection une expression personnelle,
-  construite autour de ce qui distingue l'autre
+  capacité à donner à son affection une forme personnelle,
+  même lorsqu'elle ne suit pas les codes habituels
 
 point d'attention:
   absent en V1
@@ -993,12 +993,13 @@ sens central:
   le soin et la manière de manifester son affection
 
 dynamique spontanée:
-  manifester son affection à la fois par le soin
-  apporté à l'autre et par des gestes affectueux
+  le soin concret et la tendresse explicite occupent
+  tous deux une place dans la manière de manifester
+  son affection
 
 ressource:
-  capacité à exprimer son affection de plusieurs façons,
-  par l'attention concrète comme par la tendresse
+  capacité à réunir une attention concrète et une marque
+  de tendresse explicite dans une même manifestation
 
 point d'attention:
   le soin que la personne apporte peut parfois

@@ -442,6 +442,7 @@ test("npm test ne déclenche pas le LLM réel si seule la clé locale est prése
     {
       ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
+      ASTROLAB_LLM_MODEL: undefined,
       ASTROLAB_RUN_LLM_TESTS: undefined
     },
     async () => {
@@ -478,6 +479,7 @@ test("l'opt-in explicite est requis pour exposer une vraie configuration LLM en 
     {
       ASTROLAB_LLM_API_KEY: "cle-de-test",
       ASTROLAB_LLM_BASE_URL: undefined,
+      ASTROLAB_LLM_MODEL: undefined,
       ASTROLAB_RUN_LLM_TESTS: "1"
     },
     async () => {
@@ -510,6 +512,18 @@ test("le writer reçoit les consignes anti-jargon et anti-élargissement sémant
   assert.match(guidance, /élargissement du sens interdit/i);
   assert.match(guidance, /échange concret ne devient pas transformer les idées en actions concrètes/i);
   assert.match(guidance, /adoucir un désaccord ne devient pas atténuer les conflits/i);
+});
+
+test("les consignes de resserrement Affection ne modifient pas Communication relationnelle", () => {
+  const { sectionPlan } = planFor([natalAspect("Mercury", "Mars", "trine"), natalAspect("Mercury", "Venus", "conjunction")]);
+  const guidance = sectionPlan.writerGuidance.join("\n");
+
+  assert.doesNotMatch(guidance, /Reformule le thème transmis de façon proche et concise/);
+  assert.doesNotMatch(guidance, /Ne pas ajouter d'intention ou de motivation/);
+  assert.doesNotMatch(guidance, /Ne pas ajouter de qualité morale ou psychologique/);
+  assert.doesNotMatch(guidance, /Ne pas ajouter d'adverbe qui intensifie une capacité/);
+  assert.doesNotMatch(guidance, /Ne transforme pas plusieurs formes d'expression en alternance/);
+  assert.doesNotMatch(guidance, /Ne commence pas les blocs resource ou attention_point par : Vous manifestez votre affection/);
 });
 
 test("Mercury sign est retiré de Communication relationnelle V1 quand des règles aspectuelles existent", () => {

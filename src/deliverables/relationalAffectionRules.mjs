@@ -219,8 +219,8 @@ const VENUS_SIGN_RULES = [
   }),
   venusSignRule("Aquarius", {
     centralTheme: "une affection exprimée de manière personnalisée, en accordant de l'importance à la singularité de l'autre",
-    spontaneousTheme: "manifester son affection par des attentions liées aux goûts, aux intérêts ou aux particularités de l'autre, parfois sous une forme inattendue",
-    resourceTheme: "capacité à donner à son affection une expression personnelle, construite autour de ce qui distingue l'autre",
+    spontaneousTheme: "manifester son affection par des attentions personnalisées, inspirées par les goûts, les intérêts ou les particularités de l'autre",
+    resourceTheme: "capacité à donner à son affection une forme personnelle, même lorsqu'elle ne suit pas les codes habituels",
     forbidden: ["acceptation inconditionnelle ou absence totale de jugement", "détachement, froideur ou distance émotionnelle", "affection « amicale plutôt qu'amoureuse »", "excentricité, provocation ou goût de la rébellion", "originalité ou créativité garanties", "imprévisibilité ou instabilité affective", "difficulté à s'engager", "intellectualisation des sentiments", "opinions politiques, sociales ou humanitaires particulières", scopeNote("besoin de liberté, d'indépendance ou d'espace", "relève de « Besoin d'espace et de proximité »"), scopeNote("respect ou gestion de l'autonomie de l'autre", "relève de « Besoin d'espace et de proximité »"), "manière dont l'autre interprète ces attentions", scopeNote("manière de recevoir l'affection", "relève de « Besoins relationnels »")]
   }),
   venusSignRule("Pisces", {
@@ -252,8 +252,8 @@ const MOON_VENUS_RULES = [
   }, AFFECTION_MOON_VENUS_FORBIDDEN),
   affectionAspectRule("Moon", "Venus", "square", {
     centralTheme: "tension entre la sensibilité émotionnelle, le soin et la manière de manifester son affection",
-    spontaneousTheme: "manifester son affection à la fois par le soin apporté à l'autre et par des gestes affectueux",
-    resourceTheme: "capacité à exprimer son affection de plusieurs façons, par l'attention concrète comme par la tendresse",
+    spontaneousTheme: "le soin concret et la tendresse explicite occupent tous deux une place dans la manière de manifester son affection",
+    resourceTheme: "capacité à réunir une attention concrète et une marque de tendresse explicite dans une même manifestation",
     attentionTheme: "le soin que la personne apporte peut parfois tenir lieu d'expression affective, sans qu'une marque de tendresse distincte soit exprimée au même moment",
     forbidden: ["absence d'affection ou de tendresse", "incapacité à aimer ou à prendre soin de l'autre", "difficulté générale à exprimer ses sentiments", "contradiction permanente ou ambivalence affective", "instabilité émotionnelle ou humeur changeante", "conflits relationnels garantis", "insatisfaction affective", "incompréhension garantie de la part de l'autre", "échec ou instabilité de la relation"]
   }, AFFECTION_MOON_VENUS_FORBIDDEN),

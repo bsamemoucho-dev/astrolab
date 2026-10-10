@@ -193,16 +193,51 @@ test("les règles Affection utilisent la provenance et les champs relationnels c
   assert.equal(rule.subtype, "RELATIONAL_INTERPRETATION");
   assert.equal(rule.relationalAffection.axisId, "affection");
   assert.deepEqual(rule.relationalAffection.spontaneousThemes, [
-    "manifester son affection à la fois par le soin apporté à l'autre et par des gestes affectueux"
+    "le soin concret et la tendresse explicite occupent tous deux une place dans la manière de manifester son affection"
   ]);
   assert.deepEqual(rule.relationalAffection.resourceThemes, [
-    "capacité à exprimer son affection de plusieurs façons, par l'attention concrète comme par la tendresse"
+    "capacité à réunir une attention concrète et une marque de tendresse explicite dans une même manifestation"
   ]);
   assert.deepEqual(rule.relationalAffection.attentionThemes, [
     "le soin que la personne apporte peut parfois tenir lieu d'expression affective, sans qu'une marque de tendresse distincte soit exprimée au même moment"
   ]);
   assert.ok(rule.forbidden.includes("besoin d'être rassuré ou protégé"));
   assert.ok(rule.forbidden.includes("absence d'affection ou de tendresse"));
+});
+
+test("Moon-Venus square distingue tension et attention sans alternance doctrinale", () => {
+  const rule = interpretationRuleById("western.relational.affection.moon_venus.square@1");
+  const spontaneous = rule.relationalAffection.spontaneousThemes[0];
+  const resource = rule.relationalAffection.resourceThemes[0];
+
+  assert.equal(spontaneous, "le soin concret et la tendresse explicite occupent tous deux une place dans la manière de manifester son affection");
+  assert.equal(resource, "capacité à réunir une attention concrète et une marque de tendresse explicite dans une même manifestation");
+  assert.equal(rule.relationalAffection.attentionThemes[0], "le soin que la personne apporte peut parfois tenir lieu d'expression affective, sans qu'une marque de tendresse distincte soit exprimée au même moment");
+  assert.doesNotMatch(spontaneous, /altern|selon le moment|l'un des deux|l’autre|moments différents/i);
+  assert.doesNotMatch(resource, /altern|selon le moment|l'un des deux|l’autre|moments différents/i);
+});
+
+test("Venus Aquarius fallback reste centré sur les attentions personnalisées sans attentionTheme", () => {
+  const rule = interpretationRuleById("western.relational.affection.venus.sign.aquarius@1");
+
+  assert.equal(rule.relationalAffection.spontaneousThemes[0], "manifester son affection par des attentions personnalisées, inspirées par les goûts, les intérêts ou les particularités de l'autre");
+  assert.equal(rule.relationalAffection.resourceThemes[0], "capacité à donner à son affection une forme personnelle, même lorsqu'elle ne suit pas les codes habituels");
+  assert.deepEqual(rule.relationalAffection.attentionThemes, []);
+});
+
+test("les consignes de resserrement du writer sont limitées à Affection", () => {
+  const { sectionPlan: affectionSectionPlan } = planFor([natalAspect("Moon", "Venus", "square")]);
+  const affectionGuidance = affectionSectionPlan.writerGuidance.join("\n");
+
+  assert.match(affectionGuidance, /Reformule le thème transmis de façon proche et concise/);
+  assert.match(affectionGuidance, /Ne pas ajouter d'intention ou de motivation/);
+  assert.match(affectionGuidance, /Ne pas ajouter de qualité morale ou psychologique/);
+  assert.match(affectionGuidance, /Ne pas ajouter d'adverbe qui intensifie une capacité/);
+  assert.match(affectionGuidance, /Arrête la phrase dès que le thème transmis est reformulé/);
+  assert.match(affectionGuidance, /Ne transforme pas plusieurs formes d'expression en alternance/);
+  assert.match(affectionGuidance, /Dans le bloc resource, exprime uniquement la ressource transmise/);
+  assert.match(affectionGuidance, /Ne commence pas les blocs resource ou attention_point par : Vous manifestez votre affection/);
+  assert.match(affectionGuidance, /Ne commence pas les blocs resource ou attention_point par : Vous exprimez votre affection/);
 });
 
 test("le fallback Venus sign est utilisé uniquement sans aspect certain", () => {
