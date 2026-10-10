@@ -211,7 +211,6 @@ export function createPdfRenderer(configuration, { launch = null } = {}) {
         minuteur = setTimeout(() => {
           rejeter(new PdfRenderError(`Le rendu PDF n'a pas abouti en ${configuration.timeoutMs} ms.`, { code: PDF_TIMEOUT_CODE }));
         }, configuration.timeoutMs + (configuration.graceMs ?? 5000));
-        minuteur.unref?.();
       });
       try {
         return await Promise.race([travail, delai]);
