@@ -227,19 +227,34 @@ function pushAspectFact(facts, seen, bodyA, aspectType, bodyB) {
   facts.push({ type: "ASPECT", bodyA, bodyB, aspectType });
 }
 
+// Calendar months inside explicit dates are not astrological bodies. In particular,
+// the month "mars" must not become a second planet in an aspect. Only recognize
+// explicit day/month or month/year dates; a bare "Mars" remains a planet.
+function aspectTextWithoutCalendarMonths(text) {
+  const months = "janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre";
+  const dates = new RegExp(`\\b(?:(?:0?[1-9]|[12][0-9]|3[01])(?:er)?\\s+(?:${months})(?:\\s+[0-9]{4})?|(?:${months})\\s+[0-9]{4})\\b`, "giu");
+  // Keep offsets and intervening date text intact for genuine planetary aspects.
+  return normalizedText(text).replace(dates, (date) => date.replace(/\bmars\b/gu, "    "));
+}
+
 function detectAspectFacts(text) {
-  const source = normalizedText(text);
+  const source = aspectTextWithoutCalendarMonths(text);
   const facts = [];
   const seen = new Set();
   const shortText = "[^.!?;\\n]{0,36}?";
   const connector = "(?:et|avec|a|au|à|-|–|—)";
   const patterns = [
-    new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${BODY_PATTERN})\\b${shortText}${connector}${shortText}\\b(${BODY_PATTERN})\\b`, "giu"),
-    new RegExp(`\\b(${BODY_PATTERN})\\b${shortText}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortText}\\b(${ASPECT_PATTERN})\\b${shortText}(?:avec|a|au|vers|-|–|—)${shortText}\\b(${BODY_PATTERN})\\b`, "giu"),
-    new RegExp(`\\b(${BODY_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${BODY_PATTERN})\\b`, "giu")
+    new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${BODY_PATTERN})\\b${shortText}${connector}${shortText}\\b(${BODY_PATTERN})\\b`, "gidu"),
+    new RegExp(`\\b(${BODY_PATTERN})\\b${shortText}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortText}\\b(${ASPECT_PATTERN})\\b${shortText}(?:avec|a|au|vers|-|–|—)${shortText}\\b(${BODY_PATTERN})\\b`, "gidu"),
+    new RegExp(`\\b(${BODY_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${BODY_PATTERN})\\b`, "gidu")
   ];
 
+  const bodyFirstMatches = patterns.slice(1).flatMap((pattern) => [...source.matchAll(pattern)]);
+  const resolvedAspectOffsets = new Set(bodyFirstMatches.map((match) => match.indices[2][0]));
   for (const match of source.matchAll(patterns[0])) {
+    // If this exact aspect token already has an explicit subject and object,
+    // do not reinterpret its object and a later planet as a second pair.
+    if (resolvedAspectOffsets.has(match.indices[1][0])) continue;
     pushAspectFact(
       facts,
       seen,
@@ -248,16 +263,14 @@ function detectAspectFacts(text) {
       keyForVocabularyMatch(match[3], BODY_WORDS)
     );
   }
-  for (const pattern of patterns.slice(1)) {
-    for (const match of source.matchAll(pattern)) {
-      pushAspectFact(
-        facts,
-        seen,
-        keyForVocabularyMatch(match[1], BODY_WORDS),
-        keyForVocabularyMatch(match[2], ASPECT_WORDS),
-        keyForVocabularyMatch(match[3], BODY_WORDS)
-      );
-    }
+  for (const match of bodyFirstMatches) {
+    pushAspectFact(
+      facts,
+      seen,
+      keyForVocabularyMatch(match[1], BODY_WORDS),
+      keyForVocabularyMatch(match[2], ASPECT_WORDS),
+      keyForVocabularyMatch(match[3], BODY_WORDS)
+    );
   }
 
   return facts;
