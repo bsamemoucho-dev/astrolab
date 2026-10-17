@@ -462,13 +462,24 @@ function sentenceLimitWarnings(validation) {
   return (validation?.warnings ?? []).filter((warning) => warning.code === "block_sentence_limit_exceeded");
 }
 
-function logStructuredValidationFailure({ logger, sectionId, blockId = null, attempt, validation }) {
+// Deliberately exclude prose, messages, dates, evidence IDs and input data.
+function safeValidationFindings(validation, provenance) {
+  const safeKeys = ["type", "body", "bodyA", "bodyB", "transitBody", "natalPoint", "aspectType", "sign", "house", "angle"];
+  return (validation?.issues ?? []).map((issue) => ({
+    code: issue.code,
+    provenance,
+    fact: issue.fact ? Object.fromEntries(safeKeys.filter((key) => issue.fact[key] !== undefined).map((key) => [key, issue.fact[key]])) : null
+  }));
+}
+
+function logStructuredValidationFailure({ logger, sectionId, blockId = null, attempt, validation, provenance = "combined_text" }) {
   if (!logger?.warn) return;
   logger.warn("[Lastro] structured section validation failed", {
     sectionId,
     blockId,
     attempt,
-    validationErrorCodes: validationErrorCodes(validation)
+    validationErrorCodes: validationErrorCodes(validation),
+    findings: safeValidationFindings(validation, provenance)
   });
 }
 
@@ -609,6 +620,29 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       model: null,
       validation
     };
+  }
+
+  // Validate the server-owned prefix independently before spending any LLM call.
+  // A later failure in combined text must not be attributed to this prefix.
+  const prefix = String(blockPlan.deterministicPrefix ?? "").trim();
+  if (prefix) {
+    const section = {
+      sectionId: scopedPlan.sectionId,
+      contractVersion: STRUCTURED_WRITER_CONTRACT_VERSION,
+      blocks: [{ blockId: blockPlan.blockId, text: prefix }]
+    };
+    const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
+    if (!validation.ok) {
+      logStructuredValidationFailure({ logger, sectionId: scopedPlan.sectionId, blockId: blockPlan.blockId, attempt: 0, validation, provenance: "server_prefix" });
+      const error = new Error(`Server prefix validation failed for block ${blockPlan.blockId}`);
+      error.status = 500;
+      error.code = "SERVER_PREFIX_VALIDATION_FAILED";
+      error.sectionId = scopedPlan.sectionId;
+      error.blockId = blockPlan.blockId;
+      error.provenance = "server_prefix";
+      error.validation = validation;
+      throw error;
+    }
   }
 
   let correctionIssues = [];
