@@ -340,11 +340,17 @@ export function buildDossierEvidence({ natalResult, natalRun = null, currentSky 
   const evidence = [];
   buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt });
   buildTransitEvidence({ evidence, currentSky, generatedAt });
-  if (parentContext && Array.isArray(parentContext.parents) && parentContext.parents.length > 0) {
+  // Aucune preuve parentale n'est créée sans date de naissance : une entrée
+  // réduite à un nom ou à une ville ne calculerait rien et ne servirait qu'à
+  // conserver des données de tiers sans usage.
+  const usableParents = (Array.isArray(parentContext?.parents) ? parentContext.parents : []).filter(
+    (entry) => String(entry?.birthDate ?? "").trim().length > 0
+  );
+  if (usableParents.length > 0) {
     add(evidence, {
       evidenceId: "parent.context",
       type: "PARENT_CONTEXT",
-      value: { parents: parentContext.parents },
+      value: { parents: usableParents },
       provenance: {
         engine: "user_input",
         method: "parent-context",

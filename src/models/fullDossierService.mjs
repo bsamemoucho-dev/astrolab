@@ -89,7 +89,12 @@ function normalizePlace(input) {
 function normalizeParents(input = {}) {
   const candidates = Array.isArray(input.parents) ? input.parents : [];
   return candidates
-    .filter((entry) => entry && (entry.label || entry.role))
+    // Un parent sans date de naissance ne peut produire AUCUN calcul : conserver
+    // son nom ou sa ville serait une collecte de données de tiers sans finalité.
+    // Le bloc « Parents » du formulaire public est masqué (le dossier payant ne
+    // contient pas de chapitre transgénérationnel) ; cette règle garantit qu'un
+    // envoi direct, même forgé, ne stocke rien d'inutilisable.
+    .filter((entry) => entry && (entry.label || entry.role) && cleanString(entry.birthDate))
     .map((entry, index) => ({
       role: String(entry.role ?? (index === 0 ? "mother" : "father")),
       label: cleanString(entry.label),

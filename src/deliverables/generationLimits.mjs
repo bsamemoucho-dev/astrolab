@@ -63,13 +63,25 @@ export function blockCountOf(sectionPlan, override = null) {
 
 // Budget d'un bloc : la part qui lui revient, moins la phrase que le serveur
 // ajoutera lui-même. Un bloc sur huit ne peut plus réclamer le budget entier.
+//
+// Cas particulier des blocs à phrase déterministe (« prochaines semaines »,
+// « ciel du moment ») : le serveur écrit déjà le fait (19 à 28 mots), et la part
+// restante tombait à 15–21 mots — soit une phrase de commentaire par transit,
+// c'est-à-dire une liste et non une lecture. Le repère du bloc reçoit donc un
+// plancher, borné par son propre plafond : la lecture redevient faisable sans
+// dépasser le maximum de la section ni coûter un token de plus.
+export const MIN_PREFIXED_BLOCK_TARGET_WORDS = 40;
+
 export function blockLengthBudget({ sectionPlan = {}, blockPlan = null, blockCount = null } = {}) {
   const blocks = blockCountOf(sectionPlan, blockCount);
   const sectionTarget = Math.max(0, Number(sectionPlan?.targetWords ?? 0));
   const sectionMax = Math.max(sectionTarget, Number(sectionPlan?.maxWords ?? sectionTarget));
   const prefixWords = prefixWordsFor(blockPlan);
-  const targetWords = Math.max(0, Math.ceil(sectionTarget / blocks) - prefixWords);
   const maxWords = Math.max(30, Math.ceil(sectionMax / blocks) - prefixWords);
+  let targetWords = Math.max(0, Math.ceil(sectionTarget / blocks) - prefixWords);
+  if (prefixWords > 0) {
+    targetWords = Math.max(targetWords, Math.min(maxWords, MIN_PREFIXED_BLOCK_TARGET_WORDS));
+  }
   return {
     blockCount: blocks,
     prefixWords,

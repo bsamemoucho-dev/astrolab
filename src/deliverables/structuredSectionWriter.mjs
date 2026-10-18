@@ -371,7 +371,9 @@ function unique(values = []) {
   return [...new Set(values.filter((value) => value !== null && value !== undefined))];
 }
 
-function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
+// Exportés pour l'outil d'estimation de coût : il doit composer EXACTEMENT les
+// mêmes invites que le rédacteur, sinon l'estimation ne vaut rien.
+export function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
   const packetRefs = new Set(blockPlan?.packetRefs ?? []);
   const evidencePackets = (sectionPlan?.evidencePackets ?? []).filter((packet) => packetRefs.has(packet.packetId));
   const evidenceRefs = unique(evidencePackets.flatMap((packet) => packet.evidenceRefs ?? []));
@@ -599,7 +601,7 @@ function blockPlansForPrompt(sectionPlan) {
   }));
 }
 
-function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
+export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
   return JSON.stringify(
     {
       sectionPlan: {

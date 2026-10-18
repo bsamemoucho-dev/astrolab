@@ -2605,14 +2605,16 @@ function deliverableParentsFromForm(form) {
     const label = field(form, `${prefix}Name`)?.value.trim() ?? "";
     const birthDate = field(form, `${prefix}BirthDate`)?.value ?? "";
     const birthPlace = field(form, `${prefix}BirthPlace`)?.value.trim() ?? "";
-    if (label || birthDate || birthPlace) {
-      parents.push({
-        role,
-        label: label || null,
-        birthDate: birthDate || null,
-        birthPlace: birthPlace || null
-      });
-    }
+    // Sans date de naissance, aucun thème parental ne peut être calculé : envoyer
+    // le nom ou la ville d'un tiers ne servirait à rien et ferait conserver des
+    // données personnelles sans usage. Le serveur applique la même règle.
+    if (!birthDate) return;
+    parents.push({
+      role,
+      label: label || null,
+      birthDate,
+      birthPlace: birthPlace || null
+    });
   };
   read("mother", "mother");
   read("father", "father");

@@ -105,8 +105,58 @@ test("la phrase que le serveur ajoute est retirée du budget du bloc", () => {
   };
   const budget = blockLengthBudget({ sectionPlan: section, blockPlan: avecPrefixe });
   assert.ok(budget.prefixWords >= 12, `préfixe compté (${budget.prefixWords} mots)`);
-  assert.equal(budget.targetWords, 420 - budget.prefixWords);
-  assert.equal(budget.maxWords, 760 - budget.prefixWords);
+  assert.ok(budget.targetWords >= 40, "un bloc à phrase déterministe garde un repère lisible");
+  assert.ok(budget.targetWords <= budget.maxWords);
+  assert.ok(budget.maxWords <= 760);
+});
+
+// « Mes prochaines semaines » : huit blocs, un fait écrit par le serveur par
+// bloc. Sans plancher, la part laissée à l'interprétation tombait à 15 mots par
+// transit — une liste de phrases, pas une lecture. Le plancher doit rester
+// compatible avec le plafond de la section et ne rien coûter de plus.
+test("les huit blocs « prochaines semaines » gardent une lecture possible", () => {
+  const prefixe = "La Lune forme une conjonction avec votre Vénus entre le 20 octobre 2026 et le 21 octobre 2026.";
+  const section = {
+    targetWords: 320,
+    maxWords: 620,
+    blockPlans: Array.from({ length: 8 }, (_, index) => ({
+      blockId: `transit_${index + 1}`,
+      deterministicPrefix: prefixe
+    }))
+  };
+
+  const budgets = section.blockPlans.map((blockPlan) =>
+    blockLengthBudget({ sectionPlan: section, blockPlan })
+  );
+  for (const budget of budgets) {
+    assert.ok(budget.targetWords >= 40, `repère trop court : ${budget.targetWords}`);
+    assert.ok(
+      budget.targetWords <= budget.maxWords,
+      `repère (${budget.targetWords}) au-delà du plafond du bloc (${budget.maxWords})`
+    );
+  }
+
+  const motsInterpretation = budgets.reduce((total, budget) => total + budget.targetWords, 0);
+  const motsPrefixes = budgets.reduce((total, budget) => total + budget.prefixWords, 0);
+  assert.ok(
+    motsInterpretation + motsPrefixes <= section.maxWords + 40,
+    `rendu ${motsInterpretation + motsPrefixes} mots au-delà du plafond de section`
+  );
+  // Le plafond par appel ne bouge pas : le plancher ne coûte rien de plus.
+  for (const budget of budgets) {
+    assert.equal(maxTokensForBlock(budget), maxTokensForBlock({ maxWords: budget.maxWords }));
+  }
+});
+
+test("le plancher de repère ne s'applique pas aux blocs sans phrase déterministe", () => {
+  const section = {
+    targetWords: 320,
+    maxWords: 620,
+    blockPlans: Array.from({ length: 8 }, (_, index) => ({ blockId: `b${index + 1}` }))
+  };
+  const budget = blockLengthBudget({ sectionPlan: section, blockPlan: section.blockPlans[0] });
+  assert.equal(budget.prefixWords, 0);
+  assert.equal(budget.targetWords, 40);
 });
 
 // ---------------------------------------------------------------------------
