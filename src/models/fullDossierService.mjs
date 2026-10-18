@@ -303,6 +303,15 @@ function logFullDossier({ startedAt, generated, relationalGenerated, dossierEvid
     promptTokens: reading.observability.promptTokens,
     completionTokens: reading.observability.completionTokens,
     model: reading.observability.model,
+    // Longueur réellement produite, et plafond théorique dépensable (somme des
+    // plafonds de blocs) : deux mesures, aucune consigne de remplissage.
+    wordsGenerated: (generated.words ?? 0) + (relationalGenerated.words ?? 0),
+    plannedOutputTokens:
+      (generated.plannedOutputTokens ?? 0) + (relationalGenerated.plannedOutputTokens ?? 0),
+    shortSections: [
+      ...(generated.shortSections ?? []).map((entry) => entry.sectionId),
+      ...(relationalGenerated.shortSections ?? []).map((entry) => entry.sectionId)
+    ],
     evidenceCount: dossierEvidence.evidence.length,
     planSections: fullDossierPlan.sections.length + relationalGenerated.plan.sections.length,
     validationOk: validation.ok,

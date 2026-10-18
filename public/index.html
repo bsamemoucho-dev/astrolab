@@ -465,7 +465,7 @@
                 </div>
                 <div class="ai-notice">
                   <strong id="ai-notice-title">Texte généré par une intelligence artificielle</strong>
-                  <span id="ai-notice-text">Votre lecture est rédigée automatiquement à partir de vos données de naissance, dont le calcul est vérifié. Malgré les contrôles automatiques (dont une vérification par un second modèle), une IA peut se tromper, mal interpréter ou inventer une nuance : c'est un outil de réflexion, pas une vérité, ni un diagnostic, ni une prédiction d'événements.</span>
+                  <span id="ai-notice-text">Votre lecture est rédigée automatiquement à partir de vos données de naissance, dont le calcul est vérifié. Chaque section est confrontée automatiquement aux faits calculés (positions, aspects, maisons, dates) et reprise si elle les contredit ; aucune relecture humaine n'a lieu. Une IA peut néanmoins se tromper, mal interpréter ou inventer une nuance : c'est un outil de réflexion, pas une vérité, ni un diagnostic, ni une prédiction d'événements.</span>
                   <label class="ai-consent">
                     <input type="checkbox" id="ai-consent">
                     <span id="ai-consent-label">J'ai lu et compris : ce texte est généré par une IA et peut contenir des erreurs.</span>
@@ -494,8 +494,16 @@
                 <label>Prénom <input name="firstName" placeholder="ex. Caroline"></label>
                 <label>Votre question <textarea name="intention" rows="2" placeholder="Ce que vous aimeriez éclairer…"></textarea></label>
               </details>
-              <details class="parent-fieldset express-optional">
-                <summary>Parents — lecture transgénérationnelle (optionnel)</summary>
+              <!-- Bloc parents MASQUÉ (18/10/2026) : le dossier payant (plan « full dossier »
+                   17 sections + 2 axes relationnels) ne contient AUCUNE section
+                   transgénérationnelle. Annoncer « lecture transgénérationnelle » et collecter
+                   les naissances des parents pour un module qui n'est pas livré était une
+                   promesse non tenue — et une collecte de données de tiers sans finalité.
+                   Les champs restent dans le DOM (câblage de la reconnaissance de lieu
+                   vérifié par tests/printLayout.test.mjs) ; le jour où le module est livré
+                   côté serveur, retirer l'attribut hidden et rétablir le libellé. -->
+              <details class="parent-fieldset express-optional" hidden>
+                <summary>Parents — lecture transgénérationnelle (non disponible dans cette version)</summary>
                 <p class="hint">Indiquez la <strong>commune</strong> de naissance : la reconnaissance de lieu ne connaît que les villes, pas les établissements.</p>
                 <div class="grid two compact">
                   <label>Mère — nom <input name="motherName"></label>

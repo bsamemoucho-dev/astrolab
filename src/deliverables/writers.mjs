@@ -77,10 +77,16 @@ export async function callChatCompletions(config, { system, user, temperature = 
       throw error;
     }
     const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content ?? "";
+    const choice = data?.choices?.[0] ?? null;
+    const text = choice?.message?.content ?? "";
+    // `finish_reason` est la seule source fiable pour savoir si le fournisseur a
+    // coupé la réponse. Sans lui, une réponse tronquée n'est vue qu'au parsing,
+    // avec un code d'erreur qui accuse à tort le modèle.
+    const rawFinishReason = choice?.finish_reason ?? choice?.stop_reason ?? null;
     if (!text.trim()) {
       const error = new Error("LLM returned an empty response");
       error.status = 502;
+      error.finishReason = typeof rawFinishReason === "string" ? rawFinishReason : null;
       throw error;
     }
     const usage = data?.usage ?? null;
@@ -88,6 +94,7 @@ export async function callChatCompletions(config, { system, user, temperature = 
       text: text.trim(),
       model: config.model,
       requestId,
+      finishReason: typeof rawFinishReason === "string" ? rawFinishReason : null,
       usage: usage
         ? {
             promptTokens: usage.prompt_tokens ?? null,

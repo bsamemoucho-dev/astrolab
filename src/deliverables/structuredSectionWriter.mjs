@@ -1,5 +1,13 @@
 import { formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
+import {
+  blockCountOf,
+  blockLengthBudget,
+  isTruncatedCompletion,
+  lengthReport,
+  maxTokensForBlock,
+  worstCaseOutputTokens
+} from "./generationLimits.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 import { sectionPlanById } from "./fullDossierPlan.mjs";
 import { callChatCompletions, llmConfiguration } from "./writers.mjs";
@@ -504,8 +512,35 @@ function hasWritableMaterial(sectionPlan) {
     ((sectionPlan?.primaryEvidenceRefs ?? []).length > 0 || (sectionPlan?.secondaryEvidenceRefs ?? []).length > 0);
 }
 
-export function buildStructuredSystemPrompt(sectionPlan) {
+// La consigne de longueur est un PLAFOND de bloc, jamais un quota de section.
+//
+// Avant : « Longueur cible: environ 480 mots, jamais plus de 820 » était répété à
+// chaque appel de bloc. `next_weeks` (8 blocs) recevait donc huit fois le budget
+// de la section entière — et une section courte mais juste était relue comme un
+// échec, ce qui poussait au remplissage. Ici : la part du bloc, et une règle
+// explicite qui fait dépendre la longueur des preuves disponibles.
+function lengthDirective(budget) {
+  const lines = [];
+  if (budget.maxWords > 0) {
+    lines.push(
+      `Budget de longueur pour ce bloc : au plus ${budget.maxWords} mots${budget.targetWords > 0 ? ` (repère indicatif : ${budget.targetWords})` : ""}.`
+    );
+  }
+  lines.push("Ce budget est un plafond, jamais un objectif à atteindre.");
+  lines.push(
+    "La richesse du contenu dépend des preuves transmises, pas d'un quota de mots : si les faits de ce bloc ne suffisent pas, arrête-toi plus tôt."
+  );
+  lines.push(
+    "N'ajoute jamais un fait, une généralité, une transition ni une phrase de remplissage pour atteindre un nombre de mots."
+  );
+  return lines.join(" ");
+}
+
+export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
   const blockIds = (sectionPlan.blockPlans ?? []).map((blockPlan) => blockPlan.blockId).join(", ");
+  const blockCount = blockCountOf(sectionPlan, options.blockCount ?? null);
+  const blockPlan = options.blockPlan ?? (blockCount === 1 ? sectionPlan.blockPlans?.[0] ?? null : null);
+  const budget = blockLengthBudget({ sectionPlan, blockPlan, blockCount });
   return [
     "Tu rédiges un bloc isolé du dossier astrologique Lastro.",
     "Tu dois produire UNIQUEMENT un objet JSON valide, sans Markdown autour.",
@@ -527,7 +562,7 @@ export function buildStructuredSystemPrompt(sectionPlan) {
       ? ["Consignes spécifiques:", ...sectionPlan.writerGuidance.map((line) => `- ${line}`)]
       : []),
     `BlockId autorisé: ${blockIds}.`,
-    `Longueur cible: environ ${sectionPlan.targetWords} mots, jamais plus de ${sectionPlan.maxWords}.`,
+    lengthDirective(budget),
     "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\"}]}"
   ].join("\n");
 }
@@ -593,6 +628,11 @@ function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
 
 async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, blockPlan, writerFn, config, logger }) {
   const scopedPlan = scopedSectionPlanForBlock(sectionPlan, blockPlan);
+  // Budget du bloc : la part de la section qui lui revient (et non le budget
+  // entier répété à chaque appel), traduit en plafond de tokens.
+  const blockCount = blockCountOf(sectionPlan);
+  const budget = blockLengthBudget({ sectionPlan, blockPlan, blockCount });
+  const outputTokenLimit = maxTokensForBlock(budget);
   if (blockPlan.deterministic) {
     const section = {
       sectionId: scopedPlan.sectionId,
@@ -652,6 +692,42 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     ? instrumentation.startLogicalCall({ sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId })
     : null;
 
+  // Une réponse coupée n'est pas une réponse invalide : c'est une réponse
+  // interrompue. Elle est donc reconnue AVANT le parsing JSON, elle reçoit son
+  // propre code d'erreur, et elle n'est PAS rejouée — relancer avec le même
+  // plafond produirait la même coupure en repayant un appel.
+  const rejectTruncated = ({ rawText, finishReason, attempt, startedAt, startedAtMs, providerModel, providerUsage, requestId }) => {
+    if (!isTruncatedCompletion({ finishReason, text: rawText })) return;
+    const motif = finishReason ? `finish_reason=${finishReason}` : "réponse JSON non refermée";
+    const error = new Error(
+      `Réponse interrompue sur le bloc ${sectionPlan.sectionId}.${blockPlan.blockId} : plafond de ${outputTokenLimit} tokens atteint (${motif}).`
+    );
+    error.status = 502;
+    error.code = "structured_response_truncated";
+    error.sectionId = sectionPlan.sectionId;
+    error.blockId = blockPlan.blockId;
+    error.maxTokens = outputTokenLimit;
+    error.finishReason = finishReason ?? null;
+    instrumentation?.recordApplicationAttempt({
+      sectionId: sectionPlan.sectionId,
+      blockId: blockPlan.blockId,
+      logicalCallId,
+      applicationAttempt: attempt + 1,
+      isRetry: attempt > 0,
+      retryReason: attempt === 0 ? "initial" : "validation_correction",
+      model: providerModel ?? config?.model ?? null,
+      startedAt,
+      durationMs: Date.now() - startedAtMs,
+      inputTokens: providerUsage?.promptTokens ?? 0,
+      outputTokens: providerUsage?.completionTokens ?? 0,
+      totalTokens: providerUsage?.totalTokens ?? null,
+      requestId: requestId ?? null,
+      status: "error",
+      errorType: "truncated"
+    });
+    throw error;
+  };
+
   try {
     for (let attempt = 0; attempt <= MAX_CORRECTION_ATTEMPTS; attempt += 1) {
     const payload = {
@@ -659,6 +735,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       correctionIssues
     };
     let raw;
+    let result = null;
     const attemptStartedAtMs = Date.now();
     const attemptStartedAt = new Date(attemptStartedAtMs).toISOString();
     const retryReason = attempt === 0 ? "initial" : "validation_correction";
@@ -666,13 +743,12 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       raw = await writerFn(payload);
       raw = typeof raw === "string" ? raw : JSON.stringify(raw);
     } else {
-      let result;
       try {
         result = await callChatCompletions(config, {
           temperature: attempt === 0 ? 0.35 : 0.2,
           responseFormat: { type: "json_object" },
-          maxTokens: 900,
-          system: buildStructuredSystemPrompt(scopedPlan),
+          maxTokens: outputTokenLimit,
+          system: buildStructuredSystemPrompt(scopedPlan, { blockCount, blockPlan }),
           user: buildStructuredUserPrompt(payload)
         });
         raw = result.text;
@@ -701,6 +777,16 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
         instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
         throw error;
       }
+      rejectTruncated({
+        rawText: raw,
+        finishReason: result?.finishReason ?? null,
+        attempt,
+        startedAt: attemptStartedAt,
+        startedAtMs: attemptStartedAtMs,
+        providerModel: result?.model ?? null,
+        providerUsage: result?.usage ?? null,
+        requestId: result?.requestId ?? null
+      });
       let parsed;
       let section;
       let validation;
@@ -781,6 +867,16 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan: scopedPlan });
       continue;
     }
+    rejectTruncated({
+      rawText: raw,
+      finishReason: null,
+      attempt,
+      startedAt: attemptStartedAt,
+      startedAtMs: attemptStartedAtMs,
+      providerModel: null,
+      providerUsage: null,
+      requestId: null
+    });
     const parsed = parseJsonObject(raw);
     const section = applyDeterministicPrefix(sanitizeStructuredSection(parsed, scopedPlan), blockPlan);
     const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
@@ -888,6 +984,13 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
     error.section = section;
     throw error;
   }
+  // Mesure réelle de la longueur produite. Elle est journalisée, jamais imposée :
+  // une section plus courte que son repère n'est ni réécrite, ni complétée.
+  const report = lengthReport({
+    text: (section.blocks ?? []).map((block) => block.text ?? "").join("\n\n"),
+    targetWords: sectionPlan.targetWords,
+    maxWords: sectionPlan.maxWords
+  });
   return {
     section: enrichedStructuredSection(section, sectionPlan),
     skipped: false,
@@ -895,7 +998,9 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
     llmCalls,
     usage,
     model,
-    validation
+    validation,
+    words: report.words,
+    length: report
   };
 }
 
@@ -903,7 +1008,15 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
   const sections = [];
   const rejected = [];
   const skipped = [];
-  const metrics = { llmCalls: 0, promptTokens: 0, completionTokens: 0, model: null };
+  const metrics = {
+    llmCalls: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    model: null,
+    words: 0,
+    plannedOutputTokens: 0,
+    shortSections: []
+  };
   const sectionPlans = fullDossierPlan?.sections ?? [];
   const writableTotal = sectionPlans.filter(hasWritableMaterial).length;
 
@@ -932,6 +1045,11 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
         skipped.push({ sectionId: sectionPlan.sectionId, reason: written.reason });
         continue;
       }
+      metrics.words += written.words ?? 0;
+      metrics.plannedOutputTokens += worstCaseOutputTokens(sectionPlan);
+      if (written.length?.status === "short") {
+        metrics.shortSections.push({ sectionId: sectionPlan.sectionId, ...written.length });
+      }
       sections.push(written.section);
       options.onProgress?.({
         completedSections: sections.length,
@@ -951,6 +1069,9 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
     schema: "astrolab.full_dossier.structured_sections",
     contractVersion: STRUCTURED_WRITER_CONTRACT_VERSION,
     llmCalls: metrics.llmCalls,
+    words: metrics.words,
+    plannedOutputTokens: metrics.plannedOutputTokens,
+    shortSections: metrics.shortSections,
     usage: {
       promptTokens: metrics.promptTokens,
       completionTokens: metrics.completionTokens,
