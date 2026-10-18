@@ -6,7 +6,8 @@ const NANO_PER_USD = 1_000_000_000n;
 const MAX_BUDGET = 5n * NANO_PER_USD;
 // USD/M tokens -> nanodollars/token. Standard uncached prices verified 2026-10-18.
 const PRICES = Object.freeze({ 'gpt-4o-mini': [150n,600n], 'gpt-4.1-mini': [400n,1600n], 'claude-sonnet-5-5': [2000n,10000n] });
-const PRICE_VERSION = '2026-10-18-standard-global-no-tools-no-cache';
+const PRICE_VERSION = '2026-10-18-standard-global-no-tools';
+const CACHE_READ = {'gpt-4o-mini':75n,'gpt-4.1-mini':100n,'claude-sonnet-5-5':100n};
 function failure(code) { return Object.assign(new Error(code), { code }); }
 function count(value) {
   if (!Number.isSafeInteger(value) || value < 0) throw failure('INVALID_TOKEN_COUNT');
@@ -16,6 +17,10 @@ function cost(model,input,output) {
   const rate=PRICES[model];if(!rate)throw failure('UNKNOWN_MODEL_PRICE');
   return count(input)*rate[0]+count(output)*rate[1];
 }
+function actualCost(model,input,output,cached=0) {
+  count(cached);if(cached>input)throw failure('INVALID_CACHED_TOKEN_COUNT');
+  return cost(model,input-cached,output)+count(cached)*CACHE_READ[model];
+}
 function safeId(id) { if(!/^[a-zA-Z0-9_-]{1,80}$/.test(id ?? ''))throw failure('INVALID_CALL_ID'); }
 function validateState(state) {
   if(state?.version!==1||state.priceVersion!==PRICE_VERSION||!Array.isArray(state.calls))throw failure('INVALID_BUDGET_LEDGER');
@@ -23,7 +28,7 @@ function validateState(state) {
   const ids=new Set();
   for(const call of state.calls){safeId(call.id);if(ids.has(call.id))throw failure('INVALID_BUDGET_LEDGER');ids.add(call.id);
     if(!['reserved','settled','uncertain'].includes(call.status)||BigInt(call.reservedNano)!==cost(call.model,call.inputLimit,call.outputLimit))throw failure('INVALID_BUDGET_LEDGER');
-    if(call.status==='settled' && (BigInt(call.actualNano)!==cost(call.model,call.actualInput,call.actualOutput)||BigInt(call.actualNano)>BigInt(call.reservedNano)))throw failure('INVALID_BUDGET_LEDGER');
+    if(call.status==='settled' && (BigInt(call.actualNano)!==actualCost(call.model,call.actualInput,call.actualOutput,call.actualCached??0)||BigInt(call.actualNano)>BigInt(call.reservedNano)))throw failure('INVALID_BUDGET_LEDGER');
   }
 }
 function totals(state) {
@@ -68,15 +73,15 @@ export class BudgetLedger {
       return {id,maximumUsd:Number(maximum)/1e9,remainingAfterReservationUsd:Number(t.remaining-maximum)/1e9};
     });
   }
-  async settle({id,model,inputTokens,outputTokens}) {
+  async settle({id,model,inputTokens,outputTokens,cachedInputTokens=0}) {
     safeId(id);
     return this.transaction(state=>{
       const call=state.calls.find(c=>c.id===id);if(!call||call.status==='settled')throw failure('NO_PENDING_RESERVATION');
       if(model!==call.model)throw failure('RESPONSE_MODEL_MISMATCH');
       count(inputTokens);count(outputTokens);
       if(inputTokens>call.inputLimit||outputTokens>call.outputLimit)throw failure('USAGE_EXCEEDS_RESERVATION');
-      const actual=cost(model,inputTokens,outputTokens);
-      Object.assign(call,{status:'settled',actualInput:inputTokens,actualOutput:outputTokens,actualNano:String(actual)});
+      const actual=actualCost(model,inputTokens,outputTokens,cachedInputTokens);
+      Object.assign(call,{status:'settled',actualInput:inputTokens,actualOutput:outputTokens,actualCached:cachedInputTokens,actualNano:String(actual)});
       return {actualUsd:Number(actual)/1e9,remainingUsd:Number(totals(state).remaining)/1e9};
     });
   }
@@ -87,7 +92,7 @@ export class BudgetLedger {
 }
 // Provider adapters must supply a measured counter and honor outputLimit. No retry
 // exists here. An ambiguous failure keeps the full reservation and blocks resume.
-export async function budgetedCall({ledger,id,model,payload,outputLimit,countInput,transport,onEstimate=()=>{}}) {
+export async function budgetedCall({ledger,id,model,payload,outputLimit,countInput,transport,maximumCallUsd=5,onEstimate=()=>{}}) {
   if(!ledger.approved)throw failure('EXPLICIT_APPROVAL_REQUIRED');
   if(typeof countInput!=='function'||typeof transport!=='function')throw failure('MISSING_BUDGET_PROTECTION');
   if(!PRICES[model])throw failure('UNKNOWN_MODEL_PRICE');
@@ -102,13 +107,14 @@ export async function budgetedCall({ledger,id,model,payload,outputLimit,countInp
   count(measured.inputTokens);count(measured.allowanceTokens);
   const inputLimit=measured.inputTokens+measured.allowanceTokens;
   count(inputLimit);
+  if(!Number.isFinite(maximumCallUsd)||maximumCallUsd<=0||Number(cost(model,inputLimit,outputLimit))/1e9>maximumCallUsd)throw failure('CALL_MAXIMUM_EXCEEDED');
   const reservation=await ledger.reserve({id,model,inputLimit,outputLimit});
   let settled=false;
   try {
     await onEstimate({...reservation,inputLimit,outputLimit,model});
     const response=await transport({model,payload,maxOutputTokens:outputLimit});
     if(!response?.usage)throw failure('UNMETERED_RESPONSE');
-    const accounting=await ledger.settle({id,model:response.model,inputTokens:response.usage.inputTokens,outputTokens:response.usage.outputTokens});
+    const accounting=await ledger.settle({id,model:response.model,inputTokens:response.usage.inputTokens,outputTokens:response.usage.outputTokens,cachedInputTokens:response.usage.cachedInputTokens??0});
     settled=true;
     if(response.stopReason==='max_tokens'||response.truncated)throw Object.assign(failure('TRUNCATED_RESPONSE'),{accounting});
     return {response,accounting};
