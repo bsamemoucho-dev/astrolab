@@ -1,6 +1,6 @@
 import { RELATIONAL_AFFECTION_RULES, RELATIONAL_AFFECTION_SCOPE } from "./relationalAffectionRules.mjs";
 
-export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.2.0";
+export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.3.0";
 export const RELATIONAL_COMMUNICATION_SCOPE = "individual_relational.communication";
 export { RELATIONAL_AFFECTION_SCOPE };
 
@@ -125,6 +125,96 @@ function natalAspectRule(bodyA, bodyB, aspectType, { themes, resourceThemes = []
 const GENERATED_NATAL_SIGN_RULES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].flatMap((body) =>
   Object.keys(SIGN_THEMES).map((sign) => natalBodySignRule(body, sign))
 );
+
+// Règles d'aspect natal — expérimentation ciblée du 18/10/2026.
+//
+// Périmètre volontairement minuscule : UNIQUEMENT les cinq aspects réellement
+// présents dans le thème de référence (Moon–Jupiter sextile, Mars–Saturne
+// opposition, Mercury–Vénus sextile, Soleil–Lune opposition, Soleil–Jupiter
+// trigone). Aucune règle générique « tous les aspects de toutes les paires » :
+// une règle sans preuve ne sert à rien, et une matrice de 105 règles écrites
+// d'un coup ne serait pas relue.
+//
+// Convention explicite (voir docs/doctrine/natal-aspect-rules-v1.md) :
+//   - la catégorie (tension / soutien) est une convention éditoriale Lastro,
+//     versionnée dans LASTRO_INTERPRETATION_CONVENTIONS — pas un fait scientifique ;
+//   - chaque thème décrit une dynamique intérieure possible, jamais un trait de
+//     caractère établi, un événement, un diagnostic ou une prédiction ;
+//   - aucune règle n'affirme ce que la géométrie du thème ne dit pas : l'orbe et
+//     son serrage restent la mesure de la solidité de l'aspect, et le texte doit
+//     rester sobre quand l'aspect est proche de la limite de son orbe.
+//
+// `scope` est volontairement absent : ces règles valent pour l'axe natal
+// uniquement. Les axes relationnels exigent un `scope` explicite
+// (individualRelationalPlan filtre sur `scope.includes(...)`), donc elles ne
+// peuvent pas contaminer les chapitres relationnels.
+const NATAL_ASPECT_CONVENTION_RULES = [
+  {
+    // Le plus serré des soutiens du thème : la confiance comme appui du ressenti.
+    ruleId: "western.natal.aspect.moon_jupiter.sextile@1",
+    evidenceType: "NATAL_ASPECT",
+    match: { bodies: ["Moon", "Jupiter"], aspectType: "sextile" },
+    categories: [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
+    themes: [
+      "ouverture émotionnelle qui s'appuie sur la confiance plutôt que sur le contrôle",
+      "besoin de sécurité intérieure rejoint par un élan de générosité",
+      "ressource : accueillir plus large que ce qui est strictement nécessaire"
+    ],
+    forbidden: COMMON_FORBIDDEN
+  },
+  {
+    // L'aspect le plus serré du thème, et le seul carré/opposition majeur.
+    ruleId: "western.natal.aspect.mars_saturn.opposition@1",
+    evidenceType: "NATAL_ASPECT",
+    match: { bodies: ["Mars", "Saturn"], aspectType: "opposition" },
+    categories: [LASTRO_INTERPRETATION_CONVENTIONS.aspectTensionV1.ruleId],
+    themes: [
+      "tension entre l'élan d'agir et la limite rencontrée",
+      "l'effort peut se heurter à un cadre intérieur exigeant",
+      "endurance possible dans l'effort long, au prix d'un rapport tendu à l'immédiateté"
+    ],
+    forbidden: COMMON_FORBIDDEN
+  },
+  {
+    // Soutien proche de la limite de son orbe : la formulation reste sobre.
+    ruleId: "western.natal.aspect.mercury_venus.sextile@1",
+    evidenceType: "NATAL_ASPECT",
+    match: { bodies: ["Mercury", "Venus"], aspectType: "sextile" },
+    categories: [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
+    themes: [
+      "facilité mobilisable pour dire ce qui a de la valeur",
+      "goût du lien qui passe volontiers par la parole et l'échange",
+      "attention : cette facilité reste à activer, elle ne se déclenche pas seule"
+    ],
+    forbidden: COMMON_FORBIDDEN
+  },
+  {
+    // Opposition entre les deux luminaires : les deux exigences, pas un verdict.
+    ruleId: "western.natal.aspect.sun_moon.opposition@1",
+    evidenceType: "NATAL_ASPECT",
+    match: { bodies: ["Sun", "Moon"], aspectType: "opposition" },
+    categories: [LASTRO_INTERPRETATION_CONVENTIONS.aspectTensionV1.ruleId],
+    themes: [
+      "deux exigences intérieures qui tirent en sens opposé : direction consciente et besoin affectif",
+      "nécessité d'ajuster ce qui se montre et ce qui se ressent",
+      "l'identité se construit dans cet écart plutôt que dans un seul des deux pôles"
+    ],
+    forbidden: COMMON_FORBIDDEN
+  },
+  {
+    // Soutien le plus large en orbe des aspects retenus : appui, pas promesse.
+    ruleId: "western.natal.aspect.sun_jupiter.trine@1",
+    evidenceType: "NATAL_ASPECT",
+    match: { bodies: ["Sun", "Jupiter"], aspectType: "trine" },
+    categories: [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
+    themes: [
+      "confiance disponible pour élargir son horizon",
+      "élan de croissance qui soutient la direction personnelle",
+      "la facilité de cet appui peut dispenser de vérifier la juste mesure"
+    ],
+    forbidden: COMMON_FORBIDDEN
+  }
+];
 
 const GENERATED_PERSONAL_TRANSIT_RULES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].flatMap((transitBody) =>
   ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].flatMap((natalPoint) =>
@@ -253,7 +343,14 @@ const BASE_INTERPRETATION_RULES = [
 ];
 
 export const INTERPRETATION_RULES = Object.freeze(
-  [...BASE_INTERPRETATION_RULES, ...GENERATED_NATAL_SIGN_RULES, ...GENERATED_PERSONAL_TRANSIT_RULES, ...RELATIONAL_COMMUNICATION_NATAL_ASPECT_RULES, ...RELATIONAL_AFFECTION_RULES].filter(
+  [
+    ...BASE_INTERPRETATION_RULES,
+    ...GENERATED_NATAL_SIGN_RULES,
+    ...GENERATED_PERSONAL_TRANSIT_RULES,
+    ...NATAL_ASPECT_CONVENTION_RULES,
+    ...RELATIONAL_COMMUNICATION_NATAL_ASPECT_RULES,
+    ...RELATIONAL_AFFECTION_RULES
+  ].filter(
     (rule, index, rules) => rules.findIndex((candidate) => candidate.ruleId === rule.ruleId) === index
   )
 );

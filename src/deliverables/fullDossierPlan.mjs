@@ -38,6 +38,14 @@ const BODY_SUBJECT_FR = Object.freeze({
   IC: "Le Fond du Ciel"
 });
 
+// À la place d'objet, le français exige l'article pour les luminaires :
+// « une opposition avec la Lune », « un trigone avec le Soleil ». Les planètes
+// nommées (Mars, Vénus, Jupiter…) restent sans article en usage astrologique.
+const BODY_OBJECT_FR = Object.freeze({
+  Sun: "le Soleil",
+  Moon: "la Lune"
+});
+
 const ASPECT_FR = Object.freeze({
   conjunction: "conjonction",
   opposition: "opposition",
@@ -166,6 +174,20 @@ function secondarySectionsForEvidence(evidence) {
   return [];
 }
 
+// Chapitres « de catégorie » : ils reçoivent l'aspect en DÉVELOPPEMENT, pas en
+// rappel. `major_aspects` reçoit tous les aspects ; les deux autres reçoivent
+// seulement leur catégorie, telle que la fixent les conventions versionnées
+// (`LASTRO_INTERPRETATION_CONVENTIONS`) — aucune catégorie inventée ici.
+function aspectCategoryChaptersFor(evidence) {
+  if (evidence?.type !== "NATAL_ASPECT") return [];
+  const aspectType = evidence.value?.aspectType;
+  const chapters = ["major_aspects"];
+  const { aspectTensionV1, aspectSupportV1 } = LASTRO_INTERPRETATION_CONVENTIONS;
+  if (aspectTensionV1.aspectTypes.includes(aspectType)) chapters.push("internal_tensions");
+  else if (aspectSupportV1.aspectTypes.includes(aspectType)) chapters.push("supporting_resources");
+  return chapters;
+}
+
 function sectionsMap() {
   return new Map(FULL_DOSSIER_SECTIONS.map((section) => [section.sectionId, { ...section, primaryEvidenceRefs: [], secondaryEvidenceRefs: [], forbiddenEvidenceRefs: [], allowedInterpretationRuleRefs: [], preconditions: [] }]));
 }
@@ -208,10 +230,19 @@ function capSectionEvidence(section) {
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
   }
   if (["internal_tensions", "supporting_resources", "major_aspects"].includes(section.sectionId)) {
-    section.secondaryEvidenceRefs = section.secondaryEvidenceRefs
-      .filter((ref) => ref.startsWith("aspect."))
-      .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
-      .slice(0, section.sectionId === "major_aspects" ? 8 : 5);
+    // Ces trois chapitres sont bâtis sur des aspects : ils en sont propriétaires
+    // (développement) et non simples rappelants, donc les deux listes sont
+    // plafonnées. `major_aspects` garde une limite plus large : c'est le chapitre
+    // qui doit montrer la carte complète, le plafonner à 8 lui retirait un aspect
+    // que le thème avait réellement calculé.
+    const limite = section.sectionId === "major_aspects" ? 12 : 5;
+    const trier = (refs) =>
+      refs
+        .filter((ref) => ref.startsWith("aspect."))
+        .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
+        .slice(0, limite);
+    section.primaryEvidenceRefs = trier(section.primaryEvidenceRefs);
+    section.secondaryEvidenceRefs = trier(section.secondaryEvidenceRefs);
   }
 }
 
@@ -270,9 +301,12 @@ function claimsForEvidence(evidence) {
   return [];
 }
 
-function packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef }) {
-  const evidenceOwner = ownerByEvidenceRef[evidence.evidenceId] ?? null;
-  const interpretationDepth = evidenceOwner && evidenceOwner !== section.sectionId ? "reference" : "primary";
+function packetForEvidence({ section, evidence, ruleIds, primaryRefs }) {
+  // La profondeur suit l'appartenance à la liste PRIMAIRE de la section, et non
+  // plus un propriétaire unique. Un aspect peut être développé par le chapitre
+  // du corps ET par le chapitre de sa catégorie (tensions, soutiens, aspects
+  // majeurs) : ce sont deux angles différents, pas une redite.
+  const interpretationDepth = primaryRefs?.has(evidence.evidenceId) ? "primary" : "reference";
   return {
     packetId: `${section.sectionId}.${packetKey(evidence.evidenceId)}`,
     evidenceRefs: [evidence.evidenceId],
@@ -286,8 +320,9 @@ function packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef }) {
   };
 }
 
-function buildEvidencePackets({ section, byId, ownerByEvidenceRef }) {
+function buildEvidencePackets({ section, byId }) {
   const refs = [...new Set([...(section.primaryEvidenceRefs ?? []), ...(section.secondaryEvidenceRefs ?? [])])];
+  const primaryRefs = new Set(section.primaryEvidenceRefs ?? []);
   return refs
     .map((ref) => {
       const evidence = byId.get(ref);
@@ -296,7 +331,7 @@ function buildEvidencePackets({ section, byId, ownerByEvidenceRef }) {
         .map((rule) => rule.ruleId)
         .filter((ruleId) => (section.allowedInterpretationRuleRefs ?? []).includes(ruleId));
       if (evidence.type === "NATAL_BODY_RETROGRADE") return null;
-      return packetForEvidence({ section, evidence, ruleIds, ownerByEvidenceRef });
+      return packetForEvidence({ section, evidence, ruleIds, primaryRefs });
     })
     .filter(Boolean);
 }
@@ -430,7 +465,7 @@ function aspectLeadSentence(claim) {
   if (claim?.type !== "NATAL_ASPECT") return null;
   const aspect = aspectWithArticle(claim.aspectType);
   const bodyA = BODY_SUBJECT_FR[claim.bodyA] ?? BODY_FR[claim.bodyA] ?? claim.bodyA;
-  const bodyB = BODY_FR[claim.bodyB] ?? claim.bodyB;
+  const bodyB = BODY_OBJECT_FR[claim.bodyB] ?? BODY_FR[claim.bodyB] ?? claim.bodyB;
   return `${bodyA} forme ${aspect} avec ${bodyB}.`;
 }
 
@@ -510,6 +545,15 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       sections.get(owner).primaryEvidenceRefs.push(evidence.evidenceId);
       ownerByEvidenceRef[evidence.evidenceId] = owner;
     }
+    // Un aspect appartient aussi au chapitre de sa CATÉGORIE. Sans cela, le
+    // chapitre « tensions » recevait ses deux oppositions avec la consigne
+    // « rappelle brièvement, ne développe pas » — le seul chapitre dont c'est
+    // le sujet était le seul à qui l'on interdisait de le traiter.
+    for (const categoryChapter of aspectCategoryChaptersFor(evidence)) {
+      if (sections.has(categoryChapter)) {
+        sections.get(categoryChapter).primaryEvidenceRefs.push(evidence.evidenceId);
+      }
+    }
     for (const secondary of secondarySectionsForEvidence(evidence)) {
       if (secondary !== owner && sections.has(secondary)) {
         sections.get(secondary).secondaryEvidenceRefs.push(evidence.evidenceId);
@@ -527,7 +571,12 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   for (const section of sections.values()) {
     section.referenceTimeZone = timeZone;
     section.primaryEvidenceRefs = [...new Set(section.primaryEvidenceRefs)];
-    section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)];
+    // Une preuve ne peut pas être à la fois primaire et secondaire dans le même
+    // chapitre : le validateur refuserait la réutilisation comme interprétation
+    // principale. Les doublons venaient du cumul « propriétaire + catégorie ».
+    section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)].filter(
+      (ref) => !section.primaryEvidenceRefs.includes(ref)
+    );
     capSectionEvidence(section);
     section.allowedInterpretationRuleRefs = [
       ...new Set(
@@ -543,7 +592,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     if (section.sectionId === "current_sky") {
       section.preconditions.push({ status: "snapshot", label: "Calculé le", evidenceRef: "transits.snapshot" });
     }
-    section.evidencePackets = buildEvidencePackets({ section, byId, ownerByEvidenceRef });
+    section.evidencePackets = buildEvidencePackets({ section, byId });
     section.blockPlans = buildBlockPlans(section, byId);
   }
 

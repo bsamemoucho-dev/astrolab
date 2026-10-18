@@ -518,7 +518,10 @@ test("le planner est testable sans LLM et utilise la provenance canonique", () =
   assert.equal(plan.product.publicName, "Moi en relation");
   assert.equal(sectionPlan.lastroInterpretiveMapping.nature, "LASTRO_RULE");
   assert.equal(sectionPlan.lastroInterpretiveMapping.subtype, "RELATIONAL_INTERPRETATION");
-  assert.equal(INTERPRETATION_LIBRARY_VERSION, "lastro-interpretation-library@0.2.0");
+  // Version 0.3.0 : ajout des règles d'aspect de l'axe natal (expérimentation
+  // ciblée du 18/10/2026). La provenance canonique de l'axe relationnel, elle,
+  // ne change pas.
+  assert.equal(INTERPRETATION_LIBRARY_VERSION, "lastro-interpretation-library@0.3.0");
 });
 
 test("npm test ne déclenche pas le LLM réel si seule la clé locale est présente", async () => {
