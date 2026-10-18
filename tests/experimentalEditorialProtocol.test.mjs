@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {reviewRevision,blindAssignment} from '../experiments/openai-claude/editorialProtocol.mjs';
+import {buildFullDossierPlan} from '../src/deliverables/fullDossierPlan.mjs';
+const dossierEvidence={evidence:[{evidenceId:'natal.moon.sign',type:'NATAL_BODY_SIGN',value:{body:'Moon',sign:'Cancer'}},{evidenceId:'natal.moon.house',type:'NATAL_BODY_HOUSE',value:{body:'Moon',house:7,houseSystem:'WHOLE_SIGN'}}]};
+const whole=buildFullDossierPlan(dossierEvidence);const plan=whole.sections.find(s=>s.sectionId==='emotional_world');const fullDossierPlan={...whole,sections:[plan]};
+const originalSections=[{sectionId:plan.sectionId,blocks:plan.blockPlans.map(b=>({blockId:b.blockId,text:'La Lune est en maison 7. Cette lecture symbolique invite à explorer vos ressentis avec nuance et curiosité.'}))}];
+const input=text=>({dossierEvidence,fullDossierPlan,originalSections,proposals:[{sectionId:plan.sectionId,blocks:[{blockId:plan.blockPlans[0].blockId,text}]}]});
+test('editorial protocol: unsupported revision keeps A and reports its rejection',()=>{const result=reviewRevision(input('Le Soleil est en maison 7.'));assert.deepEqual(result.sections,originalSections);assert.equal(result.reports[0].status,'kept_A');assert.ok(result.reports[0].codes.includes('undeclared_text_fact'));});
+test('editorial protocol: valid shorter revision remains within A word count',()=>{const result=reviewRevision(input('La Lune est en maison 7. Une piste symbolique reste à explorer.'));assert.equal(result.reports[0].status,'revised');assert.ok(result.finalWords<=result.originalWords);});
+test('editorial protocol: expansion is explicitly rejected without any paid retry',()=>{const result=reviewRevision(input('La Lune est en maison 7. '+ 'Une piste symbolique reste ouverte. '.repeat(20)));assert.deepEqual(result.sections,originalSections);assert.equal(result.reports.at(-1).reason,'global_word_limit_exceeded');});
+test('editorial protocol: new sections and unknown blocks cannot expand evidence permissions',()=>{assert.throws(()=>reviewRevision({...input('Une piste.'),proposals:[{sectionId:'unknown',blocks:[]}]}),/UNEXPECTED_REVISION_SECTION/);const args=input('Une piste.');args.proposals[0].blocks[0].blockId='unknown';assert.equal(reviewRevision(args).reports[0].reason,'revision_block_set_mismatch');});
+test('editorial protocol: neutral labels are a random bijection without changing dossier contents',()=>{for(let i=0;i<20;i++){const map=blindAssignment();assert.deepEqual(Object.keys(map),['X','Y','Z']);assert.deepEqual(Object.values(map).sort(),['A','B','C']);}});
+test('editorial protocol: immutable prefix comes only from the trusted plan',()=>{
+ const evidence={evidence:[{evidenceId:'transit.synthetic',type:'PERSONAL_TRANSIT',value:{transitBody:'Mercury',natalPoint:'Sun',aspectType:'sextile',status:'CURRENT',startsAt:'2026-10-01T00:00:00Z',endsAt:'2026-10-04T00:00:00Z',exactAt:'2026-10-02T00:00:00Z'}}]};
+ const all=buildFullDossierPlan(evidence),p=all.sections.find(s=>s.sectionId==='current_sky'),b=p.blockPlans[0],prefix=b.deterministicPrefix;
+ const original=[{sectionId:p.sectionId,blocks:[{blockId:b.blockId,text:prefix+' Cette piste symbolique invite à réfléchir avec nuance et curiosité.'}]}];
+ const r=reviewRevision({dossierEvidence:evidence,fullDossierPlan:{...all,sections:[p]},originalSections:original,proposals:[{sectionId:p.sectionId,blocks:[{blockId:b.blockId,text:'Une piste reste ouverte.',deterministicPrefix:'2099'}]}]});
+ assert.ok(r.sections[0].blocks[0].text.startsWith(prefix));assert.equal(r.sections[0].blocks[0].text.includes('2099'),false);
+});

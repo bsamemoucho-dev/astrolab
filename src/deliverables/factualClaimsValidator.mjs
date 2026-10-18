@@ -1,7 +1,8 @@
+import { validateAstrologicalDates, referenceTimeZone } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 
-export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.1.0";
+export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.2.0";
 
 function norm(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -135,6 +136,8 @@ function vocabularyPattern(vocabulary) {
 }
 
 const BODY_PATTERN = vocabularyPattern(BODY_WORDS);
+const ASPECT_POINT_WORDS = Object.freeze({ ...BODY_WORDS, ASC: ["ascendant"], DSC: ["descendant"], MC: ["milieu du ciel", "mc"], IC: ["fond du ciel", "ic"] });
+const ASPECT_POINT_PATTERN = vocabularyPattern(ASPECT_POINT_WORDS);
 const ASPECT_PATTERN = vocabularyPattern(ASPECT_WORDS);
 const INTERPRETATION_ASPECT_PATTERN = vocabularyPattern(INTERPRETATION_ASPECT_WORDS);
 const ASPECT_VOCABULARY_PATTERN = new RegExp(`\\b(${INTERPRETATION_ASPECT_PATTERN})\\b`, "giu");
@@ -167,28 +170,59 @@ function houseNumberFromRaw(raw) {
   return ROMAN_HOUSES[key] ?? FRENCH_ORDINAL_HOUSES[key] ?? Number(key);
 }
 
-function mentionedHouseNumbers(text) {
-  const source = normalizedText(text);
-  const houses = [];
-  const seen = new Set();
-  const addHouse = (raw) => {
-    const house = houseNumberFromRaw(raw);
-    if (!Number.isInteger(house) || house < 1 || house > 12 || seen.has(house)) return;
-    seen.add(house);
-    houses.push(house);
-  };
-  const houseNumber = "[0-9]{1,2}|i{1,3}|iv|v|vi{0,3}|ix|x|xi|xii";
+// Retain offsets and bind a placement only through a local placement grammar.
+// A thematic mention of a house remains distinct from a body-house assertion.
+function detectHouseFacts(text) {
+  const source = aspectTextWithoutCalendarMonths(text);
+  const houseNumber = "[0-9]{1,2}|xii|xi|ix|iv|viii|vii|vi|iii|ii|x|v|i";
   const ordinalWords = Object.keys(FRENCH_ORDINAL_HOUSES).join("|");
-  for (const match of source.matchAll(new RegExp(`\\bmaison\\s*(?:n[°o]\\s*)?(${houseNumber}|${ordinalWords})\\b`, "giu"))) {
-    addHouse(match[1]);
+  const patterns = [
+    new RegExp(`\\bmaison\\s*(?:n[°o]\\s*)?(${houseNumber}|${ordinalWords})\\b`, "giu"),
+    new RegExp(`\\b(${houseNumber})(?:e|eme)?\\s+maison\\b`, "giu"),
+    new RegExp(`\\b(${ordinalWords})\\s+maison\\b`, "giu")
+  ];
+  const facts = [];
+  const subjectJoin = /^\s*(?:,|et|ainsi que)\s*(?:(?:votre|vos|le|la|les)\s*)?$/u;
+  const bodyPattern = new RegExp(`\\b(${BODY_PATTERN})\\b`, "giu");
+  for (const pattern of patterns) for (const match of source.matchAll(pattern)) {
+    const house = houseNumberFromRaw(match[1]);
+    if (!Number.isInteger(house) || house < 1 || house > 12) continue;
+    const before = source.slice(0, match.index).split(/[.!?;\n]/u).at(-1);
+    const bodies = [...before.matchAll(bodyPattern)];
+    const last = bodies.at(-1);
+    let bound = [];
+    if (last) {
+      const suffix = before.slice(last.index + last[0].length);
+      const placement = /^\s*,?\s*(?:(?:natal|natale|est|sont|situe|situee|situes|situees|place|placee|places|placees|tous deux|toutes deux)\s+)*(?:(?:se trouve|se trouvent|se situe|se situent|figure|figurent)\s+)?(?:en|dans(?:\s+(?:la|votre))?|occupe(?:nt)?(?:\s+(?:la|votre))?)\s*$/u;
+      if (placement.test(suffix)) {
+        bound = [last];
+        for (let i = bodies.length - 2; i >= 0; i--) {
+          const next = bound[0];
+          if (!subjectJoin.test(before.slice(bodies[i].index + bodies[i][0].length, next.index))) break;
+          bound.unshift(bodies[i]);
+        }
+      }
+    }
+    if (bound.length === 0) {
+      const after = source.slice(match.index + match[0].length).split(/[.!?;\n]/u)[0];
+      const inverted = after.match(new RegExp(`^\\s*,?\\s*(?:accueille|abrite|contient|est occupee par|ou se trouve|ou se trouvent|se trouve|se trouvent)\\s+(?:(?:votre|vos|le|la|les)\\s+)?(${BODY_PATTERN})\\b`, "iu"));
+      const fronted = /\b(?:en|dans la|dans votre)\s*$/u.test(before)
+        ? after.match(new RegExp(`^\\s*,?\\s*(?:(?:votre|le|la)\\s+)?(${BODY_PATTERN})\\b`, "iu")) : null;
+      const head = inverted ?? fronted;
+      if (head) {
+        bound = [{ 1: head[1] }];
+        const rest = after.slice(head[0].length);
+        const extra = rest.match(new RegExp(`^\\s+et\\s+(?:(?:votre|le|la)\\s+)?(${BODY_PATTERN})\\b`, "iu"));
+        if (extra) bound.push({ 1: extra[1] });
+      }
+    }
+    if (bound.length) {
+      for (const body of bound) facts.push({ type: "NATAL_BODY_HOUSE", body: keyForVocabularyMatch(body[1], BODY_WORDS), house });
+    } else {
+      facts.push({ type: "NATAL_BODY_HOUSE", house });
+    }
   }
-  for (const match of source.matchAll(new RegExp(`\\b(${houseNumber})\\s*(?:e|eme|eme)?\\s+maison\\b`, "giu"))) {
-    addHouse(match[1]);
-  }
-  for (const match of source.matchAll(new RegExp(`\\b(${ordinalWords})\\s+maison\\b`, "giu"))) {
-    addHouse(match[1]);
-  }
-  return houses;
+  return [...new Map(facts.map(f => [`${f.body ?? "house"}|${f.house}`, f])).values()];
 }
 
 function sortedBodies(a, b) {
@@ -241,16 +275,21 @@ function detectAspectFacts(text) {
   const source = aspectTextWithoutCalendarMonths(text);
   const facts = [];
   const seen = new Set();
-  const shortText = "[^.!?;\\n]{0,36}?";
-  const connector = "(?:et|avec|a|au|à|-|–|—)";
+  const shortText = `(?:(?!\\b(?:${ASPECT_POINT_PATTERN}|${ASPECT_PATTERN})\\b)[^.!?;\\n]){0,36}?`;
+  const connector = "(?:\\b(?:et|avec|a|au|de|du)\\b|-|–|—)";
   const patterns = [
-    new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${BODY_PATTERN})\\b${shortText}${connector}${shortText}\\b(${BODY_PATTERN})\\b`, "gidu"),
-    new RegExp(`\\b(${BODY_PATTERN})\\b${shortText}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortText}\\b(${ASPECT_PATTERN})\\b${shortText}(?:avec|a|au|vers|-|–|—)${shortText}\\b(${BODY_PATTERN})\\b`, "gidu"),
-    new RegExp(`\\b(${BODY_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${BODY_PATTERN})\\b`, "gidu")
+    new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${ASPECT_POINT_PATTERN})\\b${shortText}${connector}${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
+    new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b${shortText}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortText}\\b(${ASPECT_PATTERN})\\b${shortText}(?:\\b(?:avec|a|au|vers|de|du)\\b|-|–|—)${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
+    new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu")
   ];
 
+  const coordinated = new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b\\s+et\\s+(?:(?:votre|le|la)\\s+)?(${ASPECT_POINT_PATTERN})\\b\\s+(?:forment|creent|dessinent|sont en|se trouvent en)\\s+(?:(?:un|une)\\s+)?(${ASPECT_PATTERN})\\b`, "gidu");
+  const coordinatedMatches = [...source.matchAll(coordinated)];
+  for (const match of coordinatedMatches) {
+    pushAspectFact(facts, seen, keyForVocabularyMatch(match[1], ASPECT_POINT_WORDS), keyForVocabularyMatch(match[3], ASPECT_WORDS), keyForVocabularyMatch(match[2], ASPECT_POINT_WORDS));
+  }
   const bodyFirstMatches = patterns.slice(1).flatMap((pattern) => [...source.matchAll(pattern)]);
-  const resolvedAspectOffsets = new Set(bodyFirstMatches.map((match) => match.indices[2][0]));
+  const resolvedAspectOffsets = new Set([...bodyFirstMatches.map((match) => match.indices[2][0]), ...coordinatedMatches.map((match) => match.indices[3][0])]);
   for (const match of source.matchAll(patterns[0])) {
     // If this exact aspect token already has an explicit subject and object,
     // do not reinterpret its object and a later planet as a second pair.
@@ -258,18 +297,18 @@ function detectAspectFacts(text) {
     pushAspectFact(
       facts,
       seen,
-      keyForVocabularyMatch(match[2], BODY_WORDS),
+      keyForVocabularyMatch(match[2], ASPECT_POINT_WORDS),
       keyForVocabularyMatch(match[1], ASPECT_WORDS),
-      keyForVocabularyMatch(match[3], BODY_WORDS)
+      keyForVocabularyMatch(match[3], ASPECT_POINT_WORDS)
     );
   }
   for (const match of bodyFirstMatches) {
     pushAspectFact(
       facts,
       seen,
-      keyForVocabularyMatch(match[1], BODY_WORDS),
+      keyForVocabularyMatch(match[1], ASPECT_POINT_WORDS),
       keyForVocabularyMatch(match[2], ASPECT_WORDS),
-      keyForVocabularyMatch(match[3], BODY_WORDS)
+      keyForVocabularyMatch(match[3], ASPECT_POINT_WORDS)
     );
   }
 
@@ -277,8 +316,6 @@ function detectAspectFacts(text) {
 }
 
 export function detectAstrologicalTextFacts(text) {
-  const bodies = mentionedKeys(text, BODY_WORDS);
-  const houses = mentionedHouseNumbers(text);
   const facts = [];
   for (const body of Object.keys(BODY_WORDS)) {
     for (const sign of Object.keys(SIGN_WORDS)) {
@@ -286,9 +323,7 @@ export function detectAstrologicalTextFacts(text) {
       facts.push({ type: "NATAL_BODY_SIGN", body, sign });
     }
   }
-  for (const house of houses) {
-    facts.push({ type: "NATAL_BODY_HOUSE", house });
-  }
+  facts.push(...detectHouseFacts(text));
   for (const angle of Object.keys(ANGLE_WORDS)) {
     for (const sign of Object.keys(SIGN_WORDS)) {
       if (!hasAngleSignClaim(text, angle, sign)) continue;
@@ -702,6 +737,9 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
       if (!textFactSupported(fact, resolvedRefs)) {
         issues.push(claimlikeForBlock(block, "undeclared_text_fact", "Le texte contient un fait astrologique concret non couvert par les evidenceRefs du bloc.", { fact }));
       }
+    }
+    for (const finding of validateAstrologicalDates({ text: block.text, refs: resolvedRefs, timeZone: referenceTimeZone(dossierEvidence, sectionPlan), aspectFacts: detectAspectFacts })) {
+      issues.push(claimlikeForBlock(block, finding.code, "La date astrologique ne correspond pas au rôle et aux preuves autorisées dans le fuseau du dossier.", { fact: finding.fact, referenceTimeZone: referenceTimeZone(dossierEvidence, sectionPlan) }));
     }
     const interpretationText = blockPlan?.forbidAspectVocabulary ? interpretationTextForDeterministicLead(block, blockPlan) : null;
     const disallowedAspectTypes = interpretationText

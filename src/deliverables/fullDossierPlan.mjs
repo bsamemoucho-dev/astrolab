@@ -1,3 +1,4 @@
+import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpretationRules.mjs";
 
@@ -315,31 +316,21 @@ function validDate(value) {
   return date && !Number.isNaN(date.getTime()) ? date : null;
 }
 
-function formatFrenchDate(date) {
-  if (!date) return null;
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "UTC",
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  }).format(date);
+function formatFrenchDate(date, timeZone) {
+  return date ? formatFrenchCalendarDate(date, timeZone) : null;
 }
 
-function sameFrenchDate(left, right) {
-  const leftFormatted = formatFrenchDate(left);
-  return leftFormatted !== null && leftFormatted === formatFrenchDate(right);
+function sameFrenchDate(left, right, timeZone) {
+  const leftFormatted = formatFrenchDate(left, timeZone);
+  return leftFormatted !== null && leftFormatted === formatFrenchDate(right, timeZone);
 }
 
-function exactSentence(exactAt, nowUtc) {
+function exactSentence(exactAt, nowUtc, timeZone) {
   if (!exactAt) return null;
-  const exact = formatFrenchDate(exactAt);
+  const exact = formatFrenchDate(exactAt, timeZone);
   if (!exact) return null;
-  if (!nowUtc || Math.abs(exactAt.getTime() - nowUtc.getTime()) <= EXACT_NOW_TOLERANCE_MS) {
-    return `L'aspect est exact le ${exact}.`;
-  }
-  if (exactAt.getTime() < nowUtc.getTime()) {
-    return `L'aspect a été exact le ${exact}.`;
-  }
+  if (!nowUtc || Math.abs(exactAt.getTime() - nowUtc.getTime()) <= EXACT_NOW_TOLERANCE_MS) return `L'aspect est exact le ${exact}.`;
+  if (exactAt.getTime() < nowUtc.getTime()) return `L'aspect a été exact le ${exact}.`;
   return `L'aspect sera exact le ${exact}.`;
 }
 
@@ -347,7 +338,7 @@ function aspectWithArticle(aspectType) {
   return ASPECT_WITH_ARTICLE_FR[aspectType] ?? `un ${ASPECT_FR[aspectType] ?? aspectType}`;
 }
 
-function transitWindowSentence(claim, { includeSubject = true } = {}) {
+function transitWindowSentence(claim, { includeSubject = true, timeZone = "UTC" } = {}) {
   if (!claim) return null;
   const aspect = aspectWithArticle(claim.aspectType);
   const body = BODY_SUBJECT_FR[claim.transitBody] ?? BODY_FR[claim.transitBody] ?? claim.transitBody;
@@ -356,23 +347,23 @@ function transitWindowSentence(claim, { includeSubject = true } = {}) {
   const endsAt = validDate(claim.endsAt);
   const subject = includeSubject ? `${body} forme ${aspect} à votre ${point}` : "passage";
   if (startsAt && endsAt) {
-    if (sameFrenchDate(startsAt, endsAt)) {
-      return `${subject} le ${formatFrenchDate(startsAt)}.`;
+    if (sameFrenchDate(startsAt, endsAt, timeZone)) {
+      return `${subject} le ${formatFrenchDate(startsAt, timeZone)}.`;
     }
-    return `${subject} entre le ${formatFrenchDate(startsAt)} et le ${formatFrenchDate(endsAt)}.`;
+    return `${subject} entre le ${formatFrenchDate(startsAt, timeZone)} et le ${formatFrenchDate(endsAt, timeZone)}.`;
   }
   return `${subject}.`;
 }
 
-function transitTimingPrefix(packetOrPackets, { nowUtc = null } = {}) {
+function transitTimingPrefix(packetOrPackets, { nowUtc = null, timeZone = "UTC" } = {}) {
   const packets = Array.isArray(packetOrPackets) ? packetOrPackets : [packetOrPackets];
   const claims = packets.map(personalTransitClaim).filter(Boolean);
   if (claims.length === 0) return null;
   const now = validDate(nowUtc);
   if (claims.length === 1) {
     const claim = claims[0];
-    const window = transitWindowSentence(claim);
-    const exact = exactSentence(validDate(claim.exactAt), now);
+    const window = transitWindowSentence(claim, { timeZone });
+    const exact = exactSentence(validDate(claim.exactAt), now, timeZone);
     return [window, exact].filter(Boolean).join(" ");
   }
   const first = claims[0];
@@ -386,11 +377,11 @@ function transitTimingPrefix(packetOrPackets, { nowUtc = null } = {}) {
       const exactAt = validDate(claim.exactAt);
       const window =
         startsAt && endsAt
-          ? sameFrenchDate(startsAt, endsAt)
-            ? `le ${formatFrenchDate(startsAt)}`
-            : `du ${formatFrenchDate(startsAt)} au ${formatFrenchDate(endsAt)}`
+          ? sameFrenchDate(startsAt, endsAt, timeZone)
+            ? `le ${formatFrenchDate(startsAt, timeZone)}`
+            : `du ${formatFrenchDate(startsAt, timeZone)} au ${formatFrenchDate(endsAt, timeZone)}`
           : null;
-      const exact = exactAt ? `exact ${formatFrenchDate(exactAt)}` : null;
+      const exact = exactAt ? `exact ${formatFrenchDate(exactAt, timeZone)}` : null;
       return [window, exact].filter(Boolean).join(", ");
     })
     .filter(Boolean)
@@ -426,11 +417,11 @@ function groupTransitPacketsByStory(packets) {
   return groups.map(dedupeTransitPacketsByOccurrence).filter((group) => group.length > 0);
 }
 
-function transitBlockPlans({ packets, nowUtc, blockPrefix }) {
+function transitBlockPlans({ packets, nowUtc, blockPrefix, timeZone }) {
   return groupTransitPacketsByStory(packets).map((group, index) => ({
     blockId: `${blockPrefix}.transit_${String(index + 1).padStart(2, "0")}`,
     packetRefs: group.map((packet) => packet.packetId),
-    deterministicPrefix: transitTimingPrefix(group, { nowUtc }),
+    deterministicPrefix: transitTimingPrefix(group, { nowUtc, timeZone }),
     forbidAspectVocabulary: true
   }));
 }
@@ -471,6 +462,7 @@ function nowUtcForSection(byId) {
 function buildBlockPlans(section, byId = null) {
   const packets = section.evidencePackets ?? [];
   const nowUtc = nowUtcForSection(byId);
+  const timeZone = section.referenceTimeZone;
   if (packets.length === 0) return [];
   if (section.sectionId === "current_sky") {
     const introPackets = packets.filter((packet) => packet.evidenceRefs?.includes("transits.snapshot"));
@@ -481,11 +473,11 @@ function buildBlockPlans(section, byId = null) {
         packetRefs: [packet.packetId],
         deterministic: true
       })),
-      ...transitBlockPlans({ packets: transitPackets, nowUtc, blockPrefix: "current_sky" })
+      ...transitBlockPlans({ packets: transitPackets, nowUtc, timeZone, blockPrefix: "current_sky" })
     ];
   }
   if (section.sectionId === "next_weeks") {
-    return transitBlockPlans({ packets, nowUtc, blockPrefix: "next_weeks" });
+    return transitBlockPlans({ packets, nowUtc, timeZone, blockPrefix: "next_weeks" });
   }
   if (section.sectionId === "general_synthesis" || section.sectionId === "conclusion") {
     const aspectPrefix = aspectPrefixForPackets(packets);
@@ -503,7 +495,10 @@ function buildBlockPlans(section, byId = null) {
   return compactBlockPlans(section, packets, { chunkSize: 6 });
 }
 
-export function buildFullDossierPlan(dossierEvidence) {
+export function buildFullDossierPlan(dossierEvidence, options = {}) {
+  const timeZone = options.referenceTimeZone ?? referenceTimeZone(dossierEvidence);
+  // Validate the declared zone; never silently replace an invalid zone.
+  new Intl.DateTimeFormat("fr-FR", { timeZone });
   const byId = evidenceById(dossierEvidence);
   const sections = sectionsMap();
   const ownerByEvidenceRef = {};
@@ -530,6 +525,7 @@ export function buildFullDossierPlan(dossierEvidence) {
 
   const allRefs = [...byId.keys()];
   for (const section of sections.values()) {
+    section.referenceTimeZone = timeZone;
     section.primaryEvidenceRefs = [...new Set(section.primaryEvidenceRefs)];
     section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)];
     capSectionEvidence(section);
@@ -554,6 +550,7 @@ export function buildFullDossierPlan(dossierEvidence) {
   return {
     schema: "astrolab.full_dossier_plan",
     version: FULL_DOSSIER_PLAN_VERSION,
+    referenceTimeZone: timeZone,
     interpretationConventions: LASTRO_INTERPRETATION_CONVENTIONS,
     ownerByEvidenceRef,
     sections: [...sections.values()]

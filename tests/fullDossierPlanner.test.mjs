@@ -592,7 +592,7 @@ test("house mentions are validated by allowed house numbers, not body-house reco
   }
 
   const facts = detectAstrologicalTextFacts("La Lune forme un carré avec Mercure. La Lune se trouve dans la maison 3.");
-  assert.deepEqual(facts.filter((fact) => fact.type === "NATAL_BODY_HOUSE"), [{ type: "NATAL_BODY_HOUSE", house: 3 }]);
+  assert.deepEqual(facts.filter((fact) => fact.type === "NATAL_BODY_HOUSE"), [{ type: "NATAL_BODY_HOUSE", body: "Moon", house: 3 }]);
 });
 
 test("an undeclared house number is rejected without assigning houses to planets", () => {
@@ -1097,7 +1097,7 @@ test("transit block plans use a single date when the orb window starts and ends 
   const current = sectionPlanById(fullDossierPlan, "current_sky");
   const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
 
-  assert.ok(transitBlock.deterministicPrefix.includes("Jupiter forme un carré à votre Soleil le 5 octobre 2026."));
+  assert.ok(transitBlock.deterministicPrefix.includes("Jupiter forme un carré à votre Soleil entre le 5 octobre 2026 et le 6 octobre 2026."));
   assert.equal(transitBlock.deterministicPrefix.includes("entre le 5 octobre 2026 et le 5 octobre 2026"), false);
 });
 

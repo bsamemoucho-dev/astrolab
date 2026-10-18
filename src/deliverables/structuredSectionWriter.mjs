@@ -1,3 +1,4 @@
+import { formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 import { sectionPlanById } from "./fullDossierPlan.mjs";
@@ -385,12 +386,7 @@ function deterministicTextForBlock(scopedPlan, blockPlan) {
   const snapshot = (packet?.claims ?? []).find((claim) => claim.type === "TRANSIT_SNAPSHOT");
   if (snapshot) {
     const nowUtc = snapshot.nowUtc
-      ? new Intl.DateTimeFormat("fr-FR", {
-          timeZone: "UTC",
-          day: "numeric",
-          month: "long",
-          year: "numeric"
-        }).format(new Date(snapshot.nowUtc))
+      ? formatFrenchCalendarDate(snapshot.nowUtc, scopedPlan.referenceTimeZone ?? "UTC")
       : "l'instant de référence";
     const horizonDays = Number.isFinite(Number(snapshot.horizonDays)) ? Number(snapshot.horizonDays) : 42;
     return `Ciel calculé le ${nowUtc}, horizon ${horizonDays} jours.`;
@@ -464,7 +460,7 @@ function sentenceLimitWarnings(validation) {
 
 // Deliberately exclude prose, messages, dates, evidence IDs and input data.
 function safeValidationFindings(validation, provenance) {
-  const safeKeys = ["type", "body", "bodyA", "bodyB", "transitBody", "natalPoint", "aspectType", "sign", "house", "angle"];
+  const safeKeys = ["type", "body", "bodyA", "bodyB", "transitBody", "natalPoint", "aspectType", "sign", "house", "angle", "role"];
   return (validation?.issues ?? []).map((issue) => ({
     code: issue.code,
     provenance,
