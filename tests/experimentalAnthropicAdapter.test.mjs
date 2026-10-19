@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {BudgetLedger} from '../experiments/openai-claude/budgetGuard.mjs';
 import {anthropicAdapter,CLAUDE_MODEL,FIRST_CALL_MAX_USD,meteredProvider} from '../experiments/openai-claude/providers.mjs';
 const payload={system:'Répondre en JSON.',messages:[{role:'user',content:'Thème entièrement fictif.'}]};
-async function setup(t,scenario='ok',ceilingUsd=5) {
+async function setup(t,scenario='ok',ceilingUsd=2) {
   const prior=process.env.ANTHROPIC_API_KEY;process.env.ANTHROPIC_API_KEY='synthetic-test-key';t.after(()=>{if(prior===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=prior;});
   const directory=await mkdtemp(join(tmpdir(),'lastro-anthropic-'));t.after(()=>rm(directory,{recursive:true,force:true}));const path=join(directory,'ledger.json');const calls=[];
   const fetchFn=async(url,options)=>{const body=options.body?JSON.parse(options.body):null;calls.push({url,body});assert.equal(options.headers['x-api-key'],'synthetic-test-key');assert.equal(options.redirect,'error');

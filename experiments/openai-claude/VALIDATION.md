@@ -32,3 +32,13 @@ Le stockage local contient deux dossiers LLM historiques avec texte, mais sans D
 ## Risques d'intégration
 
 Les nouveaux contrôles peuvent révéler des affirmations anciennement non détectées, donc augmenter les rejets et corrections. Le fuseau local peut déplacer un jour affiché sans déplacer l'instant calculé. Le format public d'un fait de maison est enrichi du corps. Le corpus local n'étant pas vérifiable, l'absence de faux positifs sur des dossiers réels n'est pas démontrée. Prévoir un corpus privé autorisé avec textes, preuves, plans et convention temporelle d'origine avant une recommandation de production.
+
+## Faux appariement planète–signe : 18 octobre 2026
+
+Le validateur 0.2.0 utilisait une recherche de proximité de 32 caractères qui traversait un autre corps, un autre signe ou une ponctuation de phrase. Les trois réponses Claude de relationships.block1 écrivent correctement « une Lune en Balance et une Vénus en Verseau », mais étaient toutes rejetées pour un NATAL_BODY_SIGN Moon/Aquarius inventé par cette recherche.
+
+Version **dossier-factual-claims@0.2.1** : la fenêtre locale ne traverse plus une autre attribution ni une frontière de phrase. Un autre corps ou angle est accepté uniquement comme sujet explicitement coordonné pour une position partagée. Le traitement est identique pour les angles et conserve la détection de Mars à côté des dates de mars. Aucun fait autorisé, calcul ou contrôle bloquant n'est modifié. Une véritable Lune en Verseau sans preuve correspondante reste rejetée par undeclared_text_fact.
+
+**678/678 tests réussis**, dont 19 nouveaux tests, les 29 tests de sécurité inchangés, et les tests existants sans modification d'attente. Le premier essai des nouveaux tests a révélé une élision non reconnue dans « Lune et l’Ascendant » ; la grammaire a été corrigée avant le passage complet, sans changer l'attente. Les trois réponses réelles sauvegardées sont rejouées avec le writer de production et un transport hors ligne : chacune passe dès la première tentative, sans réécriture. A, B et C déjà sauvegardés passent également le nouveau validateur.
+
+La première réponse initialement rejetée est récupérable telle quelle dans le checkpoint C après vérification et archivage de provenance. Aucun nouvel appel payant, aucune suppression de dépense. Dépense cumulée au diagnostic : 0,5455778 USD, solde 1,4544222 USD. La reprise saute A, B, les chapitres C déjà terminés et relationships récupéré. Aucun déploiement : le corpus historique vérifiable reste un prérequis avant production. Cette expérience demeure locale sur thème fictif ; les limites générales de couverture linguistique du détecteur restent documentées.

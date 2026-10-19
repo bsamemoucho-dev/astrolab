@@ -5,8 +5,8 @@ import { pathToFileURL,fileURLToPath } from 'node:url';
 import { createHash,randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { buildSyntheticFixture,syntheticInput,nowUtc } from './fixture.mjs';
-import { BudgetLedger } from './budgetGuard.mjs';
-import { anthropicAdapter,openaiAdapter,CLAUDE_MODEL,FIRST_CALL_MAX_USD,meteredProvider,toAnthropicPayload } from './providers.mjs';
+import { BudgetLedger, MAX_EXPERIMENT_USD } from './budgetGuard.mjs';
+import { anthropicAdapter,openaiAdapter,CLAUDE_MODEL,FIRST_CALL_MAX_USD,FIRST_CALL_OUTPUT_LIMIT,CLAUDE_BLOCK_OUTPUT_LIMIT,meteredProvider,toAnthropicPayload } from './providers.mjs';
 import { reviewRevision,blindAssignment,wordCount } from './editorialProtocol.mjs';
 import { writeStructuredSectionWithLlm } from '../../src/deliverables/structuredSectionWriter.mjs';
 import { validateStructuredSections } from '../../src/deliverables/factualClaimsValidator.mjs';
@@ -34,7 +34,7 @@ export async function runExperiment({out,mode='plan',approved=false,fetchFn=glob
     if(!envelope){const fixture=await buildSyntheticFixture();envelope={schema:'lastro.synthetic-comparison.v1',input:syntheticInput,fixture};envelope.hash=hash({input:envelope.input,fixture});await save(join(out,'fixture.json'),envelope);}
     if(envelope.schema!=='lastro.synthetic-comparison.v1'||hash(envelope.input)!==hash(syntheticInput)||envelope.hash!==hash({input:envelope.input,fixture:envelope.fixture}))throw fail('SYNTHETIC_FIXTURE_MISMATCH');
     const fixture=envelope.fixture;const plans=[...fixture.fullDossierPlan.sections,...fixture.relationalPlans.flatMap(p=>p.sections)];
-    const plan={fixtureHash:envelope.hash,model:CLAUDE_MODEL,maximumTotalUsd:5,firstCallMaximumUsd:FIRST_CALL_MAX_USD,firstOutputLimit:900,mode:'offline_preparation',paidCalls:0};
+    const plan={fixtureHash:envelope.hash,model:CLAUDE_MODEL,maximumTotalUsd:MAX_EXPERIMENT_USD,firstCallMaximumUsd:FIRST_CALL_MAX_USD,firstOutputLimit:FIRST_CALL_OUTPUT_LIMIT,claudeBlockOutputLimit:CLAUDE_BLOCK_OUTPUT_LIMIT,mode:'offline_preparation',paidCalls:0};
     if(mode==='plan'){await save(join(out,'plan.json'),plan);return plan;}
     const ledger=new BudgetLedger(join(out,'budget.json'),{approved:true});if((await ledger.snapshot()).unresolved)throw fail('UNRESOLVED_CALL_BLOCKS_SPENDING');
     const claude=anthropicAdapter({approved:true,fetchFn});const openai=openaiAdapter({approved:true,fetchFn});await claude.availability();
@@ -48,13 +48,25 @@ export async function runExperiment({out,mode='plan',approved=false,fetchFn=glob
         await save(join(out,id+'.json'),{stage,...result});
         metrics.push({id,stage,...details,model:result.response.billedModel,inputTokens:result.response.usage.inputTokens,outputTokens:result.response.usage.outputTokens,costUsd:result.accounting.actualUsd,durationMs:Date.now()-start});await save(join(out,'calls.json'),metrics);
         await unlink(join(out,'inflight.json'));return result.response;
-      }catch(error){await save(join(out,'failure.json'),{id,stage,code:error.code??'EXPERIMENT_CALL_FAILED',budget:await ledger.snapshot()});throw error;}
+      }catch(error){
+        // A metered truncation is final for this run, but its private response and
+        // cost must survive. Never clear an unknown/unmetered operation here.
+        if(error.code==='TRUNCATED_RESPONSE'&&error.response&&error.accounting){
+          const result={response:error.response,accounting:error.accounting};
+          await save(join(out,id+'.json'),{stage,outcome:'truncated',...result});
+          metrics.push({id,stage,...details,model:result.response.billedModel,inputTokens:result.response.usage.inputTokens,outputTokens:result.response.usage.outputTokens,costUsd:result.accounting.actualUsd,durationMs:Date.now()-start,outcome:'truncated'});
+          await save(join(out,'calls.json'),metrics);
+          await save(join(out,'failure.json'),{id,stage,code:error.code,budget:await ledger.snapshot()});
+          await unlink(join(out,'inflight.json'));
+        }else await save(join(out,'failure.json'),{id,stage,code:error.code??'EXPERIMENT_CALL_FAILED',budget:await ledger.snapshot()});
+        throw error;
+      }
     }
     function writerConfig(target,first=false){return {apiKey:'experimental-transport-only',baseUrl:'https://experimental.invalid/v1',model:'gpt-4o-mini',fetchFn:async(_url,request)=>{
       const body=JSON.parse(request.body);const model=target==='C'?CLAUDE_MODEL:body.model;
       const payload=target==='C'?toAnthropicPayload(body):{messages:body.messages,temperature:body.temperature,response_format:body.response_format};
       const prompt=JSON.parse(body.messages.find(m=>m.role==='user').content);
-      const response=await invoke(target==='C'?claude:openai,model,payload,900,first&&pending?FIRST_CALL_MAX_USD:0.15,{logicalKey:prompt.sectionPlan.sectionId+'.'+prompt.sectionPlan.blockPlans[0].blockId,isCorrection:Boolean(prompt.correctionIssues?.length)});pending=false;
+      const response=await invoke(target==='C'?claude:openai,model,payload,target==='C'?CLAUDE_BLOCK_OUTPUT_LIMIT:900,first&&pending?FIRST_CALL_MAX_USD:0.15,{logicalKey:prompt.sectionPlan.sectionId+'.'+prompt.sectionPlan.blockPlans[0].blockId,isCorrection:Boolean(prompt.correctionIssues?.length)});pending=false;
       return {ok:true,headers:new Headers(),json:async()=>({choices:[{message:{content:response.text}}],usage:{prompt_tokens:response.usage.inputTokens,completion_tokens:response.usage.outputTokens,total_tokens:response.usage.inputTokens+response.usage.outputTokens}})};
     }};}
     async function generate(target,onlyFirst=false){
