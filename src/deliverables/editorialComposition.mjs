@@ -166,10 +166,49 @@ export function composeRelations({ configurations = [], figures = [] }) {
   return { version: COMPOSITION_VERSION, relations, rejected: refus, conventions: COMPOSITION_CONVENTIONS };
 }
 
+// Isolation d'une figure : examiner TOUS les aspects retenus du thème, pas
+// seulement ceux qui ont une règle. Sans cela, « aucun fait ne relie Mars–Saturne
+// à la figure » ne portait que sur les cinq aspects sélectionnés — une phrase
+// vraie par omission.
+export function analyseIsolation({ dossierEvidence, figures = [] }) {
+  const aspects = [];
+  for (const item of dossierEvidence?.evidence ?? []) {
+    if (item?.type !== "NATAL_ASPECT") continue;
+    const value = item.value ?? {};
+    if (!value.bodyA || !value.bodyB) continue;
+    aspects.push({ ref: item.evidenceId, bodyA: value.bodyA, bodyB: value.bodyB });
+  }
+  const parFigure = [];
+  for (const figure of figures) {
+    const membres = new Set(figure.members.map((membre) => membre.aspectId));
+    const corpsFigure = new Set(figure.members.flatMap((membre) => [membre.bodyA, membre.bodyB]));
+    const liees = [];
+    const isolees = [];
+    for (const aspect of aspects) {
+      if (membres.has(aspect.ref)) continue;
+      const partages = [aspect.bodyA, aspect.bodyB].filter((body) => corpsFigure.has(body));
+      (partages.length > 0 ? liees : isolees).push({ ref: aspect.ref, bodies: [aspect.bodyA, aspect.bodyB], sharedBodies: partages });
+    }
+    parFigure.push({
+      figureId: figure.figureId,
+      examinedAspects: aspects.length,
+      figureBodies: [...corpsFigure],
+      isolated: isolees,
+      linked: liees,
+      statement:
+        liees.length === 0
+          ? `Sur les ${aspects.length} aspects retenus du thème, aucun ne touche un corps de cette figure (${[...corpsFigure].join(", ")}) : les configurations hors figure ne lui sont reliées par aucun aspect calculé.`
+          : `Sur les ${aspects.length} aspects retenus, ${liees.length} touchent un corps de cette figure : ${liees.map((entree) => `${entree.ref} (${entree.sharedBodies.join(", ")})`).join(" ; ")}.`
+    });
+  }
+  return { version: "lastro-isolation@1.0.0", byFigure: parFigure };
+}
+
 // Entrée unique : preuves + règles → figures + configurations + relations.
 export function composeEditorialMaterial({ dossierEvidence, rulesForEvidence }) {
   const figures = detectFigures({ dossierEvidence }).figures;
   const configurations = buildConfigurations({ dossierEvidence, rulesForEvidence });
   const { relations, rejected } = composeRelations({ configurations, figures });
-  return { figures, configurations, relations, rejected };
+  const isolation = analyseIsolation({ dossierEvidence, figures });
+  return { figures, configurations, relations, rejected, isolation };
 }

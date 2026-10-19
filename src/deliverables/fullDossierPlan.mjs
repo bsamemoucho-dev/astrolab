@@ -723,7 +723,8 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
           owns: chapitre.owns.map(resumer),
           mayRecall: chapitre.mayRecall.map(resumer),
           reserved: chapitre.reserved.map(resumer),
-          relationRefs: chapitre.relations
+          relationRefs: chapitre.relations,
+          isolation: chapitre.isolation ?? []
         }
       : null;
     section.allowedRelations = (editorialPlan?.relations ?? []).filter((relation) =>

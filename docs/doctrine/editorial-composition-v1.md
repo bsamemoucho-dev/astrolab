@@ -178,6 +178,68 @@ Procédure pour la famille suivante, sans refonte :
 4. laisser `semanticsCoverage()` documenter l'avancement, sans jamais prétendre
    que la migration est terminée.
 
+## Couverture factuelle : lier ce qui est dit
+
+Trois tournures échappaient au détecteur, et un chapitre correct n'était couvert
+qu'à **1 fait sur 4** :
+
+1. **phrase à sujet implicite** — « en trigone avec le Soleil (6,08°), en sextile
+   avec la Lune (1,09°) ». Le sujet (Jupiter) est loin, la seconde phrase reprend
+   celui de la première. Un liant dédié reconnaît `ASPECT + avec/à + objet` et
+   applique deux règles : reprise du sujet précédent quand aucun corps n'apparaît
+   entre les deux (énumération), sinon dernier corps cité **non déjà objet** d'un
+   aspect (sinon la phrase est ambiguë et n'est pas devinée). Couverture du
+   chapitre de démonstration : **3 / 4**.
+2. **orbe chiffré sans aspect nommé** — « deux exigences… (orbe de 4,99°) ».
+   Le nombre n'est vérifiable par personne : **avertissement**
+   `orb_without_named_aspect`, jamais bloquant. Le 4ᵉ fait du chapitre est dans
+   ce cas : il n'est pas *nommé*, donc non lié — ce n'est plus un faux positif.
+3. **parenthèse** — « trigone avec le Soleil (6,08°), en sextile avec la Lune »
+   produisait un « Soleil–Lune sextile » inexistant : la parenthèse ferme
+   désormais la paire.
+
+Aucun seuil d'orbe, aucune liste de vocabulaire, aucun contrôle n'a été
+assoupli : le liant ne peut qu'AJOUTER des faits vérifiés.
+
+## Isolation : la phrase porte sur tous les aspects
+
+« Aucun fait ne relie Mars–Saturne à la figure » ne doit pas être vrai seulement
+pour les aspects qui ont une règle. `analyseIsolation` examine **tous** les
+aspects retenus du thème et produit un fait vérifiable :
+
+> Sur les 5 aspects retenus du thème, aucun ne touche un corps de cette figure
+> (Sun, Moon, Jupiter) : les configurations hors figure ne lui sont reliées par
+> aucun aspect calculé.
+
+Quand un aspect relie la figure (test synthétique : un carré Mars–Jupiter), la
+phrase s'inverse et nomme le corps partagé. Le rédacteur reçoit ce fait, il ne
+l'invente pas.
+
+## Présentation : le chapitre ne raconte pas son atelier
+
+La version testée ouvrait sur « les deux liens sont des soutiens », puis
+commentait ses mesures, ses conventions et ses limites — une justification
+technique en pleine lecture. La mission d'exploration est désormais en **trois
+mouvements** (ce que la structure a de particulier ; deux lectures menées jusqu'à
+ce qu'elles changent quelque chose pour le lecteur ; une question ou une
+ouverture), avec un interdit explicite : ni « hypothèse », ni « mesure », ni
+« convention », ni « on ne peut pas en déduire ». Les preuves et les limites
+restent publiées dans l'annexe et portées par les badges.
+
+## Généralité : le moteur ne produit pas deux hypothèses par construction
+
+| Configuration | Figure | Hypothèses |
+|---|---|---|
+| Thème de démonstration | apex harmonique asymétrique | **2** |
+| T-carré (1975-09-08) | apex dur | **2** |
+| Grand trigone (1974-03-11) | trigone | **1** |
+| Thème sans figure (1970-06-21) | aucune | **0** |
+| Apex symétrique (synthétique) | harmonique, orbes 4° / 4,5° | **1** |
+| Apex relié (synthétique) | + carré Mars–Jupiter | **2** |
+
+Le nombre d'hypothèses dépend de la géométrie : sans discriminant mesuré (écart
+d'orbe < 2°), une seule lecture est produite.
+
 ## Ce que la couche ne fait pas
 
 - Elle n'invente aucune relation symbolique : chaque relation cite sa convention

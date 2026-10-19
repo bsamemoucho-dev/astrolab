@@ -334,6 +334,62 @@ function detectAspectFacts(text) {
     );
   }
 
+
+  // --- Phrases à objet explicite et sujet implicite -------------------------
+  //
+  // « Jupiter … en trigone avec le Soleil (6,08°), en sextile avec la Lune. »
+  // Aucun des motifs précédents ne lie ces deux aspects : le sujet est loin, et
+  // la seconde phrase partage le sujet de la première. Résultat mesuré : un
+  // chapitre correct n'était couvert qu'à 25 %.
+  //
+  // Règles (conservatrices : on n'ajoute un fait que si le sujet est certain) :
+  //   1. une phrase = ASPECT + (avec|à|vers|de) + objet ;
+  //   2. si la phrase précédente se termine sur son objet et qu'aucun corps
+  //      n'apparaît entre les deux, le sujet est REPRIS (énumération) ;
+  //   3. sinon le sujet est le dernier corps cité avant la phrase, à condition
+  //      qu'il ne soit pas lui-même l'objet d'un aspect déjà détecté (sinon la
+  //      phrase est ambiguë : on ne devine pas).
+  const phraseAvecObjet = new RegExp(
+    `\\b(${ASPECT_PATTERN})\\b\\s*(?:avec|à|a|vers|de|du)\\s+(?:(?:le|la|les|l'|votre|vos|son|sa|ses|ton|ta|tes|ce|cet|cette)\\s+)?(${ASPECT_POINT_PATTERN})\\b`,
+    "giu"
+  );
+  const mentionsCorps = [...source.matchAll(new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b`, "giu"))].map((m) => ({
+    cle: keyForVocabularyMatch(m[1], ASPECT_POINT_WORDS),
+    debut: m.index,
+    fin: m.index + m[0].length
+  }));
+  const corpsObjet = new Set(facts.filter((fait) => fait.type === "ASPECT").map((fait) => `${fait.bodyA}|${fait.bodyB}`));
+  let precedente = null;
+  for (const m of source.matchAll(phraseAvecObjet)) {
+    const aspectType = keyForVocabularyMatch(m[1], ASPECT_WORDS);
+    const objet = keyForVocabularyMatch(m[2], ASPECT_POINT_WORDS);
+    const debutPhrase = m.index;
+    const finObjet = m.index + m[0].length;
+    const entre = precedente ? source.slice(precedente.finObjet, debutPhrase) : null;
+    const corpsDansEntre = entre
+      ? [...entre.matchAll(new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b`, "giu"))].length > 0
+      : false;
+
+    let sujet = null;
+    if (precedente && !corpsDansEntre) {
+      sujet = precedente.sujet; // énumération : même sujet
+    } else {
+      const avant = mentionsCorps.filter((mention) => mention.fin <= debutPhrase && mention.cle !== objet);
+      const candidat = avant[avant.length - 1];
+      const ambigu = candidat && (corpsObjet.has(`${candidat.cle}|${objet}`) || corpsObjet.has(`${objet}|${candidat.cle}`));
+      // Le candidat ne doit pas être l'objet d'un aspect déjà lu dans la phrase.
+      const candidatEstObjet = candidat
+        ? facts.some((fait) => fait.type === "ASPECT" && (fait.bodyB === candidat.cle || fait.bodyA === candidat.cle) && fait.bodyB !== objet && fait.bodyA !== objet)
+        : false;
+      if (candidat && !ambigu && !candidatEstObjet) sujet = candidat.cle;
+    }
+
+    if (sujet) {
+      pushAspectFact(facts, seen, sujet, aspectType, objet);
+    }
+    precedente = { sujet: sujet ?? objet, finObjet };
+  }
+
   return facts;
 }
 
@@ -411,6 +467,22 @@ function hasAffirmativeAlways(text) {
     return true;
   }
   return false;
+}
+
+// Un orbe chiffré doit être rattaché à un aspect NOMMÉ dans la même phrase.
+// Sinon le nombre n'est vérifiable par personne : le validateur ne peut pas
+// savoir de quel aspect il parle. Avertissement, jamais blocage : la phrase
+// reste publiable, mais le diagnostic le dit.
+function findOrbWithoutNamedAspect(text) {
+  const avertissements = [];
+  const phrases = String(text ?? "").split(/(?<=[.!?;])\s+|\n+/);
+  for (const phrase of phrases) {
+    const orbe = /\b(orbe|orbes|écart|ecart)\b[^.!?]{0,40}?(\d+(?:[.,]\d+)?)\s*°/i.exec(phrase);
+    if (!orbe) continue;
+    const nomme = detectAspectFacts(phrase).length > 0;
+    if (!nomme) avertissements.push({ sentence: phrase.trim().slice(0, 200), value: orbe[2] });
+  }
+  return avertissements;
 }
 
 function detectStyleWarnings(block) {
@@ -726,6 +798,11 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
       }
     }
     warnings.push(...detectStyleWarnings(block));
+    for (const orphelin of findOrbWithoutNamedAspect(block.text)) {
+      warnings.push(
+        warningForBlock(block, "orb_without_named_aspect", "Un orbe chiffré est cité sans que l'aspect soit nommé dans la phrase : le nombre n'est pas vérifiable.", orphelin)
+      );
+    }
     const blockRefs = Array.isArray(block.evidenceRefs) ? block.evidenceRefs : [];
     const resolvedRefs = [];
     for (const ref of blockRefs) {

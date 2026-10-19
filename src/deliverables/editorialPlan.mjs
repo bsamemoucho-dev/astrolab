@@ -34,12 +34,12 @@ const MISSIONS = {
     "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
   // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
   exploration:
-    "Tu explores UNE figure calculée, pas des aspects séparés. Suis quatre temps, sans les titrer : " +
-    "(1) une observation précise — qu'est-ce qui distingue ce thème, et pourquoi cette structure mérite-t-elle l'attention ? " +
-    "(2) deux lectures réellement différentes de cette même figure, chacune avec son argument ; " +
-    "(3) leur confrontation — ce que chacune permet de soutenir, ce qu'on ne peut PAS en déduire, et sur quelle convention elle repose ; " +
-    "(4) une conclusion qui fait avancer la lecture : une perspective nouvelle, une question d'introspection, ou une ouverture vers la suite. " +
-    "Ne tranche pas entre les deux lectures. N'annonce pas les positions planétaires : elles sont dans l'annexe.",
+    "Tu explores UNE figure calculée, pas des aspects séparés. Trois mouvements, sans les titrer : " +
+    "(1) ce que cette structure a de particulier — sans réciter les positions, elles sont dans l'annexe ; " +
+    "(2) deux lectures possibles de cette même figure, chacune développée et menée jusqu'à ce qu'elle change quelque chose pour le lecteur, avec en une phrase le fait qui les distingue ; " +
+    "(3) une question ou une ouverture qui laisse au lecteur quelque chose à penser. " +
+    "Ne tranche pas entre les deux lectures. " +
+    "N'explique pas l'atelier : ni « hypothèse », ni « mesure », ni « convention », ni « on ne peut pas en déduire ». Les preuves et les limites sont publiées dans l'annexe ; ton texte les applique, il ne les raconte pas.",
   identity:
     "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
   emotional_world:
@@ -87,6 +87,7 @@ export function buildEditorialPlan({
   const material = composeEditorialMaterial({ dossierEvidence, rulesForEvidence });
   const { figures, configurations, relations, rejected } = material;
   const reading = buildReadingHypotheses({ figures, configurations });
+  const isolation = material.isolation ?? { byFigure: [] };
   const idsDisponibles = new Set(sections.map((section) => section.sectionId));
   const gaps = [];
 
@@ -208,10 +209,14 @@ export function buildEditorialPlan({
     const hypothesesDuChapitre = reading.hypotheses.filter((hypothese) =>
       owns.some((idea) => idea.kind === "figure" && idea.figureId === hypothese.figureId)
     );
+    const isolationDuChapitre = [...new Set(hypothesesDuChapitre.map((hypothese) => hypothese.figureId))]
+      .map((figureId) => isolation.byFigure.find((entree) => entree.figureId === figureId))
+      .filter(Boolean);
     return {
       sectionId,
       mission: hypothesesDuChapitre.length > 0 ? MISSIONS.exploration : missionPour(sectionId),
       hypotheses: hypothesesDuChapitre,
+      isolation: isolationDuChapitre,
       owns: owns.map((idea) => idea.ideaId),
       mayRecall: mayRecall.map((idea) => idea.ideaId),
       reserved: reserved.map((idea) => idea.ideaId),
@@ -259,6 +264,7 @@ export function buildEditorialPlan({
     relations,
     rejected,
     hypotheses: reading.hypotheses,
+    isolation: isolation.byFigure,
     singleReadingFigures: reading.singleReadingFigures,
     gaps,
     // Mémoire : ce que chaque chapitre peut rappeler sans le redévelopper.

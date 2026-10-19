@@ -573,12 +573,14 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     // Chapitre qui explore une figure : plusieurs lectures, jamais un verdict.
     ...(Array.isArray(sectionPlan.readingHypotheses) && sectionPlan.readingHypotheses.length > 0
       ? [
-          "Tu explores UNE figure calculée : expose au moins deux lectures possibles de CETTE MÊME figure, en disant ce qui les distingue (mode des liens, écart d'orbe). Ne tranche pas entre elles : laisse-les en tension.",
+          "Tu explores UNE figure calculée : expose au moins deux lectures possibles de CETTE MÊME figure, et montre ce qui les distingue par un fait du thème — pas par un commentaire de méthode. Ne tranche pas entre elles : laisse-les en tension.",
           "Chaque lecture est licenciée par les faits calculés fournis. Tu ne peux ni en ajouter, ni étendre une ressource à une configuration qui n'appartient pas à la figure.",
           "Interdit explicite : dire qu'un aspect compense, équilibre ou éclaire une configuration que rien ne relie. Si les faits ne le portent pas, tu ne l'écris pas.",
+          "Si `editorial.isolation` fournit un décompte, tu peux dire qu'aucun des aspects retenus ne relie la figure aux autres configurations — ce fait est calculé sur l'ensemble, pas sur un échantillon.",
           "N'annonce pas les positions planétaires en ouverture : elles figurent dans l'annexe. Ouvre sur ce que la structure a de particulier.",
-          "Formule chaque lecture comme une proposition (« une lecture serait… », « on peut aussi lire… »), jamais comme un fait établi : les orbes et les modes sont calculés, mais ce qu'ils signifient reste une hypothèse symbolique.",
-          "Ne présente jamais une hypothèse comme plus vraie que l'autre : ce qui les sépare est une mesure, pas une preuve.",
+          "Signale qu'il s'agit d'une lecture par la formulation elle-même (« une lecture serait… », « on peut aussi lire… »), jamais par un commentaire sur ta méthode.",
+          "Ne hiérarchise pas les deux lectures et ne conclus pas : laisse-les ouvertes.",
+          "N'écris aucun méta-commentaire sur tes preuves, tes mesures, tes conventions ou tes limites : cela appartient à l'annexe, pas au chapitre.",
           "Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu — des questions auxquelles lui seul peut répondre."
         ]
       : []),
@@ -658,6 +660,13 @@ function editorialForPrompt(sectionPlan) {
       computedFacts: hypothese.licence?.computedFacts ?? [],
       questions: hypothese.questions ?? [],
       limits: hypothese.limits ?? []
+    })),
+    // Isolation calculée sur TOUS les aspects retenus : ce que le chapitre peut
+    // affirmer sur ce qui ne relie pas la figure.
+    isolation: (sectionPlan.editorialPlan?.isolation ?? []).map((entree) => ({
+      figureId: entree.figureId,
+      examinedAspects: entree.examinedAspects,
+      statement: entree.statement
     })),
     relationsAllowed: (sectionPlan.allowedRelations ?? []).map((relation) => ({
       relationId: relation.relationId,
