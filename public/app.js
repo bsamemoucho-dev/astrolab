@@ -34,8 +34,8 @@ const LANGUAGES = [
 const UI_STRINGS = {
   fr: {
     heroTag: "✦ Lecture personnalisée",
-    heroTitle: "Bienvenue sur <span>Lastro</span>.",
-    lead: "Ce que votre ciel dit de vous.",
+    heroTitle: "Votre signe n’est que <span>le début de l’histoire</span>",
+    lead: "Quand vous dites « Je suis Balance ou Capricorne », vous parlez de votre signe solaire : la position du Soleil dans le zodiaque au moment de votre naissance.",
     formTitle: "Votre lecture",
     dateLabel: "Date de naissance",
     hourLabel: "Heure", hourPrecisionLabel: "Précision",

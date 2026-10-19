@@ -576,6 +576,10 @@ details.parent-fieldset summary::marker { color: var(--gold); }
    MODE VISITEUR « simple »
 \* ============================================================ */
 
+/* Page d'accueil : le texte éditorial français ne s'affiche que si la langue est le français.
+   Le document est servi en lang="fr" et app.js met à jour cet attribut à chaque changement de langue. */
+:root:not([lang="fr"]) [data-french-only] { display: none !important; }
+
 #guest-hero { max-width: 960px; margin: 20px auto 10px; padding: 0 10px 18px; display: grid; gap: 16px; justify-items: center; text-align: center; }
 .guest-topbar { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 960px; }
 .guest-brand { display: inline-flex; align-items: center; gap: 10px; }
@@ -602,7 +606,82 @@ details.parent-fieldset summary::marker { color: var(--gold); }
 .zodiac-name { font-family: var(--serif); font-size: 0.92rem; color: var(--ink-soft); }
 .zodiac-symbol { font-size: 0.75rem; color: var(--violet); }
 
+/* --- accueil public : bouton principal du héros (lien vers le formulaire) --- */
+#guest-hero .hero-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0 30px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--gold) 0%, #f3d38a 55%, var(--gold-deep) 100%);
+  color: #241a06;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  box-shadow: 0 18px 50px -12px rgba(233, 196, 106, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  transition: transform 0.14s ease, filter 0.18s ease;
+  margin-top: 2px;
+}
+#guest-hero .hero-cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
+#guest-hero .hero-cta:active { transform: translateY(0); }
+#guest-hero .hero-cta:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* --- accueil public : section pédagogique sous le héros --- */
+.pedagogy {
+  max-width: 720px;
+  margin: 6px auto 30px;
+  padding: 0 10px;
+  display: grid;
+  gap: 16px;
+  color: var(--ink-soft);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  text-align: left;
+}
+.pedagogy p { margin: 0; }
+.pedagogy .pedagogy-highlight {
+  display: block;
+  margin-top: 10px;
+  color: var(--gold);
+  font-size: 1.14rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.aster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px 26px;
+}
+.aster-list li { padding-left: 14px; border-left: 1px solid var(--line-strong); line-height: 1.55; }
+.aster-list strong { color: var(--gold); font-weight: 600; }
+.pedagogy-signature {
+  margin-top: 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  line-height: 1.45;
+  color: var(--gold);
+  text-align: center;
+}
+
+/* deux colonnes pour les cinq astres dès qu'il y a la place */
+@media (min-width: 720px) {
+  .aster-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .pedagogy { margin: 2px auto 22px; padding: 0 8px; gap: 13px; font-size: 0.97rem; line-height: 1.62; }
+  .pedagogy .pedagogy-highlight { font-size: 1.04rem; margin-top: 8px; }
+  .pedagogy-signature { font-size: 1.06rem; padding-top: 16px; }
+}
+
 .express-wrap { max-width: 640px; margin: 0 auto; }
+#express-form { scroll-margin-top: 88px; }
 #express-viewer { margin: 22px auto 0; max-width: 860px; }
 #express-viewer:not([hidden]) { display: block; }
 #express-ready-hint { margin: 2px 0 0; }
@@ -717,11 +796,24 @@ body.guest .note-accent { display: none; }
   text-shadow: 0 0 46px rgba(233, 196, 106, 0.18);
 }
 #guest-hero h1 span {
+  /* Le segment doré reste d'un seul tenant : la ligne casse avant lui, jamais au milieu. */
+  display: inline-block;
   background: linear-gradient(90deg, #f4d98a, #e9c46a 55%, #f6e6b6);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   text-shadow: 0 0 30px rgba(233, 196, 106, 0.35);
+}
+
+/* Le titre d'accueil est devenu une phrase entière : sur téléphone, on rétablit
+   l'échelle mobile prévue plus haut (la règle ci-dessus, plus tardive, l'écrasait). */
+@media (max-width: 640px) {
+  #guest-hero h1 { font-size: clamp(1.75rem, 8.2vw, 2.35rem); line-height: 1.15; }
+}
+
+/* Écrans très étroits : le titre reste sur deux lignes équilibrées. */
+@media (max-width: 360px) {
+  #guest-hero h1 { font-size: clamp(1.45rem, 6.6vw, 1.8rem); }
 }
 .guest-lead { color: #c6ccf2; letter-spacing: 0.02em; }
 
