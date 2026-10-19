@@ -269,7 +269,9 @@ function rendreDiagnostics(plan) {
   ];
   for (const [modele, chemin] of Object.entries(corpus)) {
     const sections = dossierTexte(chemin, ["internal_tensions", "supporting_resources", "major_aspects"]);
-    const rapport = diagnose({ sections: sections.map((section) => ({ ...section, sources })) });
+    const rapport = diagnose({
+      sections: sections.map((section) => ({ ...section, sources, ownedLabels: sources }))
+    });
     lignes.push(`## ${modele}`, "");
     lignes.push("| Chapitre | Mots | Recopie max (mots) | Nouveauté |", "|---|---:|---:|---:|");
     for (const section of rapport.sections) {

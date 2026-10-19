@@ -9,9 +9,9 @@ Sources comparées : 20 formulations transmises par les règles.
 
 | Chapitre | Mots | Recopie max (mots) | Nouveauté |
 |---|---:|---:|---:|
-| `internal_tensions` | 115 | 12 | 1 |
-| `supporting_resources` | 129 | 8 | 1 |
-| `major_aspects` | 259 | 15 | 1 |
+| `internal_tensions` | 115 | 12 | 0.34 |
+| `supporting_resources` | 129 | 8 | 0.57 |
+| `major_aspects` | 259 | 15 | 0.41 |
 
 - `internal_tensions` × `major_aspects` : n-grammes 0.11, recouvrement lexical **0.37**
 - `supporting_resources` × `major_aspects` : n-grammes 0.09, recouvrement lexical **0.32**
@@ -20,9 +20,9 @@ Sources comparées : 20 formulations transmises par les règles.
 
 | Chapitre | Mots | Recopie max (mots) | Nouveauté |
 |---|---:|---:|---:|
-| `internal_tensions` | 192 | 9 | 1 |
-| `supporting_resources` | 157 | 8 | 1 |
-| `major_aspects` | 315 | 8 | 1 |
+| `internal_tensions` | 192 | 9 | 0.66 |
+| `supporting_resources` | 157 | 8 | 0.47 |
+| `major_aspects` | 315 | 8 | 0.55 |
 
 - `supporting_resources` × `major_aspects` : n-grammes 0, recouvrement lexical **0.28**
 - `internal_tensions` × `major_aspects` : n-grammes 0, recouvrement lexical **0.24**
