@@ -637,6 +637,13 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       section.secondaryEvidenceRefs.push(...displaced);
       for (const ref of displaced) ownerByEvidenceRef[ref] = owners.get(ref);
     }
+    for (const [ref, owner] of owners) {
+      const section = sections.get(owner);
+      if (!section) continue;
+      if (!section.primaryEvidenceRefs.includes(ref)) section.primaryEvidenceRefs.push(ref);
+      section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((candidate) => candidate !== ref);
+      ownerByEvidenceRef[ref] = owner;
+    }
   }
 
   // 2. Références de rappel : un chapitre qui croise deux configurations doit

@@ -119,3 +119,12 @@ test('transitive membership never licenses an interaction between disjoint aspec
  const bad=result(evidence,section,'Le Soleil forme une conjonction avec Vénus. La Lune forme un carré avec Mercure. Ces deux aspects se répondent.');
  assert.ok(bad.issues.some(issue=>issue.code==='crossed_claim_not_licensed'));
 });
+
+
+test('the relationship chapter is the sole primary owner of its three linked aspects',()=>{
+ const plan=planOf(fixture());
+ for(const ref of ['aspect.sun.venus.conjunction','aspect.sun.mars.sextile','aspect.venus.mars.sextile']) {
+  assert.deepEqual(plan.sections.filter(section=>section.primaryEvidenceRefs.includes(ref)).map(section=>section.sectionId),['relationships']);
+  assert.equal(plan.ownerByEvidenceRef[ref],'relationships');
+ }
+});

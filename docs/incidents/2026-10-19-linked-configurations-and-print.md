@@ -55,7 +55,7 @@ figures 1.0.2. Les calculs astronomiques et les instants UTC ne sont pas modifi�
 
 ## Vérifications
 
-`node --test` : **852 tests réussis, zéro échec**, dont 16 nouvelles régressions.
+`node --test` : **853 tests réussis, zéro échec**, dont 17 nouvelles régressions.
 Les 29 tests de sécurité expérimentaux restent strictement inchangés.
 Les attentes existantes adaptées portent sur les versions et le nombre de règles
 migrées (8 au lieu de 5), pas sur l'acceptation de faits non autorisés.
@@ -86,7 +86,7 @@ conservation des données. Ne jamais restaurer une ancienne base pour un simple
 retour arrière de code ; les nouvelles règles n'introduisent aucune migration.
 
 Les contrôles automatiques prouvent la disponibilité et la portée des sources,
-pas la qualité littéraire de tout texte possible. Le conditionnel fait l'objet
+pas la qualité littéraire de tout texte possible. Le conditionnel fait l'objet de
 consignes de variété, sans quota arbitraire de mots. Les règles sémantiques
 restent partiellement migrées ; les règles historiques sont préservées. Le sujet
 indépendant PERSONAL_TRANSIT.natalHouse n'est pas modifié.
