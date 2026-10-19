@@ -7,14 +7,14 @@
    "blockId": "block1",
    "requestedModel": "claude-sonnet-5-5",
    "respondedModel": "claude-sonnet-5-5",
-   "promptTokens": 7055,
-   "completionTokens": 840,
+   "promptTokens": 7160,
+   "completionTokens": 1160,
    "finishReason": "length",
-   "durationMs": 6641,
+   "durationMs": 9253,
    "httpStatus": 200,
-   "costUsd": 0.02251
+   "costUsd": 0.02592
   }
  ],
  "totalCalls": 1,
- "totalCostUsd": 0.02251
+ "totalCostUsd": 0.02592
 }

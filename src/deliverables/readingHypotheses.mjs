@@ -272,16 +272,20 @@ export function buildReadingHypotheses({ figures = [], configurations = [] } = {
 
 // La longueur suit la matière : une hypothèse = un développement, pas un quota.
 //
-// Calibrage du 21/10/2026 : avec 200 mots visés / 320 plafonnés, Claude a été
-// coupé au plafond de tokens (840) en pleine seconde lecture. Deux lectures
-// développées + les questions demandent ~400 mots. La formule est donc portée à
-// 100 + 100 par hypothèse (repère) et 160 + 160 (plafond), ce qui laisse au
-// modèle la place de finir sans l'autoriser à remplir.
+// Calibrage du 21/10/2026, après deux interruptions mesurées :
+//   - 200 mots visés / 320 plafonnés → coupé à 840 tokens ;
+//   - 300 / 480 → coupé à 1 160 tokens (314 mots écrits, sans la conclusion).
+// Deux causes : le modèle écrit ~1,4 × le repère annoncé, et l'échappement JSON
+// (`\n`, `\"`) ajoute ~15 % de tokens au texte.
+//
+// Le repère reste une indication éditoriale ; le PLAFOND devient un vrai
+// plafond de sécurité (700 mots pour deux hypothèses → 1 600 tokens de sortie),
+// pour qu'une réponse ne puisse plus être coupée en pleine lecture.
 export function lengthForHypotheses(count) {
   const hypotheses = Math.max(0, Number(count) || 0);
   if (hypotheses === 0) return { targetWords: 0, maxWords: 0 };
   return {
-    targetWords: 100 + 100 * hypotheses,
-    maxWords: 160 + 160 * hypotheses
+    targetWords: 100 + 110 * hypotheses,
+    maxWords: 300 + 200 * hypotheses
   };
 }

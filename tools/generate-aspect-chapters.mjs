@@ -28,6 +28,7 @@ import { buildFullDossierPlan } from "../src/deliverables/fullDossierPlan.mjs";
 import { blockLengthBudget, maxTokensForBlock, worstCaseOutputTokens } from "../src/deliverables/generationLimits.mjs";
 import {
   buildStructuredSystemPrompt,
+  buildStructuredUserPrompt,
   scopedSectionPlanForBlock,
   writeStructuredSectionWithLlm
 } from "../src/deliverables/structuredSectionWriter.mjs";
@@ -275,10 +276,15 @@ async function main() {
     // d'entrée et 2 000 de sortie par appel, au tarif du modèle réellement
     // demandé (le tarif est public, pas mesuré — la facture tranche).
     const tarif = priceForModel(model);
+    // Borne estimée sur les invites RÉELLEMENT composées : le forfait de 3 000
+    // tokens d'entrée sous-estimait le brief éditorial (7 055 tokens mesurés).
+    const CHAR_PAR_TOKEN = 3; // volontairement pessimiste
     const borneHaute = cibles.reduce((total, { section, blockPlan }) => {
-      const budget = blockLengthBudget({ sectionPlan: section, blockPlan });
-      const pireSortie = maxTokensForBlock(budget);
-      const pireEntree = 3000; // borne d'entrée observée (1 280 à 1 670 réels)
+      const scoped = scopedSectionPlanForBlock(section, blockPlan);
+      const system = buildStructuredSystemPrompt(scoped, { blockCount: (section.blockPlans ?? []).length, blockPlan });
+      const user = buildStructuredUserPrompt({ sectionPlan: scoped });
+      const pireEntree = Math.ceil((system.length + user.length) / CHAR_PAR_TOKEN);
+      const pireSortie = maxTokensForBlock(blockLengthBudget({ sectionPlan: section, blockPlan }));
       return total + (pireEntree / 1e6) * tarif.in + (pireSortie / 1e6) * tarif.out;
     }, 0);
     console.log(

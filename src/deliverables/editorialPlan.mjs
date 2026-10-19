@@ -34,7 +34,12 @@ const MISSIONS = {
     "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
   // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
   exploration:
-    "Tu explores UNE figure calculée, pas des aspects séparés. Commence par ce que la structure a de particulier, puis expose au moins deux lectures possibles de cette même figure en disant ce qui les distingue (orbe, mode, asymétrie). Ne tranche pas : laisse les deux lectures en tension. N'annonce pas les positions planétaires, elles sont dans l'annexe. Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu.",
+    "Tu explores UNE figure calculée, pas des aspects séparés. Suis quatre temps, sans les titrer : " +
+    "(1) une observation précise — qu'est-ce qui distingue ce thème, et pourquoi cette structure mérite-t-elle l'attention ? " +
+    "(2) deux lectures réellement différentes de cette même figure, chacune avec son argument ; " +
+    "(3) leur confrontation — ce que chacune permet de soutenir, ce qu'on ne peut PAS en déduire, et sur quelle convention elle repose ; " +
+    "(4) une conclusion qui fait avancer la lecture : une perspective nouvelle, une question d'introspection, ou une ouverture vers la suite. " +
+    "Ne tranche pas entre les deux lectures. N'annonce pas les positions planétaires : elles sont dans l'annexe.",
   identity:
     "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
   emotional_world:

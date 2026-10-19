@@ -111,8 +111,8 @@ test("les hypothèses n'appartiennent qu'au chapitre qui possède la figure", ()
 test("la longueur suit la matière : deux hypothèses, pas un quota de chapitre", () => {
   const plan = buildFullDossierPlan(dossier(THEMES.demonstration), { aspectChapterMode: "reference" });
   const tensions = plan.sections.find((section) => section.sectionId === "internal_tensions");
-  assert.equal(tensions.targetWords, 300);
-  assert.equal(tensions.maxWords, 480);
+  assert.equal(tensions.targetWords, 320);
+  assert.equal(tensions.maxWords, 700);
   assert.equal(tensions.targetWords, lengthForHypotheses(2).targetWords);
   // Le budget d'un chapitre sans hypothèse ne bouge pas.
   const ressources = plan.sections.find((section) => section.sectionId === "supporting_resources");
