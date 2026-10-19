@@ -61,7 +61,7 @@ Propriétaire : `general_synthesis`
 
 ### `internal_tensions` — 1 bloc(s), 3 croisement(s)
 
-**Mission** : Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.
+**Mission** : Tu explores UNE figure calculée, pas des aspects séparés. Commence par ce que la structure a de particulier, puis expose au moins deux lectures possibles de cette même figure en disant ce qui les distingue (orbe, mode, asymétrie). Ne tranche pas : laisse les deux lectures en tension. N'annonce pas les positions planétaires, elles sont dans l'annexe. Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu.
 
 - Faits développés : Mars–Saturne opposition (primary) ; Soleil–Lune opposition (primary)
 - Faits cités : Lune–Jupiter sextile (reference) ; Soleil–Jupiter trigone (reference)

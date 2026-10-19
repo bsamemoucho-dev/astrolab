@@ -16,6 +16,7 @@
 
 import { composeEditorialMaterial } from "./editorialComposition.mjs";
 import { semanticsCoverage } from "./interpretationRules.mjs";
+import { buildReadingHypotheses } from "./readingHypotheses.mjs";
 
 export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.0.0";
 
@@ -31,6 +32,9 @@ const MISSIONS = {
     "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
   conclusion:
     "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
+  // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
+  exploration:
+    "Tu explores UNE figure calculée, pas des aspects séparés. Commence par ce que la structure a de particulier, puis expose au moins deux lectures possibles de cette même figure en disant ce qui les distingue (orbe, mode, asymétrie). Ne tranche pas : laisse les deux lectures en tension. N'annonce pas les positions planétaires, elles sont dans l'annexe. Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu.",
   identity:
     "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
   emotional_world:
@@ -77,6 +81,7 @@ export function buildEditorialPlan({
 } = {}) {
   const material = composeEditorialMaterial({ dossierEvidence, rulesForEvidence });
   const { figures, configurations, relations, rejected } = material;
+  const reading = buildReadingHypotheses({ figures, configurations });
   const idsDisponibles = new Set(sections.map((section) => section.sectionId));
   const gaps = [];
 
@@ -192,9 +197,16 @@ export function buildEditorialPlan({
         owns.some((idea) => idea.configId === configId)
       ) || owns.some((idea) => idea.kind === "figure" && idea.figureId === relation.figureId)
     );
+    // Les hypothèses de lecture appartiennent au chapitre qui possède la figure :
+    // c'est là qu'on explore plusieurs lectures d'UNE même structure, et nulle
+    // part ailleurs.
+    const hypothesesDuChapitre = reading.hypotheses.filter((hypothese) =>
+      owns.some((idea) => idea.kind === "figure" && idea.figureId === hypothese.figureId)
+    );
     return {
       sectionId,
-      mission: missionPour(sectionId),
+      mission: hypothesesDuChapitre.length > 0 ? MISSIONS.exploration : missionPour(sectionId),
+      hypotheses: hypothesesDuChapitre,
       owns: owns.map((idea) => idea.ideaId),
       mayRecall: mayRecall.map((idea) => idea.ideaId),
       reserved: reserved.map((idea) => idea.ideaId),
@@ -241,6 +253,8 @@ export function buildEditorialPlan({
     configurations,
     relations,
     rejected,
+    hypotheses: reading.hypotheses,
+    singleReadingFigures: reading.singleReadingFigures,
     gaps,
     // Mémoire : ce que chaque chapitre peut rappeler sans le redévelopper.
     ownership: Object.fromEntries(ideas.map((idea) => [idea.ideaId, idea.owner]))

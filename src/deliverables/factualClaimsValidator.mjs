@@ -761,7 +761,18 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     // relations autorisées : le lui appliquer reviendrait à tout bloquer).
     if (sectionPlan.editorialEngine === "composition") {
       for (const croisement of detectCrossedClaims({ text: block.text, detectFacts: detectAstrologicalTextFacts })) {
-        if (isCrossingLicensed({ ...croisement, relations: sectionPlan.allowedRelations ?? [], identifier: aspectIdentifier })) continue;
+        const resolveRef = (ref) => byId.get(ref)?.value ?? null;
+        // Identifiant canonique de la preuve, quand elle existe dans le dossier.
+        const idDe = (fact) => {
+          const cle = [String(fact.bodyA).toLowerCase(), String(fact.bodyB).toLowerCase()].sort().join("|");
+          for (const [ref, item] of byId) {
+            if (item?.type !== "NATAL_ASPECT") continue;
+            const itemCle = [String(item.value?.bodyA).toLowerCase(), String(item.value?.bodyB).toLowerCase()].sort().join("|");
+            if (itemCle === cle && String(item.value?.aspectType).toLowerCase() === String(fact.aspectType).toLowerCase()) return ref;
+          }
+          return aspectIdentifier(fact.bodyA, fact.bodyB, fact.aspectType);
+        };
+        if (isCrossingLicensed({ ...croisement, relations: sectionPlan.allowedRelations ?? [], resolveRef })) continue;
         issues.push(
           claimlikeForBlock(
             block,
@@ -769,10 +780,7 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
             "Le texte affirme une interaction entre deux configurations que rien ne relie dans ce thème (aucun corps partagé, aucune figure calculée).",
             {
               marker: croisement.marqueur,
-              facts: [
-                aspectIdentifier(croisement.premier.bodyA, croisement.premier.bodyB, croisement.premier.aspectType),
-                aspectIdentifier(croisement.second.bodyA, croisement.second.bodyB, croisement.second.aspectType)
-              ],
+              facts: [idDe(croisement.premier), idDe(croisement.second)],
               sentence: croisement.phrase.slice(0, 200)
             }
           )

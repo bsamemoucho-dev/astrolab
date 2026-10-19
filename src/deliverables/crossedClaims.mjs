@@ -119,15 +119,26 @@ export function detectCrossedClaims({ text, detectFacts } = {}) {
   return croisements;
 }
 
+// Clé canonique d'un aspect : l'ordre des deux corps ne compte pas. Le texte
+// peut écrire « Jupiter trigone au Soleil » là où l'identifiant de preuve est
+// `aspect.sun.jupiter.trine` — comparer les chaînes telles quelles produirait un
+// faux refus.
+export function canonicalAspectKey({ bodyA, bodyB, aspectType }) {
+  return [String(bodyA ?? "").toLowerCase(), String(bodyB ?? "").toLowerCase()].sort().join("|") +
+    "|" + String(aspectType ?? "").toLowerCase();
+}
+
 // Un croisement est licencié si un croisement autorisé du chapitre cite les
-// DEUX preuves concernées.
-export function isCrossingLicensed({ premier, second, relations = [], identifier }) {
-  const idPremier = identifier(premier.bodyA, premier.bodyB, premier.aspectType);
-  const idSecond = identifier(second.bodyA, second.bodyB, second.aspectType);
-  return (relations ?? []).some(
-    (relation) =>
-      Array.isArray(relation.evidenceRefs) &&
-      relation.evidenceRefs.includes(idPremier) &&
-      relation.evidenceRefs.includes(idSecond)
-  );
+// DEUX preuves concernées, quel que soit l'ordre des corps.
+export function isCrossingLicensed({ premier, second, relations = [], resolveRef }) {
+  const clePremier = canonicalAspectKey(premier);
+  const cleSecond = canonicalAspectKey(second);
+  const cleDe = (ref) => {
+    const valeur = resolveRef ? resolveRef(ref) : null;
+    return valeur ? canonicalAspectKey(valeur) : null;
+  };
+  return (relations ?? []).some((relation) => {
+    const cles = (relation.evidenceRefs ?? []).map(cleDe).filter(Boolean);
+    return cles.includes(clePremier) && cles.includes(cleSecond);
+  });
 }

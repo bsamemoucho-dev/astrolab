@@ -2,6 +2,7 @@ import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs
 import { evidenceById } from "./dossierEvidence.mjs";
 import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpretationRules.mjs";
 import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
+import { lengthForHypotheses } from "./readingHypotheses.mjs";
 
 export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.2.0";
 
@@ -713,6 +714,9 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     };
     section.editorialEngine = editorialEngine;
     section.editorialThesis = editorialPlan?.thesis ?? null;
+    // Le chapitre qui explore une figure reçoit ses hypothèses de lecture.
+    section.readingHypotheses = (editorialPlan?.chapters ?? [])
+      .find((entree) => entree.sectionId === section.sectionId)?.hypotheses ?? [];
     section.editorialPlan = chapitre
       ? {
           mission: chapitre.mission,
@@ -725,8 +729,23 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     section.allowedRelations = (editorialPlan?.relations ?? []).filter((relation) =>
       (chapitre?.relations ?? []).includes(relation.relationId)
     );
+    // La longueur suit la matière : une hypothèse = un paragraphe, pas un quota.
+    if (section.readingHypotheses.length > 0) {
+      const longueur = lengthForHypotheses(section.readingHypotheses.length);
+      section.targetWords = longueur.targetWords;
+      section.maxWords = longueur.maxWords;
+    }
     section.evidencePackets = buildEvidencePackets({ section, byId });
     section.blockPlans = buildBlockPlans(section, byId);
+    // Un chapitre qui explore une figure ne récite pas les positions : les faits
+    // sont dans la licence des hypothèses et dans l'annexe. Le préfixe factuel
+    // du serveur ouvrirait le chapitre sur « Mars forme une opposition… ».
+    if (section.readingHypotheses.length > 0) {
+      section.blockPlans = section.blockPlans.map((blockPlan) => {
+        const { deterministicPrefix, forbidAspectVocabulary, ...reste } = blockPlan;
+        return reste;
+      });
+    }
     // Une section de référence ne produit aucun bloc narratif.
     if (section.editorialMode === "reference") {
       section.blockPlans = [];

@@ -15,6 +15,7 @@ import { buildDossierEvidence } from "../src/deliverables/dossierEvidence.mjs";
 import { diagnose } from "../src/deliverables/editorialDiagnostics.mjs";
 import { blockLengthBudget, maxTokensForBlock } from "../src/deliverables/generationLimits.mjs";
 import { buildFullDossierPlan } from "../src/deliverables/fullDossierPlan.mjs";
+import { lengthForHypotheses } from "../src/deliverables/readingHypotheses.mjs";
 import { aspectFr, corpsNomFr } from "../src/deliverables/figures.mjs";
 import {
   buildStructuredSystemPrompt,
@@ -185,6 +186,55 @@ function rendreApres(plan) {
   return lignes.join("\n");
 }
 
+function rendreBrief(plan) {
+  const section = plan.sections.find((entree) => entree.sectionId === "internal_tensions");
+  const hypotheses = section.readingHypotheses ?? [];
+  const lignes = [
+    "# Brief d'exploration — ce que le rédacteur reçoit pour la figure",
+    "",
+    "Tout ce qui suit est **calculé** (aucune rédaction). Le chapitre ne reçoit plus",
+    "un objectif de 420 mots ni une phrase factuelle en ouverture : il reçoit une",
+    "figure, deux lectures concurrentes et ce qui les distingue.",
+    "",
+    `- Mission : ${section.editorialPlan.mission}`,
+    `- Longueur fixée par la matière : ${lengthForHypotheses(hypotheses.length).targetWords} mots (plafond ${section.maxWords})`,
+    `- Préfixe factuel du serveur : ${section.blockPlans[0]?.deterministicPrefix ? "présent" : "**supprimé** (les faits sont dans la licence et l'annexe)"}`,
+    "",
+    "## Lectures proposées",
+    ""
+  ];
+  for (const [index, hypothese] of hypotheses.entries()) {
+    lignes.push(
+      `### ${index + 1}. ${hypothese.title} — \`${hypothese.conventionId}\``,
+      "",
+      hypothese.statement,
+      "",
+      `- **Ce qui la fonde** : ${hypothese.licence.computedFacts.join(" ; ")}`,
+      `- **Ce qui la distingue** : ${hypothese.discriminator}`,
+      `- **Questions au lecteur** : ${hypothese.questions.join(" / ") || "—"}`,
+      `- **Limites** : ${hypothese.limits.join(" ; ")}`,
+      ""
+    );
+  }
+  lignes.push(
+    "## Correspondance avec le texte attendu",
+    "",
+    "| Segment du texte attendu | Ce qui, dans le brief, le rend possible |",
+    "|---|---|",
+    "| « Votre thème présente une opposition entre le Soleil et la Lune… » | `licence.computedFacts` de la figure + concepts de la règle d'opposition |",
+    "| « Mais cette opposition ne se présente pas seule. Jupiter entretient une relation harmonique avec chacun des deux pôles. » | `figure.proof` + `figure.mode = harmonic` (structure calculée) |",
+    "| « Une première lecture serait de considérer Jupiter comme un espace de dialogue… » | hypothèse 1 (`dialogue`) |",
+    "| « Pourtant, une autre possibilité… sans nécessairement résoudre leur désaccord ? » | hypothèse 2 (`amplification`), licenciée par l'asymétrie mesurée |",
+    "| « Deux besoins à faire coexister » | `amplification.statement` + `discriminator` |",
+    "| « ce qui vous enthousiasme est-il également ce qui vous rassure ? » | `questions` de l'hypothèse 2, tirées des concepts |",
+    "",
+    "Le brief ne dicte aucune de ces phrases : il fournit la structure, les deux",
+    "lectures, la mesure qui les sépare et les questions. La rédaction reste au",
+    "modèle — c'est ce que la prochaine génération devra montrer."
+  );
+  return lignes.join("\n");
+}
+
 function rendreCroisements(plan) {
   const { editorialPlan } = plan;
   const lignes = [
@@ -329,6 +379,7 @@ function main() {
   writeFileSync(join(SORTIE, "plan-avant.md"), `${rendreAvant(legacy)}\n`);
   writeFileSync(join(SORTIE, "plan-apres.md"), `${rendreApres(compositionReference)}\n`);
   writeFileSync(join(SORTIE, "croisements.md"), `${rendreCroisements(compositionReference)}\n`);
+  writeFileSync(join(SORTIE, "brief-exploration.md"), `${rendreBrief(compositionReference)}\n`);
   writeFileSync(join(SORTIE, "diagnostics-avant.md"), `${rendreDiagnostics(compositionReference)}\n`);
   writeFileSync(
     join(SORTIE, "plans.json"),
@@ -363,6 +414,7 @@ function main() {
   console.log(`  relations autorisées    : ${compositionReference.editorialPlan.relations.length}`);
   console.log(`  croisements refusés     : ${compositionReference.editorialPlan.rejected.length}`);
   console.log(`  idées / propriétaires   : ${compositionReference.editorialPlan.ideas.length}`);
+  console.log(`  hypothèses de lecture   : ${compositionReference.editorialPlan.hypotheses.length}`);
   console.log(`  comparaison à l'aveugle : ${cout.appels} appels, plafond ${cout.coutMaxUsd} USD (${cout.modele})`);
   return { dossierEvidence };
 }

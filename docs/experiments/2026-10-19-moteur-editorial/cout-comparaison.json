@@ -5,7 +5,7 @@
   "out": 10
  },
  "appels": 12,
- "coutMaxUsd": 0.222746,
+ "coutMaxUsd": 0.20985,
  "detail": [
   {
    "bras": "AVANT-2 (legacy)",
@@ -51,81 +51,81 @@
    "bras": "APRES-1 (composition)",
    "section": "internal_tensions",
    "bloc": "block1",
-   "entree": 3840,
-   "sortieCible": 628,
-   "sortieMax": 1664,
-   "coutMax": 0.02432,
-   "coutCible": 0.01396
+   "entree": 4718,
+   "sortieCible": 320,
+   "sortieMax": 840,
+   "coutMax": 0.017836,
+   "coutCible": 0.012636
   },
   {
    "bras": "APRES-1 (composition)",
    "section": "supporting_resources",
    "bloc": "block1",
-   "entree": 3787,
+   "entree": 3793,
    "sortieCible": 500,
    "sortieMax": 1384,
-   "coutMax": 0.021414,
-   "coutCible": 0.012574
+   "coutMax": 0.021426,
+   "coutCible": 0.012586
   },
   {
    "bras": "APRES-1 (composition)",
    "section": "major_aspects",
    "bloc": "block1",
-   "entree": 3118,
+   "entree": 3124,
    "sortieCible": 375,
    "sortieMax": 1068,
-   "coutMax": 0.016916,
-   "coutCible": 0.009986
+   "coutMax": 0.016928,
+   "coutCible": 0.009998
   },
   {
    "bras": "APRES-1 (composition)",
    "section": "major_aspects",
    "bloc": "block2",
-   "entree": 1966,
+   "entree": 1972,
    "sortieCible": 404,
    "sortieMax": 1104,
-   "coutMax": 0.014972,
-   "coutCible": 0.007972
+   "coutMax": 0.014984,
+   "coutCible": 0.007984
   },
   {
    "bras": "APRES-2 (composition)",
    "section": "internal_tensions",
    "bloc": "block1",
-   "entree": 3840,
-   "sortieCible": 628,
-   "sortieMax": 1664,
-   "coutMax": 0.02432,
-   "coutCible": 0.01396
+   "entree": 4718,
+   "sortieCible": 320,
+   "sortieMax": 840,
+   "coutMax": 0.017836,
+   "coutCible": 0.012636
   },
   {
    "bras": "APRES-2 (composition)",
    "section": "supporting_resources",
    "bloc": "block1",
-   "entree": 3787,
+   "entree": 3793,
    "sortieCible": 500,
    "sortieMax": 1384,
-   "coutMax": 0.021414,
-   "coutCible": 0.012574
+   "coutMax": 0.021426,
+   "coutCible": 0.012586
   },
   {
    "bras": "APRES-2 (composition)",
    "section": "major_aspects",
    "bloc": "block1",
-   "entree": 3118,
+   "entree": 3124,
    "sortieCible": 375,
    "sortieMax": 1068,
-   "coutMax": 0.016916,
-   "coutCible": 0.009986
+   "coutMax": 0.016928,
+   "coutCible": 0.009998
   },
   {
    "bras": "APRES-2 (composition)",
    "section": "major_aspects",
    "bloc": "block2",
-   "entree": 1966,
+   "entree": 1972,
    "sortieCible": 404,
    "sortieMax": 1104,
-   "coutMax": 0.014972,
-   "coutCible": 0.007972
+   "coutMax": 0.014984,
+   "coutCible": 0.007984
   }
  ]
 }

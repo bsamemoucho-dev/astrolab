@@ -14,7 +14,7 @@
   "coordinateSource": "experimentation_fixture",
   "coordinateConfidence": "unverified"
  },
- "generatedAt": "2026-10-19T10:02:26.041Z",
+ "generatedAt": "2026-10-19T10:05:51.957Z",
  "legacy": {
   "version": "full-dossier-plan@0.2.0",
   "engine": "legacy",
@@ -440,6 +440,7 @@
     {
      "sectionId": "general_synthesis",
      "mission": "Annonce la figure qui organise le thème et les deux ou trois idées que le dossier va développer. Tu les nommes, tu ne les développes pas : chaque idée a son chapitre.",
+     "hypotheses": [],
      "owns": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
      ],
@@ -457,6 +458,7 @@
     {
      "sectionId": "identity",
      "mission": "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -474,6 +476,7 @@
     {
      "sectionId": "emotional_world",
      "mission": "Décris le monde émotionnel à partir de la Lune, sans redévelopper les aspects déjà traités ailleurs.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -491,6 +494,7 @@
     {
      "sectionId": "communication",
      "mission": "Décris la circulation mentale et l'expression à partir de Mercure.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -508,6 +512,7 @@
     {
      "sectionId": "affectivity",
      "mission": "Décris la manière d'accorder de la valeur et de s'attacher, à partir de Vénus.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -525,6 +530,7 @@
     {
      "sectionId": "action",
      "mission": "Décris la manière d'agir et de défendre à partir de Mars.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -542,6 +548,7 @@
     {
      "sectionId": "relationships",
      "mission": "Décris la manière d'entrer en relation, sans inventer de relation réelle.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -559,6 +566,7 @@
     {
      "sectionId": "creativity",
      "mission": "Décris les modes d'expression créative à partir des faits disponibles.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -576,6 +584,7 @@
     {
      "sectionId": "work_realization",
      "mission": "Décris la construction et la tenue dans le temps à partir de Saturne.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -593,6 +602,7 @@
     {
      "sectionId": "security_resources",
      "mission": "Décris l'ancrage et les ressources concrètes.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun"
@@ -609,7 +619,65 @@
     },
     {
      "sectionId": "internal_tensions",
-     "mission": "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
+     "mission": "Tu explores UNE figure calculée, pas des aspects séparés. Commence par ce que la structure a de particulier, puis expose au moins deux lectures possibles de cette même figure en disant ce qui les distingue (orbe, mode, asymétrie). Ne tranche pas : laisse les deux lectures en tension. N'annonce pas les positions planétaires, elles sont dans l'annexe. Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu.",
+     "hypotheses": [
+      {
+       "hypothesisId": "hyp.figure.apex.jupiter.moon.sun.dialogue@1",
+       "figureId": "figure.apex.jupiter.moon.sun",
+       "kind": "dialogue",
+       "conventionId": "lastro.hypothesis.apex_dialogue@1",
+       "title": "Une médiation possible",
+       "statement": "Jupiter touche les deux extrémités de l'opposition : ce qu'il symbolise peut être lu comme un passage entre le Soleil et la Lune, sans que l'un des deux pôles ait à céder.",
+       "licence": {
+        "figureId": "figure.apex.jupiter.moon.sun",
+        "conventionId": "lastro.figure.apex_on_opposition@1",
+        "proof": "le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune",
+        "computedFacts": [
+         "Jupiter est trigone avec le Soleil (orbe 6.07925°)",
+         "Jupiter est sextile avec la Lune (orbe 1.094056°)",
+         "le Soleil oppose la Lune (orbe 4.985194°)"
+        ]
+       },
+       "discriminator": "les deux liens de l'apex sont des soutiens (trigone/sextile)",
+       "questions": [
+        "Lorsque identité consciente et besoin affectif ne vont pas dans le même sens, lequel guide vos décisions ?"
+       ],
+       "limits": [
+        "ne dit rien des configurations hors de cette figure : aucune compensation ne peut être étendue à un aspect non relié",
+        "hypothèse de lecture symbolique, pas une démonstration",
+        "n'autorise aucune liaison nouvelle entre configurations"
+       ]
+      },
+      {
+       "hypothesisId": "hyp.figure.apex.jupiter.moon.sun.amplification@1",
+       "figureId": "figure.apex.jupiter.moon.sun",
+       "kind": "amplification",
+       "conventionId": "lastro.hypothesis.apex_amplification@1",
+       "title": "Une ouverture qui ne réconcilie pas",
+       "statement": "Jupiter n'est pas sur l'axe de l'opposition : il n'arbitre donc pas. On peut le lire autrement — il donne de l'ampleur aux deux exigences sans résoudre leur désaccord, et l'appui penche du côté de la Lune (orbe 1.094056° contre 6.07925°).",
+       "licence": {
+        "figureId": "figure.apex.jupiter.moon.sun",
+        "conventionId": "lastro.figure.apex_on_opposition@1",
+        "proof": "le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune",
+        "computedFacts": [
+         "Jupiter est trigone avec le Soleil (orbe 6.07925°)",
+         "Jupiter est sextile avec la Lune (orbe 1.094056°)",
+         "le Soleil oppose la Lune (orbe 4.985194°)",
+         "asymétrie mesurée : 1.094056° (la Lune) contre 6.07925° (le Soleil), soit 4.99° d'écart"
+        ]
+       },
+       "discriminator": "l'écart d'orbe (4.99°) désigne le côté le mieux soutenu",
+       "questions": [
+        "Ce qui vous rassure est-il aussi ce qui vous met en mouvement ?",
+        "Quand l'écart se creuse, est-ce du côté de la Lune que vous cherchez vos ressources ?"
+       ],
+       "limits": [
+        "ne dit rien des configurations hors de cette figure : aucune compensation ne peut être étendue à un aspect non relié",
+        "hypothèse de lecture symbolique, pas une démonstration",
+        "n'autorise aucune liaison nouvelle entre configurations"
+       ]
+      }
+     ],
      "owns": [
       "idea.config.mars.saturn.opposition",
       "idea.config.sun.moon.opposition",
@@ -632,6 +700,7 @@
     {
      "sectionId": "supporting_resources",
      "mission": "Montre ce qui rend la tension tenable, pas des dons isolés. Chaque appui est relié à ce qu'il soutient ou à ce qu'il nuance. Tu peux rappeler en une clause les tensions auxquelles ces appuis répondent, sans les redécrire.",
+     "hypotheses": [],
      "owns": [
       "idea.config.moon.jupiter.sextile",
       "idea.config.mercury.venus.sextile",
@@ -653,6 +722,7 @@
     {
      "sectionId": "houses",
      "mission": "Décris les domaines de vie à partir des maisons exploitables.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun",
@@ -669,6 +739,7 @@
     {
      "sectionId": "major_aspects",
      "mission": "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun",
@@ -685,6 +756,7 @@
     {
      "sectionId": "current_sky",
      "mission": "Traite ta section à partir des seuls faits transmis.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun",
@@ -701,6 +773,7 @@
     {
      "sectionId": "next_weeks",
      "mission": "Traite ta section à partir des seuls faits transmis.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun",
@@ -717,6 +790,7 @@
     {
      "sectionId": "conclusion",
      "mission": "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
+     "hypotheses": [],
      "owns": [],
      "mayRecall": [
       "idea.thesis.figure.apex.jupiter.moon.sun",
@@ -1184,6 +1258,65 @@
      "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
     }
    ],
+   "hypotheses": [
+    {
+     "hypothesisId": "hyp.figure.apex.jupiter.moon.sun.dialogue@1",
+     "figureId": "figure.apex.jupiter.moon.sun",
+     "kind": "dialogue",
+     "conventionId": "lastro.hypothesis.apex_dialogue@1",
+     "title": "Une médiation possible",
+     "statement": "Jupiter touche les deux extrémités de l'opposition : ce qu'il symbolise peut être lu comme un passage entre le Soleil et la Lune, sans que l'un des deux pôles ait à céder.",
+     "licence": {
+      "figureId": "figure.apex.jupiter.moon.sun",
+      "conventionId": "lastro.figure.apex_on_opposition@1",
+      "proof": "le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune",
+      "computedFacts": [
+       "Jupiter est trigone avec le Soleil (orbe 6.07925°)",
+       "Jupiter est sextile avec la Lune (orbe 1.094056°)",
+       "le Soleil oppose la Lune (orbe 4.985194°)"
+      ]
+     },
+     "discriminator": "les deux liens de l'apex sont des soutiens (trigone/sextile)",
+     "questions": [
+      "Lorsque identité consciente et besoin affectif ne vont pas dans le même sens, lequel guide vos décisions ?"
+     ],
+     "limits": [
+      "ne dit rien des configurations hors de cette figure : aucune compensation ne peut être étendue à un aspect non relié",
+      "hypothèse de lecture symbolique, pas une démonstration",
+      "n'autorise aucune liaison nouvelle entre configurations"
+     ]
+    },
+    {
+     "hypothesisId": "hyp.figure.apex.jupiter.moon.sun.amplification@1",
+     "figureId": "figure.apex.jupiter.moon.sun",
+     "kind": "amplification",
+     "conventionId": "lastro.hypothesis.apex_amplification@1",
+     "title": "Une ouverture qui ne réconcilie pas",
+     "statement": "Jupiter n'est pas sur l'axe de l'opposition : il n'arbitre donc pas. On peut le lire autrement — il donne de l'ampleur aux deux exigences sans résoudre leur désaccord, et l'appui penche du côté de la Lune (orbe 1.094056° contre 6.07925°).",
+     "licence": {
+      "figureId": "figure.apex.jupiter.moon.sun",
+      "conventionId": "lastro.figure.apex_on_opposition@1",
+      "proof": "le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune",
+      "computedFacts": [
+       "Jupiter est trigone avec le Soleil (orbe 6.07925°)",
+       "Jupiter est sextile avec la Lune (orbe 1.094056°)",
+       "le Soleil oppose la Lune (orbe 4.985194°)",
+       "asymétrie mesurée : 1.094056° (la Lune) contre 6.07925° (le Soleil), soit 4.99° d'écart"
+      ]
+     },
+     "discriminator": "l'écart d'orbe (4.99°) désigne le côté le mieux soutenu",
+     "questions": [
+      "Ce qui vous rassure est-il aussi ce qui vous met en mouvement ?",
+      "Quand l'écart se creuse, est-ce du côté de la Lune que vous cherchez vos ressources ?"
+     ],
+     "limits": [
+      "ne dit rien des configurations hors de cette figure : aucune compensation ne peut être étendue à un aspect non relié",
+      "hypothèse de lecture symbolique, pas une démonstration",
+      "n'autorise aucune liaison nouvelle entre configurations"
+     ]
+    }
+   ],
+   "singleReadingFigures": [],
    "gaps": [],
    "ownership": {
     "idea.thesis.figure.apex.jupiter.moon.sun": "general_synthesis",
@@ -1466,7 +1599,7 @@
     ],
     "regles": 4,
     "relations": 3,
-    "mission": "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
+    "mission": "Tu explores UNE figure calculée, pas des aspects séparés. Commence par ce que la structure a de particulier, puis expose au moins deux lectures possibles de cette même figure en disant ce qui les distingue (orbe, mode, asymétrie). Ne tranche pas : laisse les deux lectures en tension. N'annonce pas les positions planétaires, elles sont dans l'annexe. Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu.",
     "possede": [
      "Mars–Saturn opposition",
      "Sun–Moon opposition",

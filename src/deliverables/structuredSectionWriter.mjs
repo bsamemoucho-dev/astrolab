@@ -570,6 +570,16 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "`editorial.reserved` : idées réservées à un chapitre ultérieur. Tu ne les développes pas, même si les faits sont disponibles.",
     "Adresse-toi au lecteur. N'ouvre pas un paragraphe par « La dynamique entre… », « Cette configuration indique… », « Par ailleurs » ou « Enfin » : chaque paragraphe porte une idée, pas un placement.",
     "Si ta mission ne trouve pas de matière suffisante, dis-le en une phrase courte et arrête-toi : un chapitre court et juste vaut mieux qu'un chapitre rempli.",
+    // Chapitre qui explore une figure : plusieurs lectures, jamais un verdict.
+    ...(Array.isArray(sectionPlan.readingHypotheses) && sectionPlan.readingHypotheses.length > 0
+      ? [
+          "Tu explores UNE figure calculée : expose au moins deux lectures possibles de CETTE MÊME figure, en disant ce qui les distingue (mode des liens, écart d'orbe). Ne tranche pas entre elles : laisse-les en tension.",
+          "Chaque lecture est licenciée par les faits calculés fournis. Tu ne peux ni en ajouter, ni étendre une ressource à une configuration qui n'appartient pas à la figure.",
+          "Interdit explicite : dire qu'un aspect compense, équilibre ou éclaire une configuration que rien ne relie. Si les faits ne le portent pas, tu ne l'écris pas.",
+          "N'annonce pas les positions planétaires en ouverture : elles figurent dans l'annexe. Ouvre sur ce que la structure a de particulier.",
+          "Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu — des questions auxquelles lui seul peut répondre."
+        ]
+      : []),
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
     ...(Array.isArray(sectionPlan.writerGuidance) && sectionPlan.writerGuidance.length > 0
       ? ["Consignes spécifiques:", ...sectionPlan.writerGuidance.map((line) => `- ${line}`)]
@@ -636,6 +646,17 @@ function editorialForPrompt(sectionPlan) {
     owns: (editorial?.owns ?? []).map((idea) => ({ label: idea.label, kind: idea.kind })),
     mayRecall: (editorial?.mayRecall ?? []).map((idea) => ({ label: idea.label, ownerSection: idea.owner })),
     reserved: (editorial?.reserved ?? []).map((idea) => ({ label: idea.label, ownerSection: idea.owner })),
+    hypotheses: (sectionPlan.readingHypotheses ?? []).map((hypothese) => ({
+      hypothesisId: hypothese.hypothesisId,
+      kind: hypothese.kind,
+      conventionId: hypothese.conventionId,
+      title: hypothese.title,
+      statement: hypothese.statement,
+      discriminator: hypothese.discriminator,
+      computedFacts: hypothese.licence?.computedFacts ?? [],
+      questions: hypothese.questions ?? [],
+      limits: hypothese.limits ?? []
+    })),
     relationsAllowed: (sectionPlan.allowedRelations ?? []).map((relation) => ({
       relationId: relation.relationId,
       kind: relation.kind,

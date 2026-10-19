@@ -135,16 +135,25 @@ test("le moteur historique n'est pas soumis au contrôle de croisement", () => {
   assert.equal(resultat.issues.some((issue) => issue.code === "crossed_claim_not_licensed"), false);
 });
 
-test("isCrossingLicensed compare les deux preuves d'un croisement autorisé", () => {
+test("isCrossingLicensed compare les deux preuves, quel que soit l'ordre des corps", () => {
   const relation = {
     evidenceRefs: ["aspect.sun.moon.opposition", "aspect.sun.jupiter.trine", "aspect.moon.jupiter.sextile"]
   };
+  const preuves = {
+    "aspect.sun.moon.opposition": { bodyA: "Sun", bodyB: "Moon", aspectType: "opposition" },
+    "aspect.sun.jupiter.trine": { bodyA: "Sun", bodyB: "Jupiter", aspectType: "trine" },
+    "aspect.moon.jupiter.sextile": { bodyA: "Moon", bodyB: "Jupiter", aspectType: "sextile" }
+  };
+  const resolveRef = (ref) => preuves[ref] ?? null;
   const premier = { bodyA: "Sun", bodyB: "Moon", aspectType: "opposition" };
   const second = { bodyA: "Moon", bodyB: "Jupiter", aspectType: "sextile" };
   const tiers = { bodyA: "Mercury", bodyB: "Venus", aspectType: "sextile" };
-  assert.equal(isCrossingLicensed({ premier, second, relations: [relation], identifier: aspectIdentifier }), true);
-  assert.equal(isCrossingLicensed({ premier, second: tiers, relations: [relation], identifier: aspectIdentifier }), false);
-  assert.equal(isCrossingLicensed({ premier, second, relations: [], identifier: aspectIdentifier }), false);
+  assert.equal(isCrossingLicensed({ premier, second, relations: [relation], resolveRef }), true);
+  // « Jupiter trigone au Soleil » : l'ordre inverse ne doit pas produire un faux refus.
+  const inverse = { bodyA: "Jupiter", bodyB: "Sun", aspectType: "trine" };
+  assert.equal(isCrossingLicensed({ premier: inverse, second, relations: [relation], resolveRef }), true);
+  assert.equal(isCrossingLicensed({ premier, second: tiers, relations: [relation], resolveRef }), false);
+  assert.equal(isCrossingLicensed({ premier, second, relations: [], resolveRef }), false);
 });
 
 // ---------------------------------------------------------------------------
