@@ -1,3 +1,3 @@
 # Tensions intérieures
 
-_(non produit : structured_response_truncated)_
+_(non produit : NO_RETRY_AUTHORIZED)_

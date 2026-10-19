@@ -69,7 +69,8 @@ function parseArgs(argv) {
     model: null,
     engine: "composition",
     aspectChapterMode: "reference",
-    sections: null
+    sections: null,
+    maxTokens: null
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -81,6 +82,7 @@ function parseArgs(argv) {
     else if (arg === "--model") args.model = String(argv[++index]).trim();
     else if (arg === "--engine") args.engine = String(argv[++index]).trim().toLowerCase();
     else if (arg === "--sections") args.sections = String(argv[++index]).split(",").map((id) => id.trim()).filter(Boolean);
+    else if (arg === "--max-tokens") args.maxTokens = Number(argv[++index]);
     else if (arg === "--aspect-chapter") {
       const mode = String(argv[++index]).trim().toLowerCase();
       if (!["narrative", "reference", "absent"].includes(mode)) {
@@ -284,7 +286,9 @@ async function main() {
       const system = buildStructuredSystemPrompt(scoped, { blockCount: (section.blockPlans ?? []).length, blockPlan });
       const user = buildStructuredUserPrompt({ sectionPlan: scoped });
       const pireEntree = Math.ceil((system.length + user.length) / CHAR_PAR_TOKEN);
-      const pireSortie = maxTokensForBlock(blockLengthBudget({ sectionPlan: section, blockPlan }));
+      const pireSortie = Number.isFinite(args.maxTokens) && args.maxTokens > 0
+        ? Math.max(maxTokensForBlock(blockLengthBudget({ sectionPlan: section, blockPlan })), args.maxTokens)
+        : maxTokensForBlock(blockLengthBudget({ sectionPlan: section, blockPlan }));
       return total + (pireEntree / 1e6) * tarif.in + (pireSortie / 1e6) * tarif.out;
     }, 0);
     console.log(
@@ -307,7 +311,8 @@ async function main() {
     model,
     fetchFn,
     jsonMode: fournisseur.jsonMode !== false,
-    temperatureSupported: fournisseur.temperatureSupported !== false
+    temperatureSupported: fournisseur.temperatureSupported !== false,
+    ...(Number.isFinite(args.maxTokens) && args.maxTokens > 0 ? { maxTokensOverride: args.maxTokens } : {})
   };
   const logger = { warn: (...parts) => console.warn("[validation]", ...parts) };
 

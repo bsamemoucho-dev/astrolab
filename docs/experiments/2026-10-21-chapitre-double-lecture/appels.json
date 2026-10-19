@@ -1,6 +1,6 @@
 {
- "ceilingCalls": 1,
- "ceilingUsd": 0.3,
+ "ceilingCalls": 10,
+ "ceilingUsd": 3,
  "calls": [
   {
    "sectionId": "internal_tensions",
@@ -8,13 +8,13 @@
    "requestedModel": "claude-sonnet-5-5",
    "respondedModel": "claude-sonnet-5-5",
    "promptTokens": 7160,
-   "completionTokens": 1160,
-   "finishReason": "length",
-   "durationMs": 9253,
+   "completionTokens": 1485,
+   "finishReason": "stop",
+   "durationMs": 12351,
    "httpStatus": 200,
-   "costUsd": 0.02592
+   "costUsd": 0.02917
   }
  ],
  "totalCalls": 1,
- "totalCostUsd": 0.02592
+ "totalCostUsd": 0.02917
 }

@@ -704,7 +704,12 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
   // entier répété à chaque appel), traduit en plafond de tokens.
   const blockCount = blockCountOf(sectionPlan);
   const budget = blockLengthBudget({ sectionPlan, blockPlan, blockCount });
-  const outputTokenLimit = maxTokensForBlock(budget);
+  // Plafond technique : `maxTokensOverride` ne peut que RELEVER la limite de
+  // sécurité, jamais la réduire. Le budget de mots transmis au modèle, lui,
+  // reste celui du plan.
+  const outputTokenLimit = config?.maxTokensOverride
+    ? Math.max(maxTokensForBlock(budget), Math.round(Number(config.maxTokensOverride)))
+    : maxTokensForBlock(budget);
   if (blockPlan.deterministic) {
     const section = {
       sectionId: scopedPlan.sectionId,

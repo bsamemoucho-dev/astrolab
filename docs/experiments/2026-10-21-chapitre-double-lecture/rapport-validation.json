@@ -1,89 +1,27 @@
 {
- "theme": {
-  "personId": "experimentation_aspects",
-  "birthDate": "1979-03-14",
-  "timePrecision": "approximate",
-  "timeValue": "09:00",
-  "timeMarginMinutes": 30,
-  "birthPlace": "Lyon, France",
-  "placeName": "Lyon, France",
-  "country": "FR",
-  "latitude": 45.764,
-  "longitude": 4.8357,
-  "timeZone": "Europe/Paris",
-  "coordinateSource": "experimentation_fixture",
-  "coordinateConfidence": "unverified"
- },
- "generatedAt": "2026-10-19T10:16:16.325Z",
+ "generatedAt": "2026-10-19T10:22:18.840Z",
+ "theme": "fictif 1979-03-14 09:00 ±30min Lyon",
  "model": "claude-sonnet-5-5",
- "chapters": [
-  {
-   "sectionId": "internal_tensions",
-   "status": "failed",
-   "failure": {
-    "code": "structured_response_truncated",
-    "message": "Réponse interrompue sur le bloc internal_tensions.block1 : plafond de 1160 tokens atteint (finish_reason=length).",
-    "validation": null,
-    "brut": "{\"sectionId\":\"internal_tensions\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"block1\",\"text\":\"Ce qui distingue cette structure, c'est qu'une tension porte sur deux pôles et qu'un troisième terme les touche tous deux. Le Soleil et la Lune s'opposent (orbe de 4,99°) : votre direction consciente et votre besoin affectif tirent en sens contraire, et il vous faut ajuster ce qui se montre et ce qui se ressent. Jupiter est relié aux deux extrémités, en trigone avec le Soleil (6,08°) et en sextile avec la Lune (1,09°). Cette figure peut se lire de deux manières.\\n\\nUne lecture serait celle de la médiation. Les deux liens de Jupiter sont des soutiens, et Jupiter pourrait alors figurer un passage entre les pôles, la confiance et l'ampleur offrant un terrain commun, sans que l'un ait à céder à l'autre. L'écart entre le Soleil et la Lune resterait alors un lieu de construction, et non un défaut à corriger.\\n\\nOn peut aussi lire autrement. Jupiter n'est pas sur l'axe de l'opposition : il n'arbitre donc pas. Il donnerait de l'ampleur aux deux exigences sans trancher leur désaccord. L'écart d'orbe, 1,09° contre 6,08°, soit près de 5° de différence, ferait pencher l'appui du côté de la Lune.\\n\\nCe qui sépare ces deux lectures est une mesure, pas une preuve. La première s'appuie sur la nature des liens, tous deux porteurs de soutien. La seconde s'appuie sur l'asymétrie des orbes. Ni l'une ni l'autre ne permet d'affirmer que l'opposition se résout, ni qu'un pôle serait le bon. Elles ne disent rien des configurations extérieures à cette figure.\\n\\nUne autre tension, distincte, se joue entre Mars et Saturne, en opposition (orbe de 1,87°). Aucun lien calculé ne la rattache à la figure précédente : on ne peut donc pas dire qu'elle s'y apaise ou s"
-   },
-   "model": null,
-   "llmCalls": null,
-   "usage": null,
-   "words": null,
-   "length": null,
-   "validation": null,
-   "facts": [
-    {
-     "claimId": "internal_tensions.aspect_mars_saturn_opposition.1",
-     "type": "NATAL_ASPECT",
-     "bodyA": "Mars",
-     "bodyB": "Saturn",
-     "aspectType": "opposition",
-     "orb": 1.867639,
-     "evidenceRefs": [
-      "aspect.mars.saturn.opposition"
-     ]
-    },
-    {
-     "claimId": "internal_tensions.aspect_sun_moon_opposition.1",
-     "type": "NATAL_ASPECT",
-     "bodyA": "Sun",
-     "bodyB": "Moon",
-     "aspectType": "opposition",
-     "orb": 4.985194,
-     "evidenceRefs": [
-      "aspect.sun.moon.opposition"
-     ]
-    },
-    {
-     "claimId": "internal_tensions.aspect_moon_jupiter_sextile.1",
-     "type": "NATAL_ASPECT",
-     "bodyA": "Moon",
-     "bodyB": "Jupiter",
-     "aspectType": "sextile",
-     "orb": 1.094056,
-     "evidenceRefs": [
-      "aspect.moon.jupiter.sextile"
-     ]
-    },
-    {
-     "claimId": "internal_tensions.aspect_sun_jupiter_trine.1",
-     "type": "NATAL_ASPECT",
-     "bodyA": "Sun",
-     "bodyB": "Jupiter",
-     "aspectType": "trine",
-     "orb": 6.07925,
-     "evidenceRefs": [
-      "aspect.sun.jupiter.trine"
-     ]
-    }
-   ],
-   "rules": [
-    "western.natal.aspect.mars_saturn.opposition@1",
-    "western.natal.aspect.sun_moon.opposition@1",
-    "western.natal.aspect.moon_jupiter.sextile@1",
-    "western.natal.aspect.sun_jupiter.trine@1"
-   ]
-  }
- ]
+ "usage": {
+  "inputTokens": 7160,
+  "outputTokens": 1485,
+  "costUsd": 0.02917
+ },
+ "finishReason": "stop",
+ "words": 424,
+ "hypotheses": [
+  "lastro.hypothesis.apex_dialogue@1",
+  "lastro.hypothesis.apex_amplification@1"
+ ],
+ "validation": {
+  "ok": true,
+  "issues": 0,
+  "warnings": 0,
+  "mode": "hors ligne après correction du détecteur",
+  "detectedAspects": [
+   "Mars-Saturne opposition"
+  ],
+  "detectedCoverage": "1/4"
+ },
+ "note": "La réponse initiale a été refusée en production sur un faux positif du détecteur (Soleil-Lune sextile inexistant). Le détecteur a été corrigé (parenthèses = frontière de paire), puis le texte a été revalidé hors ligne sans modification."
 }

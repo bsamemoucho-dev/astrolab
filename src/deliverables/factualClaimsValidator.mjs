@@ -293,10 +293,15 @@ function detectAspectFacts(text) {
   const facts = [];
   const seen = new Set();
   const shortText = `(?:(?!\\b(?:${ASPECT_POINT_PATTERN}|${ASPECT_PATTERN})\\b)[^.!?;\\n]){0,36}?`;
+  // Variante pour le lien « point → aspect » : une parenthèse ferme la paire
+  // précédente. Sans cela, « trigone avec le Soleil (6,08°), en sextile avec la
+  // Lune » produisait un faux « Soleil–Lune sextile » : le point suivant était
+  // rattaché à l'aspect d'après, à travers la mesure du premier.
+  const shortTextSansParenthese = `(?:(?!\\b(?:${ASPECT_POINT_PATTERN}|${ASPECT_PATTERN})\\b)[^.!?;\\n()]){0,36}?`;
   const connector = "(?:\\b(?:et|avec|a|au|de|du)\\b|-|–|—)";
   const patterns = [
     new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${ASPECT_POINT_PATTERN})\\b${shortText}${connector}${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
-    new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b${shortText}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortText}\\b(${ASPECT_PATTERN})\\b${shortText}(?:\\b(?:avec|a|au|vers|de|du)\\b|-|–|—)${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
+    new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b${shortTextSansParenthese}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortTextSansParenthese}\\b(${ASPECT_PATTERN})\\b${shortText}(?:\\b(?:avec|a|au|vers|de|du)\\b|-|–|—)${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
     new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu")
   ];
 
