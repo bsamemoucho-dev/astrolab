@@ -463,3 +463,98 @@ test("le rapport de longueur ne classe pas une section sans repère comme courte
   assert.equal(lengthReport({ text: "Un deux.", targetWords: 200, maxWords: 400 }).status, "short");
   assert.equal(lengthReport({ text: Array.from({ length: 60 }, () => "mot").join(" "), targetWords: 20, maxWords: 40 }).status, "over");
 });
+
+// Certains fournisseurs (Anthropic via sa couche de compatibilité) rejettent
+// `response_format: {type:"json_object"}` en HTTP 400 : la requête doit pouvoir
+// s'en passer. Le format JSON reste exigé par la consigne système.
+test("response_format n'est envoyé que si le fournisseur le supporte", async () => {
+  const { dossierEvidence, plan } = planDuThemes();
+  const communication = sectionDuPlan(plan, "communication");
+
+  async function capturer(jsonMode) {
+    const corpsVus = [];
+    const fetchFn = async (url, init) => {
+      corpsVus.push(JSON.parse(init.body));
+      return {
+        ok: true,
+        headers: { get: () => null },
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: sectionValide("communication", "block1", "Cette partie reste brève, faute de matière transmise.")
+              },
+              finish_reason: "stop"
+            }
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 }
+        })
+      };
+    };
+    const config = { apiKey: "test-only-key", baseUrl: "https://example.invalid", model: "modele-de-test", fetchFn };
+    if (jsonMode === false) config.jsonMode = false;
+    const written = await writeStructuredSectionWithLlm({
+      dossierEvidence,
+      sectionPlan: communication,
+      options: { config, logger: { warn() {} } }
+    });
+    assert.equal(written.validation.ok, true);
+    return corpsVus[0];
+  }
+
+  const avec = await capturer(true);
+  assert.deepEqual(avec.response_format, { type: "json_object" });
+  const sans = await capturer(false);
+  assert.equal("response_format" in sans, false, "aucun response_format ne doit partir si le fournisseur le refuse");
+  // Le reste de la requête est identique : la comparaison entre fournisseurs
+  // ne doit pas dépendre de ce détail technique.
+  assert.equal(sans.model, avec.model);
+  assert.equal(sans.temperature, avec.temperature);
+  assert.equal(sans.max_tokens, avec.max_tokens);
+});
+
+// `temperature` est déprécié pour certains modèles Claude : la requête doit
+// pouvoir l'omettre, sans envoyer `null` (qui serait refusé aussi).
+test("temperature est omise quand le modèle la déprécie", async () => {
+  const { dossierEvidence, plan } = planDuThemes();
+  const communication = sectionDuPlan(plan, "communication");
+  const corpsVus = [];
+  const fetchFn = async (url, init) => {
+    corpsVus.push(JSON.parse(init.body));
+    return {
+      ok: true,
+      headers: { get: () => null },
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: sectionValide("communication", "block1", "Cette partie reste brève, faute de matière transmise.")
+            },
+            finish_reason: "stop"
+          }
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 }
+      })
+    };
+  };
+  const written = await writeStructuredSectionWithLlm({
+    dossierEvidence,
+    sectionPlan: communication,
+    options: {
+      config: {
+        apiKey: "test-only-key",
+        baseUrl: "https://example.invalid",
+        model: "claude-de-test",
+        fetchFn,
+        jsonMode: false,
+        temperatureSupported: false
+      },
+      logger: { warn() {} }
+    }
+  });
+  assert.equal(written.validation.ok, true);
+  assert.equal("temperature" in corpsVus[0], false, "aucune température ne doit partir");
+  assert.equal("response_format" in corpsVus[0], false);
+  assert.ok(corpsVus[0].max_tokens >= 300, "max_tokens reste envoyé (requis par Anthropic)");
+  assert.equal(corpsVus[0].messages[0].role, "system");
+});

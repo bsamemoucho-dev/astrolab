@@ -57,7 +57,10 @@ export async function callChatCompletions(config, { system, user, temperature = 
       },
       body: JSON.stringify({
         model: config.model,
-        temperature,
+        // `null` = le fournisseur refuse ce paramètre (certains modèles Claude
+        // déprécient `temperature`) : on l'omet au lieu d'envoyer une valeur
+        // qui ferait échouer la requête en 400.
+        ...(temperature === null ? {} : { temperature }),
         ...(responseFormat ? { response_format: responseFormat } : {}),
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
         messages: [

@@ -747,8 +747,12 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     } else {
       try {
         result = await callChatCompletions(config, {
-          temperature: attempt === 0 ? 0.35 : 0.2,
-          responseFormat: { type: "json_object" },
+          temperature: config?.temperatureSupported === false ? null : attempt === 0 ? 0.35 : 0.2,
+          // Certains fournisseurs refusent `json_object` (Anthropic n'accepte
+          // que `json_schema` sur sa couche de compatibilité). Le format JSON
+          // reste exigé par la consigne système ; on n'envoie le paramètre que
+          // si le fournisseur le supporte.
+          responseFormat: config?.jsonMode === false ? null : { type: "json_object" },
           maxTokens: outputTokenLimit,
           system: buildStructuredSystemPrompt(scopedPlan, { blockCount, blockPlan }),
           user: buildStructuredUserPrompt(payload)

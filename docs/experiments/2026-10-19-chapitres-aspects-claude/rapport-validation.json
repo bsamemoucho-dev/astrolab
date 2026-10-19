@@ -1,0 +1,235 @@
+{
+ "theme": {
+  "personId": "experimentation_aspects",
+  "birthDate": "1979-03-14",
+  "timePrecision": "approximate",
+  "timeValue": "09:00",
+  "timeMarginMinutes": 30,
+  "birthPlace": "Lyon, France",
+  "placeName": "Lyon, France",
+  "country": "FR",
+  "latitude": 45.764,
+  "longitude": 4.8357,
+  "timeZone": "Europe/Paris",
+  "coordinateSource": "experimentation_fixture",
+  "coordinateConfidence": "unverified"
+ },
+ "generatedAt": "2026-10-19T09:07:41.390Z",
+ "model": "claude-sonnet-5-5",
+ "chapters": [
+  {
+   "sectionId": "internal_tensions",
+   "status": "produced",
+   "failure": null,
+   "model": "claude-sonnet-5-5",
+   "llmCalls": 1,
+   "usage": {
+    "promptTokens": 2200,
+    "completionTokens": 490
+   },
+   "words": 196,
+   "length": {
+    "words": 196,
+    "targetWords": 420,
+    "maxWords": 760,
+    "status": "in_range"
+   },
+   "validation": {
+    "ok": true,
+    "validatorVersion": "dossier-factual-claims@0.2.1",
+    "issues": [],
+    "warnings": []
+   },
+   "facts": [
+    {
+     "claimId": "internal_tensions.aspect_mars_saturn_opposition.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Mars",
+     "bodyB": "Saturn",
+     "aspectType": "opposition",
+     "orb": 1.867639,
+     "evidenceRefs": [
+      "aspect.mars.saturn.opposition"
+     ]
+    },
+    {
+     "claimId": "internal_tensions.aspect_sun_moon_opposition.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Sun",
+     "bodyB": "Moon",
+     "aspectType": "opposition",
+     "orb": 4.985194,
+     "evidenceRefs": [
+      "aspect.sun.moon.opposition"
+     ]
+    }
+   ],
+   "rules": [
+    "western.natal.aspect.mars_saturn.opposition@1",
+    "western.natal.aspect.sun_moon.opposition@1"
+   ]
+  },
+  {
+   "sectionId": "supporting_resources",
+   "status": "produced",
+   "failure": null,
+   "model": "claude-sonnet-5-5",
+   "llmCalls": 1,
+   "usage": {
+    "promptTokens": 2507,
+    "completionTokens": 416
+   },
+   "words": 172,
+   "length": {
+    "words": 172,
+    "targetWords": 340,
+    "maxWords": 620,
+    "status": "in_range"
+   },
+   "validation": {
+    "ok": true,
+    "validatorVersion": "dossier-factual-claims@0.2.1",
+    "issues": [],
+    "warnings": [
+     {
+      "severity": "warning",
+      "code": "style_absolute_wording",
+      "claimId": null,
+      "type": "BLOCK",
+      "blockId": "block1",
+      "message": "Formulation trop absolue non bloquante.",
+      "phrase": "sans effort"
+     }
+    ]
+   },
+   "facts": [
+    {
+     "claimId": "supporting_resources.aspect_mercury_venus_sextile.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Mercury",
+     "bodyB": "Venus",
+     "aspectType": "sextile",
+     "orb": 3.958243,
+     "evidenceRefs": [
+      "aspect.mercury.venus.sextile"
+     ]
+    },
+    {
+     "claimId": "supporting_resources.aspect_moon_jupiter_sextile.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Moon",
+     "bodyB": "Jupiter",
+     "aspectType": "sextile",
+     "orb": 1.094056,
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile"
+     ]
+    },
+    {
+     "claimId": "supporting_resources.aspect_sun_jupiter_trine.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Sun",
+     "bodyB": "Jupiter",
+     "aspectType": "trine",
+     "orb": 6.07925,
+     "evidenceRefs": [
+      "aspect.sun.jupiter.trine"
+     ]
+    }
+   ],
+   "rules": [
+    "western.natal.aspect.mercury_venus.sextile@1",
+    "western.natal.aspect.moon_jupiter.sextile@1",
+    "western.natal.aspect.sun_jupiter.trine@1"
+   ]
+  },
+  {
+   "sectionId": "major_aspects",
+   "status": "produced",
+   "failure": null,
+   "model": "claude-sonnet-5-5",
+   "llmCalls": 2,
+   "usage": {
+    "promptTokens": 4684,
+    "completionTokens": 817
+   },
+   "words": 321,
+   "length": {
+    "words": 321,
+    "targetWords": 520,
+    "maxWords": 920,
+    "status": "in_range"
+   },
+   "validation": {
+    "ok": true,
+    "validatorVersion": "dossier-factual-claims@0.2.1",
+    "issues": [],
+    "warnings": []
+   },
+   "facts": [
+    {
+     "claimId": "major_aspects.aspect_mars_saturn_opposition.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Mars",
+     "bodyB": "Saturn",
+     "aspectType": "opposition",
+     "orb": 1.867639,
+     "evidenceRefs": [
+      "aspect.mars.saturn.opposition"
+     ]
+    },
+    {
+     "claimId": "major_aspects.aspect_mercury_venus_sextile.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Mercury",
+     "bodyB": "Venus",
+     "aspectType": "sextile",
+     "orb": 3.958243,
+     "evidenceRefs": [
+      "aspect.mercury.venus.sextile"
+     ]
+    },
+    {
+     "claimId": "major_aspects.aspect_moon_jupiter_sextile.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Moon",
+     "bodyB": "Jupiter",
+     "aspectType": "sextile",
+     "orb": 1.094056,
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile"
+     ]
+    },
+    {
+     "claimId": "major_aspects.aspect_sun_jupiter_trine.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Sun",
+     "bodyB": "Jupiter",
+     "aspectType": "trine",
+     "orb": 6.07925,
+     "evidenceRefs": [
+      "aspect.sun.jupiter.trine"
+     ]
+    },
+    {
+     "claimId": "major_aspects.aspect_sun_moon_opposition.1",
+     "type": "NATAL_ASPECT",
+     "bodyA": "Sun",
+     "bodyB": "Moon",
+     "aspectType": "opposition",
+     "orb": 4.985194,
+     "evidenceRefs": [
+      "aspect.sun.moon.opposition"
+     ]
+    }
+   ],
+   "rules": [
+    "western.natal.aspect.mars_saturn.opposition@1",
+    "western.natal.aspect.mercury_venus.sextile@1",
+    "western.natal.aspect.moon_jupiter.sextile@1",
+    "western.natal.aspect.sun_jupiter.trine@1",
+    "western.natal.aspect.sun_moon.opposition@1"
+   ]
+  }
+ ]
+}

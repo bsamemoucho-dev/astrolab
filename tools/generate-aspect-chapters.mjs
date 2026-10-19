@@ -22,10 +22,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { calculateWesternNatalChart } from "../src/astro/westernNatal.mjs";
-import { estimateUsageCost } from "../src/deliverables/cost.mjs";
+import { estimateUsageCost, priceForModel } from "../src/deliverables/cost.mjs";
 import { buildDossierEvidence } from "../src/deliverables/dossierEvidence.mjs";
 import { buildFullDossierPlan } from "../src/deliverables/fullDossierPlan.mjs";
-import { blockLengthBudget, worstCaseOutputTokens } from "../src/deliverables/generationLimits.mjs";
+import { blockLengthBudget, maxTokensForBlock, worstCaseOutputTokens } from "../src/deliverables/generationLimits.mjs";
 import {
   buildStructuredSystemPrompt,
   scopedSectionPlanForBlock,
@@ -64,7 +64,8 @@ function parseArgs(argv) {
     out: "docs/experiments/2026-10-18-chapitres-aspects",
     maxCalls: 4,
     maxUsd: 0.05,
-    language: "fr"
+    provider: "openai",
+    model: null
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -72,6 +73,9 @@ function parseArgs(argv) {
     else if (arg === "--out") args.out = String(argv[++index]);
     else if (arg === "--max-calls") args.maxCalls = Number(argv[++index]);
     else if (arg === "--max-usd") args.maxUsd = Number(argv[++index]);
+    else if (arg === "--provider") args.provider = String(argv[++index]).trim().toLowerCase();
+    else if (arg === "--model") args.model = String(argv[++index]).trim();
+    else if (arg === "--suffix") args.suffix = String(argv[++index]).trim();
   }
   return args;
 }
@@ -122,9 +126,22 @@ function transportGarde({ maxCalls, maxUsd, ledger }) {
     }
     dejaVus.add(cle);
 
+    // Vérification PROJETÉE, pas seulement cumulée : on refuse un appel dont le
+    // pire cas ferait dépasser le plafond, sinon un dernier appel « raisonnable »
+    // pourrait faire exploser la facture finale.
     const depense = ledger.calls.reduce((total, appel) => total + appel.costUsd, 0);
-    if (depense >= maxUsd) {
-      const error = new Error(`Plafond de dépense atteint (${depense.toFixed(4)} USD ≥ ${maxUsd}).`);
+    const tarif = priceForModel(corps.model);
+    const charsEntree = (corps.messages ?? []).reduce(
+      (total, message) => total + String(message.content ?? "").length,
+      0
+    );
+    const pireEntree = Math.ceil(charsEntree / 3.5);
+    const pireSortie = Number(corps.max_tokens ?? 0);
+    const pireCout = (pireEntree / 1e6) * tarif.in + (pireSortie / 1e6) * tarif.out;
+    if (depense >= maxUsd || depense + pireCout > maxUsd) {
+      const error = new Error(
+        `Plafond de dépense : ${depense.toFixed(4)} USD déjà engagés, pire cas de cet appel ${pireCout.toFixed(4)} USD, plafond ${maxUsd} USD. Appel refusé.`
+      );
       error.code = "SPEND_CEILING_REACHED";
       throw error;
     }
@@ -191,16 +208,42 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   loadDotEnv();
-  const apiKey = process.env.ASTROLAB_LLM_API_KEY?.trim();
-  const baseUrl = process.env.ASTROLAB_LLM_BASE_URL?.trim() || "https://api.openai.com/v1";
-  const model = process.env.ASTROLAB_LLM_MODEL?.trim() || "gpt-4o-mini";
+  // Deux fournisseurs, un seul protocole : Anthropic expose une couche de
+  // compatibilité OpenAI sur `/v1`, donc les mêmes prompts et le même client
+  // peuvent servir. La clé vient de la variable du fournisseur, jamais de la
+  // ligne de commande (elle finirait dans l'historique du shell).
+  const FOURNISSEURS = {
+    openai: {
+      variable: "ASTROLAB_LLM_API_KEY",
+      baseUrl: process.env.ASTROLAB_LLM_BASE_URL?.trim() || "https://api.openai.com/v1",
+      model: process.env.ASTROLAB_LLM_MODEL?.trim() || "gpt-4o-mini"
+    },
+    anthropic: {
+      variable: "ANTHROPIC_API_KEY",
+      baseUrl: "https://api.anthropic.com/v1",
+      model: "claude-sonnet-5-5",
+      // La couche de compatibilité n'accepte que `json_schema` : on n'envoie
+      // pas `response_format` du tout, et le JSON reste exigé par la consigne.
+      jsonMode: false,
+      // `temperature` est déprécié pour ce modèle : la requête l'omet.
+      temperatureSupported: false
+    }
+  };
+  const fournisseur = FOURNISSEURS[args.provider];
+  if (!fournisseur) {
+    throw new Error(`Fournisseur inconnu : ${args.provider} (attendu : ${Object.keys(FOURNISSEURS).join(" ou ")})`);
+  }
+  const apiKey = process.env[fournisseur.variable]?.trim();
+  const baseUrl = fournisseur.baseUrl;
+  const model = args.model || fournisseur.model;
 
   const { dossierEvidence, fullDossierPlan } = construirePlan();
   const cibles = blocsDuPlan(fullDossierPlan);
 
-  console.log("THÈME   : fictif 14/03/1979 ≈ 09 h 00 ± 30 min, Lyon");
-  console.log(`MODÈLE  : ${model} via ${baseUrl}`);
-  console.log(`CLÉ     : ${apiKey ? "présente (non affichée)" : "ABSENTE"}`);
+  console.log("THÈME     : fictif 14/03/1979 ≈ 09 h 00 ± 30 min, Lyon");
+  console.log(`FOURNISS. : ${args.provider}`);
+  console.log(`MODÈLE    : ${model} via ${baseUrl}`);
+  console.log(`CLÉ       : ${apiKey ? `${fournisseur.variable} présente (non affichée)` : `${fournisseur.variable} ABSENTE`}`);
   console.log(`APPELS  : ${cibles.length} (plafond ${args.maxCalls})`);
   console.log(`BUDGET  : ${args.maxUsd} USD (plafond dur)`);
   for (const { section, blockPlan } of cibles) {
@@ -212,9 +255,19 @@ async function main() {
 
   if (!args.yes) {
     // Borne haute théorique, annoncée avant toute dépense : 6 000 tokens
-    // d'entrée et 2 000 de sortie par appel, tarif gpt-4o-mini (0,15 / 0,60 $/M).
-    const borneHaute = cibles.length * ((6000 * 0.15) / 1e6 + (2000 * 0.6) / 1e6);
-    console.log(`\nBorne haute théorique : ${borneHaute.toFixed(4)} USD pour ${cibles.length} appels.`);
+    // d'entrée et 2 000 de sortie par appel, au tarif du modèle réellement
+    // demandé (le tarif est public, pas mesuré — la facture tranche).
+    const tarif = priceForModel(model);
+    const borneHaute = cibles.reduce((total, { section, blockPlan }) => {
+      const budget = blockLengthBudget({ sectionPlan: section, blockPlan });
+      const pireSortie = maxTokensForBlock(budget);
+      const pireEntree = 3000; // borne d'entrée observée (1 280 à 1 670 réels)
+      return total + (pireEntree / 1e6) * tarif.in + (pireSortie / 1e6) * tarif.out;
+    }, 0);
+    console.log(
+      `\nTarif retenu : ${tarif.in} / ${tarif.out} USD par million (entrée / sortie).`
+    );
+    console.log(`Borne haute théorique : ${borneHaute.toFixed(4)} USD pour ${cibles.length} appels.`);
     console.log("Plan seul : aucun appel effectué (ajoutez --yes pour lancer).");
     return;
   }
@@ -225,7 +278,14 @@ async function main() {
   mkdirSync(args.out, { recursive: true });
   const ledger = { calls: [] };
   const fetchFn = transportGarde({ maxCalls: args.maxCalls, maxUsd: args.maxUsd, ledger });
-  const config = { apiKey, baseUrl, model, fetchFn };
+  const config = {
+    apiKey,
+    baseUrl,
+    model,
+    fetchFn,
+    jsonMode: fournisseur.jsonMode !== false,
+    temperatureSupported: fournisseur.temperatureSupported !== false
+  };
   const logger = { warn: (...parts) => console.warn("[validation]", ...parts) };
 
   const resultats = [];
@@ -240,6 +300,10 @@ async function main() {
       resultats.push({ sectionId, ecrit, echec: null });
       console.log(`\n✔ ${sectionId} — ${ecrit.words} mots, validation ${ecrit.validation.ok ? "OK" : "KO"}`);
     } catch (error) {
+      // Une erreur 4xx ne se corrige pas en réessayant : on arrête la série
+      // immédiatement au lieu de reproduire la même requête refusée.
+      const statut = Number(error.providerStatus ?? 0);
+      const arretImmediat = statut >= 400 && statut < 500;
       // Aucune correction relancée : on conserve ce qui a été produit et le motif.
       const dernierAppel = ledger.calls.filter((appel) => appel.sectionId === sectionId).at(-1) ?? null;
       resultats.push({
@@ -253,6 +317,10 @@ async function main() {
         }
       });
       console.log(`\n✖ ${sectionId} — ${error.code ?? "erreur"} : ${String(error.message).slice(0, 160)}`);
+      if (arretImmediat) {
+        console.log("Arrêt de la série : erreur de requête (4xx), rien à corriger côté contenu.");
+        break;
+      }
     }
   }
 

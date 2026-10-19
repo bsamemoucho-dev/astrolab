@@ -1,0 +1,56 @@
+{
+ "ceilingCalls": 4,
+ "ceilingUsd": 0.1,
+ "calls": [
+  {
+   "sectionId": "internal_tensions",
+   "blockId": "block1",
+   "requestedModel": "claude-sonnet-5-5",
+   "respondedModel": "claude-sonnet-5-5",
+   "promptTokens": 2200,
+   "completionTokens": 490,
+   "finishReason": "stop",
+   "durationMs": 4082,
+   "httpStatus": 200,
+   "costUsd": 0.0093
+  },
+  {
+   "sectionId": "supporting_resources",
+   "blockId": "block1",
+   "requestedModel": "claude-sonnet-5-5",
+   "respondedModel": "claude-sonnet-5-5",
+   "promptTokens": 2507,
+   "completionTokens": 416,
+   "finishReason": "stop",
+   "durationMs": 4259,
+   "httpStatus": 200,
+   "costUsd": 0.009174
+  },
+  {
+   "sectionId": "major_aspects",
+   "blockId": "block1",
+   "requestedModel": "claude-sonnet-5-5",
+   "respondedModel": "claude-sonnet-5-5",
+   "promptTokens": 2822,
+   "completionTokens": 495,
+   "finishReason": "stop",
+   "durationMs": 4153,
+   "httpStatus": 200,
+   "costUsd": 0.010594
+  },
+  {
+   "sectionId": "major_aspects",
+   "blockId": "block2",
+   "requestedModel": "claude-sonnet-5-5",
+   "respondedModel": "claude-sonnet-5-5",
+   "promptTokens": 1862,
+   "completionTokens": 322,
+   "finishReason": "stop",
+   "durationMs": 3106,
+   "httpStatus": 200,
+   "costUsd": 0.006944
+  }
+ ],
+ "totalCalls": 4,
+ "totalCostUsd": 0.036012
+}

@@ -5,6 +5,10 @@
 
 const PRICES_USD_PER_M = Object.freeze({
   "gpt-4o-mini": { in: 0.15, out: 0.6 },
+  // Tarif déclaré dans experiments/openai-claude/budgetGuard.mjs
+  // (« standard uncached prices verified 2026-10-18 »). À reconfronter avec la
+  // facture du fournisseur : c'est un tarif public, pas une mesure.
+  "claude-sonnet-5-5": { in: 2, out: 10 },
   "gpt-4o": { in: 2.5, out: 10 },
   "gpt-4.1": { in: 2, out: 8 },
   "gpt-4.1-mini": { in: 0.4, out: 1.6 },
@@ -17,6 +21,9 @@ export function priceTable() {
 
 export function priceForModel(model) {
   const name = String(model ?? "").toLowerCase();
+  if (name.startsWith("claude-sonnet-5-5")) {
+    return PRICES_USD_PER_M["claude-sonnet-5-5"];
+  }
   if (name.startsWith("gpt-4o-mini") || name.startsWith("gpt-4.1-mini")) {
     return name.startsWith("gpt-4.1-mini") ? PRICES_USD_PER_M["gpt-4.1-mini"] : PRICES_USD_PER_M["gpt-4o-mini"];
   }
