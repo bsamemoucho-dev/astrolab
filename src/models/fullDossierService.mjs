@@ -344,7 +344,11 @@ export async function createFullPublicReading(input = {}, options = {}) {
     parentContext: { parents: normalizeParents(input) },
     generatedAt
   });
-  const fullDossierPlan = buildFullDossierPlan(dossierEvidence);
+  // Politique éditoriale du produit : « aspects majeurs » est une ANNEXE DE
+  // RÉFÉRENCE depuis que les aspects sont lus dans les chapitres de catégorie.
+  // La table des aspects reste disponible (annexe calculée + `referenceTable`),
+  // mais le chapitre ne rédige plus une troisième version des mêmes aspects.
+  const fullDossierPlan = buildFullDossierPlan(dossierEvidence, { aspectChapterMode: "reference" });
   const relationalPlans = buildRelationalPlans(dossierEvidence);
   const config = options.config ?? llmConfiguration();
   const writerOptions = progressOptions({ options, fullDossierPlan, relationalPlans });

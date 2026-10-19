@@ -53,7 +53,9 @@ function construire() {
   });
   const legacy = buildFullDossierPlan(dossierEvidence, { editorialEngine: "legacy", aspectChapterMode: "narrative" });
   const compositionReference = buildFullDossierPlan(dossierEvidence, { editorialEngine: "composition", aspectChapterMode: "reference" });
-  const compositionSynthese = buildFullDossierPlan(dossierEvidence, { editorialEngine: "composition", aspectChapterMode: "synthesis" });
+  // « synthesis » n'est pas un mode : sous le moteur de composition, le mode
+  // narratif EST la synthèse (le chapitre ne possède aucune configuration).
+  const compositionSynthese = buildFullDossierPlan(dossierEvidence, { editorialEngine: "composition", aspectChapterMode: "narrative" });
   return { dossierEvidence, legacy, compositionReference, compositionSynthese };
 }
 

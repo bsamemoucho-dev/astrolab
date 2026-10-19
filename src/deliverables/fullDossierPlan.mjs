@@ -548,12 +548,19 @@ function buildBlockPlans(section, byId = null) {
 
 export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const timeZone = options.referenceTimeZone ?? referenceTimeZone(dossierEvidence);
-  const aspectChapterMode = ASPECT_CHAPTER_MODES.includes(options.aspectChapterMode)
-    ? options.aspectChapterMode
-    : "narrative";
   const editorialEngine = EDITORIAL_ENGINES.includes(options.editorialEngine)
     ? options.editorialEngine
     : "composition";
+  // Le mode par défaut reste « narrative » pour ne rien changer aux appelants
+  // existants (expériences, tests, moteur historique). C'est le PRODUIT qui
+  // choisit « reference » (voir fullDossierService) ; un mode inconnu lève au
+  // lieu de retomber silencieusement sur un autre comportement.
+  if (options.aspectChapterMode !== undefined && !ASPECT_CHAPTER_MODES.includes(options.aspectChapterMode)) {
+    throw new Error(
+      `aspectChapterMode inconnu : ${options.aspectChapterMode} (attendu : ${ASPECT_CHAPTER_MODES.join(", ")})`
+    );
+  }
+  const aspectChapterMode = options.aspectChapterMode ?? "narrative";
   // Validate the declared zone; never silently replace an invalid zone.
   new Intl.DateTimeFormat("fr-FR", { timeZone });
   const byId = evidenceById(dossierEvidence);
@@ -659,6 +666,22 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
         reason: "aspects_read_in_category_chapters",
         message: "Les aspects sont lus dans les chapitres de catégorie ; leur table reste dans l'annexe."
       });
+      // La table de référence est produite par le serveur : c'est elle que
+      // l'annexe publie, pas une interprétation.
+      aspectsSection.referenceTable = allRefs
+        .filter((ref) => ref.startsWith("aspect."))
+        .map((ref) => {
+          const item = byId.get(ref)?.value ?? {};
+          return {
+            evidenceRef: ref,
+            bodyA: item.bodyA ?? null,
+            bodyB: item.bodyB ?? null,
+            aspectType: item.aspectType ?? null,
+            orb: item.orb ?? null,
+            orbLimit: item.orbLimit ?? null
+          };
+        })
+        .sort((gauche, droite) => (gauche.orb ?? 99) - (droite.orb ?? 99));
     } else if (aspectChapterMode === "absent") {
       sections.delete("major_aspects");
     }

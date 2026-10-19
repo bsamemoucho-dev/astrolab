@@ -14,7 +14,7 @@
   "coordinateSource": "experimentation_fixture",
   "coordinateConfidence": "unverified"
  },
- "generatedAt": "2026-10-19T09:29:36.024Z",
+ "generatedAt": "2026-10-19T10:02:26.041Z",
  "legacy": {
   "version": "full-dossier-plan@0.2.0",
   "engine": "legacy",
@@ -310,6 +310,30 @@
   "editorialPlan": {
    "version": "lastro-editorial-plan@1.0.0",
    "aspectChapterMode": "reference",
+   "semantics": {
+    "version": "lastro-interpretation-library@0.3.0",
+    "total": 372,
+    "structured": 5,
+    "legacy": 367,
+    "byType": {
+     "NATAL_BODY_SIGN": {
+      "total": 96,
+      "structured": 0
+     },
+     "NATAL_ASPECT": {
+      "total": 30,
+      "structured": 5
+     },
+     "PERSONAL_TRANSIT": {
+      "total": 245,
+      "structured": 0
+     },
+     "TRANSIT_SNAPSHOT": {
+      "total": 1,
+      "structured": 0
+     }
+    }
+   },
    "thesis": {
     "id": "idea.thesis.figure.apex.jupiter.moon.sun",
     "statement": "Le thème est organisé par une figure calculée : le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune. C'est elle qui donne au dossier son fil conducteur.",

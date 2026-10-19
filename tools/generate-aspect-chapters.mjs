@@ -78,7 +78,13 @@ function parseArgs(argv) {
     else if (arg === "--provider") args.provider = String(argv[++index]).trim().toLowerCase();
     else if (arg === "--model") args.model = String(argv[++index]).trim();
     else if (arg === "--engine") args.engine = String(argv[++index]).trim().toLowerCase();
-    else if (arg === "--aspect-chapter") args.aspectChapterMode = String(argv[++index]).trim().toLowerCase();
+    else if (arg === "--aspect-chapter") {
+      const mode = String(argv[++index]).trim().toLowerCase();
+      if (!["narrative", "reference", "absent"].includes(mode)) {
+        throw new Error(`--aspect-chapter : valeurs acceptées — narrative, reference, absent (reçu : ${mode})`);
+      }
+      args.aspectChapterMode = mode;
+    }
     else if (arg === "--suffix") args.suffix = String(argv[++index]).trim();
   }
   return args;

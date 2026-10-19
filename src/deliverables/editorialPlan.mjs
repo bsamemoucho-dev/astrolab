@@ -15,6 +15,7 @@
 // même plan, octet pour octet. Aucune mémoire conversationnelle, aucun appel IA.
 
 import { composeEditorialMaterial } from "./editorialComposition.mjs";
+import { semanticsCoverage } from "./interpretationRules.mjs";
 
 export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.0.0";
 
@@ -229,6 +230,10 @@ export function buildEditorialPlan({
   return {
     version: EDITORIAL_PLAN_VERSION,
     aspectChapterMode,
+    // Migration progressive : le rédacteur reçoit des concepts pour les règles
+    // qui en ont, et les anciennes phrases pour les autres. Ce compteur dit où
+    // l'on en est, sans prétendre que la migration est faite.
+    semantics: semanticsCoverage(),
     thesis,
     ideas,
     chapters,

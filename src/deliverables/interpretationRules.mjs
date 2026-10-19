@@ -436,6 +436,30 @@ export function rulesForEvidence(evidence, { scope = null } = {}) {
   return INTERPRETATION_RULES.filter((rule) => ruleInScope(rule, scope) && ruleMatchesEvidence(rule, evidence));
 }
 
+// Couverture de la migration vers la sémantique structurée : combien de règles
+// fournissent des concepts plutôt que des phrases, par famille de preuve.
+// Sert à piloter la migration famille par famille, sans la simuler.
+export function semanticsCoverage() {
+  const parType = {};
+  let structurees = 0;
+  for (const rule of INTERPRETATION_RULES) {
+    const entree = parType[rule.evidenceType] ?? { total: 0, structured: 0 };
+    entree.total += 1;
+    if (rule.semantics) {
+      entree.structured += 1;
+      structurees += 1;
+    }
+    parType[rule.evidenceType] = entree;
+  }
+  return {
+    version: INTERPRETATION_LIBRARY_VERSION,
+    total: INTERPRETATION_RULES.length,
+    structured: structurees,
+    legacy: INTERPRETATION_RULES.length - structurees,
+    byType: parType
+  };
+}
+
 export function allInterpretationRuleIds() {
   return INTERPRETATION_RULES.map((rule) => rule.ruleId);
 }

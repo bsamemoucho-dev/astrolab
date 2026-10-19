@@ -1,8 +1,10 @@
 import { validateAstrologicalDates, referenceTimeZone } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
+import { aspectIdentifier } from "./figures.mjs";
+import { detectCrossedClaims, isCrossingLicensed } from "./crossedClaims.mjs";
 
-export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.2.0";
+export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.2.1";
 
 function norm(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -147,22 +149,37 @@ function keyForVocabularyMatch(value, vocabulary) {
   return Object.entries(vocabulary).find(([, words]) => words.some((word) => normalizedText(word) === source))?.[0] ?? null;
 }
 
-function hasBodySignClaim(text, body, sign) {
-  const source = normalizedText(text);
-  const bodyWords = wordAlternatives(BODY_WORDS[body] ?? []);
+// Keep the historical local window, but never borrow a sign through another
+// placement, a different grammatical subject, or a sentence boundary.
+const PLACEMENT_POINT_PATTERN = vocabularyPattern({ ...BODY_WORDS, ...ANGLE_WORDS });
+const PLACEMENT_SIGN_PATTERN = vocabularyPattern(SIGN_WORDS);
+function hasPointSignClaim(text, words, sign) {
+  const source = aspectTextWithoutCalendarMonths(text);
+  const pointWords = wordAlternatives(words ?? []);
   const signWords = wordAlternatives(SIGN_WORDS[sign] ?? []);
-  if (!bodyWords || !signWords) return false;
-  const bodyThenSign = new RegExp(`\\b(?:${bodyWords})\\b.{0,32}\\b(?:en|in|dans|signe de)?\\s*\\b(?:${signWords})\\b`, "iu");
-  return bodyThenSign.test(source);
+  if (!pointWords || !signWords) return false;
+  const mentions = new RegExp(`\\b(?:${pointWords})\\b`, "giu");
+  const followingSign = new RegExp(`^([^.!?;\\n]{0,32}?)\\b(?:${signWords})\\b`, "iu");
+  const anySign = new RegExp(`\\b(?:${PLACEMENT_SIGN_PATTERN})\\b`, "iu");
+  const anyPoint = new RegExp(`\\b(?:${PLACEMENT_POINT_PATTERN})\\b`, "iu");
+  const coordinatedSubject = new RegExp(`^\\s*(?:,|et|ainsi que|and)\\s*(?:(?:une?|le|la|les|votre|vos|the|your)\\s+|l['’])?(?:${PLACEMENT_POINT_PATTERN})\\b`, "iu");
+  for (const mention of source.matchAll(mentions)) {
+    const match = source.slice(mention.index + mention[0].length).match(followingSign);
+    if (!match || anySign.test(match[1])) continue;
+    let gap = match[1];
+    // Several subjects can share one placement: "Lune et Vénus en Balance".
+    // An intervening planet is allowed only as an explicitly joined subject.
+    let joined;
+    while ((joined = gap.match(coordinatedSubject))) gap = gap.slice(joined[0].length);
+    if (!anyPoint.test(gap)) return true;
+  }
+  return false;
 }
-
+function hasBodySignClaim(text, body, sign) {
+  return hasPointSignClaim(text, BODY_WORDS[body], sign);
+}
 function hasAngleSignClaim(text, angle, sign) {
-  const source = normalizedText(text);
-  const angleWords = wordAlternatives(ANGLE_WORDS[angle] ?? []);
-  const signWords = wordAlternatives(SIGN_WORDS[sign] ?? []);
-  if (!angleWords || !signWords) return false;
-  const angleThenSign = new RegExp(`\\b(?:${angleWords})\\b.{0,32}\\b(?:en|in|dans|signe de)?\\s*\\b(?:${signWords})\\b`, "iu");
-  return angleThenSign.test(source);
+  return hasPointSignClaim(text, ANGLE_WORDS[angle], sign);
 }
 
 function houseNumberFromRaw(raw) {
@@ -736,6 +753,30 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     for (const fact of detectAstrologicalTextFacts(block.text)) {
       if (!textFactSupported(fact, resolvedRefs)) {
         issues.push(claimlikeForBlock(block, "undeclared_text_fact", "Le texte contient un fait astrologique concret non couvert par les evidenceRefs du bloc.", { fact }));
+      }
+    }
+    // Croisements : le rédacteur ne peut pas faire dialoguer deux configurations
+    // que le moteur de composition n'a pas licenciées. Contrôle limité aux plans
+    // qui portent un moteur de composition (le moteur historique n'a pas de
+    // relations autorisées : le lui appliquer reviendrait à tout bloquer).
+    if (sectionPlan.editorialEngine === "composition") {
+      for (const croisement of detectCrossedClaims({ text: block.text, detectFacts: detectAstrologicalTextFacts })) {
+        if (isCrossingLicensed({ ...croisement, relations: sectionPlan.allowedRelations ?? [], identifier: aspectIdentifier })) continue;
+        issues.push(
+          claimlikeForBlock(
+            block,
+            "crossed_claim_not_licensed",
+            "Le texte affirme une interaction entre deux configurations que rien ne relie dans ce thème (aucun corps partagé, aucune figure calculée).",
+            {
+              marker: croisement.marqueur,
+              facts: [
+                aspectIdentifier(croisement.premier.bodyA, croisement.premier.bodyB, croisement.premier.aspectType),
+                aspectIdentifier(croisement.second.bodyA, croisement.second.bodyB, croisement.second.aspectType)
+              ],
+              sentence: croisement.phrase.slice(0, 200)
+            }
+          )
+        );
       }
     }
     for (const finding of validateAstrologicalDates({ text: block.text, refs: resolvedRefs, timeZone: referenceTimeZone(dossierEvidence, sectionPlan), aspectFacts: detectAspectFacts })) {

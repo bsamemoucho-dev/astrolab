@@ -509,6 +509,10 @@ function enrichedStructuredSection(section, sectionPlan) {
 }
 
 function hasWritableMaterial(sectionPlan) {
+  // Une section sans bloc n'est pas « écrivable » : c'est le cas des chapitres
+  // transformés en annexe de référence. Sans cette garde, le rédacteur
+  // retournait une section vide, comptée comme générée.
+  if ((sectionPlan?.blockPlans ?? []).length === 0) return false;
   if ((sectionPlan?.blockPlans ?? []).some((blockPlan) => blockPlan.deterministic)) return true;
   return (sectionPlan?.allowedInterpretationRuleRefs ?? []).length > 0 &&
     ((sectionPlan?.primaryEvidenceRefs ?? []).length > 0 || (sectionPlan?.secondaryEvidenceRefs ?? []).length > 0);
@@ -977,7 +981,10 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
         blocks: []
       },
       skipped: true,
-      reason: "no_authorized_interpretation_rules",
+      reason:
+        sectionPlan.editorialMode === "reference"
+          ? "reference_only"
+          : "no_authorized_interpretation_rules",
       llmCalls: 0,
       usage: { promptTokens: 0, completionTokens: 0 },
       model: null,

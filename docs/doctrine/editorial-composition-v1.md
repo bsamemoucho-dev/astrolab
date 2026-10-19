@@ -91,12 +91,92 @@ l'idée appartient à un autre chapitre.
 | **B — référence** | `aspectChapterMode: "reference"` : aucun bloc narratif ; la table des aspects de l'annexe suffit | **−2 appels** | supprime mécaniquement la répétition ; le chapitre reste dans le plan comme référence |
 | **C — suppression** | `aspectChapterMode: "absent"` : le chapitre quitte le plan | −2 appels | identique à B en coût, mais l'information de référence quitte le dossier narratif |
 
+**Décision appliquée : B est le mode du PRODUIT.** Le plan générique garde
+`narrative` par défaut (les expériences et le moteur historique ne changent pas) ;
+`fullDossierService` demande explicitement `reference`. Conséquences mesurées :
+le dossier passe de 15 à 14 chapitres rédigés, `major_aspects` disparaît de la
+narration, et sa `referenceTable` (aspects, orbes, triée par serrage) reste
+disponible pour l'annexe. Un mode inconnu lève désormais au lieu de retomber
+silencieusement sur un autre comportement.
+
+Un défaut corrigé au passage : une section de référence (zéro bloc) était encore
+« écrite » à vide et comptée comme générée. Le rédacteur refuse maintenant une
+section sans bloc, avec le motif `reference_only`.
+
 **Recommandation : B.** Elle supprime la répétition par construction (le chapitre
 n'a plus rien à redire), conserve une trace vérifiable des aspects dans l'annexe,
 et ne dépend pas de la capacité du modèle à produire une synthèse. C resterait un
 choix éditorial plus radical, sans gain de coût supplémentaire. A est le pari le
 plus intéressant mais le moins garanti : c'est celui qu'il faut **tester** avant
 de l'adopter.
+
+## Garde-fou : une interaction affirmée doit être licenciée
+
+Le moteur refuse un croisement ; encore faut-il que le texte ne l'affirme pas
+quand même. Le validateur détecte désormais les phrases qui **nomment deux
+aspects distincts et affirment qu'ils interagissent** (`se répondent`,
+`se renforcent`, `se compensent`, `tempère`, `relie`… liste fermée), puis
+vérifie que la paire figure parmi les croisements autorisés du chapitre.
+
+- code d'issue : `crossed_claim_not_licensed` (bloquant, comme les autres
+  erreurs factuelles) ;
+- une phrase qui **nie** le lien, ou qui se contente d'**énumérer** deux aspects,
+  n'est pas un croisement : rien n'est signalé ;
+- le contrôle ne s'applique qu'au moteur de composition (le moteur historique
+  n'a pas de relations autorisées : le lui appliquer bloquerait tout) ;
+- la détection est par phrase : deux aspects dans deux phrases différentes ne
+  constituent pas une interaction affirmée.
+
+Cas testés : paire de la figure → acceptée ; Mars–Saturne × Mercure–Vénus →
+refusée ; forme négative → acceptée ; énumération → acceptée.
+
+## Mesurer la dépendance aux formulations sources
+
+La mesure (`editorialDiagnostics.verbatimDependency`) a une sémantique précise :
+
+- elle compare des **jetons normalisés** (minuscules, accents retirés,
+  apostrophe = séparateur, ponctuation retirée) — « s'appuie » compte donc pour
+  deux jetons ;
+- elle renvoie la **plus longue suite consécutive** d'une source retrouvée telle
+  quelle, avec la source en cause ;
+- seuil par défaut : 3 jetons ; en dessous, rien n'est signalé ;
+- elle est **lexicale, pas sémantique** : une reformulation qui conserve une
+  courte suite fortuite (« s'appuie sur la » = 4 jetons) n'est pas une copie ;
+- complément indispensable : `lexicalOverlap` (Jaccard sur les mots pleins)
+  mesure la redondance de contenu, et `crossChapterRepetition` croise les deux.
+
+Calibration vérifiée par test : copie intégrale → longueur de la source ; copie
+de 6 jetons → 6 ; ordre changé → suite courte ; accents/casse → détectés ;
+sous-seuil → 0. Sur les deux dossiers existants : recopie maximale par chapitre
+12 / 8 / 15 (gpt-4o-mini) et 9 / 8 / 8 (Claude) ; recouvrement lexical
+tensions×aspects 0,37 et ressources×aspects 0,32 (gpt-4o-mini), 0,24 et 0,28
+(Claude).
+
+## Migration progressive vers la sémantique structurée
+
+Le prompt transmet des **concepts** quand la règle en a, et ses **phrases**
+sinon : les deux formats coexistent dans un même chapitre, ce qui permet de
+migrer famille par famille sans rien casser (`editorialPlan.semantics`).
+
+État mesuré aujourd'hui (`semanticsCoverage()`) :
+
+| Famille | Structurées | Total |
+|---|---:|---:|
+| `NATAL_ASPECT` | **5** | 30 |
+| `NATAL_BODY_SIGN` | 0 | 96 |
+| `PERSONAL_TRANSIT` | 0 | 245 |
+| `TRANSIT_SNAPSHOT` | 0 | 1 |
+| **Total** | **5** | **372** |
+
+Procédure pour la famille suivante, sans refonte :
+
+1. choisir **une** règle réellement utilisée dans un chapitre existant ;
+2. lui ajouter `semantics { concepts, relation, motif, nuances }` — des noms et
+   une formule courte, jamais une phrase déjà rédigée ;
+3. vérifier que le chapitre qui la reçoit change de nature (les concepts
+   arrivent, les phrases disparaissent pour cette règle) ;
+4. laisser `semanticsCoverage()` documenter l'avancement, sans jamais prétendre
+   que la migration est terminée.
 
 ## Ce que la couche ne fait pas
 
