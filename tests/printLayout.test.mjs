@@ -312,3 +312,22 @@ test("le nom de fichier proposé vient du document, pas de l'application", () =>
   // La page ne porte plus de détail cliquable nulle part.
   assert.doesNotMatch(readFileSync(path.join(RACINE, "public/index.html"), "utf8"), /<details[^>]*annex/i);
 });
+
+
+test("print bars remain visible without backgrounds and the full symbolic frame stays with the chart", () => {
+  assert.match(css, /\.bar\{[^}]*border-top:6px solid currentColor/);
+  assert.match(css, /\.bar-track\{[^}]*border:1px solid/);
+  assert.match(css, /print-color-adjust:exact/);
+  assert.match(css, /\.sheet > \.caveat \+ section\.block\.chart-page\{[^}]*break-before:auto/);
+  assert.ok(html.includes(docStrings("fr").caveat));
+});
+
+test("fact panels are escaped, separate from symbolic prose and absent when unused", () => {
+  const section = { id:"relationships", title:"Relations", kind:"symbolic", text:"Une lecture symbolique.", configurationsLabel:"Configurations étudiées", configurationsStudied:["Soleil–Vénus : conjonction", "<script>invalide</script>"] };
+  const output = renderDossierHtml({title:"Test",sections:[section],createdAt:"2026-10-19"});
+  assert.match(output, /<aside class="studied-configurations">[^]*?<\/aside>\s*<div class="block-body"><p>Une lecture symbolique/);
+  assert.match(output, /&lt;script&gt;/);
+  assert.doesNotMatch(output, /<script>/);
+  const without = renderDossierHtml({title:"Test",sections:[{...section,configurationsStudied:[]}],createdAt:"2026-10-19"});
+  assert.doesNotMatch(without, /<aside class="studied-configurations">/);
+});

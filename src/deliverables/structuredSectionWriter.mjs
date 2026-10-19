@@ -563,7 +563,7 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Tu n'écris jamais packetRefs, evidenceRefs, interpretationRuleRefs, claims ni claim.type : le serveur les déduit depuis le BlockPlan.",
     "Tu dois seulement remplir le texte du ou des blockId prévus par ce BlockPlan isolé.",
     "N'invente jamais de blockId.",
-    "Si la matière méthodologique est insuffisante, écris un bloc court qui dit que cette partie reste limitée aux faits disponibles.",
+    "Développe uniquement la matière interprétable autorisée. N'ajoute jamais de phrase sur un manque de preuves ou de règles : ce diagnostic appartient au serveur.",
     "N'écris pas d'introduction générique ni de mini-conclusion automatique. Chaque phrase doit ajouter une information utile.",
     "Si plusieurs packets décrivent la même dynamique, fusionne-les en un passage cohérent au lieu de les commenter un par un.",
     "Un packet interpretationDepth=reference sert de rappel bref. Exception explicite : sourceRole=licensed_composition_context autorise sa mise en perspective selon la mission du chapitre et les seules relations calculées, sans redévelopper chaque placement séparément.",
@@ -572,7 +572,7 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
-    "Pour une idée dont ce chapitre est propriétaire, explore un dilemme concret et plusieurs façons possibles de le vivre. La prudence porte sur la lecture symbolique, pas sur une répétition du conditionnel : alterne description des symboles, possibilités et situations envisagées ; ne conclus jamais à un trait établi de la personne. Une liste de qualités reformulées ne suffit pas ; précise les limites et une question utile au lecteur, sans inventer son histoire.",
+    "Pour une idée dont ce chapitre est propriétaire, explore un dilemme concret et plusieurs façons possibles de le vivre. La prudence porte sur la lecture symbolique, pas sur une répétition du conditionnel : alterne description des symboles, possibilités et situations envisagées ; ne conclus jamais à un trait établi de la personne. Une liste de qualités reformulées ne suffit pas ; précise les limites sans inventer son histoire ; une question n'est jamais obligatoire.",
     "Une interaction reste interdite lorsqu’elle est formulée indirectement : cette harmonie, ces tensions, les dynamiques précédentes. Un pronom ou un renvoi ne crée aucune relation calculée.",
     // Contrat éditorial : ce que le rédacteur reçoit est un matériau, pas un texte.
     "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
@@ -580,8 +580,9 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Dans un chapitre de composition, les idées réservées gardent leur développement détaillé dans leur chapitre propriétaire ; cela n’interdit pas d’en dégager le fil conducteur avec les packets licensed_composition_context. Cette composition n’est pas limitée à un rappel d’une phrase.",
     "`editorial.mayRecall` : idées déjà développées dans un chapitre précédent. Tu peux les nommer en une clause au maximum, jamais les redévelopper.",
     "`editorial.reserved` : idées réservées à un chapitre ultérieur. Tu ne les développes pas, même si les faits sont disponibles.",
+    "Écris des paragraphes courts, séparés par une ligne vide, chacun centré sur une seule idée. Explique les termes astrologiques indispensables en mots courants. Ne coupe pas artificiellement une idée pour allonger le document.",
     "Adresse-toi au lecteur. N'ouvre pas un paragraphe par « La dynamique entre… », « Cette configuration indique… », « Par ailleurs » ou « Enfin » : chaque paragraphe porte une idée, pas un placement.",
-    "Si ta mission ne trouve pas de matière suffisante, dis-le en une phrase courte et arrête-toi : un chapitre court et juste vaut mieux qu'un chapitre rempli.",
+    "Arrête-toi lorsque les idées autorisées sont épuisées, sans ajouter de constat méthodologique, de remplissage ou d'excuse au lecteur.",
     // Chapitre qui explore une figure : plusieurs lectures, jamais un verdict.
     ...(Array.isArray(sectionPlan.readingHypotheses) && sectionPlan.readingHypotheses.length > 0
       ? [

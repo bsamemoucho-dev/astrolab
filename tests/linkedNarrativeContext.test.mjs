@@ -5,7 +5,7 @@ import { composeEditorialMaterial } from '../src/deliverables/editorialCompositi
 import { aspectCategory } from '../src/deliverables/figures.mjs';
 import { rulesForEvidence, ruleMatchesEvidence } from '../src/deliverables/interpretationRules.mjs';
 import { validateStructuredSection } from '../src/deliverables/factualClaimsValidator.mjs';
-import { buildStructuredUserPrompt, scopedSectionPlanForBlock, writeStructuredSectionWithLlm, writeStructuredSectionsWithLlm } from '../src/deliverables/structuredSectionWriter.mjs';
+import { buildStructuredSystemPrompt, buildStructuredUserPrompt, scopedSectionPlanForBlock, writeStructuredSectionWithLlm, writeStructuredSectionsWithLlm } from '../src/deliverables/structuredSectionWriter.mjs';
 
 // Fictional evidence graph, without client identity, birth date or birthplace.
 function fixture({ houses=true }={}) {
@@ -127,4 +127,13 @@ test('the relationship chapter is the sole primary owner of its three linked asp
   assert.deepEqual(plan.sections.filter(section=>section.primaryEvidenceRefs.includes(ref)).map(section=>section.sectionId),['relationships']);
   assert.equal(plan.ownerByEvidenceRef[ref],'relationships');
  }
+});
+
+
+test('system prompt does not order a methodological apology or mandatory question',()=>{
+ const evidence=fixture(),section=planOf(evidence).sections.find(s=>s.sectionId==='relationships');
+ const prompt=buildStructuredSystemPrompt(section);
+ assert.doesNotMatch(prompt,/écris un bloc court qui dit|dis-le en une phrase courte|précise les limites et une question utile/);
+ assert.match(prompt,/paragraphes courts/);
+ assert.match(prompt,/une question n'est jamais obligatoire/);
 });

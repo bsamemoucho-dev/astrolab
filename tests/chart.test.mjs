@@ -137,22 +137,18 @@ test("la répartition est calculée, et les corps sans signe en sortent", () => 
   assert.equal(Object.values(sansHeure.byElement).reduce((total, valeur) => total + valeur, 0), 6);
 });
 
-test("les barres et l'anneau portent les chiffres calculés, pas des valeurs décoratives", () => {
-  const socle = EXACT();
-  const section = chartSection(socle, docStrings("fr"));
+test("les sept barres portent les répartitions calculées avec libellés et chiffres", () => {
+  const socle = EXACT(), section = chartSection(socle, docStrings("fr"));
   const distribution = signDistribution(socle.bodies);
-  const largeurs = [...section.html.matchAll(/class="bar" style="width:(\d+)%/g)].map((m) => Number(m[1]));
-  assert.equal(largeurs.length, 4);
-  assert.deepEqual(
-    largeurs,
-    ["fire", "earth", "air", "water"].map((cle) => Math.round((distribution.byElement[cle] / distribution.classified) * 100))
-  );
-  // L'anneau se ferme sur 100 % : les arrondis ne laissent pas de trou.
-  const anneau = section.html.match(/conic-gradient\(([^)]*)\)/);
-  assert.ok(anneau);
-  assert.match(anneau[1], /100%$/);
-  // Aucun pourcentage écrit à la main ne doit subsister.
-  assert.doesNotMatch(section.html, /(61|55|34|20|15|10)%/);
+  const widths = [...section.html.matchAll(/class="bar" style="width:(\d+)%/g)].map((m) => Number(m[1]));
+  assert.deepEqual(widths, [
+    ...["fire", "earth", "air", "water"].map((key) => Math.round(distribution.byElement[key] / distribution.classified * 100)),
+    ...["cardinal", "fixed", "mutable"].map((key) => Math.round(distribution.byModality[key] / distribution.classified * 100))
+  ]);
+  assert.doesNotMatch(section.html, /donut|conic-gradient/);
+  for (const [label, count] of [["Cardinal",4],["Fixe",1],["Mutable",2]]) {
+    assert.match(section.html, new RegExp(`<span>${label}</span>[^]*?<b>${count}</b>`));
+  }
 });
 
 test("la carte du ciel ouvre le document, après la couverture et avant le texte", () => {

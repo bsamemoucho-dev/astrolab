@@ -325,7 +325,7 @@ function barRows(counts, order, labelOf, colourOf, total) {
       const pourcentage = share(count, total);
       return (
         `<div class="bar-row"><span>${escapeXml(labelOf(key))}</span>` +
-        `<div class="bar-track"><div class="bar" style="width:${pourcentage}%;background:${colourOf(key)}"></div></div>` +
+        `<div class="bar-track" aria-hidden="true"><div class="bar" style="width:${pourcentage}%;background:${colourOf(key)}"></div></div>` +
         `<b>${count}</b></div>`
       );
     })
@@ -333,22 +333,6 @@ function barRows(counts, order, labelOf, colourOf, total) {
 }
 
 const MODALITY_COLOURS = Object.freeze({ cardinal: "#5d4a86", fixed: "#c89c4a", mutable: "#8d78a8" });
-
-function donut(counts, order, total) {
-  if (total === 0) {
-    return "";
-  }
-  let curseur = 0;
-  const segments = order.map((key) => {
-    const debut = curseur;
-    curseur += share(counts[key] ?? 0, total);
-    return `${MODALITY_COLOURS[key]} ${debut}% ${curseur}%`;
-  });
-  // Le dernier segment est fermé sur 100 % : les arrondis ne doivent pas laisser
-  // un trou blanc dans l'anneau.
-  segments[segments.length - 1] = segments[segments.length - 1].replace(/%[\d.]+%$/, "% 100%");
-  return `<div class="donut" style="background:conic-gradient(${segments.join(", ")})"></div>`;
-}
 
 // Bloc « carte du ciel » pour le document HTML : la roue calculée et les deux
 // répartitions. Rien n'y est décoratif : tout vient du socle.
@@ -390,13 +374,7 @@ export function chartBlockHtml(socle, strings = null, options = {}) {
     barRows(distribution.byElement, ELEMENT_ORDER, libelle, (cle) => ELEMENT_COLOURS[cle], total),
     `    </div>`,
     `    <div class="card"><h3>${escapeXml(t.chartModalities ?? "")}</h3>`,
-    donut(distribution.byModality, MODALITY_ORDER, total),
-    `      <div class="legend">`,
-    MODALITY_ORDER.map(
-      (cle) =>
-        `<span><i class="dot" style="background:${MODALITY_COLOURS[cle]}"></i>${escapeXml(libelle(cle))} · ${distribution.byModality[cle]}</span>`
-    ).join(""),
-    `      </div>`,
+    barRows(distribution.byModality, MODALITY_ORDER, libelle, (cle) => MODALITY_COLOURS[cle], total),
     `    </div>`,
     `  </div>`,
     `</div>`,

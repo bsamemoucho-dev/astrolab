@@ -226,3 +226,35 @@ test("relationship dossier generation remains deterministic and does not call th
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("client facts are distinct, owned, actually used and omit detailed annex measures", async () => {
+  const reading = await createFixtureReading();
+  assert.match(reading.html, /class="studied-configurations"/);
+  assert.match(reading.markdown, /\*\*Configurations étudiées\*\*/);
+  assert.doesNotMatch(reading.html, /effectué sur \d+ chapitre/);
+  assert.doesNotMatch(reading.markdown, /effectué sur \d+ chapitre/);
+  const source = reading.sections;
+  for (const panel of reading.html.matchAll(/<aside class="studied-configurations">([^]*?)<\/aside>/g)) {
+    assert.ok((panel[1].match(/<li>/g) ?? []).length <= 3);
+    assert.doesNotMatch(panel[1], /orbe|°|packet|preuve/i);
+  }
+  assert.ok(source.length > 0);
+  assert.match(reading.html, /ne garantit ni la justesse des interprétations symboliques ni leur qualité éditoriale/);
+});
+
+
+test("public pipeline actually runs lexical repetition diagnostics without a paid review", async () => {
+  const reading = await createFixtureReading();
+  const diagnostics = reading.observability.editorialDiagnostics;
+  assert.ok(diagnostics.version);
+  assert.equal(diagnostics.scope, "lexical_repetition_only");
+  assert.equal(diagnostics.blocksDelivery, false);
+  // Deliberately repetitive injected prose makes the wiring observable.
+  assert.ok(diagnostics.repetitions.length > 0);
+  assert.equal(reading.observability.llmCalls, 0);
+  assert.equal(reading.aiReview.humanReviewed, false);
+  assert.equal(reading.aiReview.passes, 0);
+  assert.equal(reading.aiReview.semanticLlmReview, false);
+  assert.equal(reading.aiReview.factualValidation, true);
+});

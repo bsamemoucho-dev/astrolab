@@ -197,6 +197,9 @@ const CSS = `
   .badge-calculated{background:#eef4f0;color:#2f6e56;border:1px solid #cfe3d9}
   .badge-symbolic{background:#f3efff;color:#5b3fd4;border:1px solid #ddd2ff}
   .badge-unavailable{background:#f6f6f6;color:var(--muted);border:1px solid var(--line)}
+  .studied-configurations{font-size:11.5px;line-height:1.5;border-left:2px solid #807887;padding:8px 12px;margin:0 0 16px;break-inside:avoid}
+  .studied-configurations ul{margin:4px 0 0;padding-left:18px}
+  h2+.studied-configurations{break-before:avoid-page}
   .validation{font-size:12px;color:var(--muted);margin-top:14px}
   .validation .err{color:#c0392b}
   .validation .warn{color:#c98a1b}
@@ -214,10 +217,8 @@ const CSS = `
   .chart-wheel{display:flex;flex-direction:column;align-items:center}
   .wheel{width:100%;max-width:250px;height:auto;margin:4px auto 8px}
   .bar-row{display:grid;grid-template-columns:70px 1fr 34px;align-items:center;gap:10px;margin:9px 0;font-size:12px}
-  .bar-track{height:8px;border-radius:99px;background:#eeeaf0;overflow:hidden}
-  .bar{height:100%;border-radius:99px}
-  .donut{width:118px;height:118px;border-radius:50%;margin:8px auto 12px;position:relative}
-  .donut:after{content:"";position:absolute;inset:27px;background:#fff;border-radius:50%}
+  .bar-track{height:8px;border:1px solid #807887;border-radius:99px;background:#eeeaf0;overflow:hidden}
+  .bar{height:100%;border-radius:99px;border-top:6px solid currentColor;color:#514959}
   .legend{display:grid;grid-template-columns:1fr;gap:6px;font-size:11px;color:var(--muted)}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px}
   .footer-note{font-size:10.5px;color:#847c86;margin-top:12px;line-height:1.5}
@@ -309,6 +310,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
       const avant = section.kind === "annex" ? '<div class="annex-gap" aria-hidden="true"></div>\n' : "";
       return `${avant}<section class="${classes}">
         <h2>${escapeHtml(section.title)}</h2>
+        ${section.configurationsStudied?.length ? `<aside class="studied-configurations"><strong>${escapeHtml(section.configurationsLabel)}</strong><ul>${section.configurationsStudied.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul></aside>` : ""}
         <div class="block-body">${markdownToHtml(section.text)}</div>
       </section>`;
     })
@@ -395,7 +397,9 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections,
       // Deux lignes vides avant l'annexe, comme dans le HTML.
       parts.push("", "");
     }
-    parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "", section.text, "");
+    parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "");
+    if (section.configurationsStudied?.length) parts.push(`**${section.configurationsLabel}**`, ...section.configurationsStudied.map((fact) => `- ${fact}`), "");
+    parts.push(section.text, "");
   }
   if (aiReview) {
     parts.push("---", `**${aiReview}**`);
