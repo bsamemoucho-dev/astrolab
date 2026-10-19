@@ -254,6 +254,11 @@ const CSS = `
   @page :first{margin:0}
   @media print{
     body{background:#fff}
+    .chart-page,.chart-page *,.chart-page *::after{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sheet > .caveat + section.block.chart-page{break-before:auto;page-break-before:auto;margin-top:0}
+    .cover-page{background:#fff;color:var(--ink)}
+    .cover-page .brand,.cover-page .kicker,.cover-page .cover-note,.cover-page .big-card small,.cover-page .big-card i{color:var(--muted)}
+    .cover-page .big-card{background:#fff;border-color:var(--line)}
     .sheet{width:auto;margin:0;box-shadow:none;padding:0}
     .cover-page{width:auto;min-height:100vh;margin:0;box-shadow:none}
     .cover-inner{min-height:100vh;padding:14mm 18mm}

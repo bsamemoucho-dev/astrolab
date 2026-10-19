@@ -18,7 +18,7 @@
 
 import { aspectCategory, aspectFr, corpsFr, corpsNomFr, detectFigures, figureMembership, sharedBodies } from "./figures.mjs";
 
-export const COMPOSITION_VERSION = "lastro-editorial-composition@1.0.0";
+export const COMPOSITION_VERSION = "lastro-editorial-composition@1.1.0";
 
 export const COMPOSITION_CONVENTIONS = Object.freeze({
   sharedBody: {
@@ -58,7 +58,7 @@ export function buildConfigurations({ dossierEvidence, rulesForEvidence }) {
       bodyA: value.bodyA,
       bodyB: value.bodyB,
       aspectType: String(value.aspectType ?? "").toLowerCase(),
-      category: aspectCategory(value.aspectType),
+      category: aspectCategory(value.aspectType, value),
       orb: typeof value.orb === "number" ? value.orb : null,
       orbLimit: typeof value.orbLimit === "number" ? value.orbLimit : null,
       concepts: semantics?.concepts ?? [],
@@ -204,11 +204,32 @@ export function analyseIsolation({ dossierEvidence, figures = [] }) {
   return { version: "lastro-isolation@1.0.0", byFigure: parFigure };
 }
 
+export function linkedConfigurationGroups(configurations, relations) {
+  const groups = [], visited = new Set();
+  for (const seed of configurations) {
+    if (visited.has(seed.configId)) continue;
+    const ids = new Set([seed.configId]), pending = [seed.configId];
+    while (pending.length) {
+      const id = pending.pop(); visited.add(id);
+      for (const relation of relations.filter((relation) => relation.memberConfigs.includes(id))) {
+        for (const member of relation.memberConfigs) if (!ids.has(member)) { ids.add(member); pending.push(member); }
+      }
+    }
+    if (ids.size < 2) continue;
+    const members = configurations.filter((config) => ids.has(config.configId));
+    const refs = members.map((config) => config.evidenceRef).sort();
+    groups.push({ groupId: `linked.${refs.join("+")}`, evidenceRefs: refs,
+      bodies: [...new Set(members.flatMap((config) => [config.bodyA, config.bodyB]))].sort(),
+      relationRefs: relations.filter((relation) => relation.memberConfigs.every((id) => ids.has(id))).map((relation) => relation.relationId) });
+  }
+  return groups.sort((a, b) => b.evidenceRefs.length - a.evidenceRefs.length || a.groupId.localeCompare(b.groupId));
+}
+
 // Entrée unique : preuves + règles → figures + configurations + relations.
 export function composeEditorialMaterial({ dossierEvidence, rulesForEvidence }) {
   const figures = detectFigures({ dossierEvidence }).figures;
   const configurations = buildConfigurations({ dossierEvidence, rulesForEvidence });
   const { relations, rejected } = composeRelations({ configurations, figures });
   const isolation = analyseIsolation({ dossierEvidence, figures });
-  return { figures, configurations, relations, rejected, isolation };
+  return { figures, configurations, relations, rejected, isolation, linkedGroups: linkedConfigurationGroups(configurations, relations) };
 }

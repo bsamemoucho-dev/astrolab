@@ -1,3 +1,4 @@
+import { aspectCategory } from "./figures.mjs";
 import { selectTransitCoverage } from "./transitSelection.mjs";
 import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
@@ -5,7 +6,7 @@ import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpret
 import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
 import { lengthForHypotheses } from "./readingHypotheses.mjs";
 
-export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.3.0";
+export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.4.0";
 
 // Mode du chapitre « Aspects majeurs » (voir docs/doctrine/aspects-chapter-modes.md) :
 //   - "narrative"  : comportement historique, le chapitre décrit chaque aspect ;
@@ -183,7 +184,7 @@ function secondarySectionsForEvidence(evidence) {
   if (evidence.type === "NATAL_BODY_SIGN" && value.body === "Sun") return ["general_synthesis", "work_realization", "conclusion"];
   if (evidence.type === "NATAL_BODY_SIGN" && value.body === "Moon") return ["general_synthesis", "relationships", "conclusion"];
   if (evidence.type === "NATAL_ASPECT") {
-    const tension = ["conjunction", "square", "opposition"].includes(value.aspectType);
+    const tension = aspectCategory(value.aspectType, value) === "tension";
     return ["general_synthesis", tension ? "internal_tensions" : "supporting_resources", "major_aspects", "conclusion"];
   }
   if (evidence.type?.startsWith("DISTRIBUTION_")) return ["general_synthesis", "conclusion"];
@@ -199,8 +200,9 @@ function aspectCategoryChaptersFor(evidence) {
   const aspectType = evidence.value?.aspectType;
   const chapters = ["major_aspects"];
   const { aspectTensionV1, aspectSupportV1 } = LASTRO_INTERPRETATION_CONVENTIONS;
-  if (aspectTensionV1.aspectTypes.includes(aspectType)) chapters.push("internal_tensions");
-  else if (aspectSupportV1.aspectTypes.includes(aspectType)) chapters.push("supporting_resources");
+  const category = aspectCategory(aspectType, evidence.value);
+  if (category === "tension") chapters.push("internal_tensions");
+  else if (category === "support") chapters.push("supporting_resources");
   return chapters;
 }
 
@@ -570,8 +572,10 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const transitStoryOwners = precomputeTransitStoryOwners(byId);
 
   for (const evidence of byId.values()) {
-    const owner = editorialEngine === "composition" && aspectChapterMode === "reference" && evidence.type === "PERSONAL_TRANSIT"
-      ? sectionOwnerForEvidence(evidence)
+    const productionComposition = editorialEngine === "composition" && aspectChapterMode === "reference";
+    const owner = productionComposition && ((evidence.type === "NATAL_BODY_HOUSE" && evidence.value.house === 7) || (evidence.type === "ANGLE_SIGN" && evidence.value.angle === "descendant"))
+      ? "relationships"
+      : productionComposition && evidence.type === "PERSONAL_TRANSIT" ? sectionOwnerForEvidence(evidence)
       : ownerForEvidence(evidence, transitStoryOwners);
     if (owner && sections.has(owner)) {
       sections.get(owner).primaryEvidenceRefs.push(evidence.evidenceId);
@@ -754,8 +758,12 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       section.targetWords = longueur.targetWords;
       section.maxWords = longueur.maxWords;
     }
-    section.evidencePackets = buildEvidencePackets({ section, byId });
-    if (editorialPlan && aspectChapterMode === "reference" && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId)) {
+    const compositionIdeas = (editorialPlan?.ideas ?? []).filter((idea) => idea.owner === section.sectionId && ["contextual_composition", "closing_composition"].includes(idea.kind));
+    section.compositionMode = editorialPlan && aspectChapterMode === "reference" && (["general_synthesis", "conclusion"].includes(section.sectionId) || compositionIdeas.length > 0);
+    section.evidencePackets = buildEvidencePackets({ section, byId }).map((packet) => ({ ...packet, ...(section.compositionMode ? { sourceRole: "licensed_composition_context" } : {}) }));
+    if (section.compositionMode) {
+      section.blockPlans = [{ blockId: "composition", packetRefs: section.evidencePackets.map((packet) => packet.packetId) }];
+    } else if (editorialPlan && aspectChapterMode === "reference" && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId)) {
       const figureRefs = new Set((editorialPlan.ideas ?? []).filter((idea) => idea.kind === "figure" && idea.owner === section.sectionId).flatMap((idea) => idea.evidenceRefs));
       const primary = section.evidencePackets.filter((packet) => packet.interpretationDepth === "primary" || packet.evidenceRefs.some((ref) => figureRefs.has(ref)));
       const recalls = section.evidencePackets.filter((packet) => !primary.includes(packet));
@@ -777,6 +785,12 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
         return reste;
       });
     }
+    if (editorialPlan && aspectChapterMode === "reference" && !section.compositionMode && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId) && !section.evidencePackets.some((packet) => packet.interpretationDepth === "primary" && packet.interpretationRuleRefs.length > 0)) {
+      section.unavailableReason = "no_distinct_interpretive_material";
+      section.blockPlans = [];
+    }
+    section.maxQuestions = 1;
+    section.uninterpretedEvidenceRefs = section.evidencePackets.filter((packet) => !packet.interpretationRuleRefs.length).flatMap((packet) => packet.evidenceRefs);
     // Une section de référence ne produit aucun bloc narratif.
     if (section.editorialMode === "reference") {
       section.blockPlans = [];

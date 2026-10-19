@@ -5,7 +5,7 @@ import { aspectIdentifier } from "./figures.mjs";
 import { countWords } from "./generationLimits.mjs";
 import { detectCrossedClaims, isCrossingLicensed } from "./crossedClaims.mjs";
 
-export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.3.0";
+export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.4.0";
 
 function norm(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -801,6 +801,9 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     if (Number.isInteger(blockPlan?.maxWords) && countWords(block.text) > blockPlan.maxWords) {
       issues.push(claimlikeForBlock(block, "block_word_limit_exceeded", "Le rappel dépasse sa limite de mots.", { wordCount: countWords(block.text), maxWords: blockPlan.maxWords }));
     }
+    const questionCount = (String(block.text ?? "").match(/[?？]/gu) ?? []).length;
+    if (questionCount > (blockPlan?.maxQuestions ?? 1)) issues.push(claimlikeForBlock(block, "reader_question_limit_exceeded", "Le bloc dépasse son budget de questions au lecteur.", { questionCount, maxQuestions: blockPlan?.maxQuestions ?? 1 }));
+    if (/une question utile serait|éléments méthodologiques transmis|règles (?:disponibles|transmises)|\bpackets?\b/iu.test(block.text)) issues.push(claimlikeForBlock(block, "internal_editorial_scaffolding", "Une formule de travail interne ou un gabarit de question apparaît dans le texte client."));
     warnings.push(...detectStyleWarnings(block));
     for (const orphelin of findOrbWithoutNamedAspect(block.text)) {
       warnings.push(
@@ -905,6 +908,8 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     }
   }
 
+  const chapterQuestions = (section.blocks ?? []).reduce((total, block) => total + (String(block.text ?? "").match(/[?？]/gu) ?? []).length, 0);
+  if (chapterQuestions > (sectionPlan.maxQuestions ?? 1)) issues.push(claimlikeForBlock(null, "chapter_question_limit_exceeded", "Le chapitre dépasse une question au lecteur.", { questionCount: chapterQuestions }));
   const claimResult = validateDossierClaims({ dossierEvidence, claims: allClaims });
   issues.push(...claimResult.issues);
   return {

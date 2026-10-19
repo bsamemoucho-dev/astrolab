@@ -16,7 +16,7 @@
 //       mode `mixed`     : un soutien d'un côté, une tension de l'autre
 //   - `grand_trine` : trois corps en trigone deux à deux.
 
-export const FIGURES_VERSION = "lastro-figures@1.0.1";
+export const FIGURES_VERSION = "lastro-figures@1.0.2";
 
 // Vocabulaire français : la figure est lue par un rédacteur et, plus tard, par
 // le client. « Sun oppose Moon » n'a rien à faire dans un dossier français.
@@ -94,11 +94,17 @@ export const FIGURE_CONVENTIONS = Object.freeze({
   }
 });
 
-const TENSION = new Set(["conjunction", "square", "opposition"]);
+const TENSION = new Set(["square", "opposition"]);
 const SUPPORT = new Set(["trine", "sextile"]);
 
-export function aspectCategory(aspectType) {
+export function aspectCategory(aspectType, bodies = {}) {
   const type = String(aspectType ?? "").toLowerCase();
+  if (type === "conjunction") {
+    const pair = [bodies.bodyA, bodies.bodyB].filter(Boolean).sort().join("|");
+    if (["Sun|Venus", "Moon|Venus", "Jupiter|Venus"].includes(pair)) return "support";
+    if (pair === "Mars|Saturn") return "tension";
+    return "integration";
+  }
   if (TENSION.has(type)) return "tension";
   if (SUPPORT.has(type)) return "support";
   return null;
@@ -126,7 +132,7 @@ function aspectsDuTheme(dossierEvidence) {
       aspectType: String(value.aspectType).toLowerCase(),
       orb: typeof value.orb === "number" ? value.orb : null,
       orbLimit: typeof value.orbLimit === "number" ? value.orbLimit : null,
-      category: aspectCategory(value.aspectType)
+      category: aspectCategory(value.aspectType, value)
     });
   }
   return items;

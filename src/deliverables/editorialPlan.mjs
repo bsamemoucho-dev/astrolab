@@ -18,12 +18,12 @@ import { composeEditorialMaterial } from "./editorialComposition.mjs";
 import { semanticsCoverage } from "./interpretationRules.mjs";
 import { buildReadingHypotheses } from "./readingHypotheses.mjs";
 
-export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.1.0";
+export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.2.0";
 
 // Missions par chapitre — version courte, injectée telle quelle dans le prompt.
 const MISSIONS = {
   general_synthesis:
-    "Annonce la figure qui organise le thème et les deux ou trois idées que le dossier va développer. Tu les nommes, tu ne les développes pas : chaque idée a son chapitre.",
+    "Présente le fil conducteur étayé et les principales différences entre les dynamiques du thème. Compose une vue d’ensemble utile à partir des seules relations autorisées, sans refaire les interprétations détaillées des chapitres.",
   internal_tensions:
     "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
   supporting_resources:
@@ -31,7 +31,7 @@ const MISSIONS = {
   major_aspects:
     "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
   conclusion:
-    "Rappelle brièvement les grandes dynamiques déjà établies, sans réinterpréter chaque fait ni affirmer de lien non calculé. Dis ce qui reste ouvert, pas ce qui est résolu.",
+    "Dégage ce que la lecture apporte dans son ensemble à partir des textes déjà produits et des relations autorisées. Ne conclus ni par une liste de placements ni par une nouvelle interprétation ; distingue les dynamiques indépendantes et termine par une ouverture, sans question obligatoire.",
   // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
   exploration:
     "Tu explores UNE figure calculée, pas des aspects séparés. Trois mouvements, sans les titrer : " +
@@ -66,7 +66,7 @@ function rangDe(sectionId, sections) {
 // Chapitre propriétaire d'une configuration : sa catégorie (tensions / soutiens),
 // à défaut le chapitre du corps qui la porte.
 function chapitreDeConfiguration(configuration, { ownerByEvidenceRef, sections }) {
-  const parCategorie = configuration.category === "tension" ? "internal_tensions" : "supporting_resources";
+  const parCategorie = configuration.category === "tension" ? "internal_tensions" : configuration.category === "support" ? "supporting_resources" : null;
   if (sections.some((section) => section.sectionId === parCategorie)) return parCategorie;
   const parCorps = ownerByEvidenceRef?.[configuration.evidenceRef] ?? null;
   if (parCorps && sections.some((section) => section.sectionId === parCorps)) return parCorps;
@@ -92,6 +92,15 @@ export function buildEditorialPlan({
   const gaps = [];
 
   const figurePrincipale = figures[0] ?? null;
+  const linked = material.linkedGroups?.[0] ?? null;
+  const evidence = dossierEvidence.evidence ?? [];
+  const partnershipBodies = new Set(evidence.filter((item) => item.type === "NATAL_BODY_HOUSE" && item.value.house === 7).map((item) => item.value.body));
+  const relationshipNetwork = (material.linkedGroups ?? []).find((group) => configurations.some((config) => group.evidenceRefs.includes(config.evidenceRef) && config.aspectType === "conjunction" && partnershipBodies.has(config.bodyA) && partnershipBodies.has(config.bodyB)));
+  const contextFor = (group) => evidence.filter((item) =>
+    (["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"].includes(item.type) && group?.bodies.includes(item.value.body) && rulesForEvidence(item).length > 0) ||
+    (relationshipNetwork === group && item.type === "ANGLE_SIGN" && item.value.angle === "descendant" && rulesForEvidence(item).length > 0)
+  ).map((item) => item.evidenceId);
+  const threadRefs = linked ? [...linked.evidenceRefs, ...contextFor(linked)] : [];
 
   // --- Thèse ---------------------------------------------------------------
   let thesis;
@@ -104,6 +113,11 @@ export function buildEditorialPlan({
       evidenceRefs: figurePrincipale.members.map((membre) => membre.aspectId),
       figureId: figurePrincipale.figureId,
       owner: idsDisponibles.has("general_synthesis") ? "general_synthesis" : sections[0]?.sectionId
+    };
+  } else if (linked) {
+    thesis = {
+      id: `idea.thesis.${linked.groupId}`, statement: `Le fil conducteur est un réseau de configurations reliées par leurs planètes partagées (${linked.bodies.join(", ")}). Il ne constitue pas une nouvelle figure géométrique classique.`,
+      evidenceRefs: threadRefs, relationRefs: linked.relationRefs, figureId: null, owner: "general_synthesis"
     };
   } else {
     thesis = {
@@ -126,7 +140,7 @@ export function buildEditorialPlan({
       kind: "thesis",
       label: "thèse du dossier",
       evidenceRefs: thesis.evidenceRefs,
-      relationRefs: [],
+      relationRefs: thesis.relationRefs ?? [],
       owner: thesis.owner
     }
   ];
@@ -140,7 +154,8 @@ export function buildEditorialPlan({
 
   const ideaParConfig = new Map();
   for (const configuration of configurations) {
-    const owner = chapitreDeConfiguration(configuration, { ownerByEvidenceRef, sections });
+    const owner = aspectChapterMode === "reference" && relationshipNetwork?.evidenceRefs.includes(configuration.evidenceRef) && idsDisponibles.has("relationships")
+      ? "relationships" : chapitreDeConfiguration(configuration, { ownerByEvidenceRef, sections });
     const idea = {
       ideaId: `idea.config.${configuration.evidenceRef.split(".").slice(1).join(".")}`,
       kind: "configuration",
@@ -198,6 +213,18 @@ export function buildEditorialPlan({
     }
   }
 
+  if (aspectChapterMode === "reference") {
+    if (relationshipNetwork && idsDisponibles.has("relationships")) ideas.push({
+      ideaId: "idea.relationships.context", kind: "contextual_composition", label: "engagement et expression personnelle dans le réseau calculé",
+      evidenceRefs: [...relationshipNetwork.evidenceRefs, ...contextFor(relationshipNetwork)], relationRefs: relationshipNetwork.relationRefs, owner: "relationships"
+    });
+    if (idsDisponibles.has("conclusion")) ideas.push({
+      ideaId: "idea.conclusion.integration", kind: "closing_composition", label: "mise en perspective des idées du dossier",
+      evidenceRefs: [...new Set([...thesis.evidenceRefs, ...evidence.filter((item) => item.type === "NATAL_BODY_SIGN" && ["Sun", "Moon"].includes(item.value.body)).map((item) => item.evidenceId)])],
+      relationRefs: thesis.relationRefs ?? [], owner: "conclusion"
+    });
+  }
+
   // --- Chapitres -----------------------------------------------------------
   const chapters = sections.map((section) => {
     const sectionId = section.sectionId;
@@ -208,7 +235,7 @@ export function buildEditorialPlan({
     const relationsDuChapitre = relations.filter((relation) =>
       relation.memberConfigs.some((configId) =>
         owns.some((idea) => idea.configId === configId)
-      ) || owns.some((idea) => idea.kind === "figure" && idea.figureId === relation.figureId)
+      ) || owns.some((idea) => (idea.kind === "figure" && idea.figureId === relation.figureId) || idea.relationRefs.includes(relation.relationId))
     );
     // Les hypothèses de lecture appartiennent au chapitre qui possède la figure :
     // c'est là qu'on explore plusieurs lectures d'UNE même structure, et nulle
@@ -268,6 +295,7 @@ export function buildEditorialPlan({
     chapters,
     figures,
     configurations,
+    linkedGroups: material.linkedGroups,
     relations,
     rejected,
     hypotheses: reading.hypotheses,

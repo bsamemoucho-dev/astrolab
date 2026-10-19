@@ -566,16 +566,18 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Si la matière méthodologique est insuffisante, écris un bloc court qui dit que cette partie reste limitée aux faits disponibles.",
     "N'écris pas d'introduction générique ni de mini-conclusion automatique. Chaque phrase doit ajouter une information utile.",
     "Si plusieurs packets décrivent la même dynamique, fusionne-les en un passage cohérent au lieu de les commenter un par un.",
-    "Si un packet est marqué interpretationDepth=reference, utilise-le seulement comme rappel bref et ne le développe pas comme sujet principal.",
+    "Un packet interpretationDepth=reference sert de rappel bref. Exception explicite : sourceRole=licensed_composition_context autorise sa mise en perspective selon la mission du chapitre et les seules relations calculées, sans redévelopper chaque placement séparément.",
+    "Les faits canInterpret=false restent des repères factuels ; ils ne demandent ni interprétation sans règle ni commentaire sur le fonctionnement du moteur. Ne parle pas au lecteur des éléments méthodologiques transmis, de packets, de règles disponibles ou de tes données de travail.",
     "Si le BlockPlan fournit deterministicLead, cette phrase factuelle sera ajoutée par le serveur avant ton texte.",
     "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
-    "Pour une idée dont ce chapitre est propriétaire, explore un dilemme concret et plusieurs façons possibles de le vivre, au conditionnel. Une liste de qualités reformulées ne suffit pas ; précise les limites et une question utile au lecteur, sans inventer son histoire.",
+    "Pour une idée dont ce chapitre est propriétaire, explore un dilemme concret et plusieurs façons possibles de le vivre. La prudence porte sur la lecture symbolique, pas sur une répétition du conditionnel : alterne description des symboles, possibilités et situations envisagées ; ne conclus jamais à un trait établi de la personne. Une liste de qualités reformulées ne suffit pas ; précise les limites et une question utile au lecteur, sans inventer son histoire.",
     "Une interaction reste interdite lorsqu’elle est formulée indirectement : cette harmonie, ces tensions, les dynamiques précédentes. Un pronom ou un renvoi ne crée aucune relation calculée.",
     // Contrat éditorial : ce que le rédacteur reçoit est un matériau, pas un texte.
     "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
     "Les croisements autorisés figurent dans `editorial.relationsAllowed` : ce sont les seuls. Tu n'en inventes aucun autre ; si un croisement te semble manquer, ne le fabrique pas.",
+    "Dans un chapitre de composition, les idées réservées gardent leur développement détaillé dans leur chapitre propriétaire ; cela n’interdit pas d’en dégager le fil conducteur avec les packets licensed_composition_context. Cette composition n’est pas limitée à un rappel d’une phrase.",
     "`editorial.mayRecall` : idées déjà développées dans un chapitre précédent. Tu peux les nommer en une clause au maximum, jamais les redévelopper.",
     "`editorial.reserved` : idées réservées à un chapitre ultérieur. Tu ne les développes pas, même si les faits sont disponibles.",
     "Adresse-toi au lecteur. N'ouvre pas un paragraphe par « La dynamique entre… », « Cette configuration indique… », « Par ailleurs » ou « Enfin » : chaque paragraphe porte une idée, pas un placement.",
@@ -591,13 +593,15 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
           "Signale qu'il s'agit d'une lecture par la formulation elle-même (« une lecture serait… », « on peut aussi lire… »), jamais par un commentaire sur ta méthode.",
           "Ne hiérarchise pas les deux lectures et ne conclus pas : laisse-les ouvertes.",
           "N'écris aucun méta-commentaire sur tes preuves, tes mesures, tes conventions ou tes limites : cela appartient à l'annexe, pas au chapitre.",
-          "Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu — des questions auxquelles lui seul peut répondre."
+          "Une question au lecteur est facultative, jamais une fin de paragraphe automatique. Respecte le budget du bloc et le maximum d’une question sur le chapitre entier."
         ]
       : []),
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
     ...(Array.isArray(sectionPlan.writerGuidance) && sectionPlan.writerGuidance.length > 0
       ? ["Consignes spécifiques:", ...sectionPlan.writerGuidance.map((line) => `- ${line}`)]
       : []),
+    `Questions autorisées pour ce bloc : ${blockPlan?.maxQuestions ?? 0}. Maximum une sur le chapitre entier ; aucune question obligatoire.`,
+    "N’écris pas « Une question utile serait ». Varie les fins de paragraphe et limite les reprises de pourriez/pourrait ; une phrase descriptive sur un symbole reste prudente sans attribuer un trait au lecteur.",
     `BlockId autorisé: ${blockIds}.`,
     lengthDirective(budget),
     "Schéma attendu: {\"sectionId\":\"...\",\"contractVersion\":\"structured-section-writer@0.1.0\",\"blocks\":[{\"blockId\":\"...\",\"text\":\"...\"}]}"
@@ -623,10 +627,11 @@ function packetsForPrompt(sectionPlan) {
     sourceRole: packet.sourceRole ?? (packet.interpretationDepth === "reference" ? "secondary_recall" : "primary_interpretation"),
     maxSentences: packet.maxSentences ?? null,
     openingAllowed: packet.openingAllowed !== false,
-    ...(sectionPlan.editorialEngine !== "legacy" && (sectionPlan.aspectChapterMode !== "reference" || packet.interpretationDepth !== "reference") && semanticsForPacket(packet)
+    ...(sectionPlan.editorialEngine !== "legacy" && (sectionPlan.aspectChapterMode !== "reference" || (packet.interpretationDepth !== "reference" || packet.sourceRole === "licensed_composition_context")) && semanticsForPacket(packet)
       ? { semantics: semanticsForPacket(packet) }
       : {}),
-    themes: packet.interpretationDepth === "reference" ? [] : packet.themes,
+    themes: packet.interpretationDepth === "reference" && packet.sourceRole !== "licensed_composition_context" ? [] : packet.themes,
+    canInterpret: packet.interpretationRuleRefs.length > 0,
     facts: packet.claims.map((claim) => {
       const { claimId, evidenceRefs, ...fact } = claim;
       return fact;
@@ -640,6 +645,7 @@ function blockPlansForPrompt(sectionPlan) {
     blockId: blockPlan.blockId,
     narrativeRole: blockPlan.narrativeRole ?? null,
     maxSentences: Number.isInteger(blockPlan.maxSentences) ? blockPlan.maxSentences : null,
+    maxQuestions: blockPlan.maxQuestions ?? 0,
     deterministicLead: blockPlan.deterministicPrefix ?? null,
     llmTask: blockPlan.forbidAspectVocabulary
       ? "Interpréter symboliquement ces faits sans reformuler les aspects, leur vocabulaire géométrique, la temporalité, les dates, l'exactitude ou la phase."
@@ -700,6 +706,7 @@ export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }
       },
       ...(editorial ? { editorial } : {}),
       correctionIssues,
+      ...(sectionPlan.sectionId === "conclusion" && sectionPlan.validatedChapterRecaps?.length ? { chapterRecaps: sectionPlan.validatedChapterRecaps, recapInstruction: "Textes déjà produits, faits contrôlés ; dégager leur apport sans les recopier et sans créer de nouvelle interaction." } : {}),
       constraints: {
         closedContextPerBlock: true,
         outputOnlyTextForPlannedBlocks: true,
@@ -1020,6 +1027,9 @@ export function structuredSectionLlmConfiguration(sectionPlan, baseConfig = llmC
 }
 
 export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, options = {} }) {
+  const eligibleQuestions = (sectionPlan.blockPlans ?? []).filter((block) => !block.deterministic && block.blockId !== "brief_recall");
+  const questionBlock = ["general_synthesis", "conclusion"].includes(sectionPlan.sectionId) ? null : eligibleQuestions.at(-1)?.blockId;
+  sectionPlan = { ...sectionPlan, maxQuestions: 1, blockPlans: (sectionPlan.blockPlans ?? []).map((block) => ({ ...block, maxQuestions: block.blockId === questionBlock ? 1 : 0 })) };
   if (!hasWritableMaterial(sectionPlan)) {
     return {
       section: {
@@ -1028,10 +1038,10 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
         blocks: []
       },
       skipped: true,
-      reason:
+      reason: sectionPlan.unavailableReason ?? (
         sectionPlan.editorialMode === "reference"
           ? "reference_only"
-          : "no_authorized_interpretation_rules",
+          : "no_authorized_interpretation_rules"),
       llmCalls: 0,
       usage: { promptTokens: 0, completionTokens: 0 },
       model: null,
@@ -1139,7 +1149,20 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
           currentSection: sectionPlan.sectionId
         });
       }
-      const written = await writeStructuredSectionWithLlm({ dossierEvidence, sectionPlan, options });
+      const conclusionRefs = new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])]);
+      const recaps = sectionPlan.sectionId === "conclusion" ? sections.filter((previous) => previous.sectionId !== "general_synthesis").flatMap((previous) => {
+        const blocks = (previous.blocks ?? []).filter((block) => block.evidenceRefs?.length && block.evidenceRefs.every((ref) => conclusionRefs.has(ref)));
+        const text = blocks.map((block) => block.text).join(" ");
+        const sentences = text.match(/[^.!?]+[.!?]+(?:\s|$)/gu) ?? [];
+        let excerpt = "";
+        for (const sentence of sentences) { if (excerpt.length + sentence.length > 1600) break; excerpt += sentence; }
+        return excerpt.trim() ? [{ sectionId: previous.sectionId, text: excerpt.trim() }] : [];
+      }).sort((a, b) => {
+        const weight = (id) => (sectionPlans.find((plan) => plan.sectionId === id)?.primaryEvidenceRefs ?? []).filter((ref) => conclusionRefs.has(ref)).length;
+        return weight(b.sectionId) - weight(a.sectionId);
+      }).slice(0, 4) : [];
+      const written = await writeStructuredSectionWithLlm({
+        dossierEvidence, sectionPlan: { ...sectionPlan, validatedChapterRecaps: recaps }, options });
       metrics.llmCalls += written.llmCalls ?? 0;
       metrics.promptTokens += written.usage?.promptTokens ?? 0;
       metrics.completionTokens += written.usage?.completionTokens ?? 0;

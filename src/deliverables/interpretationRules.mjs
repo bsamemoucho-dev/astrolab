@@ -1,19 +1,23 @@
 import { RELATIONAL_AFFECTION_RULES, RELATIONAL_AFFECTION_SCOPE } from "./relationalAffectionRules.mjs";
 
-export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.3.0";
+export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.4.0";
 export const RELATIONAL_COMMUNICATION_SCOPE = "individual_relational.communication";
 export { RELATIONAL_AFFECTION_SCOPE };
 
 export const LASTRO_INTERPRETATION_CONVENTIONS = Object.freeze({
   aspectTensionV1: {
-    ruleId: "lastro.category.aspect_tension@1",
-    description: "Convention éditoriale Lastro V1 : conjunction, square and opposition may mark a tension to articulate. This is not a scientific fact.",
-    aspectTypes: ["conjunction", "square", "opposition"]
+    ruleId: "lastro.category.aspect_tension@2",
+    description: "Convention éditoriale : carré et opposition sont des tensions ; la conjonction dépend des corps concernés et ne constitue jamais une tension par défaut.",
+    aspectTypes: ["square", "opposition"]
   },
   aspectSupportV1: {
     ruleId: "lastro.category.aspect_support@1",
     description: "Convention éditoriale Lastro V1 : trine and sextile may mark an easier circulation. This is not a scientific fact.",
     aspectTypes: ["trine", "sextile"]
+  },
+  conjunctionV2: {
+    ruleId: "lastro.category.conjunction_by_bodies@2",
+    description: "Conjonctions Soleil-Vénus, Lune-Vénus, Jupiter-Vénus : soutien ; Mars-Saturne : tension ; autres paires : intégration, sans valence présumée. Convention symbolique, pas résultat scientifique."
   },
   chapterSelectionV1: {
     ruleId: "lastro.category.chapter_selection@1",
@@ -89,7 +93,7 @@ function personalTransitRule(transitBody, natalPoint, aspectType) {
     ruleId: `western.transit.${ruleSlug(transitBody)}_${ruleSlug(natalPoint)}.${ruleSlug(aspectType)}@1`,
     evidenceType: "PERSONAL_TRANSIT",
     match: { transitBody, natalPoint, aspectType },
-    categories: ["conjunction", "square", "opposition"].includes(aspectType)
+    categories: aspectType === "conjunction" ? [LASTRO_INTERPRETATION_CONVENTIONS.conjunctionV2.ruleId] : ["square", "opposition"].includes(aspectType)
       ? [LASTRO_INTERPRETATION_CONVENTIONS.aspectTensionV1.ruleId]
       : [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
     themes: [
@@ -106,7 +110,7 @@ function natalAspectRule(bodyA, bodyB, aspectType, { themes, resourceThemes = []
     ruleId: `western.natal.${ruleSlug(bodyA)}_${ruleSlug(bodyB)}.${ruleSlug(aspectType)}@1`,
     evidenceType: "NATAL_ASPECT",
     match: { bodies: [bodyA, bodyB], aspectType },
-    categories: ["conjunction", "square", "opposition"].includes(aspectType)
+    categories: aspectType === "conjunction" ? [LASTRO_INTERPRETATION_CONVENTIONS.conjunctionV2.ruleId] : ["square", "opposition"].includes(aspectType)
       ? [LASTRO_INTERPRETATION_CONVENTIONS.aspectTensionV1.ruleId]
       : [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
     scope: scope ? [scope] : null,
@@ -121,6 +125,31 @@ function natalAspectRule(bodyA, bodyB, aspectType, { themes, resourceThemes = []
     forbidden: [...COMMON_FORBIDDEN, ...forbidden]
   };
 }
+
+const CONTEXTUAL_NATAL_RULES = [
+  {
+    ruleId: "western.natal.aspect.sun_venus.conjunction@1", evidenceType: "NATAL_ASPECT",
+    match: { bodies: ["Sun", "Venus"], aspectType: "conjunction" },
+    categories: [LASTRO_INTERPRETATION_CONVENTIONS.conjunctionV2.ruleId],
+    themes: ["mise en proximité de l'identité et de la valeur accordée au lien", "rechercher un accord sans confondre sa direction personnelle avec l'approbation reçue"],
+    semantics: { concepts: ["identité", "valeur", "lien", "accord"], relation: "identité et fonction affective sont mises en contact", motif: "accord et différenciation", nuances: ["aucune preuve de charme, de popularité ou de vie de couple", "la proximité n'efface pas les différences de fonction"] }, forbidden: COMMON_FORBIDDEN
+  },
+  ...["Sun", "Venus"].map((body) => ({
+    ruleId: `western.natal.aspect.${ruleSlug(body)}_mars.sextile@1`, evidenceType: "NATAL_ASPECT",
+    match: { bodies: [body, "Mars"], aspectType: "sextile" }, categories: [LASTRO_INTERPRETATION_CONVENTIONS.aspectSupportV1.ruleId],
+    themes: [`coopération possible entre ${BODY_THEMES[body][0]} et l'élan d'action`, "une possibilité à engager, pas une facilité garantie"],
+    semantics: { concepts: [BODY_THEMES[body][0], "action", "initiative", "coopération"], relation: `${BODY_THEMES[body][0]} et action peuvent coopérer`, motif: "coopération à engager", nuances: ["l'appui demande une mise en œuvre", "ne garantit ni réussite ni comportement"] }, forbidden: COMMON_FORBIDDEN
+  })),
+  ...["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].flatMap((body) => [5, 7].map((house) => ({
+    ruleId: `western.body.${ruleSlug(body)}.house.${house}@1`, evidenceType: "NATAL_BODY_HOUSE", match: { body, house },
+    themes: [house === 7 ? "partenariats, engagements et place de l'autre" : "expression personnelle, création et jeu", `${BODY_THEMES[body][0]} envisagé dans ce domaine de vie`],
+    forbidden: [...COMMON_FORBIDDEN, "déduire un partenaire réel, un mariage, des enfants ou un événement"]
+  }))),
+  ...Object.keys(SIGN_THEMES).map((sign) => ({
+    ruleId: `western.angle.descendant.sign.${ruleSlug(sign)}@1`, evidenceType: "ANGLE_SIGN", match: { angle: "descendant", sign },
+    themes: ["le Descendant sert de repère symbolique aux partenariats", `ces engagements peuvent être interrogés par ${SIGN_THEMES[sign].join(", ")}`], forbidden: [...COMMON_FORBIDDEN, "décrire la personnalité d'un partenaire"]
+  }))
+];
 
 const GENERATED_NATAL_SIGN_RULES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].flatMap((body) =>
   Object.keys(SIGN_THEMES).map((sign) => natalBodySignRule(body, sign))
@@ -391,6 +420,7 @@ const BASE_INTERPRETATION_RULES = [
 export const INTERPRETATION_RULES = Object.freeze(
   [
     ...BASE_INTERPRETATION_RULES,
+    ...CONTEXTUAL_NATAL_RULES,
     ...GENERATED_NATAL_SIGN_RULES,
     ...GENERATED_PERSONAL_TRANSIT_RULES,
     ...NATAL_ASPECT_CONVENTION_RULES,
@@ -418,6 +448,8 @@ export function ruleMatchesEvidence(rule, evidence) {
   const match = rule.match ?? {};
   const value = evidence.value ?? {};
   if (match.body && norm(match.body) !== norm(value.body)) return false;
+  if (match.house !== undefined && Number(match.house) !== Number(value.house)) return false;
+  if (match.angle && norm(match.angle) !== norm(value.angle)) return false;
   if (match.sign && norm(match.sign) !== norm(value.sign)) return false;
   if (match.aspectType && norm(match.aspectType) !== norm(value.aspectType)) return false;
   if (match.bodies && !sameBodies(match.bodies, [value.bodyA, value.bodyB])) return false;

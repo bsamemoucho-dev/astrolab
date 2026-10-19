@@ -229,7 +229,7 @@ test("la couverture sémantique dit où en est la migration", () => {
   const couverture = semanticsCoverage();
   assert.equal(couverture.total, couverture.structured + couverture.legacy);
   assert.ok(couverture.structured >= 5);
-  assert.equal(couverture.byType.NATAL_ASPECT.structured, 5);
+  assert.equal(couverture.byType.NATAL_ASPECT.structured, 8);
   assert.equal(couverture.byType.NATAL_BODY_SIGN.structured, 0, "la famille suivante n'est pas encore migrée");
 });
 
