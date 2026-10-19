@@ -1,0 +1,418 @@
+{
+ "graine": "lastro-comparaison-2026-10-20",
+ "ordre": [
+  "APRES-1 (Claude, moteur de composition)",
+  "APRES-2 (Claude, moteur de composition)",
+  "AVANT-2 (Claude, moteur précédent, nouvelle génération)",
+  "AVANT-1 (Claude, moteur précédent, génération déjà existante)"
+ ],
+ "correspondance": {
+  "W": {
+   "arm": "APRES-1 (Claude, moteur de composition)",
+   "source": "/tmp/lastro-2026-10-20/apres1/lecture-complete.md",
+   "fichierAbs": "/tmp/lastro-2026-10-20/apres1/lecture-complete.md",
+   "mots": 870,
+   "validation": [
+    {
+     "section": "internal_tensions",
+     "statut": "produced",
+     "mots": 271,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "supporting_resources",
+     "statut": "produced",
+     "mots": 236,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "major_aspects",
+     "statut": "produced",
+     "mots": 357,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    }
+   ],
+   "appels": [
+    {
+     "section": "internal_tensions",
+     "bloc": "block1",
+     "in": 5571,
+     "out": 1063,
+     "usd": 0.021772
+    },
+    {
+     "section": "supporting_resources",
+     "bloc": "block1",
+     "in": 5511,
+     "out": 570,
+     "usd": 0.016722
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block1",
+     "in": 4379,
+     "out": 508,
+     "usd": 0.013838
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block2",
+     "in": 2970,
+     "out": 390,
+     "usd": 0.00984
+    }
+   ],
+   "diagnostics": {
+    "sections": [
+     {
+      "id": "tensions",
+      "mots": 262,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "ressources",
+      "mots": 223,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "aspects",
+      "mots": 358,
+      "recopieMax": 0,
+      "nouveaute": 1
+     }
+    ],
+    "repetitions": [
+     {
+      "a": "tensions",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.24
+     },
+     {
+      "a": "ressources",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.23
+     }
+    ]
+   }
+  },
+  "X": {
+   "arm": "APRES-2 (Claude, moteur de composition)",
+   "source": "/tmp/lastro-2026-10-20/apres2/lecture-complete.md",
+   "fichierAbs": "/tmp/lastro-2026-10-20/apres2/lecture-complete.md",
+   "mots": 806,
+   "validation": [
+    {
+     "section": "internal_tensions",
+     "statut": "produced",
+     "mots": 243,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "supporting_resources",
+     "statut": "produced",
+     "mots": 233,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "major_aspects",
+     "statut": "produced",
+     "mots": 324,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    }
+   ],
+   "appels": [
+    {
+     "section": "internal_tensions",
+     "bloc": "block1",
+     "in": 5571,
+     "out": 927,
+     "usd": 0.020412
+    },
+    {
+     "section": "supporting_resources",
+     "bloc": "block1",
+     "in": 5511,
+     "out": 1100,
+     "usd": 0.022022
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block1",
+     "in": 4379,
+     "out": 505,
+     "usd": 0.013808
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block2",
+     "in": 2970,
+     "out": 325,
+     "usd": 0.00919
+    }
+   ],
+   "diagnostics": {
+    "sections": [
+     {
+      "id": "tensions",
+      "mots": 229,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "ressources",
+      "mots": 223,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "aspects",
+      "mots": 324,
+      "recopieMax": 0,
+      "nouveaute": 1
+     }
+    ],
+    "repetitions": [
+     {
+      "a": "tensions",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.29
+     },
+     {
+      "a": "ressources",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.26
+     },
+     {
+      "a": "tensions",
+      "b": "ressources",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.23
+     }
+    ]
+   }
+  },
+  "Y": {
+   "arm": "AVANT-2 (Claude, moteur précédent, nouvelle génération)",
+   "source": "/tmp/lastro-2026-10-20/avant2/lecture-complete.md",
+   "fichierAbs": "/tmp/lastro-2026-10-20/avant2/lecture-complete.md",
+   "mots": 772,
+   "validation": [
+    {
+     "section": "internal_tensions",
+     "statut": "produced",
+     "mots": 199,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "supporting_resources",
+     "statut": "produced",
+     "mots": 204,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "major_aspects",
+     "statut": "produced",
+     "mots": 363,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    }
+   ],
+   "appels": [
+    {
+     "section": "internal_tensions",
+     "bloc": "block1",
+     "in": 2625,
+     "out": 494,
+     "usd": 0.01019
+    },
+    {
+     "section": "supporting_resources",
+     "bloc": "block1",
+     "in": 2932,
+     "out": 516,
+     "usd": 0.011024
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block1",
+     "in": 3247,
+     "out": 526,
+     "usd": 0.011754
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block2",
+     "in": 2287,
+     "out": 391,
+     "usd": 0.008484
+    }
+   ],
+   "diagnostics": {
+    "sections": [
+     {
+      "id": "tensions",
+      "mots": 195,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "ressources",
+      "mots": 194,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "aspects",
+      "mots": 363,
+      "recopieMax": 0,
+      "nouveaute": 1
+     }
+    ],
+    "repetitions": [
+     {
+      "a": "ressources",
+      "b": "aspects",
+      "sharedNgrams": 2,
+      "ngramRatio": 0.02,
+      "lexicalRatio": 0.23
+     },
+     {
+      "a": "tensions",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.21
+     }
+    ]
+   }
+  },
+  "Z": {
+   "arm": "AVANT-1 (Claude, moteur précédent, génération déjà existante)",
+   "source": "docs/experiments/2026-10-19-chapitres-aspects-claude/lecture-complete.md",
+   "fichierAbs": "/Volumes/SSDA/HarnessDeepSeek/AstroLab/docs/experiments/2026-10-19-chapitres-aspects-claude/lecture-complete.md",
+   "mots": 695,
+   "validation": [
+    {
+     "section": "internal_tensions",
+     "statut": "produced",
+     "mots": 196,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    },
+    {
+     "section": "supporting_resources",
+     "statut": "produced",
+     "mots": 172,
+     "validation": true,
+     "issues": 0,
+     "warnings": 1
+    },
+    {
+     "section": "major_aspects",
+     "statut": "produced",
+     "mots": 321,
+     "validation": true,
+     "issues": 0,
+     "warnings": 0
+    }
+   ],
+   "appels": [
+    {
+     "section": "internal_tensions",
+     "bloc": "block1",
+     "in": 2200,
+     "out": 490,
+     "usd": 0.0093
+    },
+    {
+     "section": "supporting_resources",
+     "bloc": "block1",
+     "in": 2507,
+     "out": 416,
+     "usd": 0.009174
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block1",
+     "in": 2822,
+     "out": 495,
+     "usd": 0.010594
+    },
+    {
+     "section": "major_aspects",
+     "bloc": "block2",
+     "in": 1862,
+     "out": 322,
+     "usd": 0.006944
+    }
+   ],
+   "diagnostics": {
+    "sections": [
+     {
+      "id": "tensions",
+      "mots": 192,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "ressources",
+      "mots": 157,
+      "recopieMax": 0,
+      "nouveaute": 1
+     },
+     {
+      "id": "aspects",
+      "mots": 315,
+      "recopieMax": 0,
+      "nouveaute": 1
+     }
+    ],
+    "repetitions": [
+     {
+      "a": "ressources",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.28
+     },
+     {
+      "a": "tensions",
+      "b": "aspects",
+      "sharedNgrams": 0,
+      "ngramRatio": 0,
+      "lexicalRatio": 0.24
+     }
+    ]
+   }
+  }
+ }
+}
