@@ -9,6 +9,7 @@
 //   so a dossier produced without a key is never mistaken for a finished client text.
 
 import { FRAME_DIRECTIVES } from "./plan.mjs";
+import { assertLlmBudget, recordLlmSpend } from "./llmBudget.mjs";
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_MODEL = "gpt-4o-mini";
@@ -47,6 +48,10 @@ export async function callChatCompletions(config, { system, user, temperature = 
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const fetchFn = config.fetchFn ?? globalThis.fetch;
+  // Plafond de dépense : vérifié AVANT le réseau, donc un service plafonné
+  // n'émet aucune requête qui ferait dépasser le montant prévu.
+  const promptChars = String(system ?? "").length + String(user ?? "").length;
+  assertLlmBudget({ model: config.model, promptChars, outputTokens: maxTokens });
   let requestId = null;
   try {
     const response = await fetchFn(`${config.baseUrl.replace(/\/$/, "")}/chat/completions`, {
@@ -93,18 +98,20 @@ export async function callChatCompletions(config, { system, user, temperature = 
       throw error;
     }
     const usage = data?.usage ?? null;
+    const normalizedUsage = usage
+      ? {
+          promptTokens: usage.prompt_tokens ?? null,
+          completionTokens: usage.completion_tokens ?? null,
+          totalTokens: usage.total_tokens ?? null
+        }
+      : null;
+    recordLlmSpend({ model: config.model, usage: normalizedUsage, promptChars, outputTokens: maxTokens });
     return {
       text: text.trim(),
       model: config.model,
       requestId,
       finishReason: typeof rawFinishReason === "string" ? rawFinishReason : null,
-      usage: usage
-        ? {
-            promptTokens: usage.prompt_tokens ?? null,
-            completionTokens: usage.completion_tokens ?? null,
-            totalTokens: usage.total_tokens ?? null
-          }
-        : null
+      usage: normalizedUsage
     };
   } catch (error) {
     error.requestId ??= requestId;

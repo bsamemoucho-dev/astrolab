@@ -97,6 +97,8 @@ import {
 } from "../models/dossierService.mjs";
 import { listMethodRegistry } from "../methodology/registry.mjs";
 import { clearSessionCookie, parseCookies, readJson, securityHeaders, sendJson, sendStatic, setSessionCookie } from "./httpUtils.mjs";
+import { PREVIEW_ROBOTS_BODY, enforcePreviewAccess, noindexEnabled } from "./preview.mjs";
+import { llmBudgetState } from "../deliverables/llmBudget.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DEFAULT_PUBLIC_DIR = join(__dirname, "../../public");
@@ -527,6 +529,21 @@ export function createApp(options = {}) {
         production: process.env.NODE_ENV === "production",
         time: new Date().toISOString()
       });
+    }),
+    route("GET", /^\/robots\.txt$/, async (req, res) => {
+      // Sur une préversion, le fichier statique annoncerait le plan du site de
+      // production et inviterait à l'exploration : on ferme explicitement.
+      if (!noindexEnabled()) {
+        await sendStatic(publicDir, req, res);
+        return;
+      }
+      res.writeHead(200, {
+        ...securityHeaders(),
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+        "x-robots-tag": "noindex, nofollow"
+      });
+      res.end(PREVIEW_ROBOTS_BODY);
     }),
     route("GET", /^\/ciel\/?$/, async (_req, res) => {
       res.writeHead(200, {
@@ -1023,6 +1040,9 @@ export function createApp(options = {}) {
         pricing: publicPricing(),
         llmConfigured: Boolean(llmConfiguration()),
         llmModel: llmConfiguration()?.model ?? null,
+        // Plafond de dépense effectif (null quand le service n'en a pas) :
+        // permet de vérifier depuis le navigateur ce qui reste avant un test.
+        llmBudget: llmBudgetState(),
         // « chromium » quand le rendu PDF automatique est actif ; sinon le bouton
         // du site garde la fenêtre d'impression du navigateur.
         pdfRenderer: pdfRenderer ? pdfRenderer.renderer : null,
@@ -1351,6 +1371,17 @@ export function createApp(options = {}) {
       // on le déclare avant tout routage, y compris pour les erreurs. Posé ici
       // plutôt que dans sendStatic, sinon les réponses JSON y échappent.
       const cheminDemande = new URL(req.url, "http://localhost").pathname;
+
+      // Préversion : accès protégé et indexation interdite (variables d'env).
+      // Placé avant tout routage : aucune réponse, pas même une erreur, ne peut
+      // échapper à la protection ni à l'en-tête noindex.
+      if (noindexEnabled()) {
+        res.setHeader("x-robots-tag", "noindex, nofollow");
+      }
+      if (!enforcePreviewAccess(req, res, cheminDemande, { securityHeaders })) {
+        return;
+      }
+
       if (cheminDemande.startsWith("/api/") || cheminDemande.startsWith("/r/") || cheminDemande.startsWith("/rouflaquette")) {
         res.setHeader("x-robots-tag", "noindex, nofollow");
       }
