@@ -1,0 +1,20 @@
+{
+ "ceilingCalls": 1,
+ "ceilingUsd": 0.3,
+ "calls": [
+  {
+   "sectionId": "internal_tensions",
+   "blockId": "block1",
+   "requestedModel": "claude-sonnet-5-5",
+   "respondedModel": "claude-sonnet-5-5",
+   "promptTokens": 7055,
+   "completionTokens": 840,
+   "finishReason": "length",
+   "durationMs": 6641,
+   "httpStatus": 200,
+   "costUsd": 0.02251
+  }
+ ],
+ "totalCalls": 1,
+ "totalCostUsd": 0.02251
+}

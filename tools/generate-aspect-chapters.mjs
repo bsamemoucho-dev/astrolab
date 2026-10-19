@@ -67,7 +67,8 @@ function parseArgs(argv) {
     provider: "openai",
     model: null,
     engine: "composition",
-    aspectChapterMode: "reference"
+    aspectChapterMode: "reference",
+    sections: null
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -78,6 +79,7 @@ function parseArgs(argv) {
     else if (arg === "--provider") args.provider = String(argv[++index]).trim().toLowerCase();
     else if (arg === "--model") args.model = String(argv[++index]).trim();
     else if (arg === "--engine") args.engine = String(argv[++index]).trim().toLowerCase();
+    else if (arg === "--sections") args.sections = String(argv[++index]).split(",").map((id) => id.trim()).filter(Boolean);
     else if (arg === "--aspect-chapter") {
       const mode = String(argv[++index]).trim().toLowerCase();
       if (!["narrative", "reference", "absent"].includes(mode)) {
@@ -107,8 +109,8 @@ function construirePlan(args = { engine: "composition", aspectChapterMode: "refe
   return { calculation, dossierEvidence, fullDossierPlan };
 }
 
-function blocsDuPlan(plan) {
-  return CHAPITRES.flatMap((sectionId) => {
+function blocsDuPlan(plan, sectionsChoisies = CHAPITRES) {
+  return sectionsChoisies.flatMap((sectionId) => {
     const section = plan.sections.find((item) => item.sectionId === sectionId);
     return (section?.blockPlans ?? []).map((blockPlan) => ({ section, blockPlan }));
   });
@@ -251,7 +253,8 @@ async function main() {
   const model = args.model || fournisseur.model;
 
   const { dossierEvidence, fullDossierPlan } = construirePlan(args);
-  const cibles = blocsDuPlan(fullDossierPlan);
+  const sectionsChoisies = Array.isArray(args.sections) && args.sections.length > 0 ? args.sections : CHAPITRES;
+  const cibles = blocsDuPlan(fullDossierPlan, sectionsChoisies);
 
   console.log("THÈME     : fictif 14/03/1979 ≈ 09 h 00 ± 30 min, Lyon");
   console.log(`FOURNISS. : ${args.provider}`);
@@ -303,7 +306,7 @@ async function main() {
   const logger = { warn: (...parts) => console.warn("[validation]", ...parts) };
 
   const resultats = [];
-  for (const sectionId of CHAPITRES) {
+  for (const sectionId of sectionsChoisies) {
     const sectionPlan = fullDossierPlan.sections.find((section) => section.sectionId === sectionId);
     try {
       const ecrit = await writeStructuredSectionWithLlm({
@@ -348,8 +351,10 @@ async function main() {
     const fichier = {
       internal_tensions: "01-tensions-interieures.md",
       supporting_resources: "02-ressources-complementaires.md",
-      major_aspects: "03-aspects-majeurs.md"
-    }[sectionId];
+      major_aspects: "03-aspects-majeurs.md",
+      general_synthesis: "00-synthese.md",
+      conclusion: "04-conclusion.md"
+    }[sectionId] ?? `${sectionId}.md`;
 
     let corps;
     if (resultat.ecrit) {

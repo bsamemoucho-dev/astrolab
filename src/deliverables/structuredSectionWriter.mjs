@@ -577,6 +577,8 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
           "Chaque lecture est licenciée par les faits calculés fournis. Tu ne peux ni en ajouter, ni étendre une ressource à une configuration qui n'appartient pas à la figure.",
           "Interdit explicite : dire qu'un aspect compense, équilibre ou éclaire une configuration que rien ne relie. Si les faits ne le portent pas, tu ne l'écris pas.",
           "N'annonce pas les positions planétaires en ouverture : elles figurent dans l'annexe. Ouvre sur ce que la structure a de particulier.",
+          "Formule chaque lecture comme une proposition (« une lecture serait… », « on peut aussi lire… »), jamais comme un fait établi : les orbes et les modes sont calculés, mais ce qu'ils signifient reste une hypothèse symbolique.",
+          "Ne présente jamais une hypothèse comme plus vraie que l'autre : ce qui les sépare est une mesure, pas une preuve.",
           "Termine par une ou deux questions adressées au lecteur, tirées des concepts en jeu — des questions auxquelles lui seul peut répondre."
         ]
       : []),

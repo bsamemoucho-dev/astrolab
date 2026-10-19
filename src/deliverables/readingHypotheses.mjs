@@ -270,12 +270,18 @@ export function buildReadingHypotheses({ figures = [], configurations = [] } = {
   };
 }
 
-// La longueur suit la matière : une hypothèse = un paragraphe, pas un quota.
+// La longueur suit la matière : une hypothèse = un développement, pas un quota.
+//
+// Calibrage du 21/10/2026 : avec 200 mots visés / 320 plafonnés, Claude a été
+// coupé au plafond de tokens (840) en pleine seconde lecture. Deux lectures
+// développées + les questions demandent ~400 mots. La formule est donc portée à
+// 100 + 100 par hypothèse (repère) et 160 + 160 (plafond), ce qui laisse au
+// modèle la place de finir sans l'autoriser à remplir.
 export function lengthForHypotheses(count) {
   const hypotheses = Math.max(0, Number(count) || 0);
   if (hypotheses === 0) return { targetWords: 0, maxWords: 0 };
   return {
-    targetWords: 60 + 70 * hypotheses,
-    maxWords: 100 + 110 * hypotheses
+    targetWords: 100 + 100 * hypotheses,
+    maxWords: 160 + 160 * hypotheses
   };
 }
