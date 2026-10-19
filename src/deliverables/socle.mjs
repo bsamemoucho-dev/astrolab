@@ -308,7 +308,7 @@ export function buildSocle(payload, strings = null) {
     facts.push({
       id: aspect.id,
       label: `${localizedBodyName(aspect.bodyA, details)} – ${localizedBodyName(aspect.bodyB, details)}`,
-      value: `${aspect.aspectLabel}, ${L.orb ?? "orbe"} ${aspect.orbUsed}°, ${L.gap ?? "écart"} ${aspect.exactness.toFixed(2)}°`
+      value: `${aspect.aspectLabel}, ${L.actualOrb ?? "orbe réel"} ${aspect.exactness.toFixed(2)}°, ${L.maximumOrb ?? "orbe maximal autorisé"} ${aspect.orbUsed}°`
     });
   }
 

@@ -18,7 +18,7 @@ import { composeEditorialMaterial } from "./editorialComposition.mjs";
 import { semanticsCoverage } from "./interpretationRules.mjs";
 import { buildReadingHypotheses } from "./readingHypotheses.mjs";
 
-export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.0.0";
+export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.1.0";
 
 // Missions par chapitre — version courte, injectée telle quelle dans le prompt.
 const MISSIONS = {
@@ -27,11 +27,11 @@ const MISSIONS = {
   internal_tensions:
     "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
   supporting_resources:
-    "Montre ce qui rend la tension tenable, pas des dons isolés. Chaque appui est relié à ce qu'il soutient ou à ce qu'il nuance. Tu peux rappeler en une clause les tensions auxquelles ces appuis répondent, sans les redécrire.",
+    "Montre ce qui rend la tension tenable, pas des dons isolés. Un appui ne peut être relié à une tension que si une relation calculée le permet ; sinon, développe sa portée propre sans inventer de lien. Tu peux rappeler en une clause les tensions auxquelles ces appuis répondent, sans les redécrire.",
   major_aspects:
     "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
   conclusion:
-    "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
+    "Rappelle brièvement les grandes dynamiques déjà établies, sans réinterpréter chaque fait ni affirmer de lien non calculé. Dis ce qui reste ouvert, pas ce qui est résolu.",
   // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
   exploration:
     "Tu explores UNE figure calculée, pas des aspects séparés. Trois mouvements, sans les titrer : " +
@@ -130,6 +130,13 @@ export function buildEditorialPlan({
       owner: thesis.owner
     }
   ];
+
+  for (const item of dossierEvidence.evidence ?? []) {
+    if (!["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"].includes(item.type)) continue;
+    const owner = ownerByEvidenceRef?.[item.evidenceId];
+    if (!owner) continue;
+    ideas.push({ ideaId: `idea.placement.${item.evidenceId}`, kind: "placement", label: `${item.value.body} ${item.value.sign ?? `maison ${item.value.house}`}`, evidenceRefs: [item.evidenceId], relationRefs: [], owner });
+  }
 
   const ideaParConfig = new Map();
   for (const configuration of configurations) {

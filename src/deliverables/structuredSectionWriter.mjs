@@ -207,7 +207,7 @@ function makeCurrentSky(dossierEvidence) {
   const blocks = [
     block({
       blockId: "current-sky.snapshot",
-      text: `Ciel calculé le ${formatFrenchDate(snapshot.value.nowUtc)}, horizon ${snapshot.value.horizonDays} jours. Cette partie du PDF est un instantané daté, pas une page dynamique.`,
+      text: `Ciel calculé le ${formatFrenchDate(snapshot.value.nowUtc)}, horizon ${snapshot.value.horizonDays} jours. Les transits présentés sont une sélection de repères calculés sur cette fenêtre, non une prévision exhaustive. Cette partie du PDF est un instantané daté, pas une page dynamique.`,
       evidenceRefs: [snapshot.evidenceId],
       interpretationRuleRefs: ["western.current_sky.snapshot@1"],
       interpretationDepth: "reference",
@@ -380,6 +380,12 @@ export function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
   const ruleRefs = unique(evidencePackets.flatMap((packet) => packet.interpretationRuleRefs ?? []));
   return {
     ...sectionPlan,
+    // Numerical budget metadata only: no packets from other blocks.
+    recallBudget: sectionPlan.recallBudget ?? {
+      count: (sectionPlan.blockPlans ?? []).filter((block) => block.blockId === "brief_recall").length,
+      targetWords: (sectionPlan.blockPlans ?? []).filter((block) => block.blockId === "brief_recall").reduce((n, block) => n + block.targetWords, 0),
+      maxWords: (sectionPlan.blockPlans ?? []).filter((block) => block.blockId === "brief_recall").reduce((n, block) => n + block.maxWords, 0)
+    },
     primaryEvidenceRefs: (sectionPlan?.primaryEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
     secondaryEvidenceRefs: (sectionPlan?.secondaryEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
     forbiddenEvidenceRefs: [],
@@ -399,7 +405,7 @@ function deterministicTextForBlock(scopedPlan, blockPlan) {
       ? formatFrenchCalendarDate(snapshot.nowUtc, scopedPlan.referenceTimeZone ?? "UTC")
       : "l'instant de référence";
     const horizonDays = Number.isFinite(Number(snapshot.horizonDays)) ? Number(snapshot.horizonDays) : 42;
-    return `Ciel calculé le ${nowUtc}, horizon ${horizonDays} jours.`;
+    return `Ciel calculé le ${nowUtc}, horizon ${horizonDays} jours. Les transits présentés sont une sélection de repères calculés sur cette fenêtre, non une prévision exhaustive.`;
   }
   return "Ce bloc est calculé automatiquement à partir des faits disponibles.";
 }
@@ -474,6 +480,10 @@ function safeValidationFindings(validation, provenance) {
   return (validation?.issues ?? []).map((issue) => ({
     code: issue.code,
     provenance,
+    ...(issue.rejectedAspects ? {
+      detection: issue.provenance,
+      aspects: issue.rejectedAspects.map((aspect) => Object.fromEntries(["bodyA", "bodyB", "aspectType"].map((key) => [key, aspect[key]])))
+    } : {}),
     fact: issue.fact ? Object.fromEntries(safeKeys.filter((key) => issue.fact[key] !== undefined).map((key) => [key, issue.fact[key]])) : null
   }));
 }
@@ -563,6 +573,8 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
+    "Pour une idée dont ce chapitre est propriétaire, explore un dilemme concret et plusieurs façons possibles de le vivre, au conditionnel. Une liste de qualités reformulées ne suffit pas ; précise les limites et une question utile au lecteur, sans inventer son histoire.",
+    "Une interaction reste interdite lorsqu’elle est formulée indirectement : cette harmonie, ces tensions, les dynamiques précédentes. Un pronom ou un renvoi ne crée aucune relation calculée.",
     // Contrat éditorial : ce que le rédacteur reçoit est un matériau, pas un texte.
     "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
     "Les croisements autorisés figurent dans `editorial.relationsAllowed` : ce sont les seuls. Tu n'en inventes aucun autre ; si un croisement te semble manquer, ne le fabrique pas.",
@@ -610,13 +622,13 @@ function packetsForPrompt(sectionPlan) {
     packetId: packet.packetId,
     evidenceRefs: packet.evidenceRefs,
     interpretationDepth: packet.interpretationDepth,
-    sourceRole: packet.sourceRole ?? "primary_interpretation",
+    sourceRole: packet.sourceRole ?? (packet.interpretationDepth === "reference" ? "secondary_recall" : "primary_interpretation"),
     maxSentences: packet.maxSentences ?? null,
     openingAllowed: packet.openingAllowed !== false,
-    ...(sectionPlan.editorialEngine !== "legacy" && semanticsForPacket(packet)
+    ...(sectionPlan.editorialEngine !== "legacy" && (sectionPlan.aspectChapterMode !== "reference" || packet.interpretationDepth !== "reference") && semanticsForPacket(packet)
       ? { semantics: semanticsForPacket(packet) }
       : {}),
-    themes: packet.themes,
+    themes: packet.interpretationDepth === "reference" ? [] : packet.themes,
     facts: packet.claims.map((claim) => {
       const { claimId, evidenceRefs, ...fact } = claim;
       return fact;

@@ -73,9 +73,18 @@ export function blockCountOf(sectionPlan, override = null) {
 export const MIN_PREFIXED_BLOCK_TARGET_WORDS = 40;
 
 export function blockLengthBudget({ sectionPlan = {}, blockPlan = null, blockCount = null } = {}) {
-  const blocks = blockCountOf(sectionPlan, blockCount);
-  const sectionTarget = Math.max(0, Number(sectionPlan?.targetWords ?? 0));
-  const sectionMax = Math.max(sectionTarget, Number(sectionPlan?.maxWords ?? sectionTarget));
+  const recalls = (sectionPlan.blockPlans ?? []).filter((block) => block.blockId === "brief_recall");
+  const reserved = sectionPlan.recallBudget ?? { count: recalls.length, targetWords: recalls.reduce((n, block) => n + block.targetWords, 0), maxWords: recalls.reduce((n, block) => n + block.maxWords, 0) };
+  if (blockPlan?.blockId === "brief_recall") {
+    return {
+      blockCount: blockCountOf(sectionPlan, blockCount), prefixWords: 0,
+      targetWords: blockPlan.targetWords, maxWords: blockPlan.maxWords,
+      sectionTargetWords: sectionPlan.targetWords, sectionMaxWords: sectionPlan.maxWords
+    };
+  }
+  const blocks = Math.max(1, blockCountOf(sectionPlan, blockCount) - reserved.count);
+  const sectionTarget = Math.max(0, Number(sectionPlan?.targetWords ?? 0) - reserved.targetWords);
+  const sectionMax = Math.max(sectionTarget, Number(sectionPlan?.maxWords ?? sectionTarget) - reserved.maxWords);
   const prefixWords = prefixWordsFor(blockPlan);
   const maxWords = Math.max(30, Math.ceil(sectionMax / blocks) - prefixWords);
   let targetWords = Math.max(0, Math.ceil(sectionTarget / blocks) - prefixWords);

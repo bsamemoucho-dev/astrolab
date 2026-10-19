@@ -1,10 +1,11 @@
+import { selectTransitCoverage } from "./transitSelection.mjs";
 import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpretationRules.mjs";
 import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
 import { lengthForHypotheses } from "./readingHypotheses.mjs";
 
-export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.2.0";
+export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.3.0";
 
 // Mode du chapitre « Aspects majeurs » (voir docs/doctrine/aspects-chapter-modes.md) :
 //   - "narrative"  : comportement historique, le chapitre décrit chaque aspect ;
@@ -224,7 +225,7 @@ function evidencePriority(ref) {
 // Les preuves qui portent une idée possédée par le chapitre ne peuvent pas être
 // évincées par un plafond : sans elles, la thèse ou la figure ne serait plus
 // démontrable.
-function capSectionEvidence(section, protectedRefs = new Set()) {
+function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map()) {
   const retenir = (refs, limite) => {
     const proteges = refs.filter((ref) => protectedRefs.has(ref));
     const complement = refs
@@ -238,7 +239,7 @@ function capSectionEvidence(section, protectedRefs = new Set()) {
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
   }
   if (section.sectionId === "next_weeks") {
-    section.primaryEvidenceRefs = section.primaryEvidenceRefs.slice(0, 8);
+    section.primaryEvidenceRefs = selectTransitCoverage(section.primaryEvidenceRefs, 8, (ref) => byId.get(ref)?.value);
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.slice(0, 4);
   }
   if (section.sectionId === "conclusion") {
@@ -319,10 +320,9 @@ function claimsForEvidence(evidence) {
 }
 
 function packetForEvidence({ section, evidence, ruleIds, primaryRefs }) {
-  // La profondeur suit l'appartenance à la liste PRIMAIRE de la section, et non
-  // plus un propriétaire unique. Un aspect peut être développé par le chapitre
-  // du corps ET par le chapitre de sa catégorie (tensions, soutiens, aspects
-  // majeurs) : ce sont deux angles différents, pas une redite.
+  // La profondeur suit la liste primaire. En production (mode reference),
+  // celle-ci est limitée au propriétaire éditorial unique de l'aspect.
+  // Le mode narratif historique conserve son allocation pour comparaison.
   const interpretationDepth = primaryRefs?.has(evidence.evidenceId) ? "primary" : "reference";
   return {
     packetId: `${section.sectionId}.${packetKey(evidence.evidenceId)}`,
@@ -570,7 +570,9 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const transitStoryOwners = precomputeTransitStoryOwners(byId);
 
   for (const evidence of byId.values()) {
-    const owner = ownerForEvidence(evidence, transitStoryOwners);
+    const owner = editorialEngine === "composition" && aspectChapterMode === "reference" && evidence.type === "PERSONAL_TRANSIT"
+      ? sectionOwnerForEvidence(evidence)
+      : ownerForEvidence(evidence, transitStoryOwners);
     if (owner && sections.has(owner)) {
       sections.get(owner).primaryEvidenceRefs.push(evidence.evidenceId);
       ownerByEvidenceRef[evidence.evidenceId] = owner;
@@ -607,7 +609,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)].filter(
       (ref) => !section.primaryEvidenceRefs.includes(ref)
     );
-    capSectionEvidence(section);
+    capSectionEvidence(section, new Set(), byId);
   }
 
   // 1. Plan éditorial global : thèse, idées, propriétaires, missions, mémoire.
@@ -622,6 +624,16 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
         ownerByEvidenceRef,
         aspectChapterMode
       });
+
+  if (editorialPlan && aspectChapterMode === "reference") {
+    const owners = new Map(editorialPlan.ideas.filter((idea) => idea.kind === "configuration").flatMap((idea) => idea.evidenceRefs.map((ref) => [ref, idea.owner])));
+    for (const section of sections.values()) {
+      const displaced = section.primaryEvidenceRefs.filter((ref) => owners.has(ref) && owners.get(ref) !== section.sectionId);
+      section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => !displaced.includes(ref));
+      section.secondaryEvidenceRefs.push(...displaced);
+      for (const ref of displaced) ownerByEvidenceRef[ref] = owners.get(ref);
+    }
+  }
 
   // 2. Références de rappel : un chapitre qui croise deux configurations doit
   //    pouvoir les NOMMER (sinon le validateur refuserait la mention). Elles
@@ -652,7 +664,12 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     for (const relation of section.allowedRelations ?? []) {
       for (const ref of relation.evidenceRefs ?? []) protegees.add(ref);
     }
-    capSectionEvidence(section, protegees);
+    capSectionEvidence(section, protegees, byId);
+    if (editorialPlan && aspectChapterMode === "reference" && section.sectionId === "current_sky") {
+      const transits = section.primaryEvidenceRefs.filter((ref) => byId.get(ref)?.type === "PERSONAL_TRANSIT");
+      const selected = new Set(selectTransitCoverage(transits, 8, (ref) => byId.get(ref)?.value));
+      section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => byId.get(ref)?.type !== "PERSONAL_TRANSIT" || selected.has(ref));
+    }
   }
 
   // 3. Mode du chapitre « Aspects majeurs » avant la fabrication des blocs.
@@ -713,6 +730,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
         : { ideaId, label: ideaId, kind: "unknown", owner: null };
     };
     section.editorialEngine = editorialEngine;
+    section.aspectChapterMode = aspectChapterMode;
     section.editorialThesis = editorialPlan?.thesis ?? null;
     // Le chapitre qui explore une figure reçoit ses hypothèses de lecture.
     section.readingHypotheses = (editorialPlan?.chapters ?? [])
@@ -721,8 +739,8 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       ? {
           mission: chapitre.mission,
           owns: chapitre.owns.map(resumer),
-          mayRecall: chapitre.mayRecall.map(resumer),
-          reserved: chapitre.reserved.map(resumer),
+          mayRecall: ["current_sky", "next_weeks"].includes(section.sectionId) ? [] : chapitre.mayRecall.map(resumer),
+          reserved: ["current_sky", "next_weeks"].includes(section.sectionId) ? [] : chapitre.reserved.map(resumer),
           relationRefs: chapitre.relations,
           isolation: chapitre.isolation ?? []
         }
@@ -737,7 +755,19 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       section.maxWords = longueur.maxWords;
     }
     section.evidencePackets = buildEvidencePackets({ section, byId });
-    section.blockPlans = buildBlockPlans(section, byId);
+    if (editorialPlan && aspectChapterMode === "reference" && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId)) {
+      const figureRefs = new Set((editorialPlan.ideas ?? []).filter((idea) => idea.kind === "figure" && idea.owner === section.sectionId).flatMap((idea) => idea.evidenceRefs));
+      const primary = section.evidencePackets.filter((packet) => packet.interpretationDepth === "primary" || packet.evidenceRefs.some((ref) => figureRefs.has(ref)));
+      const recalls = section.evidencePackets.filter((packet) => !primary.includes(packet));
+      // A licensed figure must have all its member proofs in the same closed
+      // block. Its supporting aspects are not independent recall paragraphs.
+      section.blockPlans = section.readingHypotheses.length > 0
+        ? [{ blockId: "figure_exploration", packetRefs: primary.map((packet) => packet.packetId) }]
+        : buildBlockPlans({ ...section, evidencePackets: primary }, byId);
+      if (recalls.length) section.blockPlans.push({ blockId: "brief_recall", packetRefs: recalls.map((packet) => packet.packetId), narrativeRole: "Rappel factuel bref : une seule phrase au total, aucune nouvelle interprétation.", maxSentences: 1, maxWords: 45, targetWords: 25 });
+    } else {
+      section.blockPlans = buildBlockPlans(section, byId);
+    }
     // Un chapitre qui explore une figure ne récite pas les positions : les faits
     // sont dans la licence des hypothèses et dans l'annexe. Le préfixe factuel
     // du serveur ouvrirait le chapitre sur « Mars forme une opposition… ».

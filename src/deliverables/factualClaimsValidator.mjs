@@ -2,9 +2,10 @@ import { validateAstrologicalDates, referenceTimeZone } from "./calendarDates.mj
 import { evidenceById } from "./dossierEvidence.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 import { aspectIdentifier } from "./figures.mjs";
+import { countWords } from "./generationLimits.mjs";
 import { detectCrossedClaims, isCrossingLicensed } from "./crossedClaims.mjs";
 
-export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.2.1";
+export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.3.0";
 
 function norm(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -797,6 +798,9 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
         }
       }
     }
+    if (Number.isInteger(blockPlan?.maxWords) && countWords(block.text) > blockPlan.maxWords) {
+      issues.push(claimlikeForBlock(block, "block_word_limit_exceeded", "Le rappel dépasse sa limite de mots.", { wordCount: countWords(block.text), maxWords: blockPlan.maxWords }));
+    }
     warnings.push(...detectStyleWarnings(block));
     for (const orphelin of findOrbWithoutNamedAspect(block.text)) {
       warnings.push(
@@ -842,7 +846,7 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     // qui portent un moteur de composition (le moteur historique n'a pas de
     // relations autorisées : le lui appliquer reviendrait à tout bloquer).
     if (sectionPlan.editorialEngine === "composition") {
-      for (const croisement of detectCrossedClaims({ text: block.text, detectFacts: detectAstrologicalTextFacts })) {
+      for (const croisement of detectCrossedClaims({ text: block.text, contextText: (section.blocks ?? []).slice(0, (section.blocks ?? []).indexOf(rawBlock)).map((previous) => previous.text ?? "").join("\n"), detectFacts: detectAstrologicalTextFacts })) {
         const resolveRef = (ref) => byId.get(ref)?.value ?? null;
         // Identifiant canonique de la preuve, quand elle existe dans le dossier.
         const idDe = (fact) => {
@@ -862,6 +866,8 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
             "Le texte affirme une interaction entre deux configurations que rien ne relie dans ce thème (aucun corps partagé, aucune figure calculée).",
             {
               marker: croisement.marqueur,
+              provenance: croisement.provenance,
+              rejectedAspects: [croisement.premier, croisement.second],
               facts: [idDe(croisement.premier), idDe(croisement.second)],
               sentence: croisement.phrase.slice(0, 200)
             }

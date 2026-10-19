@@ -407,7 +407,7 @@ export async function createFullPublicReading(input = {}, options = {}) {
   const generatedSectionCount = generated.sections.length + relationalGenerated.sections.length;
   const skippedSections = [...generated.skipped, ...relationalGenerated.skipped];
   const rejectedSections = [...generated.rejected, ...relationalGenerated.rejected];
-  const verificationNote = `Validation factuelle structurée : ${generatedSectionCount} chapitre(s) validé(s). Contrôle automatique des faits et des règles documentées activé.`;
+  const verificationNote = `Contrôle automatique des faits et des règles documentées effectué sur ${generatedSectionCount} chapitre(s). Ce contrôle ne garantit ni la justesse des interprétations symboliques ni leur qualité éditoriale ; une relecture humaine reste nécessaire.`;
   const markdown = renderDossierMarkdown({
     title,
     personLabel,

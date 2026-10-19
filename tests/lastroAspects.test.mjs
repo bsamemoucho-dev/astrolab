@@ -153,8 +153,8 @@ test("l'annexe ecrit la convention, les orbes et les aspects retenus", () => {
   const first = socle.retainedAspects[0];
   const fact = socle.facts.find((entry) => entry.id === first.id);
   assert.match(fact.value, new RegExp(first.aspectLabel));
-  assert.match(fact.value, /orbe \d+°/);
-  assert.match(fact.value, /écart \d+\.\d+°/);
+  assert.match(fact.value, new RegExp(`orbe réel ${first.exactness.toFixed(2).replace(".", "\\.")}°`));
+  assert.match(fact.value, new RegExp(`orbe maximal autorisé ${first.orbUsed}°`));
 
   const annex = renderSocleAnnex(socle);
   assert.match(annex, /lastro-aspects@1\.0\.0/);

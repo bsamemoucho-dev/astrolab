@@ -1,3 +1,4 @@
+import { selectTransitCoverage, TRANSIT_SELECTION_VERSION } from "../deliverables/transitSelection.mjs";
 import { ASTRONOMY_ENGINE_VERSION } from "../astro/constants.mjs";
 import { hashPayload } from "../astro/westernNatal.mjs";
 import {
@@ -600,6 +601,7 @@ function currentSkyCacheKey({ userId, personId, natalChartHash, now, configuredH
     astronomyEngineVersion: ASTRONOMY_ENGINE_VERSION,
     methodVersion: TRANSIT_CONTACT_ENGINE_VERSION,
     rankingRuleVersion: WESTERN_TRANSITS_RANKING_RULE_VERSION,
+    selectionVersion: TRANSIT_SELECTION_VERSION,
     orbRuleVersion: WESTERN_TRANSITS_ORB_RULE_VERSION,
     timezoneDatabaseVersion: timezoneDatabaseVersion()
   });
@@ -769,7 +771,12 @@ export async function getPersonalCurrentSky(store, userId, input = {}) {
         })
       );
     }
-    const sorted = results.sort(sortResults).slice(0, 48);
+    const ordered = results.sort(sortResults);
+    const upcoming = ordered.filter((result) => result.status === "UPCOMING");
+    // Reserve room for the whole future window before filling current/recent.
+    const future = selectTransitCoverage(upcoming, Math.min(24, upcoming.length), (result) => ({ ...result.timing, transitBody: result.contact.transitBody }));
+    const others = ordered.filter((result) => result.status !== "UPCOMING");
+    const sorted = [...future, ...others.slice(0, 48 - future.length), ...upcoming.filter((result) => !future.includes(result)).slice(0, Math.max(0, 48 - future.length - others.length))].sort(sortResults);
     const response = {
       schema: "astrolab.personal_current_sky",
       personId: person.id,
@@ -781,6 +788,7 @@ export async function getPersonalCurrentSky(store, userId, input = {}) {
         fromUtc: start.toISOString(),
         toUtc: end.toISOString()
       },
+      selection: { version: TRANSIT_SELECTION_VERSION, candidateCount: results.length, retainedCount: sorted.length, exhaustive: sorted.length === results.length },
       current: sorted.filter((result) => result.status === "CURRENT"),
       upcoming: sorted.filter((result) => result.status === "UPCOMING"),
       recent: sorted.filter((result) => result.status === "RECENT"),
@@ -789,6 +797,7 @@ export async function getPersonalCurrentSky(store, userId, input = {}) {
         methodVersion: TRANSIT_CONTACT_ENGINE_VERSION,
         ruleVersion: WESTERN_TRANSITS_RANKING_RULE_VERSION,
         orbRuleVersion: WESTERN_TRANSITS_ORB_RULE_VERSION,
+        selectionVersion: TRANSIT_SELECTION_VERSION,
         timezoneDatabaseVersion: timezoneDatabaseVersion()
       }
     };

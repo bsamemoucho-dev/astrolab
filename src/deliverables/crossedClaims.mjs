@@ -7,20 +7,25 @@
 // Ce module détecte ces affirmations pour que le validateur les confronte aux
 // croisements autorisés du chapitre.
 //
-// Principe de précision : on ne signale un croisement que si une MÊME PHRASE
-// contient au moins deux aspects distincts ET un marqueur d'interaction
-// explicite. Une énumération (« Mars oppose Saturne ; Mercure sextile Vénus »)
+// Détecter deux aspects explicites dans une phrase, ou leurs antécédents
+// dans les phrases/blocs précédents lorsqu’un renvoi explicite les relie. Une énumération (« Mars oppose Saturne ; Mercure sextile Vénus »)
 // n'est pas un croisement. Une phrase qui dit qu'il n'y a PAS de lien est
 // explicitement exclue.
 //
 // Aucune heuristique sémantique : liste fermée de marqueurs, testable.
 
-export const CROSSED_CLAIMS_VERSION = "lastro-crossed-claims@1.0.0";
+export const CROSSED_CLAIMS_VERSION = "lastro-crossed-claims@1.1.0";
 
 // Verbes et formules qui affirment qu'une configuration agit sur une autre.
 // Volontairement restreint : les simples connecteurs (« et », « tandis que »,
 // « parallèlement », « enfin ») ne sont PAS des marqueurs d'interaction.
 export const INTERACTION_MARKERS = Object.freeze([
+  "mise à l’épreuve par",
+  "mise à l'épreuve par",
+  "mis à l’épreuve par",
+  "mis à l'épreuve par",
+  "renforce",
+  "contrecarre",
   "se répondent",
   "se répond",
   "résonnent",
@@ -94,15 +99,21 @@ function estNiee(phrase) {
 }
 
 // `detectFacts` est injecté pour éviter un cycle d'import avec le validateur.
-export function detectCrossedClaims({ text, detectFacts } = {}) {
+export function detectCrossedClaims({ text, contextText = "", detectFacts } = {}) {
   if (typeof detectFacts !== "function") return [];
   const croisements = [];
   const vus = new Set();
+  const antecedents = new Map((detectFacts(contextText) ?? []).filter((fact) => fact.type === "ASPECT").map((fact) => [canonicalAspectKey(fact), fact]));
   for (const phrase of decouperPhrases(text)) {
+    const explicites = (detectFacts(phrase) ?? []).filter((fact) => fact.type === "ASPECT");
+    for (const fact of explicites) antecedents.set(canonicalAspectKey(fact), fact);
     const marqueur = marqueurDe(phrase);
     if (!marqueur) continue;
     if (estNiee(phrase)) continue;
-    const aspects = (detectFacts(phrase) ?? []).filter((fact) => fact.type === "ASPECT");
+    // Resolve only explicit anaphoric interactions. If several antecedents are
+    // possible, every possible pair must be licensed; never invent a licence.
+    const anaphorique = /\b(ces deux|ces configurations|ces aspects|cette harmonie|cette tension|cet aspect|précédemment|évoqué[es]*)\b/iu.test(phrase);
+    const aspects = explicites.length >= 2 ? explicites : anaphorique ? [...antecedents.values()] : explicites;
     if (aspects.length < 2) continue;
     for (let i = 0; i < aspects.length; i += 1) {
       for (let j = i + 1; j < aspects.length; j += 1) {
@@ -112,7 +123,7 @@ export function detectCrossedClaims({ text, detectFacts } = {}) {
         const cle = [cleFact(premier), cleFact(second)].sort().join(">");
         if (vus.has(cle)) continue;
         vus.add(cle);
-        croisements.push({ premier, second, marqueur, phrase });
+        croisements.push({ premier, second, marqueur, phrase, provenance: explicites.length >= 2 ? "explicit_sentence" : "contextual_antecedents" });
       }
     }
   }

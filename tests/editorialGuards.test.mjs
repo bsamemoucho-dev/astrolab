@@ -234,7 +234,7 @@ test("la couverture sémantique dit où en est la migration", () => {
 });
 
 test("dans un même chapitre, concepts et phrases coexistent sans casser le prompt", () => {
-  const plan = buildFullDossierPlan(dossier(), { aspectChapterMode: "reference" });
+  const plan = buildFullDossierPlan(dossier(), { aspectChapterMode: "narrative" });
   const identity = plan.sections.find((section) => section.sectionId === "identity");
   const blocks = identity.blockPlans.map((blockPlan) => {
     const payload = JSON.parse(

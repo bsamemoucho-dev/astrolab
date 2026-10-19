@@ -144,10 +144,10 @@ test("le mode « référence » retire le chapitre de la narration sans le suppr
   assert.equal(reference.sections.some((s) => s.sectionId === "major_aspects"), true, "le chapitre reste dans le plan");
   assert.equal(absent.sections.some((s) => s.sectionId === "major_aspects"), false, "en mode absent, le chapitre disparaît");
 
-  // Les deux modes coûtent deux appels de moins sur ce thème (2 blocs).
-  const total = (plan) => plan.sections.reduce((somme, section) => somme + (section.blockPlans ?? []).length, 0);
-  assert.equal(total(narratif) - total(reference), 2);
-  assert.equal(total(reference), total(absent));
+  // Only the annex saves these calls. Reference mode now separates brief
+  // recalls into hard-limited blocks; total call counts need not match legacy.
+  assert.equal(blocsDe(narratif, "major_aspects"), 2);
+  assert.ok(reference.sections.flatMap((section) => section.blockPlans).some((block) => block.blockId === "brief_recall" && block.maxSentences === 1));
 });
 
 test("un thème sans figure n'invente ni thèse ni croisement, et le dit", () => {
