@@ -14,10 +14,8 @@ import { callChatCompletions, llmConfiguration } from "./writers.mjs";
 import { expandStructuredSectionFromPackets, validateStructuredSection } from "./factualClaimsValidator.mjs";
 
 export const STRUCTURED_WRITER_CONTRACT_VERSION = "structured-section-writer@0.1.0";
-export const STRUCTURED_SECTION_MODEL_OVERRIDES = Object.freeze({
-  relational_communication: "gpt-4.1-mini",
-  relational_affection: "gpt-4.1-mini"
-});
+// All narrative sections use the configured production model. No hidden tier.
+export const STRUCTURED_SECTION_MODEL_OVERRIDES = Object.freeze({});
 const MAX_CORRECTION_ATTEMPTS = 2;
 
 const BODY_FR = Object.freeze({

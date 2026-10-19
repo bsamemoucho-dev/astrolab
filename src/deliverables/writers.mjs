@@ -12,7 +12,14 @@ import { FRAME_DIRECTIVES } from "./plan.mjs";
 import { assertLlmBudget, recordLlmSpend } from "./llmBudget.mjs";
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_MODEL = "gpt-4o-mini";
+export const DEFAULT_MODEL = "gpt-6.1-sol";
+export const SOL_REASONING_EFFORT = "low";
+export const SOL_REASONING_TOKEN_ALLOWANCE = 8192;
+
+export function completionTokenLimit(model, visibleTokens = 2000) {
+  const visible = Number.isInteger(visibleTokens) && visibleTokens > 0 ? visibleTokens : 2000;
+  return model === DEFAULT_MODEL ? Math.min(128000, visible + SOL_REASONING_TOKEN_ALLOWANCE) : visible;
+}
 
 function isNodeTestRuntime() {
   return Boolean(process.env.NODE_TEST_CONTEXT);
@@ -44,16 +51,20 @@ function requestIdFromHeaders(headers) {
 
 export async function callChatCompletions(config, { system, user, temperature = 0.7, responseFormat = null, maxTokens = null, instrumentation = null }) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 120000);
+  const isSol = config.model === DEFAULT_MODEL;
+  const completionLimit = isSol ? completionTokenLimit(config.model, maxTokens) : maxTokens;
+  const timeout = setTimeout(() => controller.abort(), isSol ? 180000 : 120000);
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const fetchFn = config.fetchFn ?? globalThis.fetch;
   // Plafond de dépense : vérifié AVANT le réseau, donc un service plafonné
   // n'émet aucune requête qui ferait dépasser le montant prévu.
   const promptChars = String(system ?? "").length + String(user ?? "").length;
-  assertLlmBudget({ model: config.model, promptChars, outputTokens: maxTokens });
   let requestId = null;
   try {
+    assertLlmBudget({ model: config.model, promptChars, outputTokens: completionLimit,
+        ...(isSol ? { promptTokensUpperBound: Buffer.byteLength(String(system ?? "")) + Buffer.byteLength(String(user ?? "")) + 64 } : {})
+      });
     const response = await fetchFn(`${config.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: {
@@ -65,9 +76,11 @@ export async function callChatCompletions(config, { system, user, temperature = 
         // `null` = le fournisseur refuse ce paramètre (certains modèles Claude
         // déprécient `temperature`) : on l'omet au lieu d'envoyer une valeur
         // qui ferait échouer la requête en 400.
-        ...(temperature === null ? {} : { temperature }),
+        ...(temperature === null || isSol ? {} : { temperature }),
         ...(responseFormat ? { response_format: responseFormat } : {}),
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
+        ...(isSol
+          ? { reasoning_effort: SOL_REASONING_EFFORT, max_completion_tokens: completionLimit, store: false }
+          : maxTokens ? { max_tokens: maxTokens } : {}),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user }
@@ -81,6 +94,7 @@ export async function callChatCompletions(config, { system, user, temperature = 
       const error = new Error(`LLM request failed (${response.status}) ${detail.slice(0, 300)}`);
       error.status = 502;
       error.providerStatus = response.status;
+      if (isSol) error.code = response.status === 404 ? "llm_model_unavailable" : response.status === 401 ? "llm_authentication_failed" : response.status === 429 ? "llm_rate_limit" : "llm_provider_error";
       error.requestId = requestId;
       throw error;
     }
@@ -91,12 +105,6 @@ export async function callChatCompletions(config, { system, user, temperature = 
     // coupé la réponse. Sans lui, une réponse tronquée n'est vue qu'au parsing,
     // avec un code d'erreur qui accuse à tort le modèle.
     const rawFinishReason = choice?.finish_reason ?? choice?.stop_reason ?? null;
-    if (!text.trim()) {
-      const error = new Error("LLM returned an empty response");
-      error.status = 502;
-      error.finishReason = typeof rawFinishReason === "string" ? rawFinishReason : null;
-      throw error;
-    }
     const usage = data?.usage ?? null;
     const normalizedUsage = usage
       ? {
@@ -105,7 +113,20 @@ export async function callChatCompletions(config, { system, user, temperature = 
           totalTokens: usage.total_tokens ?? null
         }
       : null;
-    recordLlmSpend({ model: config.model, usage: normalizedUsage, promptChars, outputTokens: maxTokens });
+    if (isSol && normalizedUsage) normalizedUsage.reasoningTokens = usage.completion_tokens_details?.reasoning_tokens ?? null;
+    recordLlmSpend({ model: config.model, usage: normalizedUsage, promptChars, outputTokens: completionLimit });
+    if (isSol && (!Number.isInteger(normalizedUsage?.promptTokens) || !Number.isInteger(normalizedUsage?.completionTokens) || normalizedUsage.promptTokens < 0 || normalizedUsage.completionTokens < 0)) {
+      throw Object.assign(new Error("Compteur de tokens GPT-6.1 Sol absent ou invalide."), { status: 502, code: "llm_usage_unavailable" });
+    }
+    if (isSol && data.model !== DEFAULT_MODEL && !String(data.model ?? "").startsWith(`${DEFAULT_MODEL}-`)) {
+      throw Object.assign(new Error("Le fournisseur n'a pas confirmé le modèle GPT-6.1 Sol demandé."), { status: 502, code: "llm_model_mismatch", usage: normalizedUsage });
+    }
+    if (choice?.message?.refusal) {
+      throw Object.assign(new Error("Le fournisseur a refusé la rédaction."), { status: 502, code: "llm_refusal", usage: normalizedUsage });
+    }
+    if (!text.trim() && !["length", "max_tokens", "max_output_tokens"].includes(rawFinishReason)) {
+      throw Object.assign(new Error("LLM returned an empty response"), { status: 502, code: "llm_empty_response", finishReason: rawFinishReason, usage: normalizedUsage });
+    }
     return {
       text: text.trim(),
       model: config.model,

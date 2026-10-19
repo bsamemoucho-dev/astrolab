@@ -4,6 +4,7 @@
 // gpt-4o-mini-like price and are flagged as estimated.
 
 const PRICES_USD_PER_M = Object.freeze({
+  "gpt-6.1-sol": { in: 2, out: 10 }, // official Standard pricing, verified 2026-10-19
   "gpt-4o-mini": { in: 0.15, out: 0.6 },
   // Tarif déclaré dans experiments/openai-claude/budgetGuard.mjs
   // (« standard uncached prices verified 2026-10-18 »). À reconfronter avec la
@@ -21,6 +22,7 @@ export function priceTable() {
 
 export function priceForModel(model) {
   const name = String(model ?? "").toLowerCase();
+  if (name === "gpt-6.1-sol" || name.startsWith("gpt-6.1-sol-")) return PRICES_USD_PER_M["gpt-6.1-sol"];
   if (name.startsWith("claude-sonnet-5-5")) {
     return PRICES_USD_PER_M["claude-sonnet-5-5"];
   }

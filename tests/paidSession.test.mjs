@@ -260,6 +260,7 @@ test("le parcours payant complet produit bien la lecture", async () => {
               ok: true,
               status: 200,
               json: async () => ({
+                model: JSON.parse(init.body).model,
                 choices: [{ message: { content: `Passage ${sections}. Cette dynamique se lit dans la manière de tenir le cap, avec patience et mesure, sans rien forcer.` } }],
                 usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 }
               })

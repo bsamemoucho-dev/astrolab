@@ -642,17 +642,17 @@ test("l'exactitude normalisée utilise l'orbe observée absolue divisée par l'o
   assert.equal(aspect.certainty.normalizedExactness, 0.25);
 });
 
-test("l'axe Affection utilise le modèle dédié gpt-4.1-mini", () => {
+test("l'axe Affection conserve le modèle GPT-6.1 Sol configuré", () => {
   const { sectionPlan } = planFor([natalAspect("Moon", "Venus", "trine")]);
   const config = structuredSectionLlmConfiguration(sectionPlan, {
     apiKey: "test-only-key",
     baseUrl: "https://example.invalid",
-    model: "base-model",
+    model: "gpt-6.1-sol",
     temperature: 0.35,
     correctionTemperature: 0.2,
     maxTokens: 900,
     responseFormat: { type: "json_object" }
   });
 
-  assert.equal(config.model, "gpt-4.1-mini");
+  assert.equal(config.model, "gpt-6.1-sol");
 });

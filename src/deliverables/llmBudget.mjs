@@ -69,8 +69,8 @@ function writeLedger(ledger, filePath) {
   renameSync(temporary, filePath); // écriture atomique : jamais de registre tronqué
 }
 
-export function estimateCallCostUsd({ model, promptChars, outputTokens } = {}) {
-  const promptTokens = Math.ceil(Math.max(0, Number(promptChars ?? 0)) / 4);
+export function estimateCallCostUsd({ model, promptChars, outputTokens, promptTokensUpperBound } = {}) {
+  const promptTokens = Number.isFinite(promptTokensUpperBound) ? Math.max(0, Math.ceil(promptTokensUpperBound)) : Math.ceil(Math.max(0, Number(promptChars ?? 0)) / 4);
   const requestedOutput = Number(outputTokens) > 0 ? Number(outputTokens) : DEFAULT_OUTPUT_TOKENS;
   const price = priceForModel(model);
   const usd = (promptTokens / 1e6) * price.in + (requestedOutput / 1e6) * price.out;
@@ -97,13 +97,13 @@ export function llmBudgetState() {
  * plafond serait dépassé : le message dit combien a été dépensé et sur quoi
  * agir, plutôt qu'un échec de génération opaque.
  */
-export function assertLlmBudget({ model, promptChars, outputTokens } = {}) {
+export function assertLlmBudget({ model, promptChars, outputTokens, promptTokensUpperBound } = {}) {
   const capUsd = llmBudgetUsd();
   if (capUsd === null) {
     return null;
   }
   const ledger = readLlmBudgetLedger();
-  const estimate = estimateCallCostUsd({ model, promptChars, outputTokens });
+  const estimate = estimateCallCostUsd({ model, promptChars, outputTokens, promptTokensUpperBound });
   if (ledger.spentUsd + estimate.usd > capUsd) {
     const error = new Error(
       `Plafond de dépense LLM atteint sur ce service : ${ledger.spentUsd.toFixed(4)} $ dépensés sur ${capUsd.toFixed(2)} $ prévus. ` +

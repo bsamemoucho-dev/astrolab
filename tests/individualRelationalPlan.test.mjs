@@ -570,12 +570,12 @@ test("l'opt-in explicite est requis pour exposer une vraie configuration LLM en 
       ASTROLAB_RUN_LLM_TESTS: "1"
     },
     async () => {
-      assert.equal(llmConfiguration()?.model, "gpt-4o-mini");
+      assert.equal(llmConfiguration()?.model, "gpt-6.1-sol");
     }
   );
 });
 
-test("Communication relationnelle utilise gpt-4.1-mini sans changer les autres sections", async () => {
+test("Communication relationnelle utilise le même modèle GPT-6.1 Sol que les autres sections", async () => {
   await withEnv(
     {
       ASTROLAB_LLM_API_KEY: "cle-de-test",
@@ -585,9 +585,9 @@ test("Communication relationnelle utilise gpt-4.1-mini sans changer les autres s
     },
     async () => {
       const { sectionPlan } = planFor([natalAspect("Mercury", "Mars", "square")]);
-      assert.equal(llmConfiguration()?.model, "gpt-4o-mini");
-      assert.equal(structuredSectionLlmConfiguration(sectionPlan)?.model, "gpt-4.1-mini");
-      assert.equal(structuredSectionLlmConfiguration({ sectionId: "identity" })?.model, "gpt-4o-mini");
+      assert.equal(llmConfiguration()?.model, "gpt-6.1-sol");
+      assert.equal(structuredSectionLlmConfiguration(sectionPlan)?.model, "gpt-6.1-sol");
+      assert.equal(structuredSectionLlmConfiguration({ sectionId: "identity" })?.model, "gpt-6.1-sol");
     }
   );
 });
