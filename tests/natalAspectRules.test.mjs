@@ -127,35 +127,47 @@ test("les trois chapitres d'aspects ne sont plus écartés", () => {
   }
 });
 
-test("chaque paquet de ces chapitres est en développement et porte des thèmes", () => {
+// Depuis la couche éditoriale, un chapitre de catégorie DÉVELOPPE sa catégorie
+// et peut CITER (profondeur « reference ») les configurations qu'il croise dans
+// une figure calculée. L'ancien invariant (« seulement des tensions ») est
+// remplacé par celui-ci, plus précis.
+test("chaque paquet développé porte sa règle et ses concepts ; les citations restent des citations", () => {
   const { plan } = planDuThemeReference();
   for (const sectionId of ["internal_tensions", "supporting_resources", "major_aspects"]) {
     const section = chapitre(plan, sectionId);
-    for (const packet of section.evidencePackets) {
-      assert.equal(packet.interpretationDepth, "primary", `${sectionId}/${packet.packetId} doit être développé`);
+    const developpes = section.evidencePackets.filter((packet) => packet.interpretationDepth === "primary");
+    const cites = section.evidencePackets.filter((packet) => packet.interpretationDepth === "reference");
+    assert.ok(developpes.length > 0, `${sectionId} doit développer au moins une configuration`);
+    for (const packet of developpes) {
       assert.ok(packet.themes.length >= 2, `${sectionId}/${packet.packetId} doit porter des thèmes`);
-      assert.ok(packet.interpretationRuleRefs.length >= 1, "chaque paquet doit citer sa règle");
+      assert.ok(packet.interpretationRuleRefs.length >= 1, "chaque paquet développé cite sa règle");
+    }
+    // Une citation ne porte pas de développement : c'est le principe même.
+    for (const packet of cites) {
+      assert.ok(packet.interpretationRuleRefs.length >= 1);
     }
   }
 });
 
-test("le chapitre des tensions ne contient que des tensions, celui des ressources que des soutiens", () => {
+test("ce que les chapitres de catégorie développent respecte leur catégorie", () => {
   const { plan } = planDuThemeReference();
-  const types = (sectionId) =>
-    chapitre(plan, sectionId).evidencePackets.map((packet) => packet.claims[0].aspectType);
+  const DEVELOPPES = (sectionId) =>
+    chapitre(plan, sectionId).evidencePackets
+      .filter((packet) => packet.interpretationDepth === "primary")
+      .map((packet) => packet.claims[0].aspectType);
   const tensions = new Set(["conjunction", "square", "opposition"]);
-  for (const type of types("internal_tensions")) assert.ok(tensions.has(type), `tension inattendue : ${type}`);
-  for (const type of types("supporting_resources")) assert.ok(!tensions.has(type), `soutien attendu, reçu : ${type}`);
+  for (const type of DEVELOPPES("internal_tensions")) assert.ok(tensions.has(type), `tension inattendue : ${type}`);
+  for (const type of DEVELOPPES("supporting_resources")) assert.ok(!tensions.has(type), `soutien attendu, reçu : ${type}`);
 });
 
-test("le chapitre des aspects majeurs reste le plus complet des trois", () => {
+test("en mode narratif, les aspects majeurs couvrent exactement ce que les deux catégories développent", () => {
   const { plan } = planDuThemeReference();
-  const total = plan.sections
-    .find((section) => section.sectionId === "major_aspects")
-    .evidencePackets.filter((packet) => packet.claims[0]?.type === "NATAL_ASPECT").length;
-  const tensions = chapitre(plan, "internal_tensions").evidencePackets.length;
-  const soutiens = chapitre(plan, "supporting_resources").evidencePackets.length;
-  assert.equal(total, tensions + soutiens);
+  const developpes = (sectionId) =>
+    chapitre(plan, sectionId).evidencePackets.filter((packet) => packet.interpretationDepth === "primary").length;
+  const majeurs = chapitre(plan, "major_aspects").evidencePackets.filter(
+    (packet) => packet.claims[0]?.type === "NATAL_ASPECT"
+  ).length;
+  assert.equal(majeurs, developpes("internal_tensions") + developpes("supporting_resources"));
 });
 
 test("aucune preuve n'est à la fois primaire et secondaire dans un même chapitre", () => {

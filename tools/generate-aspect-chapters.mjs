@@ -65,7 +65,9 @@ function parseArgs(argv) {
     maxCalls: 4,
     maxUsd: 0.05,
     provider: "openai",
-    model: null
+    model: null,
+    engine: "composition",
+    aspectChapterMode: "reference"
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -75,12 +77,14 @@ function parseArgs(argv) {
     else if (arg === "--max-usd") args.maxUsd = Number(argv[++index]);
     else if (arg === "--provider") args.provider = String(argv[++index]).trim().toLowerCase();
     else if (arg === "--model") args.model = String(argv[++index]).trim();
+    else if (arg === "--engine") args.engine = String(argv[++index]).trim().toLowerCase();
+    else if (arg === "--aspect-chapter") args.aspectChapterMode = String(argv[++index]).trim().toLowerCase();
     else if (arg === "--suffix") args.suffix = String(argv[++index]).trim();
   }
   return args;
 }
 
-function construirePlan() {
+function construirePlan(args = { engine: "composition", aspectChapterMode: "reference" }) {
   const calculation = calculateWesternNatalChart(THEME, {
     calculatedAt: new Date().toISOString(),
     runId: "calc_experimentation_aspects"
@@ -90,7 +94,10 @@ function construirePlan() {
     natalRun: calculation.calculationRun,
     generatedAt: new Date().toISOString()
   });
-  const fullDossierPlan = buildFullDossierPlan(dossierEvidence);
+  const fullDossierPlan = buildFullDossierPlan(dossierEvidence, {
+    editorialEngine: args.engine,
+    aspectChapterMode: args.aspectChapterMode
+  });
   return { calculation, dossierEvidence, fullDossierPlan };
 }
 
@@ -237,11 +244,12 @@ async function main() {
   const baseUrl = fournisseur.baseUrl;
   const model = args.model || fournisseur.model;
 
-  const { dossierEvidence, fullDossierPlan } = construirePlan();
+  const { dossierEvidence, fullDossierPlan } = construirePlan(args);
   const cibles = blocsDuPlan(fullDossierPlan);
 
   console.log("THÈME     : fictif 14/03/1979 ≈ 09 h 00 ± 30 min, Lyon");
   console.log(`FOURNISS. : ${args.provider}`);
+  console.log(`MOTEUR    : ${args.engine} (aspects : ${args.aspectChapterMode})`);
   console.log(`MODÈLE    : ${model} via ${baseUrl}`);
   console.log(`CLÉ       : ${apiKey ? `${fournisseur.variable} présente (non affichée)` : `${fournisseur.variable} ABSENTE`}`);
   console.log(`APPELS  : ${cibles.length} (plafond ${args.maxCalls})`);

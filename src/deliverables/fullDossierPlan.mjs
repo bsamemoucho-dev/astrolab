@@ -1,8 +1,22 @@
 import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpretationRules.mjs";
+import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
 
-export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.1.0";
+export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.2.0";
+
+// Mode du chapitre « Aspects majeurs » (voir docs/doctrine/aspects-chapter-modes.md) :
+//   - "narrative"  : comportement historique, le chapitre décrit chaque aspect ;
+//   - "reference"  : le chapitre sort de la narration, la table des aspects de
+//                    l'annexe suffit ; aucun appel LLM, aucune répétition ;
+//   - "absent"     : le chapitre disparaît du plan.
+export const ASPECT_CHAPTER_MODES = Object.freeze(["narrative", "reference", "absent"]);
+
+// Deux moteurs, un seul code : "composition" (le nouveau) et "legacy" (le
+// précédent, conservé pour les comparaisons à modèle identique). Le mode legacy
+// ne construit ni plan éditorial, ni croisements, et n'envoie pas de sémantique
+// structurée : il reproduit exactement l'ancien dispositif.
+export const EDITORIAL_ENGINES = Object.freeze(["composition", "legacy"]);
 
 const BODY_FR = Object.freeze({
   Sun: "Soleil",
@@ -206,13 +220,19 @@ function evidencePriority(ref) {
   return 50;
 }
 
-function capSectionEvidence(section) {
+// Les preuves qui portent une idée possédée par le chapitre ne peuvent pas être
+// évincées par un plafond : sans elles, la thèse ou la figure ne serait plus
+// démontrable.
+function capSectionEvidence(section, protectedRefs = new Set()) {
+  const retenir = (refs, limite) => {
+    const proteges = refs.filter((ref) => protectedRefs.has(ref));
+    const complement = refs
+      .filter((ref) => !protectedRefs.has(ref))
+      .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b));
+    return new Set([...proteges, ...complement].slice(0, Math.max(limite, proteges.length)));
+  };
   if (section.sectionId === "general_synthesis") {
-    const selected = new Set(
-      [...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs]
-        .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
-        .slice(0, 5)
-    );
+    const selected = retenir([...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs], 5);
     section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => selected.has(ref));
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
   }
@@ -221,11 +241,7 @@ function capSectionEvidence(section) {
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.slice(0, 4);
   }
   if (section.sectionId === "conclusion") {
-    const selected = new Set(
-      [...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs]
-        .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
-        .slice(0, 7)
-    );
+    const selected = retenir([...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs], 7);
     section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => selected.has(ref));
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
   }
@@ -532,6 +548,12 @@ function buildBlockPlans(section, byId = null) {
 
 export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const timeZone = options.referenceTimeZone ?? referenceTimeZone(dossierEvidence);
+  const aspectChapterMode = ASPECT_CHAPTER_MODES.includes(options.aspectChapterMode)
+    ? options.aspectChapterMode
+    : "narrative";
+  const editorialEngine = EDITORIAL_ENGINES.includes(options.editorialEngine)
+    ? options.editorialEngine
+    : "composition";
   // Validate the declared zone; never silently replace an invalid zone.
   new Intl.DateTimeFormat("fr-FR", { timeZone });
   const byId = evidenceById(dossierEvidence);
@@ -578,6 +600,71 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       (ref) => !section.primaryEvidenceRefs.includes(ref)
     );
     capSectionEvidence(section);
+  }
+
+  // 1. Plan éditorial global : thèse, idées, propriétaires, missions, mémoire.
+  //    Construit AVANT les paquets, parce qu'il décide quelles configurations un
+  //    chapitre a le droit de nommer.
+  const editorialPlan = editorialEngine === "legacy"
+    ? null
+    : buildEditorialPlan({
+        dossierEvidence,
+        rulesForEvidence,
+        sections: [...sections.values()],
+        ownerByEvidenceRef,
+        aspectChapterMode
+      });
+
+  // 2. Références de rappel : un chapitre qui croise deux configurations doit
+  //    pouvoir les NOMMER (sinon le validateur refuserait la mention). Elles
+  //    entrent en secondaire, donc en profondeur « reference ».
+  const additions = editorialPlan
+    ? crossReferenceAdditions({ editorialPlan, sections: [...sections.values()] })
+    : new Map();
+  for (const [sectionId, refs] of additions) {
+    const section = sections.get(sectionId);
+    if (!section) continue;
+    for (const ref of refs) {
+      if (!section.primaryEvidenceRefs.includes(ref)) section.secondaryEvidenceRefs.push(ref);
+    }
+    section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)].filter(
+      (ref) => !section.primaryEvidenceRefs.includes(ref)
+    );
+  }
+
+  // 2 bis. Plafonds réappliqués, en protégeant les preuves qui portent une idée
+  //       possédée : les références de rappel ne doivent pas faire grossir les
+  //       prompts (un bloc de plus = un appel de plus).
+  for (const section of sections.values()) {
+    const protegees = new Set(
+      (editorialPlan?.ideas ?? [])
+        .filter((idea) => idea.owner === section.sectionId)
+        .flatMap((idea) => idea.evidenceRefs ?? [])
+    );
+    for (const relation of section.allowedRelations ?? []) {
+      for (const ref of relation.evidenceRefs ?? []) protegees.add(ref);
+    }
+    capSectionEvidence(section, protegees);
+  }
+
+  // 3. Mode du chapitre « Aspects majeurs » avant la fabrication des blocs.
+  const aspectsSection = sections.get("major_aspects");
+  if (aspectsSection) {
+    if (aspectChapterMode === "reference") {
+      aspectsSection.editorialMode = "reference";
+      aspectsSection.writer = "none";
+      aspectsSection.kind = "reference";
+      aspectsSection.preconditions.push({
+        status: "reference_only",
+        reason: "aspects_read_in_category_chapters",
+        message: "Les aspects sont lus dans les chapitres de catégorie ; leur table reste dans l'annexe."
+      });
+    } else if (aspectChapterMode === "absent") {
+      sections.delete("major_aspects");
+    }
+  }
+
+  for (const section of sections.values()) {
     section.allowedInterpretationRuleRefs = [
       ...new Set(
         [...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs].flatMap((ref) => rulesForEvidence(byId.get(ref)).map((rule) => rule.ruleId))
@@ -592,8 +679,35 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     if (section.sectionId === "current_sky") {
       section.preconditions.push({ status: "snapshot", label: "Calculé le", evidenceRef: "transits.snapshot" });
     }
+    // Ce que le rédacteur reçoit de la couche éditoriale.
+    const chapitre = editorialPlan?.chapters.find((entree) => entree.sectionId === section.sectionId) ?? null;
+    const parId = new Map((editorialPlan?.ideas ?? []).map((idea) => [idea.ideaId, idea]));
+    const resumer = (ideaId) => {
+      const idea = parId.get(ideaId);
+      return idea
+        ? { ideaId, label: idea.label, kind: idea.kind, owner: idea.owner }
+        : { ideaId, label: ideaId, kind: "unknown", owner: null };
+    };
+    section.editorialEngine = editorialEngine;
+    section.editorialThesis = editorialPlan?.thesis ?? null;
+    section.editorialPlan = chapitre
+      ? {
+          mission: chapitre.mission,
+          owns: chapitre.owns.map(resumer),
+          mayRecall: chapitre.mayRecall.map(resumer),
+          reserved: chapitre.reserved.map(resumer),
+          relationRefs: chapitre.relations
+        }
+      : null;
+    section.allowedRelations = (editorialPlan?.relations ?? []).filter((relation) =>
+      (chapitre?.relations ?? []).includes(relation.relationId)
+    );
     section.evidencePackets = buildEvidencePackets({ section, byId });
     section.blockPlans = buildBlockPlans(section, byId);
+    // Une section de référence ne produit aucun bloc narratif.
+    if (section.editorialMode === "reference") {
+      section.blockPlans = [];
+    }
   }
 
   return {
@@ -601,6 +715,9 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     version: FULL_DOSSIER_PLAN_VERSION,
     referenceTimeZone: timeZone,
     interpretationConventions: LASTRO_INTERPRETATION_CONVENTIONS,
+    aspectChapterMode,
+    editorialEngine,
+    editorialPlan,
     ownerByEvidenceRef,
     sections: [...sections.values()]
   };

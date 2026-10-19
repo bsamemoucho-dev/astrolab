@@ -559,6 +559,13 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
+    // Contrat éditorial : ce que le rédacteur reçoit est un matériau, pas un texte.
+    "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
+    "Les croisements autorisés figurent dans `editorial.relationsAllowed` : ce sont les seuls. Tu n'en inventes aucun autre ; si un croisement te semble manquer, ne le fabrique pas.",
+    "`editorial.mayRecall` : idées déjà développées dans un chapitre précédent. Tu peux les nommer en une clause au maximum, jamais les redévelopper.",
+    "`editorial.reserved` : idées réservées à un chapitre ultérieur. Tu ne les développes pas, même si les faits sont disponibles.",
+    "Adresse-toi au lecteur. N'ouvre pas un paragraphe par « La dynamique entre… », « Cette configuration indique… », « Par ailleurs » ou « Enfin » : chaque paragraphe porte une idée, pas un placement.",
+    "Si ta mission ne trouve pas de matière suffisante, dis-le en une phrase courte et arrête-toi : un chapitre court et juste vaut mieux qu'un chapitre rempli.",
     `Section: ${sectionPlan.sectionId}. Objectif: ${sectionPlan.objective}.`,
     ...(Array.isArray(sectionPlan.writerGuidance) && sectionPlan.writerGuidance.length > 0
       ? ["Consignes spécifiques:", ...sectionPlan.writerGuidance.map((line) => `- ${line}`)]
@@ -569,6 +576,17 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
   ].join("\n");
 }
 
+// Sémantique structurée : concepts + relation + nuances quand la règle en
+// fournit. Les `themes` (phrases déjà rédigées) ne sont transmis que pour les
+// règles anciennes qui n'ont pas encore de sémantique.
+function semanticsForPacket(packet) {
+  for (const ruleId of packet.interpretationRuleRefs ?? []) {
+    const rule = interpretationRuleById(ruleId);
+    if (rule?.semantics) return rule.semantics;
+  }
+  return null;
+}
+
 function packetsForPrompt(sectionPlan) {
   return (sectionPlan.evidencePackets ?? []).map((packet) => ({
     packetId: packet.packetId,
@@ -577,6 +595,9 @@ function packetsForPrompt(sectionPlan) {
     sourceRole: packet.sourceRole ?? "primary_interpretation",
     maxSentences: packet.maxSentences ?? null,
     openingAllowed: packet.openingAllowed !== false,
+    ...(sectionPlan.editorialEngine !== "legacy" && semanticsForPacket(packet)
+      ? { semantics: semanticsForPacket(packet) }
+      : {}),
     themes: packet.themes,
     facts: packet.claims.map((claim) => {
       const { claimId, evidenceRefs, ...fact } = claim;
@@ -601,7 +622,28 @@ function blockPlansForPrompt(sectionPlan) {
   }));
 }
 
+function editorialForPrompt(sectionPlan) {
+  const editorial = sectionPlan.editorialPlan ?? null;
+  const thesis = sectionPlan.editorialThesis ?? null;
+  if (!editorial && !thesis) return null;
+  return {
+    thesis: thesis?.statement ?? null,
+    mission: editorial?.mission ?? null,
+    owns: (editorial?.owns ?? []).map((idea) => ({ label: idea.label, kind: idea.kind })),
+    mayRecall: (editorial?.mayRecall ?? []).map((idea) => ({ label: idea.label, ownerSection: idea.owner })),
+    reserved: (editorial?.reserved ?? []).map((idea) => ({ label: idea.label, ownerSection: idea.owner })),
+    relationsAllowed: (sectionPlan.allowedRelations ?? []).map((relation) => ({
+      relationId: relation.relationId,
+      kind: relation.kind,
+      conventionId: relation.conventionId,
+      articulation: relation.articulation,
+      evidenceRefs: relation.evidenceRefs
+    }))
+  };
+}
+
 export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
+  const editorial = editorialForPrompt(sectionPlan);
   return JSON.stringify(
     {
       sectionPlan: {
@@ -610,6 +652,7 @@ export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }
         blockPlans: blockPlansForPrompt(sectionPlan),
         preconditions: sectionPlan.preconditions
       },
+      ...(editorial ? { editorial } : {}),
       correctionIssues,
       constraints: {
         closedContextPerBlock: true,

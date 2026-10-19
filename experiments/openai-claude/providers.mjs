@@ -2,7 +2,13 @@
 // No credentials are accepted as arguments or read from files. No automatic retry.
 import { budgetedCall } from './budgetGuard.mjs';
 export const CLAUDE_MODEL = 'claude-sonnet-5-5';
-export const FIRST_CALL_MAX_USD = 0.04;
+// Borne du premier appel payant. L'estimation est volontairement pessimiste
+// (octets du payload + 4 Ko). La couche éditoriale (plan, missions, relations)
+// ajoute ~1,8 Ko au premier appel de « general_synthesis » : 0,04 USD devenait
+// une fausse barrière (0,043 estimés pour un appel réel ~0,02 USD).
+export const FIRST_CALL_MAX_USD = 0.06;
+export const CLAUDE_BLOCK_OUTPUT_LIMIT = 1600;
+export const FIRST_CALL_OUTPUT_LIMIT = CLAUDE_BLOCK_OUTPUT_LIMIT;
 const fail = code => Object.assign(new Error(code), {code});
 function tokens(value) { if(!Number.isSafeInteger(value)||value<0)throw fail('UNRELIABLE_USAGE');return value; }
 async function request(fetchFn,url,headers,body) {

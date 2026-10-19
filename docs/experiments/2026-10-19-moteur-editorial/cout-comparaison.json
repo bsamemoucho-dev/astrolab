@@ -1,0 +1,131 @@
+{
+ "modele": "claude-sonnet-5-5",
+ "tarif": {
+  "in": 2,
+  "out": 10
+ },
+ "appels": 12,
+ "coutMaxUsd": 0.222746,
+ "detail": [
+  {
+   "bras": "AVANT-2 (legacy)",
+   "section": "internal_tensions",
+   "bloc": "block1",
+   "entree": 1745,
+   "sortieCible": 650,
+   "sortieMax": 1692,
+   "coutMax": 0.02041,
+   "coutCible": 0.00999
+  },
+  {
+   "bras": "AVANT-2 (legacy)",
+   "section": "supporting_resources",
+   "bloc": "block1",
+   "entree": 1983,
+   "sortieCible": 512,
+   "sortieMax": 1400,
+   "coutMax": 0.017966,
+   "coutCible": 0.009086
+  },
+  {
+   "bras": "AVANT-2 (legacy)",
+   "section": "major_aspects",
+   "bloc": "block1",
+   "entree": 2219,
+   "sortieCible": 375,
+   "sortieMax": 1068,
+   "coutMax": 0.015118,
+   "coutCible": 0.008188
+  },
+  {
+   "bras": "AVANT-2 (legacy)",
+   "section": "major_aspects",
+   "bloc": "block2",
+   "entree": 1484,
+   "sortieCible": 404,
+   "sortieMax": 1104,
+   "coutMax": 0.014008,
+   "coutCible": 0.007008
+  },
+  {
+   "bras": "APRES-1 (composition)",
+   "section": "internal_tensions",
+   "bloc": "block1",
+   "entree": 3840,
+   "sortieCible": 628,
+   "sortieMax": 1664,
+   "coutMax": 0.02432,
+   "coutCible": 0.01396
+  },
+  {
+   "bras": "APRES-1 (composition)",
+   "section": "supporting_resources",
+   "bloc": "block1",
+   "entree": 3787,
+   "sortieCible": 500,
+   "sortieMax": 1384,
+   "coutMax": 0.021414,
+   "coutCible": 0.012574
+  },
+  {
+   "bras": "APRES-1 (composition)",
+   "section": "major_aspects",
+   "bloc": "block1",
+   "entree": 3118,
+   "sortieCible": 375,
+   "sortieMax": 1068,
+   "coutMax": 0.016916,
+   "coutCible": 0.009986
+  },
+  {
+   "bras": "APRES-1 (composition)",
+   "section": "major_aspects",
+   "bloc": "block2",
+   "entree": 1966,
+   "sortieCible": 404,
+   "sortieMax": 1104,
+   "coutMax": 0.014972,
+   "coutCible": 0.007972
+  },
+  {
+   "bras": "APRES-2 (composition)",
+   "section": "internal_tensions",
+   "bloc": "block1",
+   "entree": 3840,
+   "sortieCible": 628,
+   "sortieMax": 1664,
+   "coutMax": 0.02432,
+   "coutCible": 0.01396
+  },
+  {
+   "bras": "APRES-2 (composition)",
+   "section": "supporting_resources",
+   "bloc": "block1",
+   "entree": 3787,
+   "sortieCible": 500,
+   "sortieMax": 1384,
+   "coutMax": 0.021414,
+   "coutCible": 0.012574
+  },
+  {
+   "bras": "APRES-2 (composition)",
+   "section": "major_aspects",
+   "bloc": "block1",
+   "entree": 3118,
+   "sortieCible": 375,
+   "sortieMax": 1068,
+   "coutMax": 0.016916,
+   "coutCible": 0.009986
+  },
+  {
+   "bras": "APRES-2 (composition)",
+   "section": "major_aspects",
+   "bloc": "block2",
+   "entree": 1966,
+   "sortieCible": 404,
+   "sortieMax": 1104,
+   "coutMax": 0.014972,
+   "coutCible": 0.007972
+  }
+ ]
+}

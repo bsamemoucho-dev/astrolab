@@ -1,0 +1,1614 @@
+{
+ "theme": {
+  "personId": "experimentation_editeur",
+  "birthDate": "1979-03-14",
+  "timePrecision": "approximate",
+  "timeValue": "09:00",
+  "timeMarginMinutes": 30,
+  "birthPlace": "Lyon, France",
+  "placeName": "Lyon, France",
+  "country": "FR",
+  "latitude": 45.764,
+  "longitude": 4.8357,
+  "timeZone": "Europe/Paris",
+  "coordinateSource": "experimentation_fixture",
+  "coordinateConfidence": "unverified"
+ },
+ "generatedAt": "2026-10-19T09:29:36.024Z",
+ "legacy": {
+  "version": "full-dossier-plan@0.2.0",
+  "engine": "legacy",
+  "mode": "narrative",
+  "blocs": 15,
+  "sections": [
+   {
+    "sectionId": "general_synthesis",
+    "blocs": 1,
+    "primaires": 1,
+    "references": 4,
+    "faits": [
+     "earth (répartition) (primary)",
+     "Soleil en Pisces (reference)",
+     "Lune en Virgo (reference)",
+     "Mars–Saturne opposition (reference)",
+     "Mercure–Vénus sextile (reference)"
+    ],
+    "regles": 4,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "identity",
+    "blocs": 2,
+    "primaires": 7,
+    "references": 0,
+    "faits": [
+     "Soleil en Pisces (primary)",
+     "Soleil en maison 11 (primary)",
+     "ascendant en Taurus (primary)",
+     "descendant en Scorpio (primary)",
+     "midheaven en Capricorn (primary)",
+     "imumCoeli en Cancer (primary)",
+     "Soleil–Jupiter trigone (primary)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "emotional_world",
+    "blocs": 1,
+    "primaires": 4,
+    "references": 0,
+    "faits": [
+     "Lune en Virgo (primary)",
+     "Lune en maison 5 (primary)",
+     "Lune–Jupiter sextile (primary)",
+     "Soleil–Lune opposition (primary)"
+    ],
+    "regles": 3,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "communication",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Mercure en Aries (primary)",
+     "Mercure en maison 12 (primary)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "affectivity",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Vénus en Aquarius (primary)",
+     "Vénus en maison 10 (primary)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "action",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Mars en Pisces (primary)",
+     "Mars en maison 11 (primary)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "relationships",
+    "blocs": 1,
+    "primaires": 0,
+    "references": 2,
+    "faits": [
+     "Lune en Virgo (reference)",
+     "Vénus en Aquarius (reference)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "creativity",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "work_realization",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 1,
+    "faits": [
+     "Saturne en Virgo (primary)",
+     "Saturne en maison 5 (primary)",
+     "Soleil en Pisces (reference)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "security_resources",
+    "blocs": 1,
+    "primaires": 0,
+    "references": 1,
+    "faits": [
+     "Vénus en Aquarius (reference)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "internal_tensions",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Mars–Saturne opposition (primary)",
+     "Soleil–Lune opposition (primary)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "supporting_resources",
+    "blocs": 1,
+    "primaires": 3,
+    "references": 0,
+    "faits": [
+     "Mercure–Vénus sextile (primary)",
+     "Lune–Jupiter sextile (primary)",
+     "Soleil–Jupiter trigone (primary)"
+    ],
+    "regles": 3,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "houses",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "major_aspects",
+    "blocs": 2,
+    "primaires": 5,
+    "references": 0,
+    "faits": [
+     "Mars–Saturne opposition (primary)",
+     "Mercure–Vénus sextile (primary)",
+     "Lune–Jupiter sextile (primary)",
+     "Soleil–Jupiter trigone (primary)",
+     "Soleil–Lune opposition (primary)"
+    ],
+    "regles": 5,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "current_sky",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "next_weeks",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   },
+   {
+    "sectionId": "conclusion",
+    "blocs": 1,
+    "primaires": 0,
+    "references": 7,
+    "faits": [
+     "Soleil en Pisces (reference)",
+     "Lune en Virgo (reference)",
+     "Lune–Jupiter sextile (reference)",
+     "Mars–Saturne opposition (reference)",
+     "Mercure–Vénus sextile (reference)",
+     "Soleil–Jupiter trigone (reference)",
+     "earth (répartition) (reference)"
+    ],
+    "regles": 6,
+    "relations": 0,
+    "mission": null,
+    "possede": [],
+    "peutRappeler": [],
+    "reserve": []
+   }
+  ]
+ },
+ "compositionReference": {
+  "version": "full-dossier-plan@0.2.0",
+  "engine": "composition",
+  "mode": "reference",
+  "blocs": 13,
+  "editorialPlan": {
+   "version": "lastro-editorial-plan@1.0.0",
+   "aspectChapterMode": "reference",
+   "thesis": {
+    "id": "idea.thesis.figure.apex.jupiter.moon.sun",
+    "statement": "Le thème est organisé par une figure calculée : le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune. C'est elle qui donne au dossier son fil conducteur.",
+    "evidenceRefs": [
+     "aspect.sun.moon.opposition",
+     "aspect.sun.jupiter.trine",
+     "aspect.moon.jupiter.sextile"
+    ],
+    "figureId": "figure.apex.jupiter.moon.sun",
+    "owner": "general_synthesis"
+   },
+   "ideas": [
+    {
+     "ideaId": "idea.thesis.figure.apex.jupiter.moon.sun",
+     "kind": "thesis",
+     "label": "thèse du dossier",
+     "evidenceRefs": [
+      "aspect.sun.moon.opposition",
+      "aspect.sun.jupiter.trine",
+      "aspect.moon.jupiter.sextile"
+     ],
+     "relationRefs": [],
+     "owner": "general_synthesis"
+    },
+    {
+     "ideaId": "idea.config.moon.jupiter.sextile",
+     "kind": "configuration",
+     "label": "Moon–Jupiter sextile",
+     "motif": "confiance",
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile"
+     ],
+     "relationRefs": [],
+     "owner": "supporting_resources",
+     "configId": "config:aspect.moon.jupiter.sextile"
+    },
+    {
+     "ideaId": "idea.config.mars.saturn.opposition",
+     "kind": "configuration",
+     "label": "Mars–Saturn opposition",
+     "motif": "effort tenu",
+     "evidenceRefs": [
+      "aspect.mars.saturn.opposition"
+     ],
+     "relationRefs": [],
+     "owner": "internal_tensions",
+     "configId": "config:aspect.mars.saturn.opposition"
+    },
+    {
+     "ideaId": "idea.config.mercury.venus.sextile",
+     "kind": "configuration",
+     "label": "Mercury–Venus sextile",
+     "motif": "parole",
+     "evidenceRefs": [
+      "aspect.mercury.venus.sextile"
+     ],
+     "relationRefs": [],
+     "owner": "supporting_resources",
+     "configId": "config:aspect.mercury.venus.sextile"
+    },
+    {
+     "ideaId": "idea.config.sun.moon.opposition",
+     "kind": "configuration",
+     "label": "Sun–Moon opposition",
+     "motif": "double exigence",
+     "evidenceRefs": [
+      "aspect.sun.moon.opposition"
+     ],
+     "relationRefs": [],
+     "owner": "internal_tensions",
+     "configId": "config:aspect.sun.moon.opposition"
+    },
+    {
+     "ideaId": "idea.config.sun.jupiter.trine",
+     "kind": "configuration",
+     "label": "Sun–Jupiter trine",
+     "motif": "confiance",
+     "evidenceRefs": [
+      "aspect.sun.jupiter.trine"
+     ],
+     "relationRefs": [],
+     "owner": "supporting_resources",
+     "configId": "config:aspect.sun.jupiter.trine"
+    },
+    {
+     "ideaId": "idea.figure.figure.apex.jupiter.moon.sun",
+     "kind": "figure",
+     "label": "figure apex_on_opposition (Jupiter)",
+     "evidenceRefs": [
+      "aspect.sun.moon.opposition",
+      "aspect.sun.jupiter.trine",
+      "aspect.moon.jupiter.sextile"
+     ],
+     "relationRefs": [
+      "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.jupiter.trine",
+      "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.moon.opposition",
+      "relation.figure.apex.jupiter.moon.sun.aspect.sun.moon.opposition.aspect.sun.jupiter.trine"
+     ],
+     "owner": "internal_tensions",
+     "figureId": "figure.apex.jupiter.moon.sun"
+    }
+   ],
+   "chapters": [
+    {
+     "sectionId": "general_synthesis",
+     "mission": "Annonce la figure qui organise le thème et les deux ou trois idées que le dossier va développer. Tu les nommes, tu ne les développes pas : chaque idée a son chapitre.",
+     "owns": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "mayRecall": [],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "identity",
+     "mission": "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "emotional_world",
+     "mission": "Décris le monde émotionnel à partir de la Lune, sans redévelopper les aspects déjà traités ailleurs.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "communication",
+     "mission": "Décris la circulation mentale et l'expression à partir de Mercure.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "affectivity",
+     "mission": "Décris la manière d'accorder de la valeur et de s'attacher, à partir de Vénus.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "action",
+     "mission": "Décris la manière d'agir et de défendre à partir de Mars.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "relationships",
+     "mission": "Décris la manière d'entrer en relation, sans inventer de relation réelle.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "creativity",
+     "mission": "Décris les modes d'expression créative à partir des faits disponibles.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "work_realization",
+     "mission": "Décris la construction et la tenue dans le temps à partir de Saturne.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "security_resources",
+     "mission": "Décris l'ancrage et les ressources concrètes.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "relations": []
+    },
+    {
+     "sectionId": "internal_tensions",
+     "mission": "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
+     "owns": [
+      "idea.config.mars.saturn.opposition",
+      "idea.config.sun.moon.opposition",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.jupiter.trine"
+     ],
+     "relations": [
+      "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.jupiter.trine",
+      "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.moon.opposition",
+      "relation.figure.apex.jupiter.moon.sun.aspect.sun.moon.opposition.aspect.sun.jupiter.trine"
+     ]
+    },
+    {
+     "sectionId": "supporting_resources",
+     "mission": "Montre ce qui rend la tension tenable, pas des dons isolés. Chaque appui est relié à ce qu'il soutient ou à ce qu'il nuance. Tu peux rappeler en une clause les tensions auxquelles ces appuis répondent, sans les redécrire.",
+     "owns": [
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.jupiter.trine"
+     ],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.sun.moon.opposition",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [],
+     "relations": [
+      "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.jupiter.trine",
+      "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.moon.opposition",
+      "relation.figure.apex.jupiter.moon.sun.aspect.sun.moon.opposition.aspect.sun.jupiter.trine"
+     ]
+    },
+    {
+     "sectionId": "houses",
+     "mission": "Décris les domaines de vie à partir des maisons exploitables.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun",
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [],
+     "relations": []
+    },
+    {
+     "sectionId": "major_aspects",
+     "mission": "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun",
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [],
+     "relations": []
+    },
+    {
+     "sectionId": "current_sky",
+     "mission": "Traite ta section à partir des seuls faits transmis.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun",
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [],
+     "relations": []
+    },
+    {
+     "sectionId": "next_weeks",
+     "mission": "Traite ta section à partir des seuls faits transmis.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun",
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [],
+     "relations": []
+    },
+    {
+     "sectionId": "conclusion",
+     "mission": "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
+     "owns": [],
+     "mayRecall": [
+      "idea.thesis.figure.apex.jupiter.moon.sun",
+      "idea.config.moon.jupiter.sextile",
+      "idea.config.mars.saturn.opposition",
+      "idea.config.mercury.venus.sextile",
+      "idea.config.sun.moon.opposition",
+      "idea.config.sun.jupiter.trine",
+      "idea.figure.figure.apex.jupiter.moon.sun"
+     ],
+     "reserved": [],
+     "relations": []
+    }
+   ],
+   "figures": [
+    {
+     "figureId": "figure.apex.jupiter.moon.sun",
+     "type": "apex_on_opposition",
+     "conventionId": "lastro.figure.apex_on_opposition@1",
+     "bodies": {
+      "opposition": [
+       "Sun",
+       "Moon"
+      ],
+      "apex": "Jupiter"
+     },
+     "mode": "harmonic",
+     "members": [
+      {
+       "aspectId": "aspect.sun.moon.opposition",
+       "bodyA": "Sun",
+       "bodyB": "Moon",
+       "aspectType": "opposition",
+       "category": "tension",
+       "orb": 4.985194,
+       "orbLimit": 10
+      },
+      {
+       "aspectId": "aspect.sun.jupiter.trine",
+       "bodyA": "Sun",
+       "bodyB": "Jupiter",
+       "aspectType": "trine",
+       "category": "support",
+       "orb": 6.07925,
+       "orbLimit": 8
+      },
+      {
+       "aspectId": "aspect.moon.jupiter.sextile",
+       "bodyA": "Moon",
+       "bodyB": "Jupiter",
+       "aspectType": "sextile",
+       "category": "support",
+       "orb": 1.094056,
+       "orbLimit": 6
+      }
+     ],
+     "apexAspects": {
+      "toA": "trine",
+      "toB": "sextile"
+     },
+     "tightestMemberId": "aspect.moon.jupiter.sextile",
+     "proof": "le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune"
+    }
+   ],
+   "configurations": [
+    {
+     "configId": "config:aspect.moon.jupiter.sextile",
+     "evidenceRef": "aspect.moon.jupiter.sextile",
+     "ruleRef": "western.natal.aspect.moon_jupiter.sextile@1",
+     "bodyA": "Moon",
+     "bodyB": "Jupiter",
+     "aspectType": "sextile",
+     "category": "support",
+     "orb": 1.094056,
+     "orbLimit": 6,
+     "concepts": [
+      "sécurité intérieure",
+      "confiance",
+      "générosité",
+      "accueil"
+     ],
+     "motif": "confiance",
+     "relationFormula": "la sécurité s'appuie sur la confiance plutôt que sur le contrôle",
+     "nuances": [
+      "une ouverture ne signifie pas l'absence de besoin",
+      "cette ressource ne dispense pas de poser des limites"
+     ],
+     "themes": [
+      "ouverture émotionnelle qui s'appuie sur la confiance plutôt que sur le contrôle",
+      "besoin de sécurité intérieure rejoint par un élan de générosité",
+      "ressource : accueillir plus large que ce qui est strictement nécessaire"
+     ],
+     "structured": true
+    },
+    {
+     "configId": "config:aspect.mars.saturn.opposition",
+     "evidenceRef": "aspect.mars.saturn.opposition",
+     "ruleRef": "western.natal.aspect.mars_saturn.opposition@1",
+     "bodyA": "Mars",
+     "bodyB": "Saturn",
+     "aspectType": "opposition",
+     "category": "tension",
+     "orb": 1.867639,
+     "orbLimit": 8,
+     "concepts": [
+      "action",
+      "limite",
+      "effort",
+      "retenue",
+      "endurance"
+     ],
+     "motif": "effort tenu",
+     "relationFormula": "l'élan se mesure à une limite intérieure",
+     "nuances": [
+      "tension ne veut pas dire incapacité",
+      "l'endurance est une ressource, pas une punition",
+      "l'expression dépend des autres configurations du thème"
+     ],
+     "themes": [
+      "tension entre l'élan d'agir et la limite rencontrée",
+      "l'effort peut se heurter à un cadre intérieur exigeant",
+      "endurance possible dans l'effort long, au prix d'un rapport tendu à l'immédiateté"
+     ],
+     "structured": true
+    },
+    {
+     "configId": "config:aspect.mercury.venus.sextile",
+     "evidenceRef": "aspect.mercury.venus.sextile",
+     "ruleRef": "western.natal.aspect.mercury_venus.sextile@1",
+     "bodyA": "Mercury",
+     "bodyB": "Venus",
+     "aspectType": "sextile",
+     "category": "support",
+     "orb": 3.958243,
+     "orbLimit": 4,
+     "concepts": [
+      "parole",
+      "valeur",
+      "lien",
+      "échange"
+     ],
+     "motif": "parole",
+     "relationFormula": "dire ce qui compte circule par la parole",
+     "nuances": [
+      "facilité à activer, jamais automatique",
+      "ne garantit pas l'accord avec l'autre"
+     ],
+     "themes": [
+      "facilité mobilisable pour dire ce qui a de la valeur",
+      "goût du lien qui passe volontiers par la parole et l'échange",
+      "attention : cette facilité reste à activer, elle ne se déclenche pas seule"
+     ],
+     "structured": true
+    },
+    {
+     "configId": "config:aspect.sun.moon.opposition",
+     "evidenceRef": "aspect.sun.moon.opposition",
+     "ruleRef": "western.natal.aspect.sun_moon.opposition@1",
+     "bodyA": "Sun",
+     "bodyB": "Moon",
+     "aspectType": "opposition",
+     "category": "tension",
+     "orb": 4.985194,
+     "orbLimit": 10,
+     "concepts": [
+      "identité consciente",
+      "besoin affectif",
+      "ajustement",
+      "écart"
+     ],
+     "motif": "double exigence",
+     "relationFormula": "deux exigences tirent en sens opposé",
+     "nuances": [
+      "aucun des deux pôles n'est le bon",
+      "l'écart est un lieu de construction, pas un défaut"
+     ],
+     "themes": [
+      "deux exigences intérieures qui tirent en sens opposé : direction consciente et besoin affectif",
+      "nécessité d'ajuster ce qui se montre et ce qui se ressent",
+      "l'identité se construit dans cet écart plutôt que dans un seul des deux pôles"
+     ],
+     "structured": true
+    },
+    {
+     "configId": "config:aspect.sun.jupiter.trine",
+     "evidenceRef": "aspect.sun.jupiter.trine",
+     "ruleRef": "western.natal.aspect.sun_jupiter.trine@1",
+     "bodyA": "Sun",
+     "bodyB": "Jupiter",
+     "aspectType": "trine",
+     "category": "support",
+     "orb": 6.07925,
+     "orbLimit": 8,
+     "concepts": [
+      "confiance",
+      "horizon",
+      "croissance",
+      "direction"
+     ],
+     "motif": "confiance",
+     "relationFormula": "la confiance élargit l'horizon de la direction personnelle",
+     "nuances": [
+      "un appui, pas une garantie",
+      "cette facilité peut dispenser de vérifier la juste mesure"
+     ],
+     "themes": [
+      "confiance disponible pour élargir son horizon",
+      "élan de croissance qui soutient la direction personnelle",
+      "la facilité de cet appui peut dispenser de vérifier la juste mesure"
+     ],
+     "structured": true
+    }
+   ],
+   "relations": [
+    {
+     "relationId": "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.jupiter.trine",
+     "kind": "figure_third_term",
+     "conventionId": "lastro.composition.figure_third_term@1",
+     "figureId": "figure.apex.jupiter.moon.sun",
+     "figureType": "apex_on_opposition",
+     "figureMode": "harmonic",
+     "memberConfigs": [
+      "config:aspect.moon.jupiter.sextile",
+      "config:aspect.sun.jupiter.trine"
+     ],
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile",
+      "aspect.sun.jupiter.trine",
+      "aspect.sun.moon.opposition",
+      "aspect.sun.jupiter.trine",
+      "aspect.moon.jupiter.sextile"
+     ],
+     "figureMembers": [
+      {
+       "aspectId": "aspect.sun.moon.opposition",
+       "bodyA": "Sun",
+       "bodyB": "Moon",
+       "aspectType": "opposition",
+       "category": "tension",
+       "orb": 4.985194,
+       "orbLimit": 10
+      },
+      {
+       "aspectId": "aspect.sun.jupiter.trine",
+       "bodyA": "Sun",
+       "bodyB": "Jupiter",
+       "aspectType": "trine",
+       "category": "support",
+       "orb": 6.07925,
+       "orbLimit": 8
+      },
+      {
+       "aspectId": "aspect.moon.jupiter.sextile",
+       "bodyA": "Moon",
+       "bodyB": "Jupiter",
+       "aspectType": "sextile",
+       "category": "support",
+       "orb": 1.094056,
+       "orbLimit": 6
+      }
+     ],
+     "tightestMemberId": "aspect.moon.jupiter.sextile",
+     "sharedBodies": [
+      "Jupiter"
+     ],
+     "articulation": "Les trois configurations forment une figure calculée : le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune. Membres : Soleil–Lune opposition (orbe 4.985194°), Soleil–Jupiter trigone (orbe 6.07925°), Lune–Jupiter sextile (orbe 1.094056°). Le lien le plus serré est Lune–Jupiter (orbe 1.094056°)."
+    },
+    {
+     "relationId": "relation.figure.apex.jupiter.moon.sun.aspect.moon.jupiter.sextile.aspect.sun.moon.opposition",
+     "kind": "figure_third_term",
+     "conventionId": "lastro.composition.figure_third_term@1",
+     "figureId": "figure.apex.jupiter.moon.sun",
+     "figureType": "apex_on_opposition",
+     "figureMode": "harmonic",
+     "memberConfigs": [
+      "config:aspect.moon.jupiter.sextile",
+      "config:aspect.sun.moon.opposition"
+     ],
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile",
+      "aspect.sun.moon.opposition",
+      "aspect.sun.moon.opposition",
+      "aspect.sun.jupiter.trine",
+      "aspect.moon.jupiter.sextile"
+     ],
+     "figureMembers": [
+      {
+       "aspectId": "aspect.sun.moon.opposition",
+       "bodyA": "Sun",
+       "bodyB": "Moon",
+       "aspectType": "opposition",
+       "category": "tension",
+       "orb": 4.985194,
+       "orbLimit": 10
+      },
+      {
+       "aspectId": "aspect.sun.jupiter.trine",
+       "bodyA": "Sun",
+       "bodyB": "Jupiter",
+       "aspectType": "trine",
+       "category": "support",
+       "orb": 6.07925,
+       "orbLimit": 8
+      },
+      {
+       "aspectId": "aspect.moon.jupiter.sextile",
+       "bodyA": "Moon",
+       "bodyB": "Jupiter",
+       "aspectType": "sextile",
+       "category": "support",
+       "orb": 1.094056,
+       "orbLimit": 6
+      }
+     ],
+     "tightestMemberId": "aspect.moon.jupiter.sextile",
+     "sharedBodies": [
+      "Moon"
+     ],
+     "articulation": "Les trois configurations forment une figure calculée : le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune. Membres : Soleil–Lune opposition (orbe 4.985194°), Soleil–Jupiter trigone (orbe 6.07925°), Lune–Jupiter sextile (orbe 1.094056°). Le lien le plus serré est Lune–Jupiter (orbe 1.094056°)."
+    },
+    {
+     "relationId": "relation.figure.apex.jupiter.moon.sun.aspect.sun.moon.opposition.aspect.sun.jupiter.trine",
+     "kind": "figure_third_term",
+     "conventionId": "lastro.composition.figure_third_term@1",
+     "figureId": "figure.apex.jupiter.moon.sun",
+     "figureType": "apex_on_opposition",
+     "figureMode": "harmonic",
+     "memberConfigs": [
+      "config:aspect.sun.moon.opposition",
+      "config:aspect.sun.jupiter.trine"
+     ],
+     "evidenceRefs": [
+      "aspect.sun.moon.opposition",
+      "aspect.sun.jupiter.trine",
+      "aspect.sun.moon.opposition",
+      "aspect.sun.jupiter.trine",
+      "aspect.moon.jupiter.sextile"
+     ],
+     "figureMembers": [
+      {
+       "aspectId": "aspect.sun.moon.opposition",
+       "bodyA": "Sun",
+       "bodyB": "Moon",
+       "aspectType": "opposition",
+       "category": "tension",
+       "orb": 4.985194,
+       "orbLimit": 10
+      },
+      {
+       "aspectId": "aspect.sun.jupiter.trine",
+       "bodyA": "Sun",
+       "bodyB": "Jupiter",
+       "aspectType": "trine",
+       "category": "support",
+       "orb": 6.07925,
+       "orbLimit": 8
+      },
+      {
+       "aspectId": "aspect.moon.jupiter.sextile",
+       "bodyA": "Moon",
+       "bodyB": "Jupiter",
+       "aspectType": "sextile",
+       "category": "support",
+       "orb": 1.094056,
+       "orbLimit": 6
+      }
+     ],
+     "tightestMemberId": "aspect.moon.jupiter.sextile",
+     "sharedBodies": [
+      "Sun"
+     ],
+     "articulation": "Les trois configurations forment une figure calculée : le Soleil oppose la Lune ; Jupiter est en trigone avec le Soleil et en sextile avec la Lune. Membres : Soleil–Lune opposition (orbe 4.985194°), Soleil–Jupiter trigone (orbe 6.07925°), Lune–Jupiter sextile (orbe 1.094056°). Le lien le plus serré est Lune–Jupiter (orbe 1.094056°)."
+    }
+   ],
+   "rejected": [
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.moon.jupiter.sextile",
+      "config:aspect.mars.saturn.opposition"
+     ],
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile",
+      "aspect.mars.saturn.opposition"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    },
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.moon.jupiter.sextile",
+      "config:aspect.mercury.venus.sextile"
+     ],
+     "evidenceRefs": [
+      "aspect.moon.jupiter.sextile",
+      "aspect.mercury.venus.sextile"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    },
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.mars.saturn.opposition",
+      "config:aspect.mercury.venus.sextile"
+     ],
+     "evidenceRefs": [
+      "aspect.mars.saturn.opposition",
+      "aspect.mercury.venus.sextile"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    },
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.mars.saturn.opposition",
+      "config:aspect.sun.moon.opposition"
+     ],
+     "evidenceRefs": [
+      "aspect.mars.saturn.opposition",
+      "aspect.sun.moon.opposition"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    },
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.mars.saturn.opposition",
+      "config:aspect.sun.jupiter.trine"
+     ],
+     "evidenceRefs": [
+      "aspect.mars.saturn.opposition",
+      "aspect.sun.jupiter.trine"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    },
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.mercury.venus.sextile",
+      "config:aspect.sun.moon.opposition"
+     ],
+     "evidenceRefs": [
+      "aspect.mercury.venus.sextile",
+      "aspect.sun.moon.opposition"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    },
+    {
+     "conventionId": "lastro.composition.no_relation@1",
+     "memberConfigs": [
+      "config:aspect.mercury.venus.sextile",
+      "config:aspect.sun.jupiter.trine"
+     ],
+     "evidenceRefs": [
+      "aspect.mercury.venus.sextile",
+      "aspect.sun.jupiter.trine"
+     ],
+     "reason": "aucun corps partagé et aucune figure calculée ne relient ces deux configurations",
+     "message": "Aucune relation astrologique directe suffisamment étayée pour ce croisement."
+    }
+   ],
+   "gaps": [],
+   "ownership": {
+    "idea.thesis.figure.apex.jupiter.moon.sun": "general_synthesis",
+    "idea.config.moon.jupiter.sextile": "supporting_resources",
+    "idea.config.mars.saturn.opposition": "internal_tensions",
+    "idea.config.mercury.venus.sextile": "supporting_resources",
+    "idea.config.sun.moon.opposition": "internal_tensions",
+    "idea.config.sun.jupiter.trine": "supporting_resources",
+    "idea.figure.figure.apex.jupiter.moon.sun": "internal_tensions"
+   }
+  },
+  "sections": [
+   {
+    "sectionId": "general_synthesis",
+    "blocs": 1,
+    "primaires": 1,
+    "references": 4,
+    "faits": [
+     "earth (répartition) (primary)",
+     "Soleil en Pisces (reference)",
+     "Soleil–Lune opposition (reference)",
+     "Soleil–Jupiter trigone (reference)",
+     "Lune–Jupiter sextile (reference)"
+    ],
+    "regles": 4,
+    "relations": 0,
+    "mission": "Annonce la figure qui organise le thème et les deux ou trois idées que le dossier va développer. Tu les nommes, tu ne les développes pas : chaque idée a son chapitre.",
+    "possede": [
+     "thèse du dossier"
+    ],
+    "peutRappeler": [],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "identity",
+    "blocs": 2,
+    "primaires": 7,
+    "references": 0,
+    "faits": [
+     "Soleil en Pisces (primary)",
+     "Soleil en maison 11 (primary)",
+     "ascendant en Taurus (primary)",
+     "descendant en Scorpio (primary)",
+     "midheaven en Capricorn (primary)",
+     "imumCoeli en Cancer (primary)",
+     "Soleil–Jupiter trigone (primary)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "emotional_world",
+    "blocs": 1,
+    "primaires": 4,
+    "references": 0,
+    "faits": [
+     "Lune en Virgo (primary)",
+     "Lune en maison 5 (primary)",
+     "Lune–Jupiter sextile (primary)",
+     "Soleil–Lune opposition (primary)"
+    ],
+    "regles": 3,
+    "relations": 0,
+    "mission": "Décris le monde émotionnel à partir de la Lune, sans redévelopper les aspects déjà traités ailleurs.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "communication",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Mercure en Aries (primary)",
+     "Mercure en maison 12 (primary)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": "Décris la circulation mentale et l'expression à partir de Mercure.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "affectivity",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Vénus en Aquarius (primary)",
+     "Vénus en maison 10 (primary)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": "Décris la manière d'accorder de la valeur et de s'attacher, à partir de Vénus.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "action",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 0,
+    "faits": [
+     "Mars en Pisces (primary)",
+     "Mars en maison 11 (primary)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": "Décris la manière d'agir et de défendre à partir de Mars.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "relationships",
+    "blocs": 1,
+    "primaires": 0,
+    "references": 2,
+    "faits": [
+     "Lune en Virgo (reference)",
+     "Vénus en Aquarius (reference)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": "Décris la manière d'entrer en relation, sans inventer de relation réelle.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "creativity",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": "Décris les modes d'expression créative à partir des faits disponibles.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "work_realization",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 1,
+    "faits": [
+     "Saturne en Virgo (primary)",
+     "Saturne en maison 5 (primary)",
+     "Soleil en Pisces (reference)"
+    ],
+    "regles": 2,
+    "relations": 0,
+    "mission": "Décris la construction et la tenue dans le temps à partir de Saturne.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "security_resources",
+    "blocs": 1,
+    "primaires": 0,
+    "references": 1,
+    "faits": [
+     "Vénus en Aquarius (reference)"
+    ],
+    "regles": 1,
+    "relations": 0,
+    "mission": "Décris l'ancrage et les ressources concrètes.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ]
+   },
+   {
+    "sectionId": "internal_tensions",
+    "blocs": 1,
+    "primaires": 2,
+    "references": 2,
+    "faits": [
+     "Mars–Saturne opposition (primary)",
+     "Soleil–Lune opposition (primary)",
+     "Lune–Jupiter sextile (reference)",
+     "Soleil–Jupiter trigone (reference)"
+    ],
+    "regles": 4,
+    "relations": 3,
+    "mission": "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
+    "possede": [
+     "Mars–Saturn opposition",
+     "Sun–Moon opposition",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "peutRappeler": [
+     "thèse du dossier"
+    ],
+    "reserve": [
+     "Moon–Jupiter sextile",
+     "Mercury–Venus sextile",
+     "Sun–Jupiter trine"
+    ]
+   },
+   {
+    "sectionId": "supporting_resources",
+    "blocs": 1,
+    "primaires": 3,
+    "references": 1,
+    "faits": [
+     "Mercure–Vénus sextile (primary)",
+     "Lune–Jupiter sextile (primary)",
+     "Soleil–Jupiter trigone (primary)",
+     "Soleil–Lune opposition (reference)"
+    ],
+    "regles": 4,
+    "relations": 3,
+    "mission": "Montre ce qui rend la tension tenable, pas des dons isolés. Chaque appui est relié à ce qu'il soutient ou à ce qu'il nuance. Tu peux rappeler en une clause les tensions auxquelles ces appuis répondent, sans les redécrire.",
+    "possede": [
+     "Moon–Jupiter sextile",
+     "Mercury–Venus sextile",
+     "Sun–Jupiter trine"
+    ],
+    "peutRappeler": [
+     "thèse du dossier",
+     "Mars–Saturn opposition",
+     "Sun–Moon opposition",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "reserve": []
+   },
+   {
+    "sectionId": "houses",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": "Décris les domaines de vie à partir des maisons exploitables.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier",
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "reserve": []
+   },
+   {
+    "sectionId": "major_aspects",
+    "blocs": 0,
+    "primaires": 5,
+    "references": 0,
+    "faits": [
+     "Mars–Saturne opposition (primary)",
+     "Mercure–Vénus sextile (primary)",
+     "Lune–Jupiter sextile (primary)",
+     "Soleil–Jupiter trigone (primary)",
+     "Soleil–Lune opposition (primary)"
+    ],
+    "regles": 5,
+    "relations": 0,
+    "mission": "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier",
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "reserve": []
+   },
+   {
+    "sectionId": "current_sky",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": "Traite ta section à partir des seuls faits transmis.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier",
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "reserve": []
+   },
+   {
+    "sectionId": "next_weeks",
+    "blocs": 0,
+    "primaires": 0,
+    "references": 0,
+    "faits": [],
+    "regles": 0,
+    "relations": 0,
+    "mission": "Traite ta section à partir des seuls faits transmis.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier",
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "reserve": []
+   },
+   {
+    "sectionId": "conclusion",
+    "blocs": 1,
+    "primaires": 0,
+    "references": 7,
+    "faits": [
+     "Soleil en Pisces (reference)",
+     "Lune en Virgo (reference)",
+     "Lune–Jupiter sextile (reference)",
+     "Mars–Saturne opposition (reference)",
+     "Mercure–Vénus sextile (reference)",
+     "Soleil–Jupiter trigone (reference)",
+     "earth (répartition) (reference)"
+    ],
+    "regles": 6,
+    "relations": 0,
+    "mission": "Relie les grandes dynamiques déjà établies, sans réinterpréter chaque fait. Dis ce qui reste ouvert, pas ce qui est résolu.",
+    "possede": [],
+    "peutRappeler": [
+     "thèse du dossier",
+     "Moon–Jupiter sextile",
+     "Mars–Saturn opposition",
+     "Mercury–Venus sextile",
+     "Sun–Moon opposition",
+     "Sun–Jupiter trine",
+     "figure apex_on_opposition (Jupiter)"
+    ],
+    "reserve": []
+   }
+  ]
+ },
+ "compositionSynthese": {
+  "version": "full-dossier-plan@0.2.0",
+  "engine": "composition",
+  "mode": "narrative",
+  "blocs": 15
+ }
+}

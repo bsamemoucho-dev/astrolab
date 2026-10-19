@@ -160,7 +160,16 @@ const NATAL_ASPECT_CONVENTION_RULES = [
       "besoin de sécurité intérieure rejoint par un élan de générosité",
       "ressource : accueillir plus large que ce qui est strictement nécessaire"
     ],
-    forbidden: COMMON_FORBIDDEN
+    forbidden: COMMON_FORBIDDEN,
+    semantics: {
+      concepts: ["sécurité intérieure", "confiance", "générosité", "accueil"],
+      relation: "la sécurité s'appuie sur la confiance plutôt que sur le contrôle",
+      motif: "confiance",
+      nuances: [
+        "une ouverture ne signifie pas l'absence de besoin",
+        "cette ressource ne dispense pas de poser des limites"
+      ]
+    }
   },
   {
     // L'aspect le plus serré du thème, et le seul carré/opposition majeur.
@@ -173,7 +182,17 @@ const NATAL_ASPECT_CONVENTION_RULES = [
       "l'effort peut se heurter à un cadre intérieur exigeant",
       "endurance possible dans l'effort long, au prix d'un rapport tendu à l'immédiateté"
     ],
-    forbidden: COMMON_FORBIDDEN
+    forbidden: COMMON_FORBIDDEN,
+    semantics: {
+      concepts: ["action", "limite", "effort", "retenue", "endurance"],
+      relation: "l'élan se mesure à une limite intérieure",
+      motif: "effort tenu",
+      nuances: [
+        "tension ne veut pas dire incapacité",
+        "l'endurance est une ressource, pas une punition",
+        "l'expression dépend des autres configurations du thème"
+      ]
+    }
   },
   {
     // Soutien proche de la limite de son orbe : la formulation reste sobre.
@@ -186,7 +205,16 @@ const NATAL_ASPECT_CONVENTION_RULES = [
       "goût du lien qui passe volontiers par la parole et l'échange",
       "attention : cette facilité reste à activer, elle ne se déclenche pas seule"
     ],
-    forbidden: COMMON_FORBIDDEN
+    forbidden: COMMON_FORBIDDEN,
+    semantics: {
+      concepts: ["parole", "valeur", "lien", "échange"],
+      relation: "dire ce qui compte circule par la parole",
+      motif: "parole",
+      nuances: [
+        "facilité à activer, jamais automatique",
+        "ne garantit pas l'accord avec l'autre"
+      ]
+    }
   },
   {
     // Opposition entre les deux luminaires : les deux exigences, pas un verdict.
@@ -199,7 +227,16 @@ const NATAL_ASPECT_CONVENTION_RULES = [
       "nécessité d'ajuster ce qui se montre et ce qui se ressent",
       "l'identité se construit dans cet écart plutôt que dans un seul des deux pôles"
     ],
-    forbidden: COMMON_FORBIDDEN
+    forbidden: COMMON_FORBIDDEN,
+    semantics: {
+      concepts: ["identité consciente", "besoin affectif", "ajustement", "écart"],
+      relation: "deux exigences tirent en sens opposé",
+      motif: "double exigence",
+      nuances: [
+        "aucun des deux pôles n'est le bon",
+        "l'écart est un lieu de construction, pas un défaut"
+      ]
+    }
   },
   {
     // Soutien le plus large en orbe des aspects retenus : appui, pas promesse.
@@ -212,7 +249,16 @@ const NATAL_ASPECT_CONVENTION_RULES = [
       "élan de croissance qui soutient la direction personnelle",
       "la facilité de cet appui peut dispenser de vérifier la juste mesure"
     ],
-    forbidden: COMMON_FORBIDDEN
+    forbidden: COMMON_FORBIDDEN,
+    semantics: {
+      concepts: ["confiance", "horizon", "croissance", "direction"],
+      relation: "la confiance élargit l'horizon de la direction personnelle",
+      motif: "confiance",
+      nuances: [
+        "un appui, pas une garantie",
+        "cette facilité peut dispenser de vérifier la juste mesure"
+      ]
+    }
   }
 ];
 
