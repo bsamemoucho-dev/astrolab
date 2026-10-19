@@ -1,0 +1,88 @@
+# Blueprint Render — service de préversion « Vtest ».
+#
+# Ce fichier décrit UNIQUEMENT le service de test. Il ne modifie ni ne référence
+# le service de production : créer ce service dans Render ne touche pas à
+# lastro.fr, qui reste servi par son propre service, sur son propre disque, avec
+# ses propres variables.
+#
+# Ce qu'il isole :
+#   - un conteneur distinct (aucun processus partagé avec la production) ;
+#   - un disque distinct (aucune donnée de test dans la base réelle) ;
+#   - aucune clé Stripe : le paiement est impossible, les lectures sont libres ;
+#   - aucune clé Brevo : aucun e-mail réel ne peut partir (la file interne garde
+#     le message à l'écran) ;
+#   - indexation interdite (`ASTROLAB_NOINDEX=1` : en-tête + robots.txt) ;
+#   - accès protégé par mot de passe (`ASTROLAB_PREVIEW_AUTH`, secret) ;
+#   - plafond de dépense LLM (`ASTROLAB_LLM_BUDGET_USD`).
+#
+# Déploiement : voir docs/deployment/vtest-render.md
+
+services:
+  - type: web
+    name: lastro-vtest
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Le service de test suit la branche `vtest`, jamais `main` : un push sur
+    # main ne peut donc pas redéployer la préversion, et inversement.
+    branch: vtest
+    # Déploiement manuel : un push de travail sur `vtest` ne redémarre pas la
+    # préversion sans qu'on l'ait décidé.
+    autoDeploy: false
+    plan: starter          # un disque persistant exige une offre payante
+    region: oregon
+    healthCheckPath: /healthz
+    disk:
+      name: lastro-vtest-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ASTROLAB_DB_PATH
+        value: /var/data/astrolab.json
+
+      # --- commerce et e-mail : désactivés -------------------------------
+      # Aucune clé Stripe et aucune clé Brevo ne sont déclarées ici, ni à saisir.
+      - key: ASTROLAB_ENABLE_COMMERCE
+        value: "0"
+      # Lecture libre : c'est le seul mode possible sans paiement. L'accès reste
+      # fermé par le mot de passe de préversion ci-dessous.
+      - key: ASTROLAB_ALLOW_FREE_READINGS
+        value: "1"
+      - key: ASTROLAB_ALLOW_REGISTRATION
+        value: "1"
+      # Le code de vérification d'adresse s'affiche à l'écran au lieu de partir
+      # par e-mail : aucun envoi réel n'est possible sur ce service.
+      - key: ASTROLAB_EMAIL_MODE
+        value: dev_code
+
+      # --- indexation et accès ------------------------------------------
+      - key: ASTROLAB_NOINDEX
+        value: "1"
+      # « utilisateur:motdepasse » — à saisir dans le dashboard Render.
+      # Sans cette valeur, la préversion est ouverte à toute personne qui a
+      # l'URL et génère des lectures gratuites.
+      - key: ASTROLAB_PREVIEW_AUTH
+        sync: false
+
+      # --- dépense LLM ---------------------------------------------------
+      - key: ASTROLAB_LLM_BUDGET_USD
+        value: "0.50"
+      - key: ASTROLAB_LLM_BUDGET_PATH
+        value: /var/data/llm-budget.json
+      # Clés du rédacteur : à saisir dans le dashboard, jamais dans ce fichier.
+      # Sans clé, les dossiers restent des brouillons techniques avec socle
+      # vérifié complet (aucun appel, aucun coût).
+      - key: ASTROLAB_LLM_API_KEY
+        sync: false
+      - key: ASTROLAB_LLM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: ASTROLAB_LLM_MODEL
+        value: gpt-4o-mini
+
+      # --- liens envoyés -------------------------------------------------
+      # À remplacer par l'URL réelle du service après le premier déploiement
+      # (ex. https://lastro-vtest.onrender.com, puis https://vtest.lastro.fr).
+      - key: PUBLIC_BASE_URL
+        sync: false
