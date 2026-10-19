@@ -195,7 +195,7 @@ test("LLM instrumentation does not count a retry for the non-blocking sentence w
   assert.equal(resourceAttempt.errorType, null);
 });
 
-test("LLM instrumentation preserves a partial report when one logical call fails three attempts", async () => {
+test("LLM instrumentation preserves a partial report when one logical call is refused twice", async () => {
   const { dossierEvidence, sectionPlan } = planForFixture();
   const scoped = oneBlockSectionPlan(sectionPlan);
   const collector = createLlmInstrumentationCollector({ runId: "run-fail-three" });
@@ -210,15 +210,17 @@ test("LLM instrumentation preserves a partial report when one logical call fails
       sectionPlan: scoped,
       options: { config: fakeConfig(fetchFn), llmInstrumentation: collector, logger: { warn() {} } }
     }),
-    /rejected after/
+    // Le même refus se répète : on s'arrête après la deuxième tentative au lieu
+    // de payer un troisième appel qui ne peut pas changer de résultat.
+    (error) => error.code === "structured_section_validation_stalled"
   );
   const report = collector.report();
 
   assert.equal(report.logicalCalls, 1);
   assert.equal(report.failedLogicalCalls, 1);
-  assert.equal(report.applicationAttempts, 3);
-  assert.equal(report.failedApplicationAttempts, 3);
-  assert.equal(report.applicationRetries, 2);
+  assert.equal(report.applicationAttempts, 2);
+  assert.equal(report.failedApplicationAttempts, 2);
+  assert.equal(report.applicationRetries, 1);
 });
 
 test("LLM instrumentation handles missing usage and request id", async () => {

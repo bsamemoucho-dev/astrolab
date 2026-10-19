@@ -189,6 +189,17 @@ test("chaque section reçoit sa mission et ses listes d'idées, dans le plan com
       assert.ok(entree.label && entree.ideaId, "une idée doit être lisible par le rédacteur");
     }
   }
-  // La thèse est jointe à chaque section : le rédacteur peut la servir sans la répéter.
-  assert.ok(plan.sections.every((section) => section.editorialThesis?.statement));
+  // La thèse est une phrase factuelle : elle n'est jointe qu'aux sections qui
+  // peuvent citer ses preuves. Sinon le rédacteur était invité à écrire un fait
+  // que son bloc ne déclare pas (undeclared_text_fact), sans pouvoir le corriger.
+  const avecThese = plan.sections.filter((section) => section.editorialThesis?.statement);
+  assert.ok(avecThese.length > 0, "au moins le propriétaire de la thèse la reçoit");
+  assert.ok(plan.sections.some((section) => section.ownsThesis));
+  for (const section of avecThese) {
+    const declarees = new Set(section.evidencePackets.flatMap((packet) => packet.evidenceRefs ?? []));
+    assert.ok(
+      plan.editorialPlan.thesis.evidenceRefs.every((ref) => declarees.has(ref)),
+      `${section.sectionId} reçoit une thèse dont il ne peut pas citer tous les faits`
+    );
+  }
 });

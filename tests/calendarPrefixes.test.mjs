@@ -106,7 +106,7 @@ test('invalid server prefix is blocking, logged safely and makes zero LLM calls'
   assert.equal(JSON.stringify(logs).includes('Donnée privée'), false);
 });
 
-test('valid prefix plus invented LLM aspect keeps three blocking attempts, without prefix attribution', async () => {
+test('valid prefix plus invented LLM aspect stops after two attempts, without prefix attribution', async () => {
   const f = fixture();
   const logs = [];
   let calls = 0;
@@ -114,12 +114,13 @@ test('valid prefix plus invented LLM aspect keeps three blocking attempts, witho
   const fn = options.structuredWriterFn;
   options.structuredWriterFn = async (...args) => { calls++; return fn(...args); };
   await assert.rejects(writeStructuredSectionWithLlm({ ...f, options }), error => {
-    assert.equal(error.code, 'structured_block_validation_failed');
+    assert.equal(error.code, 'structured_section_validation_stalled');
     assert.ok(error.validation.issues.some(i => i.code === 'undeclared_text_fact'));
     return true;
   });
-  assert.equal(calls, 3);
-  assert.equal(logs.length, 3);
+  // Un refus identique ne justifie pas un troisième appel payant.
+  assert.equal(calls, 2);
+  assert.equal(logs.length, 2);
   assert.ok(logs.every(([, log]) => log.blockId === f.block.blockId && log.findings.every(finding => finding.provenance === 'combined_text')));
   assert.equal(JSON.stringify(logs).includes('audit@example.invalid'), false);
 });
@@ -127,7 +128,7 @@ test('valid prefix plus invented LLM aspect keeps three blocking attempts, witho
 test('a fact also written by the LLM is never assigned exclusively to server prefix', async () => {
   const f = fixture();
   const options = writerOptions(f, `${f.block.deterministicPrefix} Mars forme une opposition à votre Lune.`);
-  await assert.rejects(writeStructuredSectionWithLlm({ ...f, options }), error => error.code === 'structured_block_validation_failed');
+  await assert.rejects(writeStructuredSectionWithLlm({ ...f, options }), error => error.code === 'structured_section_validation_stalled');
 });
 
 for (const [aspect, word] of [['conjunction', 'conjonction'], ['opposition', 'opposition'], ['square', 'carré'], ['trine', 'trigone'], ['sextile', 'sextile']]) test(`real planetary aspect across an intervening March date: ${aspect}`, () => {

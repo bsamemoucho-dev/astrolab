@@ -742,7 +742,17 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     };
     section.editorialEngine = editorialEngine;
     section.aspectChapterMode = aspectChapterMode;
-    section.editorialThesis = editorialPlan?.thesis ?? null;
+    // La thèse est une PHRASE FACTUELLE : elle nomme les aspects de la figure
+    // (« le Soleil oppose la Lune ; Jupiter est en trigone avec… »). La
+    // transmettre à un chapitre qui ne possède pas ces preuves l'invitait à
+    // citer un fait que son bloc ne déclare pas : le validateur le refusait
+    // (undeclared_text_fact), la correction automatique recevait la même phrase
+    // à chaque essai, et deux appels supplémentaires étaient payés pour un
+    // refus déterministe. Seul le chapitre propriétaire de la thèse la reçoit ;
+    // les autres gardent leur mission, leurs idées et leurs propres preuves.
+    const thesisOwnedHere = Boolean(editorialPlan?.thesis && editorialPlan.thesis.owner === section.sectionId);
+    section.ownsThesis = thesisOwnedHere;
+    section.editorialThesis = thesisOwnedHere ? editorialPlan.thesis : null;
     // Le chapitre qui explore une figure reçoit ses hypothèses de lecture.
     section.readingHypotheses = (editorialPlan?.chapters ?? [])
       .find((entree) => entree.sectionId === section.sectionId)?.hypotheses ?? [];
@@ -768,6 +778,15 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     const compositionIdeas = (editorialPlan?.ideas ?? []).filter((idea) => idea.owner === section.sectionId && ["contextual_composition", "closing_composition"].includes(idea.kind));
     section.compositionMode = editorialPlan && aspectChapterMode === "reference" && (["general_synthesis", "conclusion"].includes(section.sectionId) || compositionIdeas.length > 0);
     section.evidencePackets = buildEvidencePackets({ section, byId }).map((packet) => ({ ...packet, ...(section.compositionMode ? { sourceRole: "licensed_composition_context" } : {}) }));
+    // Un chapitre qui déclare DÉJÀ tous les faits nommés par la thèse peut la
+    // recevoir sans élargir son autorisation : on ne transmet que ce qu'il a le
+    // droit d'écrire. Les autres n'en reçoivent pas la phrase.
+    if (!section.ownsThesis && editorialPlan?.thesis?.evidenceRefs?.length) {
+      const refsDeclarees = new Set(section.evidencePackets.flatMap((packet) => packet.evidenceRefs ?? []));
+      if (editorialPlan.thesis.evidenceRefs.every((ref) => refsDeclarees.has(ref))) {
+        section.editorialThesis = editorialPlan.thesis;
+      }
+    }
     if (section.compositionMode) {
       section.blockPlans = [{ blockId: "composition", packetRefs: section.evidencePackets.map((packet) => packet.packetId) }];
     } else if (editorialPlan && aspectChapterMode === "reference" && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId)) {

@@ -451,6 +451,7 @@ function correctionIssuesForPrompt({ validation, section, sectionPlan }) {
       evidenceRef: issue.evidenceRef ?? null,
       ruleId: issue.ruleId ?? null,
       fact: issue.fact ?? null,
+      factText: factDescription(issue.fact),
       expectedHint: claimShapeHelp(issue),
       authorizedBlockPlans,
       block: block
@@ -473,6 +474,71 @@ function sentenceLimitWarnings(validation) {
 }
 
 // Deliberately exclude prose, messages, dates, evidence IDs and input data.
+// --- Faits refusés, en français -------------------------------------------
+// Le journal affichait `fact: [Object]` : impossible de savoir QUEL fait avait
+// été refusé, donc impossible de corriger la cause. Ces deux fonctions donnent
+// une forme lisible, utilisée dans les journaux ET dans la consigne de
+// correction envoyée au modèle.
+
+const FACT_BODY_FR = {
+  Sun: "le Soleil", Moon: "la Lune", Mercury: "Mercure", Venus: "Vénus", Mars: "Mars",
+  Jupiter: "Jupiter", Saturn: "Saturne", Uranus: "Uranus", Neptune: "Neptune", Pluto: "Pluton",
+  Chiron: "Chiron", NorthNode: "le Nœud Nord", SouthNode: "le Nœud Sud"
+};
+const FACT_SIGN_FR = {
+  Aries: "Bélier", Taurus: "Taureau", Gemini: "Gémeaux", Cancer: "Cancer", Leo: "Lion", Virgo: "Vierge",
+  Libra: "Balance", Scorpio: "Scorpion", Sagittarius: "Sagittaire", Capricorn: "Capricorne",
+  Aquarius: "Verseau", Pisces: "Poissons"
+};
+const FACT_ANGLE_FR = { ascendant: "l'Ascendant", descendant: "le Descendant", midheaven: "le Milieu du ciel" };
+const FACT_ASPECT_FR = {
+  conjunction: "en conjonction", opposition: "en opposition", trine: "en trigone",
+  square: "en carré", sextile: "en sextile", quincunx: "en quinconce"
+};
+
+function factDescription(fact) {
+  if (!fact) return null;
+  const body = (value) => FACT_BODY_FR[value] ?? String(value);
+  const sign = (value) => FACT_SIGN_FR[value] ?? String(value);
+  if (fact.type === "NATAL_BODY_SIGN") return `${body(fact.body)} en ${sign(fact.sign)}`;
+  if (fact.type === "NATAL_BODY_HOUSE") {
+    return fact.body ? `${body(fact.body)} en maison ${fact.house}` : `la maison ${fact.house}`;
+  }
+  if (fact.type === "ANGLE_SIGN") return `${FACT_ANGLE_FR[fact.angle] ?? String(fact.angle)} en ${sign(fact.sign)}`;
+  if (fact.type === "ASPECT") {
+    return `${body(fact.bodyA)} ${FACT_ASPECT_FR[fact.aspectType] ?? `en ${String(fact.aspectType)}`} ${body(fact.bodyB)}`;
+  }
+  // Type inconnu : on ne renvoie RIEN plutôt que de sérialiser l'objet brut.
+  // Le journal a déjà montré qu'un fait brut pouvait transporter des valeurs
+  // (dates, orbes) que rien n'oblige à recopier dans les journaux.
+  return null;
+}
+
+function refusedFactTexts(validation) {
+  return [...new Set(
+    (validation?.issues ?? [])
+      .filter((issue) => issue.severity !== "warning" && issue.fact)
+      .map((issue) => factDescription(issue.fact))
+      .filter(Boolean)
+  )];
+}
+
+function stableFactKey(fact) {
+  if (!fact) return "";
+  return Object.keys(fact).sort().map((key) => `${key}=${String(fact[key])}`).join(",");
+}
+
+// Un refus identique d'un essai au suivant ne guérira pas : la consigne envoyée
+// est la même, et le fait vient du contexte du bloc, pas d'une formulation
+// maladroite. On s'en sert pour arrêter avant un troisième appel payant.
+function refusalSignature(validation) {
+  const entries = (validation?.issues ?? [])
+    .filter((issue) => issue.severity !== "warning")
+    .map((issue) => `${issue.code}|${stableFactKey(issue.fact)}`)
+    .sort();
+  return entries.length > 0 ? entries.join(" · ") : null;
+}
+
 function safeValidationFindings(validation, provenance) {
   const safeKeys = ["type", "body", "bodyA", "bodyB", "transitBody", "natalPoint", "aspectType", "sign", "house", "angle", "role"];
   return (validation?.issues ?? []).map((issue) => ({
@@ -482,7 +548,9 @@ function safeValidationFindings(validation, provenance) {
       detection: issue.provenance,
       aspects: issue.rejectedAspects.map((aspect) => Object.fromEntries(["bodyA", "bodyB", "aspectType"].map((key) => [key, aspect[key]])))
     } : {}),
-    fact: issue.fact ? Object.fromEntries(safeKeys.filter((key) => issue.fact[key] !== undefined).map((key) => [key, issue.fact[key]])) : null
+    fact: issue.fact ? Object.fromEntries(safeKeys.filter((key) => issue.fact[key] !== undefined).map((key) => [key, issue.fact[key]])) : null,
+    // Sans cette ligne, le journal d'exploitation affichait `fact: [Object]`.
+    factText: factDescription(issue.fact)
   }));
 }
 
@@ -786,6 +854,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
   }
 
   let correctionIssues = [];
+  let previousRefusalSignature = null;
   let lastSection = null;
   let lastValidation = null;
   let llmCalls = 0;
@@ -972,6 +1041,29 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
         errorType: "validation_correction"
       });
       logStructuredValidationFailure({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
+      // Refus identique au précédent : la deuxième correction ne peut pas
+      // aboutir, puisque le contexte n'a pas changé. On s'arrête là plutôt que
+      // de payer un troisième appel pour le même constat.
+      const signature = refusalSignature(validation);
+      if (attempt > 0 && signature !== null && signature === previousRefusalSignature) {
+        const refusedFacts = refusedFactTexts(validation);
+        const stalled = new Error(
+          `Bloc ${sectionPlan.sectionId}.${blockPlan.blockId} : le même refus s'est reproduit à ${attempt + 1} essais` +
+            (refusedFacts.length ? ` (${refusedFacts.join(" ; ")})` : "") +
+            ". La correction automatique ne peut pas le lever : arrêt avant un appel supplémentaire."
+        );
+        stalled.status = 502;
+        stalled.code = "structured_section_validation_stalled";
+        stalled.sectionId = sectionPlan.sectionId;
+        stalled.blockId = blockPlan.blockId;
+        stalled.refusedFacts = refusedFacts;
+        stalled.validation = validation;
+        stalled.llmCalls = llmCalls;
+        stalled.attempts = attempt + 1;
+        instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
+        throw stalled;
+      }
+      previousRefusalSignature = signature;
       correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan: scopedPlan });
       continue;
     }
@@ -1001,6 +1093,26 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       };
     }
     logStructuredValidationFailure({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
+    const signature = refusalSignature(validation);
+    if (attempt > 0 && signature !== null && signature === previousRefusalSignature) {
+      const refusedFacts = refusedFactTexts(validation);
+      const stalled = new Error(
+        `Bloc ${sectionPlan.sectionId}.${blockPlan.blockId} : le même refus s'est reproduit à ${attempt + 1} essais` +
+          (refusedFacts.length ? ` (${refusedFacts.join(" ; ")})` : "") +
+          ". La correction automatique ne peut pas le lever : arrêt avant un appel supplémentaire."
+      );
+      stalled.status = 502;
+      stalled.code = "structured_section_validation_stalled";
+      stalled.sectionId = sectionPlan.sectionId;
+      stalled.blockId = blockPlan.blockId;
+      stalled.refusedFacts = refusedFacts;
+      stalled.validation = validation;
+      stalled.llmCalls = llmCalls;
+      stalled.attempts = attempt + 1;
+      instrumentation?.finishLogicalCall({ logicalCallId, status: "failed" });
+      throw stalled;
+    }
+    previousRefusalSignature = signature;
     correctionIssues = correctionIssuesForPrompt({ validation, section, sectionPlan: scopedPlan });
   }
 

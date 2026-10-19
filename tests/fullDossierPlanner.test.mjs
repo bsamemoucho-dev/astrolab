@@ -737,7 +737,7 @@ test("a natal placement not added to the BlockPlan remains inaccessible", async 
       }
     }),
     (error) => {
-      assert.equal(error.code, "structured_block_validation_failed");
+      assert.equal(error.code, "structured_section_validation_stalled");
       assert.ok(error.validation.issues.some((issue) => issue.code === "undeclared_text_fact"));
       return true;
     }
