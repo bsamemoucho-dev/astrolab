@@ -1,0 +1,56 @@
+{
+ "ceilingCalls": 4,
+ "ceilingUsd": 0.05,
+ "calls": [
+  {
+   "sectionId": "internal_tensions",
+   "blockId": "block1",
+   "requestedModel": "gpt-4o-mini",
+   "respondedModel": "gpt-4o-mini-2024-07-18",
+   "promptTokens": 1279,
+   "completionTokens": 185,
+   "finishReason": "stop",
+   "durationMs": 3877,
+   "httpStatus": 200,
+   "costUsd": 0.000303
+  },
+  {
+   "sectionId": "supporting_resources",
+   "blockId": "block1",
+   "requestedModel": "gpt-4o-mini",
+   "respondedModel": "gpt-4o-mini-2024-07-18",
+   "promptTokens": 1461,
+   "completionTokens": 207,
+   "finishReason": "stop",
+   "durationMs": 3510,
+   "httpStatus": 200,
+   "costUsd": 0.000343
+  },
+  {
+   "sectionId": "major_aspects",
+   "blockId": "block1",
+   "requestedModel": "gpt-4o-mini",
+   "respondedModel": "gpt-4o-mini-2024-07-18",
+   "promptTokens": 1666,
+   "completionTokens": 280,
+   "finishReason": "stop",
+   "durationMs": 3813,
+   "httpStatus": 200,
+   "costUsd": 0.000418
+  },
+  {
+   "sectionId": "major_aspects",
+   "blockId": "block2",
+   "requestedModel": "gpt-4o-mini",
+   "respondedModel": "gpt-4o-mini-2024-07-18",
+   "promptTokens": 1069,
+   "completionTokens": 130,
+   "finishReason": "stop",
+   "durationMs": 2566,
+   "httpStatus": 200,
+   "costUsd": 0.000238
+  }
+ ],
+ "totalCalls": 4,
+ "totalCostUsd": 0.001302
+}
