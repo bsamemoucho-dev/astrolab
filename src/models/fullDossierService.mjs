@@ -4,6 +4,7 @@ import { buildDossierEvidence } from "../deliverables/dossierEvidence.mjs";
 import { buildFullDossierPlan } from "../deliverables/fullDossierPlan.mjs";
 import { writeStructuredSectionWithLlm, writeStructuredSectionsWithLlm } from "../deliverables/structuredSectionWriter.mjs";
 import { validateStructuredSections } from "../deliverables/factualClaimsValidator.mjs";
+import { mergeRelationalSubsections, renderableDossierSection } from "../deliverables/dossierPresentation.mjs";
 import { chartSection } from "../deliverables/chart.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { aiNotice, docStrings, normalizeLanguage } from "../deliverables/i18n.mjs";
@@ -43,7 +44,7 @@ const SECTION_TITLES_FR = Object.freeze({
   next_weeks: "Mes prochaines semaines",
   conclusion: "Conclusion",
   relational_communication: "Communication relationnelle",
-  relational_affection: "Manière d'exprimer son affection"
+  relational_affection: "Votre manière d'exprimer votre affection"
 });
 
 const RELATIONAL_DOSSIER_SCHEMA = "astrolab.individual_relational_public_v1";
@@ -55,7 +56,8 @@ const RELATIONAL_AXIS_RENDERERS = Object.freeze({
 function hasWritableSectionPlan(sectionPlan) {
   return (
     (sectionPlan?.blockPlans ?? []).length > 0 &&
-    (sectionPlan?.allowedInterpretationRuleRefs ?? []).length > 0 &&
+    ((sectionPlan?.allowedInterpretationRuleRefs ?? []).length > 0 ||
+      (sectionPlan?.blockPlans ?? []).some((blockPlan) => blockPlan.deterministic)) &&
     (sectionPlan?.evidencePackets ?? []).length > 0
   );
 }
@@ -158,41 +160,9 @@ async function currentSkyForPublicReading({ calculation, generatedAt, options })
   });
 }
 
-function blockText(section) {
-  return (section.blocks ?? []).map((block) => block.text).filter(Boolean).join("\n\n");
-}
-
 function renderableSection(section, strings, sectionPlan, dossierEvidence) {
-  // Display only actually used, owned natal aspects; not a second copy of the annex.
-  const used = new Set((section.blocks ?? []).flatMap((block) => block.evidenceRefs ?? []));
-  const primary = new Set(sectionPlan?.primaryEvidenceRefs ?? []);
-  const aspects = (dossierEvidence?.evidence ?? []).filter((item) => item.type === "NATAL_ASPECT" && primary.has(item.evidenceId) && used.has(item.evidenceId));
-  const showFacts = !["general_synthesis", "conclusion", "major_aspects"].includes(section.sectionId) && aspects.length > 0 && aspects.length <= 3;
-  const labels = { fr: "Configurations étudiées", en: "Configurations explored", de: "Betrachtete Konfigurationen", es: "Configuraciones estudiadas", it: "Configurazioni esaminate", pt: "Configurações analisadas", no: "Konfigurasjoner som undersøkes", da: "Undersøgte konfigurationer", nl: "Onderzochte configuraties" };
-  const facts = showFacts ? aspects.map(({ value }) => `${strings.planets?.[value.bodyA] ?? value.bodyA}–${strings.planets?.[value.bodyB] ?? value.bodyB} : ${strings.aspects?.[value.aspectType] ?? value.aspectType}`) : [];
-  const displayedRefs = new Set(showFacts ? aspects.map((item) => item.evidenceId) : []);
-  const text = (section.blocks ?? []).map((block) => {
-    const prefix = sectionPlan?.blockPlans?.find((plan) => plan.blockId === block.blockId)?.deterministicPrefix;
-    const blockAspects = (dossierEvidence?.evidence ?? []).filter((item) => item.type === "NATAL_ASPECT" && (block.evidenceRefs ?? []).includes(item.evidenceId));
-    // Validation ran on the complete original text. Only its server-owned factual
-    // lead moves to the distinct panel; no generated prose or transit date is removed.
-    return showFacts && prefix && block.text.startsWith(prefix) && blockAspects.length > 0 && blockAspects.every((item) => displayedRefs.has(item.evidenceId))
-      ? block.text.slice(prefix.length).trim() : block.text;
-  }).filter(Boolean).join("\n\n");
-  return {
-    id: section.sectionId,
-    title: strings.sectionTitles?.[section.sectionId] ?? SECTION_TITLES_FR[section.sectionId] ?? section.sectionId,
-    rank: null,
-    badgeCode: "symbolic",
-    badgeLabel: strings.badgeSymbolic,
-    kind: "symbolic",
-    provider: "llm",
-    status: "ok",
-    text,
-    configurationsLabel: labels[strings.lang] ?? labels.fr,
-    configurationsStudied: facts,
-    validation: { ok: true, issues: [] }
-  };
+  return renderableDossierSection({ section, strings, sectionPlan, dossierEvidence,
+    title: strings.sectionTitles?.[section.sectionId] ?? SECTION_TITLES_FR[section.sectionId] ?? section.sectionId });
 }
 
 function publicSectionSummary(section) {
@@ -308,9 +278,10 @@ async function writeRelationalSections({ dossierEvidence, plans, options, config
   };
 }
 
-function renderRelationalSection(section) {
+function renderRelationalSection(section, strings, sectionPlan, dossierEvidence) {
   const renderer = RELATIONAL_AXIS_RENDERERS[section.sectionId];
-  return renderer ? renderer(section) : null;
+  if (!renderer) return null;
+  return renderableDossierSection({ section, strings, sectionPlan, dossierEvidence, title: renderer(section).title });
 }
 
 function logFullDossier({ startedAt, generated, relationalGenerated, dossierEvidence, fullDossierPlan, validation, reading }) {
@@ -413,8 +384,9 @@ export async function createFullPublicReading(input = {}, options = {}) {
   const socle = buildSocle(calculation.result, strings);
   socle.person = personInfo;
   const renderedSymbolicSections = generated.sections.map((section) => renderableSection(section, strings, fullDossierPlan.sections.find((plan) => plan.sectionId === section.sectionId), dossierEvidence));
-  const renderedRelationalSections = relationalGenerated.sections.map(renderRelationalSection).filter(Boolean);
-  const fullSections = [chartSection(socle, strings), ...renderedSymbolicSections, ...renderedRelationalSections, ...annexSections(socle, strings)];
+  const renderedRelationalSections = relationalGenerated.sections.map((section) => renderRelationalSection(section, strings, relationalGenerated.plan.sections.find((plan) => plan.sectionId === section.sectionId), dossierEvidence)).filter(Boolean);
+  const presentedSections = mergeRelationalSubsections(renderedSymbolicSections, renderedRelationalSections);
+  const fullSections = [chartSection(socle, strings), ...presentedSections, ...annexSections(socle, strings)];
   // These lexical measurements are diagnostics, not an independent semantic
   // approval or a reason to manufacture another paid rewrite.
   const editorialDiagnostics = { version: EDITORIAL_DIAGNOSTICS_VERSION, scope: "lexical_repetition_only", blocksDelivery: false, repetitions: crossChapterRepetition({ sections: [...renderedSymbolicSections, ...renderedRelationalSections] }) };

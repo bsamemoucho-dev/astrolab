@@ -433,8 +433,8 @@ export function buildIndividualRelationalAffectionPlan(dossierEvidence) {
 
   const section = {
     sectionId: AFFECTION_SECTION_ID,
-    title: "Manière d'exprimer son affection",
-    objective: "Décrire comment la personne donne et manifeste son affection, sans traiter la réception de l'affection, la séduction, le désir ou les besoins relationnels.",
+    title: "Votre manière d'exprimer votre affection",
+    objective: "Présenter des possibilités symboliques dans la manière de donner et de manifester son affection, sans attribuer un comportement observé ni traiter la réception de l'affection, la séduction, le désir ou les besoins relationnels.",
     minWords: 100,
     targetWords: 220,
     maxWords: 420,
@@ -458,8 +458,11 @@ export function buildIndividualRelationalAffectionPlan(dossierEvidence) {
     },
     writerGuidance: [
       "Verticale : Moi en relation.",
-      "Section unique : Manière d'exprimer son affection.",
-      "Angle : comment la personne donne et manifeste son affection.",
+      "Section unique : Votre manière d'exprimer votre affection.",
+      "Angle : possibilités symboliques dans la manière de donner et de manifester son affection.",
+      "Les thèmes transmis sont des possibilités symboliques, jamais des faits observés sur la personne. Ne les transforme pas en trait établi : 'Vous manifestez votre affection' ou 'Vous exprimez votre affection' ne peut pas être affirmé comme un comportement connu.",
+      "Porte cette prudence dans la phrase du thème, sans préambule ajouté : une possibilité, une forme d'expression envisageable, une ressource à explorer. Ne transforme pas cette nuance en nouvelle capacité ni en motivation absente du thème.",
+      "Varie les formulations sans répéter 'vous pourriez' ou 'pourrait' à chaque phrase ; le statut symbolique ne doit pas devenir un gabarit. Aucune question au lecteur n'est nécessaire.",
       "Ne traite pas la manière de recevoir l'affection, les besoins affectifs, la séduction, le désir, la communication ou la synastrie.",
       "N'interprète jamais librement un aspect ou un signe : utilise seulement les thèmes Lastro transmis dans les packets.",
       "Si des aspects sont transmis, le signe de Vénus ne doit pas être développé.",
@@ -540,7 +543,7 @@ export function relationalCommunicationSectionForRender(section) {
 export function relationalAffectionSectionForRender(section) {
   return {
     id: AFFECTION_SECTION_ID,
-    title: "Manière d'exprimer son affection",
+    title: "Votre manière d'exprimer votre affection",
     badgeCode: "symbolic",
     badgeLabel: "Interprétation Lastro",
     status: "ok",

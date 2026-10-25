@@ -15,10 +15,11 @@ const appJs = read("public/app.js");
 const styles = read("public/styles.css");
 
 const TITLE = "Votre signe n’est que le début de l’histoire";
+const SOLAR_EXPLANATION = "Quand vous dites « Je suis Balance ou Capricorne », vous parlez de votre signe solaire : la position du Soleil dans le zodiaque au moment de votre naissance.";
 const LEAD =
-  "Quand vous dites « Je suis Balance ou Capricorne », vous parlez de votre signe solaire : la position du Soleil dans le zodiaque au moment de votre naissance.";
+  "Votre thème de naissance, expliqué avec clarté. Une lecture symbolique de vos relations, de vos émotions et de votre manière d’agir, à explorer à votre rythme.";
 const INTRO_PEDAGOGY =
-  "Mais ce jour-là, la Lune, Mercure, Vénus, Mars et les autres planètes occupaient chacune un signe, souvent différent. Vous n’avez donc pas un seul signe : vous avez tout un thème à explorer.";
+  `${SOLAR_EXPLANATION} Mais ce jour-là, la Lune, Mercure, Vénus, Mars et les autres planètes occupaient chacune un signe, souvent différent. Vous n’avez donc pas un seul signe : vous avez tout un thème à explorer.`;
 const HIGHLIGHT = "Vous n’avez donc pas un seul signe : vous avez tout un thème à explorer.";
 const ASTRES = [
   ["le Soleil", "ce que vous cherchez à incarner ;"],
@@ -87,7 +88,7 @@ test("l'introduction est rendue au-dessus du bouton principal, lui-même au-dess
   assert.ok(expressView.indexOf('id="guest-hero"') < pedagogyStart);
   assert.ok(pedagogyStart < expressView.indexOf('<div class="express-wrap">'));
   // Le bouton mène au formulaire existant, sans script supplémentaire.
-  assert.match(hero, /<a class="gold-btn hero-cta" href="#express-form" data-french-only>Découvrir mon thème<\/a>/);
+  assert.match(hero, /<a class="gold-btn hero-cta" href="#express-form">Découvrir mon thème<\/a>/);
 });
 
 test("la section pédagogique reprend exactement le texte fourni", () => {
@@ -148,13 +149,15 @@ test("la section pédagogique n'introduit aucun titre concurrent", () => {
 
 test("le contenu français ne s'affiche pas dans les autres langues", () => {
   // Les blocs ajoutés sont marqués, et la règle d'affichage s'appuie sur la langue du document.
-  assert.equal((expressView.match(/data-french-only/g) || []).length, 2, "bouton + section pédagogique");
+  assert.equal((expressView.match(/data-french-only/g) || []).length, 4, "cadrage, découverte, étapes et section pédagogique");
   assert.match(styles, /:root:not\(\[lang="fr"\]\) \[data-french-only\] \{ display: none !important; \}/);
   assert.match(indexHtml, /<html lang="fr">/);
   assert.match(appJs, /document\.documentElement\.lang = currentLanguage\(\);/);
+  assert.equal((appJs.match(/heroCta: /g) || []).length, 9, "le bouton principal est traduit dans les neuf langues");
+  assert.match(appJs, /setNodeText\("#guest-hero \.hero-cta", t\.heroCta\)/);
   // Aucun autre libellé de langue n'a reçu le texte français.
   assert.equal(appJs.split("le début de l’histoire").length - 1, 1);
-  assert.equal(appJs.split("Balance ou Capricorne").length - 1, 1);
+  assert.equal(appJs.split("Balance ou Capricorne").length - 1, 0, "l’explication pédagogique reste dans son bloc français, sans doublon de traduction");
   assert.ok(appJs.includes('heroTitle: "Welcome to <span>Lastro</span>."'), "l'anglais garde son titre");
 });
 
@@ -187,4 +190,25 @@ test("les styles de la section pédagogique suivent le design existant", () => {
   assert.match(styles, /@media \(max-width: 360px\) \{\s*#guest-hero h1 \{ font-size: clamp\(1\.45rem, 6\.6vw, 1\.8rem\)/);
   // Aucun encadré promotionnel ajouté autour de la signature.
   assert.doesNotMatch(styles, /\.pedagogy-signature \{[^}]*border-radius/);
+});
+
+
+test("l’accueil propose uniquement des découvertes existantes et ne fabrique aucun horoscope", () => {
+  assert.match(hero, /href="\/ciel\/"/);
+  assert.match(hero, /href="\/guides\/"/);
+  assert.match(hero, /consultez les dates calculées/);
+  assert.match(hero, /sans prédiction ni diagnostic/);
+  assert.doesNotMatch(hero, /<svg|<canvas|19 €|29 €|24 €|Ils nous font confiance|des milliers|signe du jour/);
+  assert.ok(hero.indexOf('href="#express-form"') < hero.indexOf('class="home-note"'), "l’action principale reste le formulaire existant");
+});
+
+test("la pédagogie complète reste consultable sans imposer un long texte avant le formulaire", () => {
+  assert.match(pedagogy, /<details>\s*<summary>Pourquoi votre thème ne se résume pas à votre signe<\/summary>/);
+  assert.doesNotMatch(pedagogy, /<details[^>]*\bopen\b/);
+  assert.ok(pedagogy.includes(SOLAR_EXPLANATION));
+  assert.ok(pedagogy.includes(SIGNATURE));
+  assert.match(expressView, /type="checkbox" id="ai-consent"/);
+  for (const name of ["deliveryEmail", "birthDate", "birthPlace"]) {
+    assert.match(expressView, new RegExp(`name="${name}"`));
+  }
 });

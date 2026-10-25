@@ -18,12 +18,12 @@ import { composeEditorialMaterial } from "./editorialComposition.mjs";
 import { semanticsCoverage } from "./interpretationRules.mjs";
 import { buildReadingHypotheses } from "./readingHypotheses.mjs";
 
-export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.2.0";
+export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.3.0";
 
 // Missions par chapitre — version courte, injectée telle quelle dans le prompt.
 const MISSIONS = {
   general_synthesis:
-    "Présente le fil conducteur étayé et les principales différences entre les dynamiques du thème. Compose une vue d’ensemble utile à partir des seules relations autorisées, sans refaire les interprétations détaillées des chapitres.",
+    "Présente brièvement le fil conducteur étayé et les principales différences entre les dynamiques du thème, en termes compréhensibles. Annonce ce qui mérite d’être exploré sans développer les situations concrètes réservées aux chapitres propriétaires. Ne transforme pas la synthèse en trois reformulations du même réseau.",
   internal_tensions:
     "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
   supporting_resources:
@@ -31,7 +31,7 @@ const MISSIONS = {
   major_aspects:
     "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. N'ajoute pas de commentaire de matière insuffisante ni de remplissage.",
   conclusion:
-    "Dégage ce que la lecture apporte dans son ensemble à partir des textes déjà produits et des relations autorisées. Ne conclus ni par une liste de placements ni par une nouvelle interprétation ; distingue les dynamiques indépendantes et termine par une ouverture, sans question obligatoire.",
+    "Rassemble ce que la lecture permet de distinguer ou de mettre en perspective à partir des textes déjà produits et des relations autorisées. Termine par une ouverture sobre, sans question obligatoire. Ne réexplique ni le réseau de la synthèse, ni les fonctions des planètes, ni les exemples déjà développés. N’ajoute aucune interaction ni aucun commentaire sur l’absence de lien calculé.",
   // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
   exploration:
     "Tu explores UNE figure calculée, pas des aspects séparés. Trois mouvements, sans les titrer : " +
@@ -47,7 +47,7 @@ const MISSIONS = {
   communication: "Décris la circulation mentale et l'expression à partir de Mercure.",
   affectivity: "Décris la manière d'accorder de la valeur et de s'attacher, à partir de Vénus.",
   action: "Décris la manière d'agir et de défendre à partir de Mars.",
-  relationships: "Décris la manière d'entrer en relation, sans inventer de relation réelle.",
+  relationships: "Développe les enjeux de lien et d’engagement à partir des seuls placements et relations autorisés. Ce chapitre porte leur application concrète : une situation explicitement hypothétique peut éclairer un choix ou une distinction déjà contenus dans les règles. N’attribue au lecteur aucun partenaire, comportement ou vécu réel ; ne répète pas le panorama de la synthèse.",
   work_realization: "Développe seulement l'apport propre des règles autorisées dans ce chapitre, sans répéter les qualités déjà traitées dans Identité. Ne déduis ni métier ni réussite professionnelle ; si aucune idée distincte n'est disponible, n'ajoute pas de discours général sur le travail.",
   security_resources: "Exploite seulement les significations disponibles pour la sécurité et les ressources, sans déduire situation financière, biens ou stabilité matérielle. Aucun développement générique si ces preuves n'apportent pas d'idée distincte aux autres chapitres.",
   creativity: "Décris les modes d'expression créative à partir des faits disponibles.",

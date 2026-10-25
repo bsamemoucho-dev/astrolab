@@ -52,9 +52,12 @@ test("a chapter-level thesis never leaks into its partial primary or recall bloc
   const { plan } = fixture();
   const section = sectionById(plan, "supporting_resources");
   assert.ok(section.editorialThesis, "the section itself declares all figure facts");
-  assert.deepEqual(section.blockPlans.map((block) => block.blockId), ["block1", "brief_recall"]);
+  assert.deepEqual(section.blockPlans.map((block) => block.blockId), ["block1"]);
+  const referencePackets = section.evidencePackets.filter((packet) => !section.blockPlans[0].packetRefs.includes(packet.packetId));
+  assert.ok(referencePackets.length > 0, "the closed reference context must remain covered even without an orphan recap paragraph");
+  const referenceFixture = { blockId: "reference_scope_fixture", packetRefs: referencePackets.map((packet) => packet.packetId) };
   const before = JSON.stringify(section);
-  for (const block of section.blockPlans) {
+  for (const block of [...section.blockPlans, referenceFixture]) {
     const scoped = scopedSectionPlanForBlock(section, block);
     const refs = scopedRefs(scoped);
     assert.ok(section.editorialThesis.evidenceRefs.some((ref) => !refs.has(ref)), "regression fixture must remain partially scoped");

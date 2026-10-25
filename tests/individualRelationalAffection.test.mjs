@@ -240,6 +240,28 @@ test("les consignes de resserrement du writer sont limitées à Affection", () =
   assert.match(affectionGuidance, /Ne commence pas les blocs resource ou attention_point par : Vous exprimez votre affection/);
 });
 
+test("Affection reste une possibilité symbolique sans étendre les preuves ni les thèmes transmis", () => {
+  const dossierEvidence = dossier([natalAspect("Sun", "Venus", "conjunction")]);
+  const original = structuredClone(dossierEvidence);
+  const plan = buildIndividualRelationalAffectionPlan(dossierEvidence);
+  const section = plan.sections[0];
+  const guidance = section.writerGuidance.join("\n");
+  assert.equal(section.title, "Votre manière d'exprimer votre affection");
+  assert.match(guidance, /possibilités symboliques, jamais des faits observés/);
+  assert.match(guidance, /Ne les transforme pas en trait établi/);
+  assert.match(guidance, /sans préambule ajouté/);
+  assert.match(guidance, /sans répéter 'vous pourriez'/);
+  assert.match(guidance, /Écris une seule phrase maximum par thème/);
+  assert.deepEqual(section.rules.selectedRuleRefs, ["western.relational.affection.sun_venus.conjunction@1"]);
+  for (const packet of section.evidencePackets) {
+    const rule = interpretationRuleById(packet.interpretationRuleRefs[0]);
+    const roleField = { spontaneous_dynamic: "spontaneousThemes", resource: "resourceThemes", attention_point: "attentionThemes" }[packet.narrativeRole];
+    assert.deepEqual(packet.themes, rule.relationalAffection[roleField]);
+    assert.deepEqual(packet.evidenceRefs, [dossierEvidence.evidence.find((item) => item.type === "NATAL_ASPECT").evidenceId]);
+  }
+  assert.deepEqual(dossierEvidence, original);
+});
+
 test("le fallback Venus sign est utilisé uniquement sans aspect certain", () => {
   const { sectionPlan } = planFor([]);
   assert.deepEqual(selectedRules(sectionPlan), ["western.relational.affection.venus.sign.aries@1"]);
@@ -432,8 +454,8 @@ test("le renderer Affection masque les métadonnées sans modifier la section so
     createdAt: "2026-10-10T00:00:00.000Z",
     sections: [rendered]
   });
-  assert.match(html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
-  assert.match(markdown, /## Manière d'exprimer son affection/);
+  assert.match(html, /Votre manière d&#39;exprimer votre affection|Votre manière d'exprimer votre affection/);
+  assert.match(markdown, /## Votre manière d'exprimer votre affection/);
 });
 
 test("DossierEvidence ajoute seulement des métadonnées de certitude aux preuves existantes", () => {

@@ -180,7 +180,7 @@ test("FullDossierPlan defines sections, ownership and authorized rules from Doss
   const emotional = sectionPlanById(fullDossierPlan, "emotional_world");
   const current = sectionPlanById(fullDossierPlan, "current_sky");
 
-  assert.equal(fullDossierPlan.version, "full-dossier-plan@0.4.0");
+  assert.equal(fullDossierPlan.version, "full-dossier-plan@0.5.0");
   assert.ok(fullDossierPlan.sections.length >= 17);
   assert.ok(identity.primaryEvidenceRefs.includes("natal.sun.sign"));
   assert.ok(emotional.primaryEvidenceRefs.includes("natal.moon.sign"));
@@ -1081,7 +1081,7 @@ test("transit block plans expose deterministic temporal wording from calculated 
   const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
 
   assert.ok(transitBlock.deterministicPrefix.includes("Jupiter forme un carré à votre Soleil"));
-  assert.ok(transitBlock.deterministicPrefix.includes("entre le 1 octobre 2026 et le 24 octobre 2026"));
+  assert.ok(transitBlock.deterministicPrefix.includes("entre le 1er octobre 2026 et le 24 octobre 2026"));
   assert.ok(transitBlock.deterministicPrefix.includes("L'aspect sera exact le 12 octobre 2026"));
   assert.equal(transitBlock.deterministicPrefix.includes("APPLYING"), false);
 });

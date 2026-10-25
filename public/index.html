@@ -15,7 +15,7 @@
     <meta property="og:title" content="Lastro — Lecture symbolique personnalisée">
     <meta property="og:description" content="Votre lecture astrologique personnalisée, avec le socle de calcul vérifié en annexe. Symbolique, non prédictive.">
     <meta name="twitter:card" content="summary">
-    <meta name="theme-color" content="#7c5cff">
+    <meta name="theme-color" content="#faf8f3">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <script>
       if (window.location.protocol === "file:") {
@@ -79,6 +79,10 @@
               </label>
             </div>
             <div class="guest-header-actions">
+              <nav class="guest-discover" aria-label="Explorer Lastro" data-french-only>
+                <a href="/ciel/">Ciel du moment</a>
+                <a href="/guides/">Guides</a>
+              </nav>
               <button id="guest-back" class="secondary" type="button" hidden>← Ma lecture</button>
               <button id="guest-pro-link" type="button">Connexion</button>
             </div>
@@ -412,14 +416,34 @@
 
         <section id="express-view" class="view">
           <div id="guest-hero" hidden>
-            <p class="hero-tag">✦ Lecture personnalisée</p>
-            <h1>Votre signe n’est que <span>le début de l’histoire</span></h1>
-            <p class="guest-lead">Quand vous dites « Je suis Balance ou Capricorne », vous parlez de votre signe solaire : la position du Soleil dans le zodiaque au moment de votre naissance.</p>
-            <a class="gold-btn hero-cta" href="#express-form" data-french-only>Découvrir mon thème</a>
+            <div class="home-welcome">
+              <div class="home-welcome-copy">
+                <p class="hero-tag">✦ Lecture personnalisée</p>
+                <h1>Votre signe n’est que <span>le début de l’histoire</span></h1>
+                <p class="guest-lead">Votre thème de naissance, expliqué avec clarté. Une lecture symbolique de vos relations, de vos émotions et de votre manière d’agir, à explorer à votre rythme.</p>
+                <a class="gold-btn hero-cta" href="#express-form">Découvrir mon thème</a>
+                <p class="home-scope" data-french-only>Des pistes de réflexion, sans prédiction ni diagnostic.</p>
+              </div>
+              <aside class="home-note" data-french-only aria-label="Découvrir Lastro">
+                <p class="home-note-kicker">À explorer, simplement</p>
+                <h2>Un ciel commun.<br>Une lecture personnelle.</h2>
+                <p>Le ciel change chaque jour. Votre thème, lui, part du lieu et du moment de votre naissance : il ne se résume pas à votre signe solaire.</p>
+                <a href="/ciel/" class="home-discover-link"><strong>Le ciel du moment <span aria-hidden="true">↗</span></strong><span>Lunaisons, changements de signe et aspects : consultez les dates calculées.</span></a>
+                <a href="/guides/" class="home-discover-link"><strong>Comprendre les bases <span aria-hidden="true">↗</span></strong><span>Des guides pour faire vos premiers pas dans le langage astrologique.</span></a>
+              </aside>
+            </div>
+            <div class="home-how" data-french-only aria-label="Votre lecture en trois étapes">
+              <p><span>01</span> Vous indiquez votre naissance</p>
+              <p><span>02</span> Lastro calcule votre thème</p>
+              <p><span>03</span> Vous recevez votre lecture et son PDF</p>
+            </div>
           </div>
 
           <div class="pedagogy" data-french-only>
-            <p>Mais ce jour-là, la Lune, Mercure, Vénus, Mars et les autres planètes occupaient chacune un signe, souvent différent. <strong class="pedagogy-highlight">Vous n’avez donc pas un seul signe : vous avez tout un thème à explorer.</strong></p>
+            <details>
+              <summary>Pourquoi votre thème ne se résume pas à votre signe</summary>
+              <div class="pedagogy-body">
+            <p>Quand vous dites « Je suis Balance ou Capricorne », vous parlez de votre signe solaire : la position du Soleil dans le zodiaque au moment de votre naissance. Mais ce jour-là, la Lune, Mercure, Vénus, Mars et les autres planètes occupaient chacune un signe, souvent différent. <strong class="pedagogy-highlight">Vous n’avez donc pas un seul signe : vous avez tout un thème à explorer.</strong></p>
             <p>Dans la tradition astrologique, chaque astre représente symboliquement une dimension de votre personnalité, et le signe qu’il occupe colore son expression :</p>
             <ul class="aster-list">
               <li><strong>le Soleil</strong> : ce que vous cherchez à incarner ;</li>
@@ -432,6 +456,8 @@
             <p>Les planètes entretiennent aussi des relations entre elles. Certaines configurations sont traditionnellement associées à des tensions, d’autres à des ressources ou à des équilibres. C’est cet ensemble que Lastro explore.</p>
             <p>À partir de vos informations de naissance, Lastro calcule la position des astres et leurs relations, puis construit une lecture symbolique de votre thème. Ce n’est pas un verdict sur qui vous êtes, ni une certitude sur ce que vous deviendrez : c’est une autre manière de vous questionner et de réfléchir à votre propre histoire.</p>
             <p class="pedagogy-signature">Car au fond, personne ne peut décider à votre place de ce qui vous ressemble.</p>
+              </div>
+            </details>
           </div>
 
           <div class="express-wrap">

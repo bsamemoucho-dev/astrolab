@@ -406,6 +406,12 @@ export function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
 }
 
 function deterministicTextForBlock(scopedPlan, blockPlan) {
+  // A calculated reference is the server's factual prefix itself, never prose
+  // synthesized from missing interpretation rules. Missing text must fail the
+  // ordinary validator rather than falling back to a generic client sentence.
+  if (blockPlan.calculatedReference === true) {
+    return typeof blockPlan.deterministicPrefix === "string" ? blockPlan.deterministicPrefix : "";
+  }
   const packet = (scopedPlan.evidencePackets ?? []).find((entry) => (blockPlan.packetRefs ?? []).includes(entry.packetId));
   const snapshot = (packet?.claims ?? []).find((claim) => claim.type === "TRANSIT_SNAPSHOT");
   if (snapshot) {
@@ -575,6 +581,18 @@ function logStructuredValidationFailure({ logger, sectionId, blockId = null, att
   });
 }
 
+function serverPrefixValidationError({ logger, sectionId, blockId, validation }) {
+  logStructuredValidationFailure({ logger, sectionId, blockId, attempt: 0, validation, provenance: "server_prefix" });
+  const error = new Error(`Server prefix validation failed for block ${blockId}`);
+  error.status = 500;
+  error.code = "SERVER_PREFIX_VALIDATION_FAILED";
+  error.sectionId = sectionId;
+  error.blockId = blockId;
+  error.provenance = "server_prefix";
+  error.validation = validation;
+  return error;
+}
+
 function logStructuredValidationWarnings({ logger, sectionId, blockId = null, attempt, validation }) {
   if (!logger?.warn) return;
   for (const warning of sentenceLimitWarnings(validation)) {
@@ -650,19 +668,30 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
-    "Pour une idée dont ce chapitre est propriétaire, explique ce que les concepts et leur relation apportent à la lecture : une nuance, un contraste ou une possibilité seulement si la règle transmise les porte. N'impose ni dilemme ni conflit à un placement de soutien. Ne fabrique pas plusieurs façons de vivre une configuration pour remplir le chapitre. La prudence porte sur le statut symbolique : décrire au présent la relation entre symboles n'attribue pas un trait au lecteur ; une question n'est jamais obligatoire.",
+    "Pour une idée dont ce chapitre est propriétaire, explique ce que les concepts et leur relation apportent à la lecture : une nuance, un contraste ou une possibilité seulement si la règle transmise les porte. N'impose ni dilemme ni conflit à un placement de soutien. La prudence porte sur le statut symbolique : décrire au présent la relation entre symboles n'attribue pas un trait au lecteur ; une question n'est jamais obligatoire.",
     "Une interaction reste interdite lorsqu’elle est formulée indirectement : cette harmonie, ces tensions, les dynamiques précédentes. Un pronom ou un renvoi ne crée aucune relation calculée.",
     // Contrat éditorial : ce que le rédacteur reçoit est un matériau, pas un texte.
     "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
     "Chaque paragraphe développe un apport distinct à partir d'une relation autorisée ; une liste de qualités, une paraphrase de placement ou un conseil valable pour tout le monde n'en tient pas lieu. Une explication courte et spécifique suffit quand les sources sont minces.",
     "Les nuances et limites sont des contraintes internes à appliquer, pas des avertissements à réciter après chaque placement. Le cadrage symbolique du dossier existe déjà : ne répète pas partout 'cela ne signifie pas que' ou 'on ne peut pas en déduire'. Garde seulement la limite propre à l'idée lorsqu'elle change réellement sa compréhension.",
+    "Pour rendre une idée intelligible, tu peux l'illustrer par une situation explicitement hypothétique : 'par exemple', 'une situation possible serait'. Cette illustration traduit seulement les concepts et la relation autorisés ; elle n'ajoute ni fait astrologique, ni trait psychologique établi, ni histoire du lecteur, ni résultat promis. Un exemple n'est utile que s'il éclaire une distinction propre à cette configuration ; il n'est jamais obligatoire et ne doit pas devenir un gabarit.",
+    "Distingue illustration et nouvelle interprétation : une façon possible d'exprimer un concept autorisé n'est pas une seconde hypothèse astrologique. Ne crée aucune signification, interaction, compensation ou causalité absente des règles pour rendre une scène plus vivante.",
     "Aucun conseil de bien-être interchangeable ni flatterie pour conclure un paragraphe : 'trouver votre équilibre', 'écouter votre intuition', 'accueillir vos émotions' ne remplacent pas l'explication de la configuration. N'ajoute pas un vécu, un métier, une relation réelle ou une ressource matérielle pour rendre l'idée concrète.",
     "Les croisements autorisés figurent dans `editorial.relationsAllowed` : ce sont les seuls. Tu n'en inventes aucun autre ; si un croisement te semble manquer, ne le fabrique pas.",
     "Dans un chapitre de composition, les idées réservées gardent leur développement détaillé dans leur chapitre propriétaire ; cela n’interdit pas d’en dégager le fil conducteur avec les packets licensed_composition_context. Cette composition n’est pas limitée à un rappel d’une phrase.",
     "`editorial.mayRecall` : idées déjà développées dans un chapitre précédent. Tu peux les nommer en une clause au maximum, jamais les redévelopper.",
     "`editorial.reserved` : idées réservées à un chapitre ultérieur. Tu ne les développes pas, même si les faits sont disponibles.",
-    "Écris des paragraphes courts, séparés par une ligne vide, chacun centré sur une seule idée. Explique les termes astrologiques indispensables en mots courants. Ne coupe pas artificiellement une idée pour allonger le document.",
+    ...(sectionPlan.sectionId === "general_synthesis" ? [
+      "Rôle de la synthèse : donner une orientation claire en un ou deux mouvements, sans épuiser l'interprétation des chapitres. Annonce le lien autorisé et la différence utile entre les dynamiques ; réserve les exemples et leurs développements au chapitre propriétaire."
+    ] : sectionPlan.sectionId === "relationships" ? [
+      "Rôle de Relations : développer ce que le panorama annonçait, dans les domaines de vie effectivement licenciés. Si les preuves de maisons et leurs règles sont transmises, relie ces domaines uniquement selon les relations autorisées ; donne une illustration possible de leur apport plutôt que de redire le schéma du réseau."
+    ] : sectionPlan.sectionId === "conclusion" ? [
+      "Rôle de la conclusion : rassembler des distinctions utiles issues de la lecture, sans refaire la synthèse ou expliquer une nouvelle fois les symboles. Utilise les textes validés pour éviter leurs formulations et leurs exemples ; une nouvelle manière de conclure ne crée aucune nouvelle interprétation.",
+      "Ne termine pas par un commentaire de rédacteur sur une planète qui resterait dans un registre distinct, une absence de lien ou une configuration qui ne devrait pas tout expliquer. Ces limites sont à respecter, pas à transformer en dernière leçon au lecteur."
+    ] : []),
+    "Écris des paragraphes courts, séparés par une ligne vide, chacun centré sur une seule idée. Répartis un long développement en plusieurs paragraphes naturels sans retirer de contenu ni ajouter de remplissage. Explique les termes astrologiques indispensables en mots courants. Ne coupe pas artificiellement une idée pour allonger le document.",
     "Adresse-toi au lecteur. N'ouvre pas un paragraphe par « La dynamique entre… », « Cette configuration indique… », « Par ailleurs » ou « Enfin » : chaque paragraphe porte une idée, pas un placement.",
+    "Ne remplace pas ces tics par un autre gabarit comme « Le dilemme… » puis « La limite apparaît… ». Un soutien peut être expliqué comme tel, sans lui inventer un conflit ; termine le paragraphe sur son apport au lieu d’ajouter une formule automatique.",
     "Arrête-toi lorsque les idées autorisées sont épuisées, sans ajouter de constat méthodologique, de remplissage ou d'excuse au lecteur.",
     // Chapitre qui explore une figure : plusieurs lectures, jamais un verdict.
     ...(Array.isArray(sectionPlan.readingHypotheses) && sectionPlan.readingHypotheses.length > 0
@@ -790,7 +819,7 @@ export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }
       },
       ...(editorial ? { editorial } : {}),
       correctionIssues,
-      ...(sectionPlan.sectionId === "conclusion" && sectionPlan.validatedChapterRecaps?.length ? { chapterRecaps: sectionPlan.validatedChapterRecaps, recapInstruction: "Textes déjà produits, faits contrôlés ; dégager leur apport sans les recopier et sans créer de nouvelle interaction." } : {}),
+      ...(sectionPlan.sectionId === "conclusion" && sectionPlan.validatedChapterRecaps?.length ? { chapterRecaps: sectionPlan.validatedChapterRecaps, recapInstruction: "Textes déjà produits, faits contrôlés ; dégager leur apport sans recopier leurs formulations, redévelopper leurs exemples ou créer de nouvelle interaction. La conclusion doit apporter un bilan de lecture et non une troisième explication du fil conducteur." } : {}),
       constraints: {
         closedContextPerBlock: true,
         outputOnlyTextForPlannedBlocks: true,
@@ -828,6 +857,9 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     };
     const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
     if (!validation.ok) {
+      if (blockPlan.calculatedReference === true) {
+        throw serverPrefixValidationError({ logger, sectionId: scopedPlan.sectionId, blockId: blockPlan.blockId, validation });
+      }
       const error = new Error(`Deterministic block ${blockPlan.blockId} rejected`);
       error.status = 502;
       error.code = "structured_deterministic_block_validation_failed";
@@ -856,15 +888,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     };
     const validation = validateStructuredSection({ dossierEvidence, sectionPlan: scopedPlan, section });
     if (!validation.ok) {
-      logStructuredValidationFailure({ logger, sectionId: scopedPlan.sectionId, blockId: blockPlan.blockId, attempt: 0, validation, provenance: "server_prefix" });
-      const error = new Error(`Server prefix validation failed for block ${blockPlan.blockId}`);
-      error.status = 500;
-      error.code = "SERVER_PREFIX_VALIDATION_FAILED";
-      error.sectionId = scopedPlan.sectionId;
-      error.blockId = blockPlan.blockId;
-      error.provenance = "server_prefix";
-      error.validation = validation;
-      throw error;
+      throw serverPrefixValidationError({ logger, sectionId: scopedPlan.sectionId, blockId: blockPlan.blockId, validation });
     }
   }
 
@@ -872,7 +896,17 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
   let previousRefusalSignature = null;
   let editorialRevisionRequested = false;
   const requestEditorialRevision = (section, attempt) => {
-    const findings = (section.blocks ?? []).flatMap((block) => editorialStyleFindings(block.text).map((finding) => ({ ...finding, blockId: block.blockId, source: "editorial_style", textToRevise: String(block.text ?? "").startsWith(String(blockPlan.deterministicPrefix ?? "")) ? String(block.text ?? "").slice(String(blockPlan.deterministicPrefix ?? "").length).trim() : block.text })));
+    const previousTexts = scopedPlan.sectionId === "conclusion"
+      ? (scopedPlan.validatedChapterRecaps ?? []).map((recap) => recap.text)
+      : [];
+    const prefix = String(blockPlan.deterministicPrefix ?? "");
+    const findings = (section.blocks ?? []).flatMap((block) => {
+      const text = String(block.text ?? "");
+      const textToRevise = prefix && text.startsWith(prefix) ? text.slice(prefix.length).trim() : text;
+      return editorialStyleFindings(textToRevise, { previousTexts }).map((finding) => ({
+        ...finding, blockId: block.blockId, source: "editorial_style", textToRevise
+      }));
+    });
     if (!findings.length) return false;
     const canRevise = !editorialRevisionRequested && attempt < MAX_CORRECTION_ATTEMPTS;
     logger?.warn?.("[Lastro] editorial style review", { sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, action: canRevise ? "bounded_revision" : "diagnostic_retained", codes: findings.map((finding) => finding.code) });

@@ -123,7 +123,7 @@ test("createFullPublicReading assembles a validated full dossier without using l
   assert.equal(ids.includes("relational_affection"), true);
   assert.equal(ids.indexOf("relational_affection"), ids.indexOf("relational_communication") + 1);
   assert.match(reading.html, /Communication relationnelle/);
-  assert.match(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+  assert.match(reading.html, /Votre manière d&#39;exprimer votre affection|Votre manière d'exprimer votre affection/);
   assert.doesNotMatch(reading.html, /Manière d'entrer en relation|Besoin d'espace|Manière d'aborder les désaccords|Besoins relationnels|Désir, initiative/);
   assert.doesNotMatch(reading.markdown, /Manière d'entrer en relation|Besoin d'espace|Manière d'aborder les désaccords|Besoins relationnels|Désir, initiative/);
   assert.ok(reading.relationship.sections[0].blocks.some((block) => block.claims?.length > 0));
@@ -176,7 +176,7 @@ test("Communication relationnelle est omise proprement sans règle scoped autori
     section.reason === "no_authorized_interpretation_rules"
   ));
   assert.doesNotMatch(reading.html, /Communication relationnelle/);
-  assert.match(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+  assert.match(reading.html, /Votre manière d&#39;exprimer votre affection|Votre manière d'exprimer votre affection/);
 });
 
 test("Affection can be generated from the Venus sign fallback inside the client dossier", async () => {
@@ -187,7 +187,7 @@ test("Affection can be generated from the Venus sign fallback inside the client 
   assert.deepEqual([...new Set(affection.blocks.flatMap((block) => block.interpretationRuleRefs))], [
     "western.relational.affection.venus.sign.aquarius@1"
   ]);
-  assert.match(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+  assert.match(reading.html, /Votre manière d&#39;exprimer votre affection|Votre manière d'exprimer votre affection/);
 });
 
 test("Affection is omitted cleanly when no certain affection material is available", async () => {
@@ -199,7 +199,7 @@ test("Affection is omitted cleanly when no certain affection material is availab
   assert.equal(reading.sections.some((section) => section.id === "relational_affection"), false);
   assert.equal(reading.relationship.sections.some((section) => section.sectionId === "relational_affection"), false);
   assert.ok(reading.relationship.skippedSections.some((section) => section.sectionId === "relational_affection"));
-  assert.doesNotMatch(reading.html, /Manière d&#39;exprimer son affection|Manière d'exprimer son affection/);
+  assert.doesNotMatch(reading.html, /Votre manière d&#39;exprimer votre affection|Votre manière d'exprimer votre affection/);
   assert.equal(reading.verification.status, "structured_validated");
 });
 
@@ -257,4 +257,89 @@ test("public pipeline actually runs lexical repetition diagnostics without a pai
   assert.equal(reading.aiReview.passes, 0);
   assert.equal(reading.aiReview.semanticLlmReview, false);
   assert.equal(reading.aiReview.factualValidation, true);
+});
+
+test("validated relational text appears under its natal chapter, before Conclusion, while source sections stay separate", async () => {
+  const reading = await createFixtureReading(INPUT);
+  const communication = reading.html.indexOf("<h2>Communication</h2>");
+  const affectivity = reading.html.indexOf("<h2>Affectivité</h2>");
+  const affection = reading.html.search(/<h3>Votre manière d(?:'|&#39;)exprimer votre affection<\/h3>/);
+  const relationalCommunication = reading.html.indexOf("<h3>Communication relationnelle</h3>");
+  const conclusion = reading.html.indexOf("<h2>Conclusion</h2>");
+  assert.ok(communication >= 0 && relationalCommunication > communication);
+  assert.ok(affectivity >= 0 && affection > affectivity);
+  assert.ok(relationalCommunication < conclusion && affection < conclusion);
+  assert.doesNotMatch(reading.html, /<h2>Communication relationnelle<\/h2>|<h2>Votre manière d(?:'|&#39;)exprimer votre affection<\/h2>/);
+  assert.match(reading.markdown, /### Votre manière d'exprimer votre affection/);
+  assert.ok(reading.sections.some((section) => section.id === "relational_affection"));
+  const source = reading.relationship.sections.find((section) => section.sectionId === "relational_affection");
+  assert.ok(source && source.blocks.length > 0);
+  for (const block of source.blocks) {
+    assert.ok(block.evidenceRefs.length > 0);
+    assert.ok(block.interpretationRuleRefs.length > 0);
+    assert.ok(reading.markdown.includes(block.text), "all validated relational prose stays verbatim");
+  }
+});
+
+test("public dossier presents bare uninterpreted transit references without dropping validated prose or source sections", async () => {
+  const currentSky = currentSkyFixture();
+  currentSky.current.push({
+    ...currentSky.current[0],
+    resultId: "current_sky.fixture_uranus_saturn_opposition",
+    contact: { ...currentSky.current[0].contact, transitBody: "Uranus", natalPoint: "Saturn", aspectType: "opposition", natalHouse: null, houseSystem: null }
+  });
+  const reading = await createFixtureReading(INPUT, {
+    currentSky,
+    structuredWriterFn: ({ sectionPlan }) => ({
+      sectionId: sectionPlan.sectionId,
+      blocks: sectionPlan.blockPlans.map((blockPlan) => ({
+        blockId: blockPlan.blockId,
+        text: sectionPlan.allowedInterpretationRuleRefs.length > 0
+          ? `Lecture validée ${sectionPlan.sectionId} ${blockPlan.blockId}.`
+          : ""
+      }))
+    })
+  });
+  assert.equal(reading.verification.status, "structured_validated");
+  assert.match(reading.html, /<aside class="calculated-references"><h3>Autres repères calculés<\/h3>/);
+  assert.match(reading.html, /<li>Uranus forme une opposition à votre Saturne/);
+  assert.match(reading.html, /Repères présentés sans lecture symbolique\./);
+  assert.doesNotMatch(reading.html, /<p>Uranus forme une opposition à votre Saturne/);
+  assert.equal((reading.markdown.match(/Uranus forme une opposition à votre Saturne/g) ?? []).length, 1);
+  assert.match(reading.markdown, /^### Autres repères calculés$/m);
+  assert.match(reading.markdown, /^- Uranus forme une opposition à votre Saturne/m);
+  assert.match(reading.markdown, /Repères présentés sans lecture symbolique\./);
+  assert.ok(reading.sections.some((section) => section.id === "current_sky" && section.blocks >= 3));
+  assert.match(reading.markdown, /Lecture validée current_sky/);
+});
+
+test("deterministic-only future angle transits count toward progress without invoking the writer", async () => {
+  const sky = currentSkyFixture();
+  const base = sky.current[0];
+  sky.current = [];
+  sky.upcoming = [{
+    ...base,
+    resultId: "next_weeks.fixture_neptune_asc_square",
+    status: "UPCOMING",
+    contact: { ...base.contact, transitBody: "Neptune", natalPoint: "ASC", aspectType: "square", natalHouse: null, houseSystem: null },
+    timing: { ...base.timing, startsAt: "2026-10-10T00:00:00.000Z", exactAt: "2026-10-12T06:00:00.000Z", endsAt: "2026-10-24T00:00:00.000Z" }
+  }];
+  const progress = [];const writerSections = [];
+  const reading = await createFixtureReading(INPUT, {
+    currentSky: sky,
+    onProgress: (event) => progress.push(event),
+    structuredWriterFn: (context) => {
+      writerSections.push(context.sectionPlan.sectionId);
+      return injectedStructuredWriter(context);
+    }
+  });
+  assert.equal(reading.verification.status, "structured_validated");
+  assert.ok(reading.sections.some((section) => section.id === "next_weeks" && section.blocks > 0));
+  assert.ok(progress.some((event) => event.currentSection === "next_weeks"));
+  assert.equal(writerSections.includes("next_weeks"), false, "calculated-only future contacts never call the LLM transport");
+  assert.equal(progress.at(-1).completedSections, reading.dossier.generatedSectionCount);
+  assert.equal(progress.at(-1).totalSections, reading.dossier.generatedSectionCount);
+  assert.match(reading.markdown, /- Neptune forme un carré à votre Ascendant/);
+  assert.match(reading.markdown, /Repères présentés sans lecture symbolique\./);
+  assert.equal(reading.observability.llmCalls, 0);
 });
