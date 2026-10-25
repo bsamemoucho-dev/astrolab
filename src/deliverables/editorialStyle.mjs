@@ -51,10 +51,34 @@ function sharedRun(textWords, previousTexts) {
   return maximum;
 }
 
-export function editorialStyleFindings(text, { previousTexts = [] } = {}) {
+// Numeric style memory never carries previous prose, facts or client identity.
+export function editorialStyleCounters(text) {
+  return { illustrationLeadCount: [...normalized(text).matchAll(/\bpar exemple\b/gu)].length };
+}
+
+export function editorialStyleFindings(text, { previousTexts = [], previousIllustrationLeadCount = 0 } = {}) {
   const source = normalized(text).trim();
   if (!source) return [];
   const findings = [];
+  const illustrationLeads = editorialStyleCounters(source).illustrationLeadCount;
+  const previousLeads = Number.isSafeInteger(previousIllustrationLeadCount) && previousIllustrationLeadCount > 0 ? previousIllustrationLeadCount : 0;
+  if (illustrationLeads >= 2 || (illustrationLeads > 0 && previousLeads >= 2)) findings.push({
+    code: 'editorial_repeated_illustration_lead',
+    message: "L'illustration est encore annoncée par le même préambule. Énonce directement le geste ou le choix envisagé, en conservant son statut de possibilité et les seules significations autorisées ; ne remplace pas cette amorce par un nouveau gabarit.",
+    counts: { illustrationLeads, previousIllustrationLeads: previousLeads }
+  });
+  const framing = [...source.matchAll(/\b(?:une mani[eè]re possible de l['’]illustrer serait|une situation possible serait|dans un engagement hypoth[eé]tique)\b/gu)].length;
+  if (framing > 0) findings.push({
+    code: 'editorial_overexplained_illustration',
+    message: "Le préambule explique longuement qu'il s'agit d'une illustration. Garde l'action ou la distinction utile dans une formulation simple et non affirmative, sans commentaire de conformité ni nouvelle interprétation.",
+    counts: { occurrences: framing }
+  });
+  const processLanguage = [...source.matchAll(/\b(?:dans votre dossier|(?:une )?ressource possible [àa] explorer)\b/gu)].length;
+  if (processLanguage > 0) findings.push({
+    code: 'editorial_process_language',
+    message: "Une tournure commente le document ou annonce une piste au lieu de dire son apport. Reformule directement la distinction autorisée, sans décrire la fabrication de la lecture ni ajouter un comportement certain.",
+    counts: { occurrences: processLanguage }
+  });
   const sentences = sentencesOf(source);
   const occurrences = [...source.matchAll(CONDITIONAL)].length;
   const affectedSentences = sentences.filter((sentence) => /\b(?:pourriez|pourrait|pourraient)\b/u.test(sentence)).length;

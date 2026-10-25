@@ -1,15 +1,16 @@
 // Presentation of already validated sections only. Plans, proofs, claims and
 // relationship metadata stay unchanged; no interpretation is licensed here.
+import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 const LABELS = Object.freeze({
-  fr: { configurations: "Configurations étudiées", references: "Autres repères calculés", note: "Repères présentés sans lecture symbolique.", affection: "Votre manière d'exprimer votre affection", communication: "Communication relationnelle" },
-  en: { configurations: "Configurations explored", references: "Other calculated reference points", note: "Reference points shown without symbolic interpretation.", affection: "Your way of expressing affection", communication: "Communication in relationships" },
-  de: { configurations: "Betrachtete Konfigurationen", references: "Weitere berechnete Bezugspunkte", note: "Bezugspunkte ohne symbolische Deutung.", affection: "Ihre Art, Zuneigung auszudrücken", communication: "Kommunikation in Beziehungen" },
-  es: { configurations: "Configuraciones estudiadas", references: "Otras referencias calculadas", note: "Referencias presentadas sin lectura simbólica.", affection: "Su manera de expresar afecto", communication: "Comunicación en las relaciones" },
-  it: { configurations: "Configurazioni esaminate", references: "Altri riferimenti calcolati", note: "Riferimenti presentati senza lettura simbolica.", affection: "Il vostro modo di esprimere affetto", communication: "Comunicazione nelle relazioni" },
-  pt: { configurations: "Configurações analisadas", references: "Outras referências calculadas", note: "Referências apresentadas sem leitura simbólica.", affection: "A sua maneira de expressar afeto", communication: "Comunicação nas relações" },
-  no: { configurations: "Konfigurasjoner som undersøkes", references: "Andre beregnede holdepunkter", note: "Holdepunkter vist uten symbolsk tolkning.", affection: "Din måte å uttrykke hengivenhet på", communication: "Kommunikasjon i relasjoner" },
-  da: { configurations: "Undersøgte konfigurationer", references: "Andre beregnede holdepunkter", note: "Holdepunkter vist uden symbolsk fortolkning.", affection: "Din måde at udtrykke hengivenhed på", communication: "Kommunikation i relationer" },
-  nl: { configurations: "Onderzochte configuraties", references: "Andere berekende aanknopingspunten", note: "Aanknopingspunten zonder symbolische duiding.", affection: "Uw manier om genegenheid te uiten", communication: "Communicatie in relaties" }
+  fr: { referencesOnly: "Repères calculés", configurations: "Configurations étudiées", references: "Autres repères calculés", note: "Repères présentés sans lecture symbolique.", affection: "Votre manière d'exprimer votre affection", communication: "Communication relationnelle" },
+  en: { referencesOnly: "Calculated reference points", configurations: "Configurations explored", references: "Other calculated reference points", note: "Reference points shown without symbolic interpretation.", affection: "Your way of expressing affection", communication: "Communication in relationships" },
+  de: { referencesOnly: "Berechnete Bezugspunkte", configurations: "Betrachtete Konfigurationen", references: "Weitere berechnete Bezugspunkte", note: "Bezugspunkte ohne symbolische Deutung.", affection: "Ihre Art, Zuneigung auszudrücken", communication: "Kommunikation in Beziehungen" },
+  es: { referencesOnly: "Referencias calculadas", configurations: "Configuraciones estudiadas", references: "Otras referencias calculadas", note: "Referencias presentadas sin lectura simbólica.", affection: "Su manera de expresar afecto", communication: "Comunicación en las relaciones" },
+  it: { referencesOnly: "Riferimenti calcolati", configurations: "Configurazioni esaminate", references: "Altri riferimenti calcolati", note: "Riferimenti presentati senza lettura simbolica.", affection: "Il vostro modo di esprimere affetto", communication: "Comunicazione nelle relazioni" },
+  pt: { referencesOnly: "Referências calculadas", configurations: "Configurações analisadas", references: "Outras referências calculadas", note: "Referências apresentadas sem leitura simbólica.", affection: "A sua maneira de expressar afeto", communication: "Comunicação nas relações" },
+  no: { referencesOnly: "Beregnede holdepunkter", configurations: "Konfigurasjoner som undersøkes", references: "Andre beregnede holdepunkter", note: "Holdepunkter vist uten symbolsk tolkning.", affection: "Din måte å uttrykke hengivenhet på", communication: "Kommunikasjon i relasjoner" },
+  da: { referencesOnly: "Beregnede holdepunkter", configurations: "Undersøgte konfigurationer", references: "Andre beregnede holdepunkter", note: "Holdepunkter vist uden symbolsk fortolkning.", affection: "Din måde at udtrykke hengivenhed på", communication: "Kommunikation i relationer" },
+  nl: { referencesOnly: "Berekende aanknopingspunten", configurations: "Onderzochte configuraties", references: "Andere berekende aanknopingspunten", note: "Aanknopingspunten zonder symbolische duiding.", affection: "Uw manier om genegenheid te uiten", communication: "Communicatie in relaties" }
 });
 
 const BODY_PLACEMENT_TYPES = new Set(["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"]);
@@ -23,24 +24,39 @@ function usedByBlock(section, byId) {
   return (section.blocks ?? []).map((block) => ({ block, proofs: (block.evidenceRefs ?? []).map((ref) => byId.get(ref)).filter(Boolean) }));
 }
 
-// A context house/sign can join the owned placement only if it really occurs
-// in the same validated block. Its appearance here grants no narrative right.
+// A displayed configuration promises an actual symbolic reading. Require a
+// known rule, allowed for this section, used by this exact block and matching
+// this proof. Mere factual context (notably an unlicensed house) is not enough.
+function licensedByBlock(proof, block, sectionPlan) {
+  if (!proof || proof.certainty?.stableAcrossApplicableWindow === false) return false;
+  if (!Array.isArray(sectionPlan?.allowedInterpretationRuleRefs)) return false;
+  const allowed = new Set(sectionPlan.allowedInterpretationRuleRefs);
+  return (block.interpretationRuleRefs ?? []).some((id) =>
+    allowed.has(id) && ruleMatchesEvidence(interpretationRuleById(id), proof));
+}
+
 function studiedConfigurations(section, sectionPlan, byId, strings) {
   if (NON_FACT_PANEL_SECTIONS.has(section.sectionId)) return [];
   const primary = new Set(sectionPlan?.primaryEvidenceRefs ?? []);
   const blocks = usedByBlock(section, byId);
   const used = new Set(blocks.flatMap(({ proofs }) => proofs.map((proof) => proof.evidenceId)));
-  const owned = [...primary].map((ref) => byId.get(ref)).filter((proof) => proof && used.has(proof.evidenceId));
+  const owned = [...primary].map((ref) => byId.get(ref)).filter((proof) => proof && used.has(proof.evidenceId) &&
+    blocks.some(({ block, proofs }) => proofs.some((item) => item.evidenceId === proof.evidenceId) && licensedByBlock(proof, block, sectionPlan)));
   const facts = [];
   for (const proof of owned.filter((item) => item.type === "NATAL_ASPECT")) {
     const value = proof.value ?? {};
     facts.push({ refs: [proof.evidenceId], text: `${bodyName(value.bodyA, strings)}–${bodyName(value.bodyB, strings)} : ${strings?.aspects?.[value.aspectType] ?? value.aspectType}` });
   }
+  for (const proof of owned.filter((item) => item.type === "ANGLE_SIGN")) {
+    const value = proof.value ?? {};
+    const angleLabel = ({ ascendant: strings?.labels?.asc, descendant: strings?.labels?.dsc, midheaven: strings?.labels?.mc, imumCoeli: strings?.labels?.ic })[value.angle] ?? value.angle;
+    if (value.sign) facts.push({ refs: [proof.evidenceId], text: `${angleLabel} · ${signName(value.sign, strings)}` });
+  }
   const bodyDone = new Set();
   for (const proof of owned.filter((item) => BODY_PLACEMENT_TYPES.has(item.type))) {
     const body = proof.value?.body;
     if (!body || bodyDone.has(body) || proof.certainty?.stableAcrossApplicableWindow === false) continue;
-    const placementProofs = ({ proofs }) => proofs.filter((item) => item.value?.body === body && BODY_PLACEMENT_TYPES.has(item.type) && item.certainty?.stableAcrossApplicableWindow !== false);
+    const placementProofs = ({ block, proofs }) => proofs.filter((item) => item.value?.body === body && BODY_PLACEMENT_TYPES.has(item.type) && licensedByBlock(item, block, sectionPlan));
     const sameBlock = blocks.filter(({ proofs }) => proofs.some((item) => item.evidenceId === proof.evidenceId))
       .sort((first, second) => new Set(placementProofs(second).map((item) => item.type)).size - new Set(placementProofs(first).map((item) => item.type)).size)[0];
     const candidates = sameBlock ? placementProofs(sameBlock) : [];
@@ -74,6 +90,7 @@ export function renderableDossierSection({ section, strings, sectionPlan, dossie
   const displayedRefs = new Set(configurations.flatMap((item) => item.refs));
   const references = [];
   const paragraphs = [];
+  let hasInterpretation = false;
   for (const block of section.blocks ?? []) {
     const blockPlan = sectionPlan?.blockPlans?.find((plan) => plan.blockId === block.blockId);
     if (TRANSIT_SECTIONS.has(section.sectionId) && bareCalculatedTransit({ block, blockPlan, sectionPlan, byId })) {
@@ -81,6 +98,8 @@ export function renderableDossierSection({ section, strings, sectionPlan, dossie
       continue;
     }
     const prefix = blockPlan?.deterministicPrefix;
+    const narrativeText = typeof prefix === "string" && block.text.startsWith(prefix) ? block.text.slice(prefix.length).trim() : block.text.trim();
+    if (!blockPlan?.deterministic && narrativeText && (block.evidenceRefs ?? []).some((ref) => licensedByBlock(byId.get(ref), block, sectionPlan))) hasInterpretation = true;
     const aspects = (block.evidenceRefs ?? []).map((ref) => byId.get(ref)).filter((item) => item?.type === "NATAL_ASPECT");
     // Only a known server-owned factual lead may move into the panel. Its full
     // set of aspect facts must be displayed; never trim generated prose.
@@ -102,7 +121,7 @@ export function renderableDossierSection({ section, strings, sectionPlan, dossie
     configurationsLabel: labels.configurations,
     configurationsStudied: configurations.map((item) => item.text),
     calculatedReferences: references,
-    calculatedReferencesLabel: labels.references,
+    calculatedReferencesLabel: hasInterpretation ? labels.references : labels.referencesOnly,
     calculatedReferencesNote: labels.note,
     validation: { ok: true, issues: [] }
   };

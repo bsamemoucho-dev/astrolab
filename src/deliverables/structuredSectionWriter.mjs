@@ -1,4 +1,4 @@
-import { editorialStyleFindings } from "./editorialStyle.mjs";
+import { editorialStyleCounters, editorialStyleFindings } from "./editorialStyle.mjs";
 import { formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import {
@@ -674,7 +674,9 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
     "Chaque paragraphe développe un apport distinct à partir d'une relation autorisée ; une liste de qualités, une paraphrase de placement ou un conseil valable pour tout le monde n'en tient pas lieu. Une explication courte et spécifique suffit quand les sources sont minces.",
     "Les nuances et limites sont des contraintes internes à appliquer, pas des avertissements à réciter après chaque placement. Le cadrage symbolique du dossier existe déjà : ne répète pas partout 'cela ne signifie pas que' ou 'on ne peut pas en déduire'. Garde seulement la limite propre à l'idée lorsqu'elle change réellement sa compréhension.",
-    "Pour rendre une idée intelligible, tu peux l'illustrer par une situation explicitement hypothétique : 'par exemple', 'une situation possible serait'. Cette illustration traduit seulement les concepts et la relation autorisés ; elle n'ajoute ni fait astrologique, ni trait psychologique établi, ni histoire du lecteur, ni résultat promis. Un exemple n'est utile que s'il éclaire une distinction propre à cette configuration ; il n'est jamais obligatoire et ne doit pas devenir un gabarit.",
+    "Une illustration est facultative : elle doit éclairer une distinction propre aux concepts et à la relation autorisés, sans ajouter de fait astrologique, de trait établi, d'histoire du lecteur ou de résultat promis. Énonce le geste ou le choix simplement, sans un préambule qui annonce systématiquement l'exemple. L'infinitif, un contraste entre deux options ou une scène au conditionnel peuvent marquer une possibilité sans la présenter comme vécue ; ne les transforme pas en nouveau gabarit.",
+    "La prudence ne demande pas de qualifier chaque situation d'hypothétique ni d'empiler les marques de possibilité. Le cadrage symbolique du document reste applicable à chaque illustration ; une phrase nette n'autorise jamais à attribuer cette situation au lecteur.",
+    "Écris la distinction utile, sans commenter le document ou sa production. Les tournures d'atelier et les expressions qui annoncent qu'une idée serait une piste à explorer ne remplacent pas l'idée elle-même.",
     "Distingue illustration et nouvelle interprétation : une façon possible d'exprimer un concept autorisé n'est pas une seconde hypothèse astrologique. Ne crée aucune signification, interaction, compensation ou causalité absente des règles pour rendre une scène plus vivante.",
     "Aucun conseil de bien-être interchangeable ni flatterie pour conclure un paragraphe : 'trouver votre équilibre', 'écouter votre intuition', 'accueillir vos émotions' ne remplacent pas l'explication de la configuration. N'ajoute pas un vécu, un métier, une relation réelle ou une ressource matérielle pour rendre l'idée concrète.",
     "Les croisements autorisés figurent dans `editorial.relationsAllowed` : ce sont les seuls. Tu n'en inventes aucun autre ; si un croisement te semble manquer, ne le fabrique pas.",
@@ -682,11 +684,11 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "`editorial.mayRecall` : idées déjà développées dans un chapitre précédent. Tu peux les nommer en une clause au maximum, jamais les redévelopper.",
     "`editorial.reserved` : idées réservées à un chapitre ultérieur. Tu ne les développes pas, même si les faits sont disponibles.",
     ...(sectionPlan.sectionId === "general_synthesis" ? [
-      "Rôle de la synthèse : donner une orientation claire en un ou deux mouvements, sans épuiser l'interprétation des chapitres. Annonce le lien autorisé et la différence utile entre les dynamiques ; réserve les exemples et leurs développements au chapitre propriétaire."
+      "Rôle de la synthèse : donner une orientation claire en un ou deux mouvements, sans épuiser l'interprétation des chapitres. Annonce le lien autorisé et les domaines de vie concernés ; réserve les nuances personnelles, les exemples et leurs développements au chapitre propriétaire. Une synthèse n'énonce pas déjà la leçon détaillée que Relations développera."
     ] : sectionPlan.sectionId === "relationships" ? [
       "Rôle de Relations : développer ce que le panorama annonçait, dans les domaines de vie effectivement licenciés. Si les preuves de maisons et leurs règles sont transmises, relie ces domaines uniquement selon les relations autorisées ; donne une illustration possible de leur apport plutôt que de redire le schéma du réseau."
     ] : sectionPlan.sectionId === "conclusion" ? [
-      "Rôle de la conclusion : rassembler des distinctions utiles issues de la lecture, sans refaire la synthèse ou expliquer une nouvelle fois les symboles. Utilise les textes validés pour éviter leurs formulations et leurs exemples ; une nouvelle manière de conclure ne crée aucune nouvelle interprétation.",
+      "Rôle de la conclusion : rassembler des distinctions utiles issues de la lecture, sans refaire la synthèse ou expliquer une nouvelle fois les symboles. Les textes validés indiquent aussi les motifs déjà développés : ne reprends pas une même leçon sous un synonyme. Termine sur l'usage de ces distinctions dans la lecture, sans conseil générique ni nouvelle interprétation.",
       "Ne termine pas par un commentaire de rédacteur sur une planète qui resterait dans un registre distinct, une absence de lien ou une configuration qui ne devrait pas tout expliquer. Ces limites sont à respecter, pas à transformer en dernière leçon au lecteur."
     ] : []),
     "Écris des paragraphes courts, séparés par une ligne vide, chacun centré sur une seule idée. Répartis un long développement en plusieurs paragraphes naturels sans retirer de contenu ni ajouter de remplissage. Explique les termes astrologiques indispensables en mots courants. Ne coupe pas artificiellement une idée pour allonger le document.",
@@ -725,31 +727,39 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
 // fournit. Les `themes` (phrases déjà rédigées) ne sont transmis que pour les
 // règles anciennes qui n'ont pas encore de sémantique.
 function semanticsForPacket(packet) {
+  if (packet.narrativeRole) return null;
   for (const ruleId of packet.interpretationRuleRefs ?? []) {
     const rule = interpretationRuleById(ruleId);
-    if (rule?.semantics) return rule.semantics;
+    if (rule?.semantics && !Array.isArray(rule.scope)) return rule.semantics;
   }
   return null;
 }
 
 function packetsForPrompt(sectionPlan) {
-  return (sectionPlan.evidencePackets ?? []).map((packet) => ({
-    packetId: packet.packetId,
-    evidenceRefs: packet.evidenceRefs,
-    interpretationDepth: packet.interpretationDepth,
-    sourceRole: packet.sourceRole ?? (packet.interpretationDepth === "reference" ? "secondary_recall" : "primary_interpretation"),
-    maxSentences: packet.maxSentences ?? null,
-    openingAllowed: packet.openingAllowed !== false,
-    ...(sectionPlan.editorialEngine !== "legacy" && (sectionPlan.aspectChapterMode !== "reference" || (packet.interpretationDepth !== "reference" || packet.sourceRole === "licensed_composition_context")) && semanticsForPacket(packet)
-      ? { semantics: semanticsForPacket(packet) }
-      : {}),
-    themes: packet.interpretationDepth === "reference" && packet.sourceRole !== "licensed_composition_context" ? [] : packet.themes,
-    canInterpret: packet.interpretationRuleRefs.length > 0,
-    facts: packet.claims.map((claim) => {
-      const { claimId, evidenceRefs, ...fact } = claim;
-      return fact;
-    })
-  }));
+  return (sectionPlan.evidencePackets ?? []).map((packet) => {
+    const mayInterpret = packet.interpretationDepth !== "reference" || packet.sourceRole === "licensed_composition_context";
+    const semantics = sectionPlan.editorialEngine !== "legacy" &&
+      (sectionPlan.aspectChapterMode !== "reference" || mayInterpret) ? semanticsForPacket(packet) : null;
+    // One fully structured, unscoped rule is a complete alternative to its
+    // prewritten themes. Mixed/multiple rules retain their themes so that no
+    // licensed material is silently lost. Scoped role subsets are never widened.
+    const structuredAlternative = semantics && packet.interpretationRuleRefs.length === 1;
+    return {
+      packetId: packet.packetId,
+      evidenceRefs: packet.evidenceRefs,
+      interpretationDepth: packet.interpretationDepth,
+      sourceRole: packet.sourceRole ?? (packet.interpretationDepth === "reference" ? "secondary_recall" : "primary_interpretation"),
+      maxSentences: packet.maxSentences ?? null,
+      openingAllowed: packet.openingAllowed !== false,
+      ...(semantics ? { semantics } : {}),
+      themes: !mayInterpret || structuredAlternative ? [] : packet.themes,
+      canInterpret: packet.interpretationRuleRefs.length > 0,
+      facts: packet.claims.map((claim) => {
+        const { claimId, evidenceRefs, ...fact } = claim;
+        return fact;
+      })
+    };
+  });
 }
 
 function blockPlansForPrompt(sectionPlan) {
@@ -807,6 +817,11 @@ function editorialForPrompt(sectionPlan) {
   };
 }
 
+function styleMemoryForPrompt(sectionPlan) {
+  const count = sectionPlan?.editorialStyleMemory?.illustrationLeadCount;
+  return { illustrationLeadCount: Number.isSafeInteger(count) && count >= 0 ? Math.min(count, 10000) : 0 };
+}
+
 export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }) {
   const editorial = editorialForPrompt(sectionPlan);
   return JSON.stringify(
@@ -819,7 +834,9 @@ export function buildStructuredUserPrompt({ sectionPlan, correctionIssues = [] }
       },
       ...(editorial ? { editorial } : {}),
       correctionIssues,
-      ...(sectionPlan.sectionId === "conclusion" && sectionPlan.validatedChapterRecaps?.length ? { chapterRecaps: sectionPlan.validatedChapterRecaps, recapInstruction: "Textes déjà produits, faits contrôlés ; dégager leur apport sans recopier leurs formulations, redévelopper leurs exemples ou créer de nouvelle interaction. La conclusion doit apporter un bilan de lecture et non une troisième explication du fil conducteur." } : {}),
+      editorialStyleMemory: styleMemoryForPrompt(sectionPlan),
+      styleInstruction: "Ces compteurs ne décrivent aucun fait astrologique. Si une amorce d'illustration a déjà servi, varie la construction ou laisse l'idée sans exemple ; aucun exemple n'est obligatoire.",
+      ...(sectionPlan.sectionId === "conclusion" && sectionPlan.validatedChapterRecaps?.length ? { chapterRecaps: sectionPlan.validatedChapterRecaps, recapInstruction: "Textes déjà produits, faits contrôlés ; repérer aussi les motifs et distinctions déjà développés, sans recopier leurs formulations, les redire sous un synonyme, redévelopper leurs exemples ou créer une nouvelle interaction. La conclusion doit apporter un bilan de lecture et non une troisième explication du fil conducteur." } : {}),
       constraints: {
         closedContextPerBlock: true,
         outputOnlyTextForPlannedBlocks: true,
@@ -903,7 +920,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     const findings = (section.blocks ?? []).flatMap((block) => {
       const text = String(block.text ?? "");
       const textToRevise = prefix && text.startsWith(prefix) ? text.slice(prefix.length).trim() : text;
-      return editorialStyleFindings(textToRevise, { previousTexts }).map((finding) => ({
+      return editorialStyleFindings(textToRevise, { previousTexts, previousIllustrationLeadCount: styleMemoryForPrompt(scopedPlan).illustrationLeadCount }).map((finding) => ({
         ...finding, blockId: block.blockId, source: "editorial_style", textToRevise
       }));
     });
@@ -1253,7 +1270,10 @@ export async function writeStructuredSectionWithLlm({ dossierEvidence, sectionPl
   for (const blockPlan of sectionPlan.blockPlans ?? []) {
     const written = await writeStructuredBlockWithLlm({
       dossierEvidence,
-      sectionPlan,
+      sectionPlan: { ...sectionPlan, editorialStyleMemory: {
+        illustrationLeadCount: styleMemoryForPrompt(sectionPlan).illustrationLeadCount +
+          editorialStyleCounters(section.blocks.map((block) => block.text ?? "").join("\n")).illustrationLeadCount
+      } },
       blockPlan,
       writerFn,
       config,
@@ -1329,7 +1349,7 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
         });
       }
       const conclusionRefs = new Set([...(sectionPlan.primaryEvidenceRefs ?? []), ...(sectionPlan.secondaryEvidenceRefs ?? [])]);
-      const recaps = sectionPlan.sectionId === "conclusion" ? sections.filter((previous) => previous.sectionId !== "general_synthesis").flatMap((previous) => {
+      const recaps = sectionPlan.sectionId === "conclusion" ? sections.flatMap((previous) => {
         const blocks = (previous.blocks ?? []).filter((block) => block.evidenceRefs?.length && block.evidenceRefs.every((ref) => conclusionRefs.has(ref)));
         const text = blocks.map((block) => block.text).join(" ");
         const sentences = text.match(/[^.!?]+[.!?]+(?:\s|$)/gu) ?? [];
@@ -1338,10 +1358,18 @@ export async function writeStructuredSectionsWithLlm({ dossierEvidence, fullDoss
         return excerpt.trim() ? [{ sectionId: previous.sectionId, text: excerpt.trim() }] : [];
       }).sort((a, b) => {
         const weight = (id) => (sectionPlans.find((plan) => plan.sectionId === id)?.primaryEvidenceRefs ?? []).filter((ref) => conclusionRefs.has(ref)).length;
+        // The synthesis is already delivered to the client too. Keeping its
+        // licensed text prevents the ending from unknowingly repeating it.
+        if (a.sectionId === "general_synthesis") return -1;
+        if (b.sectionId === "general_synthesis") return 1;
+        if (a.sectionId === "relationships") return -1;
+        if (b.sectionId === "relationships") return 1;
         return weight(b.sectionId) - weight(a.sectionId);
       }).slice(0, 4) : [];
       const written = await writeStructuredSectionWithLlm({
-        dossierEvidence, sectionPlan: { ...sectionPlan, validatedChapterRecaps: recaps }, options });
+        dossierEvidence, sectionPlan: { ...sectionPlan, validatedChapterRecaps: recaps,
+          editorialStyleMemory: editorialStyleCounters(sections.flatMap((previous) => previous.blocks ?? []).map((block) => block.text ?? "").join("\n"))
+        }, options });
       metrics.llmCalls += written.llmCalls ?? 0;
       metrics.promptTokens += written.usage?.promptTokens ?? 0;
       metrics.completionTokens += written.usage?.completionTokens ?? 0;

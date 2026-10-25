@@ -13,7 +13,7 @@ export function calendarDate(instant, timeZone = 'UTC') {
 export function formatFrenchCalendarDate(instant, timeZone = 'UTC') {
   return new Intl.DateTimeFormat('fr-FR', { timeZone, year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(instant)).replace(/^1(?=\s)/u, '1er');
 }
-const normalize = text => String(text ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const normalize = text => String(text ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’‘]/gu, "'");
 const months = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
 const datePattern = new RegExp(`\\b(?:(0?[1-9]|[12][0-9]|3[01])(?:er)?\\s+(${months.join('|')})(?:\\s+([0-9]{4}))?|([0-9]{4})-([0-9]{2})-([0-9]{2})|([0-9]{1,2})/([0-9]{1,2})/([0-9]{4}))\\b`, 'gu');
 function parseDate(match) {
@@ -39,6 +39,18 @@ export function validateAstrologicalDates({ text, refs = [], timeZone = 'UTC', a
     // Continuation sentences may refer to the immediately preceding named aspect.
     const subjects = facts.length ? facts : precedingAspects;
     let candidates = subjects.length ? transits.filter(r => subjects.some(f => pair(f.bodyA,f.bodyB) === pair(r.value.transitBody,r.value.natalPoint) && f.aspectType === r.value.aspectType)) : transits;
+    const relativeExact = sentence.match(/\bexacte?\s+(aujourd'hui|demain|hier)\b/u);
+    if (directAstro && relativeExact) {
+      const now = refs.find((ref) => ref.type === 'TRANSIT_SNAPSHOT')?.value?.nowUtc;
+      const reference = now ? calendarDate(now, timeZone) : null;
+      const offset = relativeExact[1] === 'demain' ? 1 : relativeExact[1] === 'hier' ? -1 : 0;
+      const expected = reference ? new Date(Date.UTC(reference.year, reference.month - 1, reference.day + offset)) : null;
+      const matchesRelative = expected && candidates.some((ref) => {
+        const peak = ref.value.exactAt ? calendarDate(ref.value.exactAt, timeZone) : null;
+        return peak && peak.year === expected.getUTCFullYear() && peak.month === expected.getUTCMonth() + 1 && peak.day === expected.getUTCDate();
+      });
+      if (!matchesRelative) issues.push({ code: 'transit_text_date_mismatch', fact: { type: 'ASTROLOGICAL_RELATIVE_DATE', role: 'exactAt', relative: ['yesterday', 'today', 'tomorrow'][offset + 1] } });
+    }
     let windowCandidates = null;
     let previousDateEnd = 0;
     for (const match of sentence.matchAll(datePattern)) {
@@ -56,7 +68,7 @@ export function validateAstrologicalDates({ text, refs = [], timeZone = 'UTC', a
         const rangeOpening = /\b(?:entre le|du)\s*$/u.test(localBefore) && /^\s+(?:et le|au)\s+/u.test(sentence.slice(match.index + match[0].length));
         if (rangeOpening || /\b(?:debut(?:e)?(?: le| du)?|commence(?: le)?|s'ouvre le|a partir du)\s*$/u.test(localBefore)) role = 'startsAt';
         else if (/\b(?:jusqu'au|se termine le|prend fin le|fin le|fin du)\s*$/u.test(localBefore) || (windowCandidates && /\b(?:et le|au)\s*$/u.test(localBefore))) role = 'endsAt';
-        else if (/\b(?:exact(?:e)?|exactitude|culmine|pic)(?:\s+(?:est|sera|a ete|le|du|au)){0,4}\s*$/u.test(localBefore)) role = 'exactAt';
+        else if (/\b(?:exact(?:e)?|exactitude|culmine|pic)(?:\s+(?:est|sera|a ete|le|du|au|aujourd'hui,?|demain,?|hier,?)){0,4}\s*$/u.test(localBefore)) role = 'exactAt';
         else if (facts.length && new RegExp(`\\b${namedPoint}\\s+le\\s*$`, 'u').test(localBefore)) role = 'windowDay';
         else if (/\bpassages retenus\s*:/u.test(sentence) && /(?:^|[;:])\s*le\s*$/u.test(before)) role = 'windowDay';
       }

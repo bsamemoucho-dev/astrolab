@@ -93,6 +93,8 @@ test('the conclusion receives prior text only when all block evidence is in scop
   return {sectionId:payload.sectionPlan.sectionId,blocks:payload.sectionPlan.blockPlans.map(block=>({blockId:block.blockId,text:payload.sectionPlan.sectionId==='relationships'?'Le lien demande de préserver une place pour l’initiative personnelle.':'Une lecture symbolique ouverte.'}))};
  },logger:{warn(){}}}});
  assert.ok(recap?.some(item=>item.sectionId==='relationships'&&item.text.includes('initiative personnelle')));
+ assert.ok(recap.some(item=>item.sectionId==='general_synthesis'), 'the already delivered synthesis also belongs to the bounded licensed memory');
+ assert.ok(recap.length <= 4);
  assert.ok(!recap.some(item=>item.sectionId==='internal_tensions'));
 });
 

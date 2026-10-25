@@ -7,10 +7,15 @@ const proof = (id, type, value) => ({ evidenceId: id, type, value });
 const SIGN = proof("natal.venus.sign", "NATAL_BODY_SIGN", { body: "Venus", sign: "Capricorn" });
 const HOUSE = proof("natal.venus.house", "NATAL_BODY_HOUSE", { body: "Venus", house: 7, houseSystem: "WHOLE_SIGN" });
 const ASPECT = proof("natal.sun.venus.conjunction", "NATAL_ASPECT", { bodyA: "Sun", bodyB: "Venus", aspectType: "conjunction", orb: 4.07 });
+const SIGN_RULE = "western.body.venus.sign.capricorn@1";
+const HOUSE_RULE = "western.body.venus.house.7@1";
+const ASPECT_RULE = "western.natal.aspect.sun_venus.conjunction@1";
+const AFFECTION_RULE = "western.relational.affection.sun_venus.conjunction@1";
+const EXISTING_RULES = [SIGN_RULE, HOUSE_RULE, ASPECT_RULE];
 const TRANSIT = proof("transit.uranus.saturn", "PERSONAL_TRANSIT", { transitBody: "Uranus", natalPoint: "Saturn", aspectType: "opposition" });
 const natal = ({ sectionId = "affectivity", refs = [SIGN.evidenceId, HOUSE.evidenceId], primary = [SIGN.evidenceId], prefix = undefined } = {}) => ({
-  section: { sectionId, blocks: [{ blockId: "main", text: "Un paragraphe validé, intégralement conservé.", evidenceRefs: refs, interpretationRuleRefs: ["rule.existing"] }] },
-  sectionPlan: { primaryEvidenceRefs: primary, blockPlans: [{ blockId: "main", ...(prefix ? { deterministicPrefix: prefix } : {}) }] },
+  section: { sectionId, blocks: [{ blockId: "main", text: "Un paragraphe validé, intégralement conservé.", evidenceRefs: refs, interpretationRuleRefs: EXISTING_RULES }] },
+  sectionPlan: { primaryEvidenceRefs: primary, allowedInterpretationRuleRefs: EXISTING_RULES, blockPlans: [{ blockId: "main", ...(prefix ? { deterministicPrefix: prefix } : {}) }] },
   dossierEvidence: { evidence: [SIGN, HOUSE, ASPECT] }, strings: docStrings("fr"), title: "Affectivité"
 });
 
@@ -48,6 +53,8 @@ test("presentation: uncertain sign or invalid house is never asserted in the fac
 
 test("presentation: relational affection is anchored to its actual owned Sun–Venus proof", () => {
   const input = natal({ sectionId: "relational_affection", refs: [ASPECT.evidenceId], primary: [ASPECT.evidenceId] });
+  input.section.blocks[0].interpretationRuleRefs = [AFFECTION_RULE];
+  input.sectionPlan.allowedInterpretationRuleRefs = [AFFECTION_RULE];
   const out = renderableDossierSection(input);
   assert.deepEqual(out.configurationsStudied, ["Soleil–Vénus : conjonction"]);
   assert.equal(out.title, "Votre manière d'exprimer votre affection");
@@ -66,10 +73,18 @@ test("presentation: only the entire server-owned factual aspect lead can move to
 });
 
 test("presentation: at most three configurations; a partially covered aspect lead remains verbatim", () => {
-  const aspects = Array.from({ length: 4 }, (_, n) => proof(`aspect.${n}`, "NATAL_ASPECT", { bodyA: "Sun", bodyB: ["Moon", "Venus", "Mars", "Saturn"][n], aspectType: "sextile" }));
+  const cases = [
+    ["Sun", "Venus", "conjunction", ASPECT_RULE],
+    ["Sun", "Mars", "sextile", "western.natal.aspect.sun_mars.sextile@1"],
+    ["Venus", "Mars", "sextile", "western.natal.aspect.venus_mars.sextile@1"],
+    ["Moon", "Mercury", "square", "western.aspect.moon_mercury.square@1"]
+  ];
+  const aspects = cases.map(([bodyA, bodyB, aspectType], n) => proof(`aspect.${n}`, "NATAL_ASPECT", { bodyA, bodyB, aspectType }));
   const prefix = "Un préfixe serveur contenant quatre aspects.";
   const input = natal({ refs: aspects.map((p) => p.evidenceId), primary: aspects.map((p) => p.evidenceId), prefix });
   input.dossierEvidence.evidence.push(...aspects);input.section.blocks[0].text = `${prefix}\n\nLecture complète à conserver.`;
+  input.section.blocks[0].interpretationRuleRefs = cases.map((item) => item[3]);
+  input.sectionPlan.allowedInterpretationRuleRefs = cases.map((item) => item[3]);
   const out = renderableDossierSection(input);
   assert.equal(out.configurationsStudied.length, 3);
   assert.equal(out.text, input.section.blocks[0].text);
@@ -90,7 +105,7 @@ const transit = () => ({
 test("presentation: a validated bare server transit becomes an exact calculated reference only", () => {
   const input = transit();const saved = structuredClone(input);const out = renderableDossierSection(input);
   assert.equal(out.text, "");assert.deepEqual(out.calculatedReferences, [input.section.blocks[0].text]);
-  assert.equal(out.calculatedReferencesLabel, "Autres repères calculés");assert.equal(out.calculatedReferencesNote, "Repères présentés sans lecture symbolique.");
+  assert.equal(out.calculatedReferencesLabel, "Repères calculés");assert.equal(out.calculatedReferencesNote, "Repères présentés sans lecture symbolique.");
   assert.deepEqual(input, saved);
 });
 
@@ -142,8 +157,111 @@ test("presentation: missing parent uses Relationships; missing Relationships pla
 
 test("presentation: a repeated owned sign can use the house from a block that actually contains both proofs", () => {
   const input = natal({ refs: [SIGN.evidenceId] });
-  input.section.blocks.push({ blockId: "with_context", text: "Passage validé avec son contexte.", evidenceRefs: [SIGN.evidenceId, HOUSE.evidenceId], interpretationRuleRefs: ["rule.existing"] });
+  input.section.blocks.push({ blockId: "with_context", text: "Passage validé avec son contexte.", evidenceRefs: [SIGN.evidenceId, HOUSE.evidenceId], interpretationRuleRefs: EXISTING_RULES });
   const out = renderableDossierSection(input);
   assert.deepEqual(out.configurationsStudied, ["Vénus · Capricorne · maison 7"]);
   assert.ok(out.text.endsWith("Passage validé avec son contexte."));
+});
+
+
+for (const [body, sign, house] of [["Moon", "Virgo", 3], ["Mercury", "Sagittarius", 6], ["Saturn", "Sagittarius", 6], ["Jupiter", "Aquarius", 8]]) {
+  test(`presentation: unlicensed ${body} house ${house} does not promise a house reading`, () => {
+    const signProof = proof(`natal.${body.toLowerCase()}.sign`, "NATAL_BODY_SIGN", { body, sign });
+    const houseProof = proof(`natal.${body.toLowerCase()}.house`, "NATAL_BODY_HOUSE", { body, house, houseSystem: "WHOLE_SIGN" });
+    const rule = `western.body.${body.toLowerCase()}.sign.${sign.toLowerCase()}@1`;
+    const input = natal({ refs: [signProof.evidenceId, houseProof.evidenceId], primary: [signProof.evidenceId, houseProof.evidenceId] });
+    input.dossierEvidence.evidence = [signProof, houseProof];
+    input.section.blocks[0].interpretationRuleRefs = [rule];
+    input.sectionPlan.allowedInterpretationRuleRefs = [rule];
+    const saved = structuredClone(input);
+    const out = renderableDossierSection(input);
+    assert.equal(out.configurationsStudied.length, 1);
+    assert.ok(out.configurationsStudied[0].includes(docStrings("fr").signs[sign]));
+    assert.doesNotMatch(out.configurationsStudied[0], /maison/);
+    assert.deepEqual(input, saved, "the undisplayed calculated house stays in the source unchanged");
+    assert.equal(out.text, input.section.blocks[0].text);
+  });
+}
+
+for (const variation of ["unknown_rule", "other_proof_rule", "not_used_by_block", "not_allowed_by_section", "unknown_section_rules"]) {
+  test(`presentation: ${variation} cannot label a placement as studied`, () => {
+    const input = natal({ refs: [SIGN.evidenceId], primary: [SIGN.evidenceId] });
+    if (variation === "unknown_rule") input.section.blocks[0].interpretationRuleRefs = ["invented.rule@1"];
+    if (variation === "other_proof_rule") input.section.blocks[0].interpretationRuleRefs = [HOUSE_RULE];
+    if (variation === "not_used_by_block") input.section.blocks[0].interpretationRuleRefs = [];
+    if (variation === "not_allowed_by_section") input.sectionPlan.allowedInterpretationRuleRefs = [];
+    if (variation === "unknown_section_rules") delete input.sectionPlan.allowedInterpretationRuleRefs;
+    const saved = structuredClone(input);
+    const out = renderableDossierSection(input);
+    assert.deepEqual(out.configurationsStudied, []);
+    assert.equal(out.text, input.section.blocks[0].text);
+    assert.deepEqual(input, saved);
+  });
+}
+
+test("presentation: an intro alone does not imply other interpretations before calculated references", () => {
+  const input = transit();
+  input.section.blocks.unshift({ blockId: "intro", text: "Ciel calculé le 25 octobre 2026, horizon 42 jours.", evidenceRefs: [], interpretationRuleRefs: [] });
+  input.sectionPlan.blockPlans.unshift({ blockId: "intro", deterministic: true, packetRefs: [] });
+  const out = renderableDossierSection(input);
+  assert.equal(out.calculatedReferencesLabel, "Repères calculés");
+  assert.equal(out.text, input.section.blocks[0].text);
+  assert.equal(out.calculatedReferences.length, 1);
+});
+
+test("presentation: actual licensed transit prose makes calculated references additional", () => {
+  const input = transit();
+  const contact = proof("transit.mercury.jupiter", "PERSONAL_TRANSIT", { transitBody: "Mercury", natalPoint: "Jupiter", aspectType: "square" });
+  const rule = "western.transit.mercury_jupiter.square@1";
+  const text = "La pensée et l’élargissement des perspectives sont ici mis en tension.";
+  input.dossierEvidence.evidence.push(contact);
+  input.section.blocks.unshift({ blockId: "interpreted", text, evidenceRefs: [contact.evidenceId], interpretationRuleRefs: [rule] });
+  input.sectionPlan.blockPlans.unshift({ blockId: "interpreted", packetRefs: [] });
+  input.sectionPlan.allowedInterpretationRuleRefs = [rule];
+  const out = renderableDossierSection(input);
+  assert.equal(out.calculatedReferencesLabel, "Autres repères calculés");
+  assert.equal(out.text, text);
+  assert.deepEqual(out.calculatedReferences, [input.section.blocks[1].text]);
+});
+
+test("presentation: all nine languages distinguish primary calculated references from additional ones", () => {
+  const base = { fr: "Repères calculés", en: "Calculated reference points", de: "Berechnete Bezugspunkte", es: "Referencias calculadas", it: "Riferimenti calcolati", pt: "Referências calculadas", no: "Beregnede holdepunkter", da: "Beregnede holdepunkter", nl: "Berekende aanknopingspunten" };
+  for (const [language, expected] of Object.entries(base)) {
+    const input = transit();input.strings = docStrings(language);
+    assert.equal(renderableDossierSection(input).calculatedReferencesLabel, expected);
+  }
+});
+
+
+for (const [body, sign, house] of [["Moon", "Virgo", 3], ["Mercury", "Sagittarius", 6], ["Saturn", "Sagittarius", 6], ["Jupiter", "Aquarius", 8]]) {
+  test(`presentation: stable licensed ${body} house ${house} is now genuinely studied`, () => {
+    const signProof = proof(`natal.${body.toLowerCase()}.sign`, "NATAL_BODY_SIGN", { body, sign });
+    const houseProof = { ...proof(`natal.${body.toLowerCase()}.house`, "NATAL_BODY_HOUSE", { body, house, houseSystem: "WHOLE_SIGN" }), certainty: { stableAcrossApplicableWindow: true } };
+    const rules = [`western.body.${body.toLowerCase()}.sign.${sign.toLowerCase()}@1`, `western.body.${body.toLowerCase()}.house.${house}@1`];
+    const input = natal({ refs: [signProof.evidenceId, houseProof.evidenceId], primary: [signProof.evidenceId, houseProof.evidenceId] });
+    input.dossierEvidence.evidence = [signProof, houseProof];
+    input.section.blocks[0].interpretationRuleRefs = rules;
+    input.sectionPlan.allowedInterpretationRuleRefs = rules;
+    const saved = structuredClone(input);
+    const out = renderableDossierSection(input);
+    assert.equal(out.configurationsStudied.length, 1);
+    assert.ok(out.configurationsStudied[0].includes(docStrings("fr").signs[sign]));
+    assert.ok(out.configurationsStudied[0].endsWith(`maison ${house}`));
+    assert.equal(out.text, input.section.blocks[0].text);
+    assert.deepEqual(input, saved);
+  });
+}
+
+test("presentation: Ascendant Cancer appears only with its stable, owned and used licence", () => {
+  const rule = "western.angle.ascendant.sign.cancer@1";
+  const angle = { ...proof("angle.ascendant.sign", "ANGLE_SIGN", { angle: "ascendant", sign: "Cancer" }), certainty: { stableAcrossApplicableWindow: true } };
+  const input = natal({ sectionId: "identity", refs: [angle.evidenceId], primary: [angle.evidenceId] });
+  input.dossierEvidence.evidence = [angle];
+  input.section.blocks[0].interpretationRuleRefs = [rule];
+  input.sectionPlan.allowedInterpretationRuleRefs = [rule];
+  const saved = structuredClone(input);
+  assert.deepEqual(renderableDossierSection(input).configurationsStudied, ["Ascendant · Cancer"]);
+  assert.deepEqual(input, saved);
+  input.dossierEvidence.evidence = [{ ...angle, certainty: { stableAcrossApplicableWindow: false } }];
+  assert.deepEqual(renderableDossierSection(input).configurationsStudied, []);
 });

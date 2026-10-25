@@ -112,14 +112,14 @@ function shell({ title, description, canonicalPath, body }) {
       .ciel-page { max-width: 1080px; margin: 0 auto; padding: 32px 20px 56px; }
       .ciel-hero { margin: 16px 0 28px; }
       .ciel-hero h1 { margin-bottom: 10px; }
-      .ciel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
-      .ciel-section { border-top: 1px solid rgba(255, 255, 255, 0.16); padding-top: 18px; }
+      .ciel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 18px; }
+      .ciel-section { border: 1px solid var(--line); border-radius: 14px; padding: 20px; background: var(--surface); }
       .ciel-section h2 { font-size: 1.25rem; margin: 0 0 12px; }
       .ciel-events { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-      .ciel-events li { display: grid; gap: 4px; padding: 0 0 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
-      .ciel-events time, .ciel-events span, .ciel-empty, .ciel-note { color: #c9cbe2; }
-      .ciel-events strong { color: #fff; font-size: 1.02rem; }
-      .breadcrumb { font-size: 0.94rem; color: #c9cbe2; margin-bottom: 18px; }
+      .ciel-events li { display: grid; gap: 4px; padding: 0 0 12px; border-bottom: 1px solid var(--line); }
+      .ciel-events time, .ciel-events span, .ciel-empty, .ciel-note { color: var(--muted); }
+      .ciel-events strong { color: var(--ink); font-size: 1.02rem; }
+      .breadcrumb { font-size: 0.94rem; color: var(--muted); margin-bottom: 18px; }
       .breadcrumb a { color: inherit; }
       .ciel-month-link { display: inline-block; margin-top: 14px; }
       @media (max-width: 680px) { .ciel-page { padding: 24px 16px 44px; } }

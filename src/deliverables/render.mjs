@@ -2,6 +2,7 @@
 // Styling is self-contained so the HTML can be opened or printed to PDF as-is.
 
 import { docStrings } from "./i18n.mjs";
+import { chartGlossarySection } from "./chartGlossary.mjs";
 import { renderSocleAnnex } from "./socle.mjs";
 
 export function escapeHtml(value) {
@@ -206,6 +207,9 @@ const CSS = `
   .calculated-references li{font-size:12px;line-height:1.65}
   .calculated-references p{font-size:11px;line-height:1.55;color:var(--muted);text-align:left}
   .dossier-subsection{margin-top:24px}
+  .block.reference p{font-size:12.5px;line-height:1.55;text-align:left}
+  .block.reference td,.block.reference th{padding:7px 6px}
+  .block.reference td{line-height:1.45}
   .validation{font-size:12px;color:var(--muted);margin-top:14px}
   .validation .err{color:#c0392b}
   .validation .warn{color:#c98a1b}
@@ -292,9 +296,11 @@ const CSS = `
     .cover-page .brand,.cover-page .kicker,.cover-page .cover-note,.cover-page .big-card small,.cover-page .big-card i{color:var(--muted)}
     .cover-page .big-card{background:#fff;border-color:var(--line)}
     .sheet{width:auto;margin:0;box-shadow:none;padding:0}
+    section.block.reference{margin-top:1.6em}
+    .annex-gap{display:none}
     .cover-page{width:auto;min-height:100vh;margin:0;box-shadow:none}
     .cover-inner{min-height:100vh;padding:14mm 18mm}
-    .caveat,.ai-review,.badge{break-inside:avoid;page-break-inside:avoid}
+    .caveat,.ai-review,.badge,section.block.reference,footer{break-inside:avoid;page-break-inside:avoid}
     a{color:inherit;text-decoration:none}
   }
   /* « screen and » est INDISPENSABLE : une page A4 mesure 794 px de large, donc
@@ -350,7 +356,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
       if (section.kind === "chart") {
         return `<section class="block chart-page"><div class="block-body">${section.html ?? ""}</div></section>`;
       }
-      const classes = section.kind === "annex" ? "block annex" : "block";
+      const classes = section.kind === "annex" ? "block annex" : section.kind === "reference" ? "block reference" : "block";
       // Deux lignes vides avant l'annexe (voir .annex-gap).
       const avant = section.kind === "annex" ? '<div class="annex-gap" aria-hidden="true"></div>\n' : "";
       return `${avant}<section class="${classes}">
@@ -469,6 +475,7 @@ export function annexSections(socle, strings = null) {
   const t = strings ?? docStrings("fr");
   const text = renderSocleAnnex(socle, t);
   return [
+    chartGlossarySection(t),
     {
       id: "annexe-socle",
       title: t.annexTitle,
