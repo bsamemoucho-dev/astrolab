@@ -330,6 +330,10 @@ export function createApp(options = {}) {
   const activeReadingJobs = new Set();
   let outboxMaintenanceRunning = false;
   let outboxMaintenanceTimer = null;
+  let generationRecoveryTimer = null;
+  let nextReadingTimer = null;
+  let readingJobsClosed = false;
+  const scheduledReadingTimers = new Map();
 
   const deliveryPayload = (delivery, req, { emailSent = false } = {}) => {
     if (!delivery) return null;
@@ -354,10 +358,11 @@ export function createApp(options = {}) {
   });
 
   const runClaimedReadingJob = async (delivery, req = null) => {
-    if (!delivery || activeReadingJobs.has(delivery.id)) {
+    if (!delivery || !delivery.generation?.leaseId || readingJobsClosed || activeReadingJobs.has(delivery.id)) {
       return;
     }
     activeReadingJobs.add(delivery.id);
+    const leaseId = delivery.generation.leaseId;
     try {
       if (stripeConfiguration() && !llmConfiguration() && !options.publicReadingWriter) {
         const error = new Error(
@@ -368,16 +373,20 @@ export function createApp(options = {}) {
         throw error;
       }
       const reading = await publicReadingWriterForJob()(delivery.input ?? {}, {
-        onProgress: (progress) => markDeliveryProgress(store, delivery.id, progress).catch((error) => {
+        onProgress: (progress) => markDeliveryProgress(store, delivery.id, progress, { leaseId }).catch((error) => {
           console.warn(`[Lastro] impossible d'enregistrer la progression ${delivery.reference} — ${error.message}`);
         })
       });
-      const ready = await markDeliveryReady(store, delivery.id, reading);
+      const ready = await markDeliveryReady(store, delivery.id, reading, { leaseId });
+      // A superseded worker may finish an already-started API call, but it must
+      // neither replace another attempt's result nor notify the client.
+      if (!ready) return;
       const current = await getDeliveryById(store, delivery.id);
       await deliverReadyReadingEmail(current, req);
       console.log(`[Lastro] lecture publique prête — ${ready?.reference ?? delivery.reference}`);
     } catch (error) {
-      await markDeliveryFailed(store, delivery.id, error.message, error.code ?? "generation_failed");
+      const failed = await markDeliveryFailed(store, delivery.id, error.message, error.code ?? "generation_failed", { leaseId });
+      if (!failed) return;
       await notifyFailedReading(delivery.id, error, req);
       console.error(`[Lastro] generation publique échouée ${delivery.reference} — ${error.message}`, error.cause ?? "");
     } finally {
@@ -478,38 +487,50 @@ export function createApp(options = {}) {
     }
   };
 
+  const reportReadingScheduleError = (error) => {
+    // No customer input or generated prose in scheduler diagnostics.
+    console.warn(`[Lastro] reprise de génération indisponible (${error?.code ?? "internal_error"})`);
+  };
+
   const scheduleReadingJob = (deliveryId, req = null) => {
-    if (options.backgroundReadingJobs === false) {
+    if (options.backgroundReadingJobs === false || readingJobsClosed || !deliveryId || activeReadingJobs.has(deliveryId) || scheduledReadingTimers.has(deliveryId)) {
       return;
     }
-    if (!deliveryId || activeReadingJobs.has(deliveryId)) {
-      return;
-    }
-    setTimeout(async () => {
-      if (activeReadingJobs.has(deliveryId)) {
-        return;
-      }
-      const claimed = await claimDeliveryGeneration(store, deliveryId, { leaseId: randomUUID() });
-      if (claimed) {
-        await runClaimedReadingJob(claimed, req);
-      }
-    }, 0).unref?.();
+    const timer = setTimeout(() => {
+      scheduledReadingTimers.delete(deliveryId);
+      if (readingJobsClosed || activeReadingJobs.has(deliveryId)) return;
+      void (async () => {
+        const claimed = await claimDeliveryGeneration(store, deliveryId, { leaseId: randomUUID() });
+        if (claimed && !readingJobsClosed) await runClaimedReadingJob(claimed, req);
+      })().catch(reportReadingScheduleError);
+    }, 0);
+    scheduledReadingTimers.set(deliveryId, timer);
+    timer.unref?.();
   };
 
   function scheduleNextReadingJob() {
-    if (options.backgroundReadingJobs === false) {
-      return;
-    }
-    setTimeout(async () => {
-      const claimed = await claimNextDeliveryGeneration(store, { leaseId: randomUUID() });
-      if (claimed) {
-        await runClaimedReadingJob(claimed);
-      }
-    }, 0).unref?.();
+    if (options.backgroundReadingJobs === false || readingJobsClosed || nextReadingTimer) return;
+    nextReadingTimer = setTimeout(() => {
+      nextReadingTimer = null;
+      if (readingJobsClosed) return;
+      void (async () => {
+        const claimed = await claimNextDeliveryGeneration(store, {
+          leaseId: randomUUID(),
+          recoveryEligibleOnly: true,
+          excludeIds: [...activeReadingJobs]
+        });
+        if (claimed && !readingJobsClosed) await runClaimedReadingJob(claimed);
+      })().catch(reportReadingScheduleError);
+    }, 0);
+    nextReadingTimer.unref?.();
   }
 
   if (options.backgroundReadingJobs !== false) {
     scheduleNextReadingJob();
+    // A lease can expire AFTER startup. Recovery must not depend on a customer's
+    // polling page; only explicitly versioned new attempts are eligible.
+    generationRecoveryTimer = setInterval(scheduleNextReadingJob, options.generationRecoveryIntervalMs ?? 30 * 1000);
+    generationRecoveryTimer.unref?.();
   }
 
   if (options.outboxMaintenance !== false) {
@@ -885,9 +906,8 @@ export function createApp(options = {}) {
         error.status = 404;
         throw error;
       }
-      if (delivery.status === "queued" || delivery.status === "generating") {
-        scheduleReadingJob(delivery.id, req);
-      }
+      // Status polling is read-only: it must never restart a paid generation,
+      // especially an old dossier that is not eligible for automatic recovery.
       sendJson(res, 200, readingJobPayload(delivery, req));
     }),
     // Vérification de la configuration d'envoi, réservée à l'exploitant : mieux
@@ -1422,6 +1442,13 @@ export function createApp(options = {}) {
     }
   });
   server.on("close", () => {
+    readingJobsClosed = true;
+    if (generationRecoveryTimer) clearInterval(generationRecoveryTimer);
+    if (nextReadingTimer) clearTimeout(nextReadingTimer);
+    generationRecoveryTimer = null;
+    nextReadingTimer = null;
+    for (const timer of scheduledReadingTimers.values()) clearTimeout(timer);
+    scheduledReadingTimers.clear();
     if (outboxMaintenanceTimer) {
       clearInterval(outboxMaintenanceTimer);
       outboxMaintenanceTimer = null;

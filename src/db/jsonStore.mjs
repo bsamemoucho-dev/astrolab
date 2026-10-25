@@ -85,6 +85,7 @@ export class JsonStore {
     this.initialState = initialState;
     this.state = structuredClone(initialState);
     this.loaded = false;
+    this.loading = null;
     // File d'attente des transactions : voir `transact`.
     this.queue = Promise.resolve();
   }
@@ -94,6 +95,20 @@ export class JsonStore {
       return this.state;
     }
 
+    // Startup recovery, the outbox and the first HTTP request can all load the
+    // store together. They must share one initial snapshot: a later read must
+    // never replace state after the first caller has already claimed a lease.
+    if (!this.loading) this.loading = this.loadInitialState();
+    const pending = this.loading;
+    try {
+      return await pending;
+    } finally {
+      // A failed read is retryable after the underlying problem is fixed.
+      if (this.loading === pending) this.loading = null;
+    }
+  }
+
+  async loadInitialState() {
     if (!this.filePath) {
       this.loaded = true;
       return this.state;

@@ -21,6 +21,8 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const RETENTION_DAYS = 30;
 export const GENERATION_LEASE_MS = 15 * 60 * 1000;
+export const PUBLIC_GENERATION_RECOVERY_VERSION = "public-generation-recovery@1";
+export const MAX_AUTOMATIC_GENERATION_RECOVERIES = 1;
 export const DELIVERY_EMAIL_TYPES = ["public_reading_link", "public_reading_failure", "admin_alert"];
 
 function nowIso(now = Date.now()) {
@@ -189,6 +191,8 @@ export async function createPaidDelivery(
       errorCode: null,
       progress: emptyProgress(),
       generation: {
+        recoveryVersion: PUBLIC_GENERATION_RECOVERY_VERSION,
+        automaticRecoveries: 0,
         attempt: 0,
         leaseId: null,
         leaseUntil: null,
@@ -209,7 +213,7 @@ export async function createPaidDelivery(
 export async function markDeliveryGenerating(store, id) {
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
-    if (!delivery) {
+    if (!delivery || ["ready", "failed"].includes(delivery.status) || delivery.generation?.leaseId) {
       return null;
     }
     delivery.status = "generating";
@@ -219,10 +223,12 @@ export async function markDeliveryGenerating(store, id) {
   });
 }
 
-export async function markDeliveryQueued(store, id) {
+export async function markDeliveryQueued(store, id, { now = Date.now() } = {}) {
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
-    if (!delivery || delivery.status === "ready") {
+    // This is an explicit retry action, not a polling or recovery scan. It may
+    // restart a failed/abandoned attempt, but never revokes an active lease.
+    if (!delivery || !["queued", "failed", "generating"].includes(delivery.status) || hasActiveLease(delivery, now)) {
       return null;
     }
     delivery.status = "queued";
@@ -231,6 +237,10 @@ export async function markDeliveryQueued(store, id) {
     delivery.progress = emptyProgress();
     delivery.generation = {
       ...(delivery.generation ?? {}),
+      recoveryVersion: PUBLIC_GENERATION_RECOVERY_VERSION,
+      automaticRecoveries: 0,
+      recoveryStatus: "eligible",
+      recoveryReason: null,
       leaseId: null,
       leaseUntil: null,
       finishedAt: null
@@ -246,8 +256,10 @@ export async function getDeliveryById(store, id, now = Date.now()) {
   if (!value) {
     return null;
   }
-  purgeExpired(state, now);
-  return state.publicReadings.find((entry) => entry.id === value) ?? null;
+  // A status lookup is read-only, including when other records have expired.
+  // Expired data is removed by the existing write transactions, not by polling.
+  const limit = nowIso(now);
+  return state.publicReadings.find((entry) => entry.id === value && entry.expiresAt > limit) ?? null;
 }
 
 function hasActiveLease(delivery, now = Date.now()) {
@@ -255,74 +267,76 @@ function hasActiveLease(delivery, now = Date.now()) {
   return delivery?.status === "generating" && until > now;
 }
 
+function automaticRecoveryBlocked(delivery) {
+  if (delivery.status !== "generating") return false;
+  if (Number(delivery.generation?.automaticRecoveries ?? 0) < MAX_AUTOMATIC_GENERATION_RECOVERIES) return false;
+  delivery.generation = {
+    ...(delivery.generation ?? {}),
+    recoveryStatus: "manual_review_required",
+    recoveryReason: "automatic_recovery_limit_reached"
+  };
+  return true;
+}
+
+function reserveGenerationAttempt(delivery, { leaseMs, now, leaseId }) {
+  const recovering = delivery.status === "generating";
+  const startedAt = nowIso(now);
+  delivery.status = "generating";
+  delivery.error = null;
+  delivery.errorCode = null;
+  delivery.progress = delivery.progress ? normalizeProgress(delivery.progress) : emptyProgress();
+  delivery.generation = {
+    ...(delivery.generation ?? {}),
+    recoveryVersion: PUBLIC_GENERATION_RECOVERY_VERSION,
+    automaticRecoveries: Number(delivery.generation?.automaticRecoveries ?? 0) + (recovering ? 1 : 0),
+    recoveryStatus: "eligible",
+    recoveryReason: null,
+    attempt: Number(delivery.generation?.attempt ?? 0) + 1,
+    leaseId,
+    leaseUntil: nowIso(now + leaseMs),
+    startedAt,
+    finishedAt: null
+  };
+  delivery.updatedAt = startedAt;
+  return structuredClone(delivery);
+}
+
 export async function claimDeliveryGeneration(store, id, { leaseMs = GENERATION_LEASE_MS, now = Date.now(), leaseId = randomUUID() } = {}) {
+  if (!leaseId || typeof leaseId !== "string") return null;
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
-    if (!delivery) {
+    if (!delivery || !["queued", "generating"].includes(delivery.status) || hasActiveLease(delivery, now) || automaticRecoveryBlocked(delivery)) {
       return null;
     }
-    if (delivery.status === "ready" || delivery.status === "failed") {
-      return null;
-    }
-    if (hasActiveLease(delivery, now)) {
-      return null;
-    }
-    const startedAt = nowIso(now);
-    delivery.status = "generating";
-    delivery.error = null;
-    delivery.errorCode = null;
-    delivery.progress = delivery.progress ? normalizeProgress(delivery.progress) : emptyProgress();
-    delivery.generation = {
-      ...(delivery.generation ?? {}),
-      attempt: Number(delivery.generation?.attempt ?? 0) + 1,
-      leaseId,
-      leaseUntil: nowIso(now + leaseMs),
-      startedAt,
-      finishedAt: null
-    };
-    delivery.updatedAt = startedAt;
+    const claimed = reserveGenerationAttempt(delivery, { leaseMs, now, leaseId });
     purgeExpired(state, now);
-    return structuredClone(delivery);
+    return claimed;
   });
 }
 
-export async function claimNextDeliveryGeneration(store, { leaseMs = GENERATION_LEASE_MS, now = Date.now(), leaseId = randomUUID() } = {}) {
+export async function claimNextDeliveryGeneration(store, { leaseMs = GENERATION_LEASE_MS, now = Date.now(), leaseId = randomUUID(), recoveryEligibleOnly = false, excludeIds = [] } = {}) {
+  if (!leaseId || typeof leaseId !== "string") return null;
   return store.transact((state) => {
-    purgeExpired(state, now);
+    // Recovery scans do not introduce a new automatic data-purge policy.
+    // Expired records are ineligible; existing write paths retain their purge.
+    const limit = nowIso(now);
+    const excluded = new Set(excludeIds);
     const delivery = state.publicReadings.find((entry) => {
-      if (entry.status === "queued") {
-        return true;
-      }
-      if (entry.status === "generating") {
-        return !hasActiveLease(entry, now);
-      }
-      return false;
+      if (!(entry.expiresAt > limit) || excluded.has(entry.id)) return false;
+      // Adding a recovery scan must not turn an old abandoned dossier into new
+      // paid API work. New orders and explicit retries opt in to this version.
+      if (recoveryEligibleOnly && entry.generation?.recoveryVersion !== PUBLIC_GENERATION_RECOVERY_VERSION) return false;
+      if (!["queued", "generating"].includes(entry.status) || hasActiveLease(entry, now)) return false;
+      return !automaticRecoveryBlocked(entry);
     });
-    if (!delivery) {
-      return null;
-    }
-    const startedAt = nowIso(now);
-    delivery.status = "generating";
-    delivery.error = null;
-    delivery.errorCode = null;
-    delivery.progress = delivery.progress ? normalizeProgress(delivery.progress) : emptyProgress();
-    delivery.generation = {
-      ...(delivery.generation ?? {}),
-      attempt: Number(delivery.generation?.attempt ?? 0) + 1,
-      leaseId,
-      leaseUntil: nowIso(now + leaseMs),
-      startedAt,
-      finishedAt: null
-    };
-    delivery.updatedAt = startedAt;
-    return structuredClone(delivery);
+    return delivery ? reserveGenerationAttempt(delivery, { leaseMs, now, leaseId }) : null;
   });
 }
 
-export async function markDeliveryProgress(store, id, progress, { leaseMs = GENERATION_LEASE_MS, now = Date.now() } = {}) {
+export async function markDeliveryProgress(store, id, progress, { leaseId = null, leaseMs = GENERATION_LEASE_MS, now = Date.now() } = {}) {
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
-    if (!delivery || delivery.status !== "generating") {
+    if (!delivery || delivery.status !== "generating" || !leaseId || delivery.generation?.leaseId !== leaseId) {
       return null;
     }
     delivery.progress = normalizeProgress({
@@ -338,10 +352,20 @@ export async function markDeliveryProgress(store, id, progress, { leaseMs = GENE
   });
 }
 
-export async function markDeliveryReady(store, id, reading) {
+// Synchronous producers may finish an unleased queued/generating record. Once
+// a job has a lease, every completion must present that exact owner token. No
+// caller (including a stale worker) can overwrite a terminal ready/failed state.
+function mayFinishGeneration(delivery, leaseId) {
+  if (!delivery || !["queued", "generating"].includes(delivery.status)) return false;
+  const owner = delivery.generation?.leaseId;
+  if (owner) return delivery.status === "generating" && Boolean(leaseId) && owner === leaseId;
+  return !leaseId;
+}
+
+export async function markDeliveryReady(store, id, reading, { leaseId = null } = {}) {
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
-    if (!delivery) {
+    if (!mayFinishGeneration(delivery, leaseId)) {
       return null;
     }
     delivery.status = "ready";
@@ -365,10 +389,10 @@ export async function markDeliveryReady(store, id, reading) {
   });
 }
 
-export async function markDeliveryFailed(store, id, message, code = "generation_failed") {
+export async function markDeliveryFailed(store, id, message, code = "generation_failed", { leaseId = null } = {}) {
   return store.transact((state) => {
     const delivery = state.publicReadings.find((entry) => entry.id === id);
-    if (!delivery) {
+    if (!mayFinishGeneration(delivery, leaseId)) {
       return null;
     }
     delivery.status = "failed";
