@@ -355,6 +355,61 @@ function buildEvidencePackets({ section, byId }) {
     .filter(Boolean);
 }
 
+// A transit's natalHouse describes its natal target, not the transiting body.
+// Bring the existing canonical proof into that closed block as factual context;
+// never manufacture a body-house proof from the transit field itself.
+function attachTransitNatalHouseEvidence(section, byId) {
+  if (!["current_sky", "next_weeks"].includes(section.sectionId)) return;
+  section.transitHouseEvidenceDiagnostics = [];
+  const packets = new Map(section.evidencePackets.map((packet) => [packet.packetId, packet]));
+  const norm = (value) => String(value ?? "").trim().toLowerCase();
+  const validHouse = (value) => Number.isInteger(value) && value >= 1 && value <= 12;
+  const natalBodies = new Set(["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"].map(norm));
+  const canonicalHouses = [...byId.values()].filter((item) => item.type === "NATAL_BODY_HOUSE" && natalBodies.has(norm(item.value?.body)));
+  for (const block of section.blockPlans) {
+    const transits = block.packetRefs.flatMap((ref) => packets.get(ref)?.evidenceRefs ?? [])
+      .map((ref) => byId.get(ref)).filter((item) => item?.type === "PERSONAL_TRANSIT");
+    for (const transit of transits) {
+      const value = transit.value ?? {};
+      if (value.natalHouse === null || value.natalHouse === undefined) continue;
+      const candidates = canonicalHouses.filter((item) => norm(item.value?.body) === norm(value.natalPoint));
+      const system = norm(value.houseSystem);
+      const compatible = candidates.filter((item) => validHouse(item.value?.house) && item.value.house === value.natalHouse
+        && system && norm(item.value.houseSystem) === system
+        && (!item.provenance?.reliability || item.provenance.reliability === "HIGH"));
+      const conflicting = candidates.some((item) => !validHouse(item.value?.house) || item.value.house !== value.natalHouse || norm(item.value.houseSystem) !== system);
+      if (!validHouse(value.natalHouse) || compatible.length === 0 || conflicting) {
+        section.transitHouseEvidenceDiagnostics.push({
+          code: candidates.length === 0 ? "transit_natal_house_evidence_missing" : "transit_natal_house_evidence_incompatible",
+          blockId: block.blockId,
+          transitEvidenceRef: transit.evidenceId
+        });
+        continue;
+      }
+      const house = compatible[0];
+      const packetId = `${section.sectionId}.transit_house_context.${packetKey(house.evidenceId)}`;
+      if (!packets.has(packetId)) {
+        const packet = {
+          packetId,
+          evidenceRefs: [house.evidenceId],
+          interpretationRuleRefs: [],
+          claims: claimsForEvidence(house).map((claim, index) => ({ claimId: `${packetId}.${index + 1}`, ...claim })),
+          interpretationDepth: "reference",
+          sourceRole: "transit_natal_house_context",
+          openingAllowed: false,
+          themes: []
+        };
+        section.evidencePackets.push(packet);
+        packets.set(packetId, packet);
+      }
+      if (!block.packetRefs.includes(packetId)) block.packetRefs.push(packetId);
+      if (!section.secondaryEvidenceRefs.includes(house.evidenceId) && !section.primaryEvidenceRefs.includes(house.evidenceId)) section.secondaryEvidenceRefs.push(house.evidenceId);
+      if (!section.alreadyInterpretedEvidenceRefs.includes(house.evidenceId)) section.alreadyInterpretedEvidenceRefs.push(house.evidenceId);
+      section.forbiddenEvidenceRefs = section.forbiddenEvidenceRefs.filter((ref) => ref !== house.evidenceId);
+    }
+  }
+}
+
 function chunk(values, size) {
   const chunks = [];
   for (let index = 0; index < values.length; index += size) {
@@ -737,7 +792,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     const resumer = (ideaId) => {
       const idea = parId.get(ideaId);
       return idea
-        ? { ideaId, label: idea.label, kind: idea.kind, owner: idea.owner }
+        ? { ideaId, label: idea.label, kind: idea.kind, owner: idea.owner, evidenceRefs: idea.evidenceRefs ?? [] }
         : { ideaId, label: ideaId, kind: "unknown", owner: null };
     };
     section.editorialEngine = editorialEngine;
@@ -815,6 +870,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       section.unavailableReason = "no_distinct_interpretive_material";
       section.blockPlans = [];
     }
+    attachTransitNatalHouseEvidence(section, byId);
     section.maxQuestions = 1;
     section.uninterpretedEvidenceRefs = section.evidencePackets.filter((packet) => !packet.interpretationRuleRefs.length).flatMap((packet) => packet.evidenceRefs);
     // Une section de référence ne produit aucun bloc narratif.

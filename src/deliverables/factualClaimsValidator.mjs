@@ -303,7 +303,7 @@ function detectAspectFacts(text) {
   const patterns = [
     new RegExp(`\\b(${ASPECT_PATTERN})\\b${shortText}\\b(${ASPECT_POINT_PATTERN})\\b${shortText}${connector}${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
     new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b${shortTextSansParenthese}\\b(?:forme|forment|cree|creent|dessine|dessinent)?\\b${shortTextSansParenthese}\\b(${ASPECT_PATTERN})\\b${shortText}(?:\\b(?:avec|a|au|vers|de|du)\\b|-|–|—)${shortText}\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu"),
-    new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu")
+    new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b\\s*(?:-|–|—)?\\s*\\b(${ASPECT_PATTERN})\\b\\s*(?:-|–|—)?\\s*(?:(?:le|la|votre)\\s+)?\\b(${ASPECT_POINT_PATTERN})\\b`, "gidu")
   ];
 
   const coordinated = new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b\\s+et\\s+(?:(?:votre|le|la)\\s+)?(${ASPECT_POINT_PATTERN})\\b\\s+(?:forment|creent|dessinent|sont en|se trouvent en)\\s+(?:(?:un|une)\\s+)?(${ASPECT_PATTERN})\\b`, "gidu");
@@ -311,7 +311,30 @@ function detectAspectFacts(text) {
   for (const match of coordinatedMatches) {
     pushAspectFact(facts, seen, keyForVocabularyMatch(match[1], ASPECT_POINT_WORDS), keyForVocabularyMatch(match[3], ASPECT_WORDS), keyForVocabularyMatch(match[2], ASPECT_POINT_WORDS));
   }
-  const bodyFirstMatches = patterns.slice(1).flatMap((pattern) => [...source.matchAll(pattern)]);
+  const phraseAvecObjet = new RegExp(
+    `\\b(${ASPECT_PATTERN})\\b\\s*(?:avec|à|a|vers|de|du)\\s+(?:(?:le|la|les|l'|votre|vos|son|sa|ses|ton|ta|tes|ce|cet|cette)\\s+)?(${ASPECT_POINT_PATTERN})\\b`,
+    "gidu"
+  );
+  const objectPhrases = [...source.matchAll(phraseAvecObjet)];
+  const objectOffsets = new Set(objectPhrases.map((match) => match.indices[2][0]));
+  const overlappingSubjectMatches = (pattern) => {
+    const matches = [];
+    let match;
+    while ((match = pattern.exec(source))) {
+      matches.push(match);
+      // An object can become the explicit subject of a relative clause. Start
+      // the next search after the previous subject, not after its whole pair.
+      pattern.lastIndex = match.indices[1][1];
+    }
+    return matches;
+  };
+  const bodyFirstMatches = patterns.slice(1).flatMap(overlappingSubjectMatches).filter((match) => {
+    const continuation = source.slice(match.indices[1][1], match.indices[2][0]);
+    // In "Jupiter ... avec le Soleil et en sextile avec la Lune", the
+    // Soleil occurrence is an object, not a fresh subject. An explicit relative
+    // clause ("le Soleil, qui est ...") can still introduce a new subject.
+    return !(objectOffsets.has(match.indices[1][0]) && /^[\s,]*(?:(?:et|puis)\s+)?(?:(?:est|sera|reste)\s+)?(?:en\s+)?$/iu.test(continuation));
+  });
   const resolvedAspectOffsets = new Set([...bodyFirstMatches.map((match) => match.indices[2][0]), ...coordinatedMatches.map((match) => match.indices[3][0])]);
   for (const match of source.matchAll(patterns[0])) {
     // If this exact aspect token already has an explicit subject and object,
@@ -350,18 +373,17 @@ function detectAspectFacts(text) {
   //   3. sinon le sujet est le dernier corps cité avant la phrase, à condition
   //      qu'il ne soit pas lui-même l'objet d'un aspect déjà détecté (sinon la
   //      phrase est ambiguë : on ne devine pas).
-  const phraseAvecObjet = new RegExp(
-    `\\b(${ASPECT_PATTERN})\\b\\s*(?:avec|à|a|vers|de|du)\\s+(?:(?:le|la|les|l'|votre|vos|son|sa|ses|ton|ta|tes|ce|cet|cette)\\s+)?(${ASPECT_POINT_PATTERN})\\b`,
-    "giu"
-  );
   const mentionsCorps = [...source.matchAll(new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b`, "giu"))].map((m) => ({
     cle: keyForVocabularyMatch(m[1], ASPECT_POINT_WORDS),
     debut: m.index,
     fin: m.index + m[0].length
   }));
-  const corpsObjet = new Set(facts.filter((fait) => fait.type === "ASPECT").map((fait) => `${fait.bodyA}|${fait.bodyB}`));
+  // Resolve each aspect occurrence from its own explicit subject first. A body
+  // that appears in another aspect is not thereby ambiguous as a subject here.
+  const explicitSubjectAt = new Map(bodyFirstMatches.map((match) => [match.indices[2][0], keyForVocabularyMatch(match[1], ASPECT_POINT_WORDS)]));
+  const explicitObjectOffsets = new Set([...objectOffsets, ...bodyFirstMatches.map((match) => match.indices[3][0])]);
   let precedente = null;
-  for (const m of source.matchAll(phraseAvecObjet)) {
+  for (const m of objectPhrases) {
     const aspectType = keyForVocabularyMatch(m[1], ASPECT_WORDS);
     const objet = keyForVocabularyMatch(m[2], ASPECT_POINT_WORDS);
     const debutPhrase = m.index;
@@ -371,24 +393,23 @@ function detectAspectFacts(text) {
       ? [...entre.matchAll(new RegExp(`\\b(${ASPECT_POINT_PATTERN})\\b`, "giu"))].length > 0
       : false;
 
-    let sujet = null;
-    if (precedente && !corpsDansEntre) {
-      sujet = precedente.sujet; // énumération : même sujet
-    } else {
-      const avant = mentionsCorps.filter((mention) => mention.fin <= debutPhrase && mention.cle !== objet);
+    let sujet = explicitSubjectAt.get(debutPhrase) ?? null;
+    if (!sujet && precedente?.sujet && !corpsDansEntre && !/[.!?;\n]/u.test(entre ?? "")) {
+      sujet = precedente.sujet; // énumération dans la même phrase : même sujet
+    } else if (!sujet) {
+      const avant = mentionsCorps.filter((mention) => mention.fin <= debutPhrase);
       const candidat = avant[avant.length - 1];
-      const ambigu = candidat && (corpsObjet.has(`${candidat.cle}|${objet}`) || corpsObjet.has(`${objet}|${candidat.cle}`));
-      // Le candidat ne doit pas être l'objet d'un aspect déjà lu dans la phrase.
-      const candidatEstObjet = candidat
-        ? facts.some((fait) => fait.type === "ASPECT" && (fait.bodyB === candidat.cle || fait.bodyA === candidat.cle) && fait.bodyB !== objet && fait.bodyA !== objet)
-        : false;
-      if (candidat && !ambigu && !candidatEstObjet) sujet = candidat.cle;
+      const lien = candidat ? source.slice(candidat.fin, debutPhrase) : "";
+      // The occurrence, not its planet name, determines whether this is an
+      // earlier object's token. Never cross a sentence or turn an unresolved
+      // object's name into the next implicit subject.
+      if (candidat && candidat.cle !== objet && !explicitObjectOffsets.has(candidat.debut) && !/[.!?;\n]/u.test(lien)) sujet = candidat.cle;
     }
 
     if (sujet) {
       pushAspectFact(facts, seen, sujet, aspectType, objet);
     }
-    precedente = { sujet: sujet ?? objet, finObjet };
+    precedente = { sujet, finObjet };
   }
 
   return facts;
@@ -542,6 +563,12 @@ function countSentences(text) {
     .filter(Boolean).length;
 }
 
+// Server dates and timing stay in the deterministic lead. Generated rewording
+// is an explicit validation failure, never a sentence silently removed before
+// the factual validator can inspect it.
+const INTERPRETATION_DATE_PATTERN = /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}(?:er)?\s+(?:janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)(?:\s+\d{4})?|(?:janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\s+\d{4})\b/u;
+const INTERPRETATION_TIMING_PATTERN = /\b(?:prevu|a venir|se produira|sera exact|va etre exact|deviendra exact|a ete exact|etait exact|est exact|exactitude|fenetre d'orbe|applying|separating|stationary|indeterminate)\b/u;
+
 function interpretationTextForDeterministicLead(block, blockPlan) {
   const prefix = String(blockPlan?.deterministicPrefix ?? "").trim();
   const text = String(block?.text ?? "").trim();
@@ -577,6 +604,10 @@ function blockPlanById(sectionPlan) {
 }
 
 function expandBlockFromPackets({ block, sectionPlan, issues }) {
+  // This metadata is derived below, never accepted from generated JSON, even
+  // on the legacy no-packet path.
+  const { primaryEvidenceRefs: ignoredPrimaryRefs, ...sourceBlock } = block ?? {};
+  block = sourceBlock;
   const plans = blockPlanById(sectionPlan);
   const blockPlan = plans.get(block?.blockId);
   if ((sectionPlan?.blockPlans ?? []).length > 0 && !blockPlan) {
@@ -600,13 +631,18 @@ function expandBlockFromPackets({ block, sectionPlan, issues }) {
   const evidenceRefs = [...new Set(resolved.flatMap((packet) => packet.evidenceRefs ?? []))];
   const interpretationRuleRefs = [...new Set(resolved.flatMap((packet) => packet.interpretationRuleRefs ?? []))];
   const claims = resolved.flatMap((packet) => packet.claims ?? []);
-  const interpretationDepth = resolved.some((packet) => packet.interpretationDepth === "reference") ? "reference" : "primary";
+  const primaryEvidenceRefs = [...new Set(resolved
+    .filter((packet) => packet.interpretationDepth !== "reference")
+    .flatMap((packet) => packet.evidenceRefs ?? []))];
+  const interpretationDepth = primaryEvidenceRefs.length > 0 ? "primary" : "reference";
   return {
     ...block,
     packetRefs,
     evidenceRefs,
     interpretationRuleRefs,
     interpretationDepth,
+    // Derived only from server-owned packets; never trust this field from LLM output.
+    primaryEvidenceRefs,
     claims
   };
 }
@@ -822,7 +858,8 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
       if (!allowedEvidence.has(ref)) {
         issues.push(claimlikeForBlock(block, "evidence_not_allowed_in_section", `Preuve non autorisée dans ${section.sectionId} : ${ref}.`, { evidenceRef: ref }));
       }
-      if (alreadyInterpreted.has(ref) && block.interpretationDepth === "primary") {
+      const primaryHere = block.primaryEvidenceRefs ? block.primaryEvidenceRefs.includes(ref) : block.interpretationDepth === "primary";
+      if (alreadyInterpreted.has(ref) && primaryHere) {
         issues.push(claimlikeForBlock(block, "evidence_reuse_as_primary", `Preuve déjà interprétée ailleurs réutilisée comme interprétation principale : ${ref}.`, { evidenceRef: ref }));
       }
     }
@@ -881,7 +918,13 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     for (const finding of validateAstrologicalDates({ text: block.text, refs: resolvedRefs, timeZone: referenceTimeZone(dossierEvidence, sectionPlan), aspectFacts: detectAspectFacts })) {
       issues.push(claimlikeForBlock(block, finding.code, "La date astrologique ne correspond pas au rôle et aux preuves autorisées dans le fuseau du dossier.", { fact: finding.fact, referenceTimeZone: referenceTimeZone(dossierEvidence, sectionPlan) }));
     }
-    const interpretationText = blockPlan?.forbidAspectVocabulary ? interpretationTextForDeterministicLead(block, blockPlan) : null;
+    const generatedInterpretation = interpretationTextForDeterministicLead(block, blockPlan);
+    if (generatedInterpretation) {
+      const wording = normalizedText(generatedInterpretation);
+      if (INTERPRETATION_DATE_PATTERN.test(wording)) issues.push(claimlikeForBlock(block, "date_rewording_in_interpretation", "Le texte généré reformule une date réservée au préfixe serveur. Corriger ce texte sans modifier le préfixe ni les preuves."));
+      if (INTERPRETATION_TIMING_PATTERN.test(wording)) issues.push(claimlikeForBlock(block, "temporal_rewording_in_interpretation", "Le texte généré reformule la temporalité réservée au préfixe serveur. Corriger ce texte sans modifier le préfixe ni les preuves."));
+    }
+    const interpretationText = blockPlan?.forbidAspectVocabulary ? generatedInterpretation : null;
     const disallowedAspectTypes = interpretationText
       ? aspectTypesInText(interpretationText).filter((aspectType) => !allowedAspectTypesForBlock(block).has(norm(aspectType)))
       : [];

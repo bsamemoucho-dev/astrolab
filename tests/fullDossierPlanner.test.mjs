@@ -1134,18 +1134,20 @@ test("next_weeks deterministic lead uses the same future exactAt wording", () =>
   assert.equal(transitBlock.deterministicPrefix.includes("a été exact"), false);
 });
 
-test("deterministic transit lead removes LLM temporal rewording from current_sky", async () => {
+test("deterministic transit lead explicitly rejects repeated LLM temporal rewording from current_sky", async () => {
   const { dossierEvidence, fullDossierPlan } = phase2Fixture({
     currentSky: skyWithTransitTiming({ exactAt: "2026-09-12T06:00:00.000Z", phase: "SEPARATING" })
   });
   const currentPlan = sectionPlanById(fullDossierPlan, "current_sky");
   const transitPacket = currentPlan.evidencePackets.find((packet) => packet.evidenceRefs.some((ref) => ref.startsWith("transit.")));
   const sectionPlan = planForPacket(currentPlan, transitPacket.packetId);
-  const written = await writeStructuredSectionWithLlm({
+  let calls = 0;
+  await assert.rejects(writeStructuredSectionWithLlm({
     dossierEvidence,
     sectionPlan,
     options: {
-      structuredWriterFn: async (payload) => ({
+      logger: { warn() {} },
+      structuredWriterFn: async (payload) => (calls++, {
         sectionId: "current_sky",
         blocks: [
           {
@@ -1155,27 +1157,28 @@ test("deterministic transit lead removes LLM temporal rewording from current_sky
         ]
       })
     }
+  }), (error) => {
+    assert.ok(error.validation.issues.some((issue) => issue.code === "date_rewording_in_interpretation"));
+    assert.ok(error.validation.issues.some((issue) => issue.code === "temporal_rewording_in_interpretation"));
+    return true;
   });
-  const text = written.section.blocks[0].text;
-  assert.ok(text.includes("L'aspect a été exact le 12 septembre 2026"));
-  assert.equal(text.includes("sera exact"), false);
-  assert.equal(text.includes("à venir"), false);
-  assert.ok(text.includes("tension symbolique"));
-  assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
+  assert.equal(calls, 2, "identical forbidden wording stops without a third paid attempt");
 });
 
-test("deterministic transit lead removes LLM temporal rewording from next_weeks", async () => {
+test("deterministic transit lead explicitly rejects repeated LLM temporal rewording from next_weeks", async () => {
   const { dossierEvidence, fullDossierPlan } = phase2Fixture({
     currentSky: skyWithTransitTiming({ status: "UPCOMING", exactAt: "2026-10-12T06:00:00.000Z" })
   });
   const nextPlan = sectionPlanById(fullDossierPlan, "next_weeks");
   const transitPacket = nextPlan.evidencePackets.find((packet) => packet.evidenceRefs.some((ref) => ref.startsWith("transit.")));
   const sectionPlan = planForPacket(nextPlan, transitPacket.packetId);
-  const written = await writeStructuredSectionWithLlm({
+  let calls = 0;
+  await assert.rejects(writeStructuredSectionWithLlm({
     dossierEvidence,
     sectionPlan,
     options: {
-      structuredWriterFn: async (payload) => ({
+      logger: { warn() {} },
+      structuredWriterFn: async (payload) => (calls++, {
         sectionId: "next_weeks",
         blocks: [
           {
@@ -1185,12 +1188,12 @@ test("deterministic transit lead removes LLM temporal rewording from next_weeks"
         ]
       })
     }
+  }), (error) => {
+    assert.ok(error.validation.issues.some((issue) => issue.code === "date_rewording_in_interpretation"));
+    assert.ok(error.validation.issues.some((issue) => issue.code === "temporal_rewording_in_interpretation"));
+    return true;
   });
-  const text = written.section.blocks[0].text;
-  assert.ok(text.includes("L'aspect sera exact le 12 octobre 2026"));
-  assert.equal(text.includes("a été exact"), false);
-  assert.ok(text.includes("lecture symbolique"));
-  assert.equal(written.validation.ok, true, JSON.stringify(written.validation.issues, null, 2));
+  assert.equal(calls, 2, "identical forbidden wording stops without a third paid attempt");
 });
 
 test("global coherence rejects birth-time uncertainty prose when the birth time is exact", () => {

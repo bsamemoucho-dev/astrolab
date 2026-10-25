@@ -29,16 +29,16 @@ const MISSIONS = {
   supporting_resources:
     "Montre ce qui rend la tension tenable, pas des dons isolés. Un appui ne peut être relié à une tension que si une relation calculée le permet ; sinon, développe sa portée propre sans inventer de lien. Tu peux rappeler en une clause les tensions auxquelles ces appuis répondent, sans les redécrire.",
   major_aspects:
-    "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. Si tu n'as rien de nouveau à dire, dis-le en une phrase.",
+    "Tu ne décris aucun aspect : tout a été dit dans les chapitres de catégorie. Tu formules ce que la carte des aspects montre d'ensemble et qui n'a pas encore été écrit. N'ajoute pas de commentaire de matière insuffisante ni de remplissage.",
   conclusion:
     "Dégage ce que la lecture apporte dans son ensemble à partir des textes déjà produits et des relations autorisées. Ne conclus ni par une liste de placements ni par une nouvelle interprétation ; distingue les dynamiques indépendantes et termine par une ouverture, sans question obligatoire.",
   // Mission du chapitre qui porte une figure : exposer des lectures, pas un verdict.
   exploration:
     "Tu explores UNE figure calculée, pas des aspects séparés. Trois mouvements, sans les titrer : " +
     "(1) ce que cette structure a de particulier — sans réciter les positions, elles sont dans l'annexe ; " +
-    "(2) deux lectures possibles de cette même figure, chacune développée et menée jusqu'à ce qu'elle change quelque chose pour le lecteur, avec en une phrase le fait qui les distingue ; " +
+    "(2) les seules lectures effectivement transmises pour cette figure, chacune développée selon son discriminant, sans en inventer une deuxième lorsqu'une seule est licenciée ; " +
     "(3) une question ou une ouverture qui laisse au lecteur quelque chose à penser. " +
-    "Ne tranche pas entre les deux lectures. " +
+    "Ne tranche pas entre les lectures disponibles. " +
     "N'explique pas l'atelier : ni « hypothèse », ni « mesure », ni « convention », ni « on ne peut pas en déduire ». Les preuves et les limites sont publiées dans l'annexe ; ton texte les applique, il ne les raconte pas.",
   identity:
     "Décris la direction personnelle à partir du Soleil et de l'axe, sans nommer les aspects déjà traités dans les chapitres de tensions.",
@@ -48,8 +48,8 @@ const MISSIONS = {
   affectivity: "Décris la manière d'accorder de la valeur et de s'attacher, à partir de Vénus.",
   action: "Décris la manière d'agir et de défendre à partir de Mars.",
   relationships: "Décris la manière d'entrer en relation, sans inventer de relation réelle.",
-  work_realization: "Décris la construction et la tenue dans le temps à partir de Saturne.",
-  security_resources: "Décris l'ancrage et les ressources concrètes.",
+  work_realization: "Développe seulement l'apport propre des règles autorisées dans ce chapitre, sans répéter les qualités déjà traitées dans Identité. Ne déduis ni métier ni réussite professionnelle ; si aucune idée distincte n'est disponible, n'ajoute pas de discours général sur le travail.",
+  security_resources: "Exploite seulement les significations disponibles pour la sécurité et les ressources, sans déduire situation financière, biens ou stabilité matérielle. Aucun développement générique si ces preuves n'apportent pas d'idée distincte aux autres chapitres.",
   creativity: "Décris les modes d'expression créative à partir des faits disponibles.",
   houses: "Décris les domaines de vie à partir des maisons exploitables."
 };

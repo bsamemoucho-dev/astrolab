@@ -1,3 +1,4 @@
+import { editorialStyleFindings } from "./editorialStyle.mjs";
 import { formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import {
@@ -318,26 +319,6 @@ function sanitizeStructuredSection(section, sectionPlan) {
   };
 }
 
-const TEMPORAL_REWORDING_PATTERN =
-  /\b(?:prévu|prevu|à venir|a venir|se produira|sera exact|va être exact|va etre exact|deviendra exact|a été exact|a ete exact|était exact|etait exact|est exact|exactitude|fenêtre d'orbe|fenetre d'orbe|applying|separating|stationary|indeterminate)\b/i;
-
-const DATE_REWORDING_PATTERN =
-  /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)(?:\s+\d{4})?)\b/i;
-
-function splitSentences(text) {
-  return String(text ?? "")
-    .split(/(?<=[.!?])\s+|\n+/u)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-}
-
-function sanitizeTemporalRewording(text) {
-  return splitSentences(text)
-    .filter((sentence) => !TEMPORAL_REWORDING_PATTERN.test(sentence) && !DATE_REWORDING_PATTERN.test(sentence))
-    .join(" ")
-    .trim();
-}
-
 function applyDeterministicPrefix(section, blockPlan) {
   const prefix = String(blockPlan?.deterministicPrefix ?? "").trim();
   if (!prefix) return section;
@@ -345,7 +326,7 @@ function applyDeterministicPrefix(section, blockPlan) {
     ...section,
     blocks: (section.blocks ?? []).map((item) => {
       if (item.blockId !== blockPlan.blockId) return item;
-      const text = sanitizeTemporalRewording(item.text);
+      const text = String(item.text ?? "");
       if (!text) return { ...item, text: prefix };
       if (text.startsWith(prefix)) return item;
       return { ...item, text: `${prefix}\n\n${text}` };
@@ -376,6 +357,25 @@ export function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
   const evidencePackets = (sectionPlan?.evidencePackets ?? []).filter((packet) => packetRefs.has(packet.packetId));
   const evidenceRefs = unique(evidencePackets.flatMap((packet) => packet.evidenceRefs ?? []));
   const ruleRefs = unique(evidencePackets.flatMap((packet) => packet.interpretationRuleRefs ?? []));
+  const hasProofs = (refs) => Array.isArray(refs) && refs.every((ref) => evidenceRefs.includes(ref));
+  const scopeIdeas = (ideas = []) => ideas.map((idea) => ({ ...idea, label: hasProofs(idea.evidenceRefs) ? idea.label : null }));
+  const allowedRelations = (sectionPlan.allowedRelations ?? []).filter((relation) => hasProofs(relation.evidenceRefs));
+  const readingHypotheses = (sectionPlan.readingHypotheses ?? []).filter((hypothesis) => {
+    const idea = sectionPlan.editorialPlan?.owns?.find((owned) => owned.ideaId === `idea.figure.${hypothesis.figureId}`);
+    return hasProofs(hypothesis.licence?.evidenceRefs ?? idea?.evidenceRefs);
+  });
+  const hypothesisFigures = new Set(readingHypotheses.map((hypothesis) => hypothesis.figureId));
+  const editorialPlan = sectionPlan.editorialPlan ? {
+    ...sectionPlan.editorialPlan,
+    owns: scopeIdeas(sectionPlan.editorialPlan.owns),
+    mayRecall: scopeIdeas(sectionPlan.editorialPlan.mayRecall),
+    reserved: scopeIdeas(sectionPlan.editorialPlan.reserved),
+    relationRefs: allowedRelations.map((relation) => relation.relationId),
+    isolation: (sectionPlan.editorialPlan.isolation ?? []).filter((entry) => hypothesisFigures.has(entry.figureId) && hasProofs([...(entry.linked ?? []), ...(entry.isolated ?? [])].map((aspect) => aspect.ref)))
+  } : null;
+  // The conclusion's recaps were checked against the full chapter scope. Keep
+  // them in its complete composition block, never in a partial isolated block.
+  const hasCompleteChapterContext = hasProofs(unique((sectionPlan.evidencePackets ?? []).flatMap((packet) => packet.evidenceRefs ?? [])));
   return {
     ...sectionPlan,
     // Numerical budget metadata only: no packets from other blocks.
@@ -388,6 +388,16 @@ export function scopedSectionPlanForBlock(sectionPlan, blockPlan) {
     secondaryEvidenceRefs: (sectionPlan?.secondaryEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
     forbiddenEvidenceRefs: [],
     allowedInterpretationRuleRefs: ruleRefs,
+    editorialPlan,
+    allowedRelations,
+    readingHypotheses,
+    validatedChapterRecaps: hasCompleteChapterContext ? sectionPlan.validatedChapterRecaps : [],
+    // The chapter may own every thesis proof while this isolated block owns
+    // only a subset. Never invite it to repeat facts outside its fixed packets.
+    editorialThesis: sectionPlan?.editorialThesis &&
+      Array.isArray(sectionPlan.editorialThesis.evidenceRefs) &&
+      sectionPlan.editorialThesis.evidenceRefs.every((ref) => evidenceRefs.includes(ref))
+      ? sectionPlan.editorialThesis : null,
     alreadyInterpretedEvidenceRefs: (sectionPlan?.alreadyInterpretedEvidenceRefs ?? []).filter((ref) => evidenceRefs.includes(ref)),
     evidencePackets,
     blockPlans: [blockPlan],
@@ -640,10 +650,13 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     "Pour ces blocs, n'écris aucune date, ne répète pas la fenêtre temporelle, ne qualifie pas le transit de futur/passé/en cours et n'utilise pas prévu, à venir, sera exact, a été exact, est exact, applying ou separating.",
     "Si deterministicLead contient un aspect, n'emploie aucun vocabulaire géométrique d'aspect dans ton texte : pas de conjonction, opposition, carré, trigone, sextile, aspect exact ou forme un aspect. Cite les planètes seulement pour leur fonction symbolique.",
     "Respecte le vouvoiement, un ton sobre, humain et non fataliste.",
-    "Pour une idée dont ce chapitre est propriétaire, explore un dilemme concret et plusieurs façons possibles de le vivre. La prudence porte sur la lecture symbolique, pas sur une répétition du conditionnel : alterne description des symboles, possibilités et situations envisagées ; ne conclus jamais à un trait établi de la personne. Une liste de qualités reformulées ne suffit pas ; précise les limites sans inventer son histoire ; une question n'est jamais obligatoire.",
+    "Pour une idée dont ce chapitre est propriétaire, explique ce que les concepts et leur relation apportent à la lecture : une nuance, un contraste ou une possibilité seulement si la règle transmise les porte. N'impose ni dilemme ni conflit à un placement de soutien. Ne fabrique pas plusieurs façons de vivre une configuration pour remplir le chapitre. La prudence porte sur le statut symbolique : décrire au présent la relation entre symboles n'attribue pas un trait au lecteur ; une question n'est jamais obligatoire.",
     "Une interaction reste interdite lorsqu’elle est formulée indirectement : cette harmonie, ces tensions, les dynamiques précédentes. Un pronom ou un renvoi ne crée aucune relation calculée.",
     // Contrat éditorial : ce que le rédacteur reçoit est un matériau, pas un texte.
     "Contrat éditorial : tu reçois des CONCEPTS, une RELATION et des NUANCES — ce sont des matériaux de raisonnement, jamais des phrases à recopier. Construis tes propres formulations à partir d'eux.",
+    "Chaque paragraphe développe un apport distinct à partir d'une relation autorisée ; une liste de qualités, une paraphrase de placement ou un conseil valable pour tout le monde n'en tient pas lieu. Une explication courte et spécifique suffit quand les sources sont minces.",
+    "Les nuances et limites sont des contraintes internes à appliquer, pas des avertissements à réciter après chaque placement. Le cadrage symbolique du dossier existe déjà : ne répète pas partout 'cela ne signifie pas que' ou 'on ne peut pas en déduire'. Garde seulement la limite propre à l'idée lorsqu'elle change réellement sa compréhension.",
+    "Aucun conseil de bien-être interchangeable ni flatterie pour conclure un paragraphe : 'trouver votre équilibre', 'écouter votre intuition', 'accueillir vos émotions' ne remplacent pas l'explication de la configuration. N'ajoute pas un vécu, un métier, une relation réelle ou une ressource matérielle pour rendre l'idée concrète.",
     "Les croisements autorisés figurent dans `editorial.relationsAllowed` : ce sont les seuls. Tu n'en inventes aucun autre ; si un croisement te semble manquer, ne le fabrique pas.",
     "Dans un chapitre de composition, les idées réservées gardent leur développement détaillé dans leur chapitre propriétaire ; cela n’interdit pas d’en dégager le fil conducteur avec les packets licensed_composition_context. Cette composition n’est pas limitée à un rappel d’une phrase.",
     "`editorial.mayRecall` : idées déjà développées dans un chapitre précédent. Tu peux les nommer en une clause au maximum, jamais les redévelopper.",
@@ -654,13 +667,15 @@ export function buildStructuredSystemPrompt(sectionPlan, options = {}) {
     // Chapitre qui explore une figure : plusieurs lectures, jamais un verdict.
     ...(Array.isArray(sectionPlan.readingHypotheses) && sectionPlan.readingHypotheses.length > 0
       ? [
-          "Tu explores UNE figure calculée : expose au moins deux lectures possibles de CETTE MÊME figure, et montre ce qui les distingue par un fait du thème — pas par un commentaire de méthode. Ne tranche pas entre elles : laisse-les en tension.",
+          sectionPlan.readingHypotheses.length > 1
+            ? "Tu explores UNE figure calculée : expose au moins deux lectures possibles de CETTE MÊME figure parmi les hypothèses effectivement transmises, et montre ce qui les distingue par un fait du thème — pas par un commentaire de méthode. N'en invente aucune autre."
+            : "Une seule hypothèse est transmise : développe cette seule lecture et sa nuance autorisée. N'invente pas une seconde lecture pour créer un débat artificiel.",
           "Chaque lecture est licenciée par les faits calculés fournis. Tu ne peux ni en ajouter, ni étendre une ressource à une configuration qui n'appartient pas à la figure.",
           "Interdit explicite : dire qu'un aspect compense, équilibre ou éclaire une configuration que rien ne relie. Si les faits ne le portent pas, tu ne l'écris pas.",
           "Si `editorial.isolation` fournit un décompte, tu peux dire qu'aucun des aspects retenus ne relie la figure aux autres configurations — ce fait est calculé sur l'ensemble, pas sur un échantillon.",
           "N'annonce pas les positions planétaires en ouverture : elles figurent dans l'annexe. Ouvre sur ce que la structure a de particulier.",
           "Signale qu'il s'agit d'une lecture par la formulation elle-même (« une lecture serait… », « on peut aussi lire… »), jamais par un commentaire sur ta méthode.",
-          "Ne hiérarchise pas les deux lectures et ne conclus pas : laisse-les ouvertes.",
+          "S'il y a plusieurs lectures autorisées, ne les hiérarchise pas et ne tranche pas : laisse-les ouvertes.",
           "N'écris aucun méta-commentaire sur tes preuves, tes mesures, tes conventions ou tes limites : cela appartient à l'annexe, pas au chapitre.",
           "Une question au lecteur est facultative, jamais une fin de paragraphe automatique. Respecte le budget du bloc et le maximum d’une question sur le chapitre entier."
         ]
@@ -743,7 +758,7 @@ function editorialForPrompt(sectionPlan) {
       statement: hypothese.statement,
       discriminator: hypothese.discriminator,
       computedFacts: hypothese.licence?.computedFacts ?? [],
-      questions: hypothese.questions ?? [],
+      questions: (sectionPlan.blockPlans ?? []).some((block) => (block.maxQuestions ?? 0) > 0) ? hypothese.questions ?? [] : [],
       limits: hypothese.limits ?? []
     })),
     // Isolation calculée sur TOUS les aspects retenus : ce que le chapitre peut
@@ -855,6 +870,18 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
 
   let correctionIssues = [];
   let previousRefusalSignature = null;
+  let editorialRevisionRequested = false;
+  const requestEditorialRevision = (section, attempt) => {
+    const findings = (section.blocks ?? []).flatMap((block) => editorialStyleFindings(block.text).map((finding) => ({ ...finding, blockId: block.blockId, source: "editorial_style", textToRevise: String(block.text ?? "").startsWith(String(blockPlan.deterministicPrefix ?? "")) ? String(block.text ?? "").slice(String(blockPlan.deterministicPrefix ?? "").length).trim() : block.text })));
+    if (!findings.length) return false;
+    const canRevise = !editorialRevisionRequested && attempt < MAX_CORRECTION_ATTEMPTS;
+    logger?.warn?.("[Lastro] editorial style review", { sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, action: canRevise ? "bounded_revision" : "diagnostic_retained", codes: findings.map((finding) => finding.code) });
+    if (!canRevise) return false;
+    editorialRevisionRequested = true;
+    correctionIssues = findings;
+    previousRefusalSignature = null;
+    return true;
+  };
   let lastSection = null;
   let lastValidation = null;
   let llmCalls = 0;
@@ -911,7 +938,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     let result = null;
     const attemptStartedAtMs = Date.now();
     const attemptStartedAt = new Date(attemptStartedAtMs).toISOString();
-    const retryReason = attempt === 0 ? "initial" : "validation_correction";
+    const retryReason = attempt === 0 ? "initial" : correctionIssues.some((finding) => finding.source === "editorial_style") ? "editorial_correction" : "validation_correction";
     if (writerFn) {
       raw = await writerFn(payload);
       raw = typeof raw === "string" ? raw : JSON.stringify(raw);
@@ -996,6 +1023,10 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
       lastSection = section;
       lastValidation = validation;
       if (validation.ok) {
+        if (requestEditorialRevision(section, attempt)) {
+          instrumentation?.recordApplicationAttempt({ sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, logicalCallId, applicationAttempt: attempt + 1, isRetry: attempt > 0, retryReason, model: result?.model ?? config?.model ?? null, startedAt: attemptStartedAt, durationMs: Date.now() - attemptStartedAtMs, inputTokens: result?.usage?.promptTokens ?? 0, outputTokens: result?.usage?.completionTokens ?? 0, totalTokens: result?.usage?.totalTokens ?? null, requestId: result?.requestId ?? null, status: "success", errorType: null });
+          continue;
+        }
         logStructuredValidationWarnings({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
         instrumentation?.recordApplicationAttempt({
           sectionId: sectionPlan.sectionId,
@@ -1083,6 +1114,7 @@ async function writeStructuredBlockWithLlm({ dossierEvidence, sectionPlan, block
     lastSection = section;
     lastValidation = validation;
     if (validation.ok) {
+      if (requestEditorialRevision(section, attempt)) continue;
       logStructuredValidationWarnings({ logger, sectionId: sectionPlan.sectionId, blockId: blockPlan.blockId, attempt: attempt + 1, validation });
       return {
         section: enrichedStructuredSection(section, scopedPlan),
