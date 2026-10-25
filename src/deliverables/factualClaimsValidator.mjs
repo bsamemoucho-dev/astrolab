@@ -5,7 +5,7 @@ import { aspectIdentifier } from "./figures.mjs";
 import { countWords } from "./generationLimits.mjs";
 import { detectCrossedClaims, isCrossingLicensed } from "./crossedClaims.mjs";
 
-export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.4.0";
+export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.5.0";
 
 function norm(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -918,6 +918,9 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
     for (const finding of validateAstrologicalDates({ text: block.text, refs: resolvedRefs, timeZone: referenceTimeZone(dossierEvidence, sectionPlan), aspectFacts: detectAspectFacts })) {
       issues.push(claimlikeForBlock(block, finding.code, "La date astrologique ne correspond pas au rôle et aux preuves autorisées dans le fuseau du dossier.", { fact: finding.fact, referenceTimeZone: referenceTimeZone(dossierEvidence, sectionPlan) }));
     }
+    // Reuse the global UTC-direction guard before any model correction: a
+    // server-owned factual prefix cannot be repaired by generating more prose.
+    issues.push(...transitDirectionIssues(block, snapshotNow(dossierEvidence)));
     const generatedInterpretation = interpretationTextForDeterministicLead(block, blockPlan);
     if (generatedInterpretation) {
       const wording = normalizedText(generatedInterpretation);
@@ -988,6 +991,28 @@ function snapshotNow(dossierEvidence) {
   return now && !Number.isNaN(now.getTime()) ? now : null;
 }
 
+function transitDirectionIssues(block, now) {
+  if (!now) return [];
+  const issues = [];
+  const text = String(block.text ?? "");
+  const personalTransits = (block.claims ?? []).filter((claim) => claim.type === "PERSONAL_TRANSIT");
+  for (const transit of personalTransits) {
+    const exactAt = transit.exactAt ? new Date(transit.exactAt) : null;
+    if (!exactAt || Number.isNaN(exactAt.getTime())) continue;
+    const futureExact = exactAt.getTime() > now.getTime();
+    const pastExact = exactAt.getTime() < now.getTime();
+    const saysFuture = hasPhrase(text, ["sera exact", "va être exact", "va etre exact", "deviendra exact"]);
+    const saysPast = hasPhrase(text, ["a été exact", "a ete exact", "était exact", "etait exact"]);
+    if ((pastExact && saysFuture) || (futureExact && saysPast)) {
+      issues.push(claimlikeForBlock(block, "transit_temporal_direction_mismatch", "La prose contredit la position temporelle calculée de exactAt par rapport à nowUtc.", {
+        exactAt: transit.exactAt,
+        nowUtc: now.toISOString()
+      }));
+    }
+  }
+  return issues;
+}
+
 function validateGlobalCoherence({ dossierEvidence, fullDossierPlan, sections = [] } = {}) {
   const issues = [];
   const birth = birthContext(dossierEvidence);
@@ -1013,22 +1038,7 @@ function validateGlobalCoherence({ dossierEvidence, fullDossierPlan, sections = 
         issues.push(claimlikeForBlock(block, "birth_time_precision_contradiction", "Le texte parle d'une heure de naissance inconnue ou approximative alors que la donnée est exacte."));
       }
 
-      if (!now) continue;
-      const personalTransits = (block.claims ?? []).filter((claim) => claim.type === "PERSONAL_TRANSIT");
-      for (const transit of personalTransits) {
-        const exactAt = transit.exactAt ? new Date(transit.exactAt) : null;
-        if (!exactAt || Number.isNaN(exactAt.getTime())) continue;
-        const futureExact = exactAt.getTime() > now.getTime();
-        const pastExact = exactAt.getTime() < now.getTime();
-        const saysFuture = hasPhrase(text, ["sera exact", "va être exact", "va etre exact", "deviendra exact"]);
-        const saysPast = hasPhrase(text, ["a été exact", "a ete exact", "était exact", "etait exact"]);
-        if ((pastExact && saysFuture) || (futureExact && saysPast)) {
-          issues.push(claimlikeForBlock(block, "transit_temporal_direction_mismatch", "La prose contredit la position temporelle calculée de exactAt par rapport à nowUtc.", {
-            exactAt: transit.exactAt,
-            nowUtc: now.toISOString()
-          }));
-        }
-      }
+      issues.push(...transitDirectionIssues(block, now));
     }
   }
   return issues;

@@ -194,7 +194,7 @@ function planetaryPositions(socle, t, labels) {
     const body = byBody.get(key);
     const name = body?.label ?? t.planets?.[key] ?? key;
     const degree = body?.degreeLabel ?? t.values?.unknown ?? "—";
-    const house = canShowHouses && Number.isInteger(body?.house) ? `<span class="natal-house">${escapeXml(t.labels?.house ?? "")} ${body.house}</span>` : "";
+    const house = canShowHouses && body?.signStableWithinMargin !== false && Number.isInteger(body?.house) ? `<span class="natal-house">${escapeXml(t.labels?.house ?? "")} ${body.house}</span>` : "";
     const retrograde = body?.retrograde ? ` <span class="natal-retrograde" title="${escapeXml(t.labels?.retro ?? "R")}">R</span>` : "";
     return `<div class="natal-position-row" data-body="${key}"><dt>${escapeXml(name)}</dt><dd>${escapeXml(degree)}${retrograde}${house}</dd></div>`;
   });

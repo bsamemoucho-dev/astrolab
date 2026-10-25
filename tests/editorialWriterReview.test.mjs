@@ -57,10 +57,10 @@ test("server prefixes preserve the generated paragraph breaks",async()=>{
 
 test("an explicitly hypothetical illustration can clarify licensed concepts without adding facts", async () => {
  const p=plan();
- const text="Le Soleil en Capricorne met symboliquement la direction personnelle en regard de la construction dans la durée. Par exemple, une situation possible serait de préciser un engagement choisi avant de lui ajouter une nouvelle exigence : une manière d’interroger la responsabilité, sans raconter une expérience du lecteur.";
+ const text="Le Soleil en Capricorne met symboliquement la direction personnelle en regard de la construction dans la durée. Préciser les étapes d’un engagement choisi avant de lui ajouter une nouvelle exigence donne un sens concret à cette distinction, sans raconter une expérience du lecteur.";
  const system=buildStructuredSystemPrompt(p);
- assert.match(system,/situation explicitement hypothétique/);
- assert.match(system,/n'ajoute ni fait astrologique/);
+ assert.match(system,/sans un préambule qui annonce systématiquement l'exemple/);
+ assert.match(system,/sans ajouter de fait astrologique/);
  assert.doesNotMatch(system,/Ne fabrique pas plusieurs façons de vivre/);
  let calls=0;const result=await writeStructuredSectionWithLlm({dossierEvidence:evidence,sectionPlan:p,options:{structuredWriterFn:({sectionPlan})=>{calls++;return output(sectionPlan,text);}}});
  assert.equal(result.validation.ok,true);assert.equal(calls,1);assert.equal(result.llmCalls,0);assert.equal(result.section.blocks[0].text,text);
@@ -68,7 +68,7 @@ test("an explicitly hypothetical illustration can clarify licensed concepts with
 
 test("overview, relationship development and conclusion receive distinct editorial roles", () => {
  const prompts=['general_synthesis','relationships','conclusion'].map(sectionId=>buildStructuredSystemPrompt({...plan(),sectionId}));
- assert.match(prompts[0],/réserve les exemples/i);
+ assert.match(prompts[0],/réserve les nuances personnelles, les exemples/i);
  assert.match(prompts[1],/donne une illustration possible/);
  assert.match(prompts[2],/sans refaire la synthèse/);
  assert.match(prompts[2],/Ne termine pas par un commentaire de rédacteur/);

@@ -1,3 +1,5 @@
+import { groupComplementaryAxisPackets } from "./axisTransitGroups.mjs";
+import { licensedContextNarrativeRole } from "./licensedContextFocus.mjs";
 import { aspectCategory } from "./figures.mjs";
 import { prepareTransitSelection, selectTransitCoverage } from "./transitSelection.mjs";
 import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
@@ -6,7 +8,7 @@ import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpret
 import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
 import { lengthForHypotheses } from "./readingHypotheses.mjs";
 
-export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.5.0";
+export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.6.0";
 
 // Mode du chapitre « Aspects majeurs » (voir docs/doctrine/aspects-chapter-modes.md) :
 //   - "narrative"  : comportement historique, le chapitre décrit chaque aspect ;
@@ -258,8 +260,8 @@ function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map()
     const limite = section.sectionId === "major_aspects" ? 12 : 5;
     const trier = (refs) =>
       refs
-        .filter((ref) => ref.startsWith("aspect.") || (section.sectionId === "supporting_resources" && byId.get(ref)?.type === "NATAL_BODY_SIGN" && byId.get(ref)?.value.body === "Jupiter"))
-        .sort((a, b) => Number(byId.get(b)?.type === "NATAL_BODY_SIGN") - Number(byId.get(a)?.type === "NATAL_BODY_SIGN") || evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
+        .filter((ref) => ref.startsWith("aspect.") || (section.sectionId === "supporting_resources" && ["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"].includes(byId.get(ref)?.type) && byId.get(ref)?.value.body === "Jupiter"))
+        .sort((a, b) => Number(["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"].includes(byId.get(b)?.type)) - Number(["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"].includes(byId.get(a)?.type)) || evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
         .slice(0, limite);
     section.primaryEvidenceRefs = trier(section.primaryEvidenceRefs);
     section.secondaryEvidenceRefs = trier(section.secondaryEvidenceRefs);
@@ -410,6 +412,25 @@ function attachTransitNatalHouseEvidence(section, byId) {
   }
 }
 
+// Relative calendar wording needs its immutable reference instant in the
+// closed block; this packet licenses no interpretation of the snapshot.
+function attachTransitCalendarContext(section, byId) {
+  if (!["current_sky", "next_weeks"].includes(section.sectionId)) return;
+  const snapshot = byId.get("transits.snapshot");
+  if (!snapshot?.value?.nowUtc) return;
+  const packetId = `${section.sectionId}.calendar_context`;
+  const packets = new Map(section.evidencePackets.map((packet) => [packet.packetId, packet]));
+  const transitBlocks = section.blockPlans.filter((block) => /aujourd['’]hui/u.test(block.deterministicPrefix ?? "") && (block.packetRefs ?? []).some((ref) =>
+    (packets.get(ref)?.claims ?? []).some((claim) => claim.type === "PERSONAL_TRANSIT")));
+  if (!transitBlocks.length) return;
+  section.evidencePackets.push({ packetId, evidenceRefs: [snapshot.evidenceId], interpretationRuleRefs: [],
+    claims: claimsForEvidence(snapshot).map((claim) => ({ ...claim, claimId: `${packetId}.snapshot` })),
+    interpretationDepth: "reference", sourceRole: "transit_calendar_context", themes: [] });
+  for (const block of transitBlocks) block.packetRefs.push(packetId);
+  if (!section.primaryEvidenceRefs.includes(snapshot.evidenceId) && !section.secondaryEvidenceRefs.includes(snapshot.evidenceId)) section.secondaryEvidenceRefs.push(snapshot.evidenceId);
+  section.forbiddenEvidenceRefs = section.forbiddenEvidenceRefs.filter((ref) => ref !== snapshot.evidenceId);
+}
+
 function chunk(values, size) {
   const chunks = [];
   for (let index = 0; index < values.length; index += size) {
@@ -438,9 +459,10 @@ function exactSentence(exactAt, nowUtc, timeZone) {
   if (!exactAt) return null;
   const exact = formatFrenchDate(exactAt, timeZone);
   if (!exact) return null;
-  if (!nowUtc || Math.abs(exactAt.getTime() - nowUtc.getTime()) <= EXACT_NOW_TOLERANCE_MS) return `L'aspect est exact le ${exact}.`;
-  if (exactAt.getTime() < nowUtc.getTime()) return `L'aspect a été exact le ${exact}.`;
-  return `L'aspect sera exact le ${exact}.`;
+  const when = nowUtc && sameFrenchDate(exactAt, nowUtc, timeZone) ? `aujourd'hui, le ${exact}` : `le ${exact}`;
+  if (!nowUtc || Math.abs(exactAt.getTime() - nowUtc.getTime()) <= EXACT_NOW_TOLERANCE_MS) return `L'aspect est exact ${when}.`;
+  if (exactAt.getTime() < nowUtc.getTime()) return `L'aspect a été exact ${when}.`;
+  return `L'aspect sera exact ${when}.`;
 }
 
 function aspectWithArticle(aspectType) {
@@ -530,11 +552,14 @@ function groupTransitPacketsByStory(packets) {
   return groups.map(dedupeTransitPacketsByOccurrence).filter((group) => group.length > 0);
 }
 
-function transitBlockPlans({ packets, nowUtc, blockPrefix, timeZone }) {
-  return groupTransitPacketsByStory(packets).map((group, index) => ({
+function transitBlockPlans({ packets, nowUtc, blockPrefix, timeZone, byId }) {
+  return groupComplementaryAxisPackets(groupTransitPacketsByStory(packets), byId).map((group, index) => ({
     blockId: `${blockPrefix}.transit_${String(index + 1).padStart(2, "0")}`,
-    packetRefs: group.map((packet) => packet.packetId),
-    deterministicPrefix: transitTimingPrefix(group, { nowUtc, timeZone }),
+    // Both calculated proofs remain closed in the same block. Only the broader,
+    // original window is displayed for a complementary event on one axis.
+    packetRefs: group.packets.map((packet) => packet.packetId),
+    deterministicPrefix: transitTimingPrefix(group.displayPackets, { nowUtc, timeZone }),
+    ...(group.axisGroup ? { axisGroup: group.axisGroup } : {}),
     forbidAspectVocabulary: true
   }));
 }
@@ -586,11 +611,11 @@ function buildBlockPlans(section, byId = null) {
         packetRefs: [packet.packetId],
         deterministic: true
       })),
-      ...transitBlockPlans({ packets: transitPackets, nowUtc, timeZone, blockPrefix: "current_sky" })
+      ...transitBlockPlans({ packets: transitPackets, nowUtc, timeZone, byId, blockPrefix: "current_sky" })
     ];
   }
   if (section.sectionId === "next_weeks") {
-    return transitBlockPlans({ packets, nowUtc, timeZone, blockPrefix: "next_weeks" });
+    return transitBlockPlans({ packets, nowUtc, timeZone, byId, blockPrefix: "next_weeks" });
   }
   if (section.sectionId === "general_synthesis" || section.sectionId === "conclusion") {
     const aspectPrefix = aspectPrefixForPackets(packets);
@@ -644,7 +669,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     // The source retains RECENT and both angle proofs. They must not become
     // current narrative packets merely because they are not marked UPCOMING.
     if (productionComposition && evidence.type === "PERSONAL_TRANSIT" && !transitOwners.has(evidence.evidenceId)) continue;
-    const owner = productionComposition && evidence.type === "NATAL_BODY_SIGN" && evidence.value.body === "Jupiter" ? "supporting_resources"
+    const owner = productionComposition && ["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE"].includes(evidence.type) && evidence.value.body === "Jupiter" ? "supporting_resources"
       : productionComposition && ((evidence.type === "NATAL_BODY_HOUSE" && evidence.value.house === 7) || (evidence.type === "ANGLE_SIGN" && evidence.value.angle === "descendant"))
       ? "relationships"
       : productionComposition && evidence.type === "PERSONAL_TRANSIT" ? transitOwners.get(evidence.evidenceId)
@@ -898,7 +923,12 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
           : block;
       });
     }
+    attachTransitCalendarContext(section, byId);
     attachTransitNatalHouseEvidence(section, byId);
+    section.blockPlans = section.blockPlans.map((blockPlan) => {
+      const narrativeRole = licensedContextNarrativeRole({ blockPlan, evidencePackets: section.evidencePackets, byId });
+      return narrativeRole ? { ...blockPlan, narrativeRole } : blockPlan;
+    });
     section.maxQuestions = 1;
     section.uninterpretedEvidenceRefs = section.evidencePackets.filter((packet) => !packet.interpretationRuleRefs.length).flatMap((packet) => packet.evidenceRefs);
     // Une section de référence ne produit aucun bloc narratif.

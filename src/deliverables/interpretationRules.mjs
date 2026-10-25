@@ -1,6 +1,6 @@
 import { RELATIONAL_AFFECTION_RULES, RELATIONAL_AFFECTION_SCOPE } from "./relationalAffectionRules.mjs";
 
-export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.4.0";
+export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.5.0";
 export const RELATIONAL_COMMUNICATION_SCOPE = "individual_relational.communication";
 export { RELATIONAL_AFFECTION_SCOPE };
 
@@ -101,6 +101,15 @@ function personalTransitRule(transitBody, natalPoint, aspectType) {
       ASPECT_KIND_THEMES[aspectType]?.[0] ?? "contact astrologique daté",
       ASPECT_KIND_THEMES[aspectType]?.[1] ?? "lecture limitée à la fenêtre d'orbe"
     ],
+    // Use the already documented body functions and aspect convention. This
+    // metadata supplies no extra event, house meaning or predictive license.
+    semantics: {
+      concepts: [...new Set([...(BODY_THEMES[transitBody] ?? []), ...(BODY_THEMES[natalPoint] ?? [])])],
+      relation: `${ASPECT_KIND_THEMES[aspectType][0]} entre ${BODY_THEMES[transitBody][0]} et ${BODY_THEMES[natalPoint][0]}`,
+      motif: `${BODY_THEMES[transitBody][0]} / ${BODY_THEMES[natalPoint][0]}`,
+      nuances: [ASPECT_KIND_THEMES[aspectType][1], "lecture symbolique temporaire, sans comportement établi ni résultat prédit"],
+      roles: { transitingBody: transitBody, transitingFunction: BODY_THEMES[transitBody][0], natalPoint, natalFunction: BODY_THEMES[natalPoint][0] }
+    },
     forbidden: COMMON_FORBIDDEN
   };
 }
@@ -148,6 +157,71 @@ const CONTEXTUAL_NATAL_RULES = [
   ...Object.keys(SIGN_THEMES).map((sign) => ({
     ruleId: `western.angle.descendant.sign.${ruleSlug(sign)}@1`, evidenceType: "ANGLE_SIGN", match: { angle: "descendant", sign },
     themes: ["le Descendant sert de repère symbolique aux partenariats", `ces engagements peuvent être interrogés par ${SIGN_THEMES[sign].join(", ")}`], forbidden: [...COMMON_FORBIDDEN, "décrire la personnalité d'un partenaire"]
+  }))
+];
+
+// Five narrowly reviewed Lastro conventions, explicitly authorized 25/10/2026.
+// This is not an inferred traditional rule or a full body/house matrix.
+// See docs/doctrine/natal-angle-house-context-v1.md for sources and exclusions.
+const TARGETED_NATAL_CONTEXT_RULES = [
+  {
+    ruleId: "western.angle.ascendant.sign.cancer@1",
+    evidenceType: "ANGLE_SIGN",
+    match: { angle: "ascendant", sign: "Cancer" },
+    nature: "LASTRO_RULE", conventionId: "lastro.natal.angle-house-context@1",
+    sourceRefs: ["docs/doctrine/natal-angle-house-context-v1.md", "public/guides/ascendant.html"],
+    requiresStableEvidence: true,
+    themes: ["manière d'aborder une situation lue à travers le climat relationnel", "protection et familiarité comme repères d'entrée dans l'échange"],
+    semantics: {
+      concepts: ["entrée dans une situation", ...SIGN_THEMES.Cancer, "cadre familier"],
+      relation: "la manière d'aborder une situation est envisagée à travers l'attention au climat et à un cadre familier",
+      motif: "prendre contact et trouver un cadre",
+      nuances: ["la protection est un thème symbolique, pas la preuve d'une réserve ou d'une timidité", "ne décrit ni une apparence physique ni le regard réel des autres"]
+    },
+    forbidden: [...COMMON_FORBIDDEN, "trait de personnalité établi", "timidité ou hypersensibilité affirmée", "histoire familiale inventée", "apparence physique ou perception réelle par autrui"]
+  },
+  ...[
+    {
+      body: "Moon", house: 3,
+      domains: ["parole", "apprentissages", "échanges de proximité"],
+      relation: "le ressenti et la sécurité intérieure sont envisagés dans la parole et les échanges de proximité",
+      motif: "donner une forme au ressenti dans l'échange",
+      nuances: ["mettre des mots sur un ressenti ne démontre aucune capacité intellectuelle ou émotionnelle", "n'implique aucun parcours scolaire ni situation de fratrie"],
+      forbidden: ["niveau d'études ou capacité intellectuelle", "fratrie réelle ou histoire émotionnelle inventée"]
+    },
+    {
+      body: "Mercury", house: 6,
+      domains: ["travail quotidien", "organisation", "tâches"],
+      relation: "la pensée et le langage sont envisagés dans l'organisation des tâches quotidiennes",
+      motif: "penser l'organisation au quotidien",
+      nuances: ["le quotidien est un domaine symbolique, pas une profession ou une performance connue", "ne permet aucune conclusion sur la santé"],
+      forbidden: ["métier ou situation professionnelle", "productivité ou réussite garantie", "état de santé ou diagnostic"]
+    },
+    {
+      body: "Saturn", house: 6,
+      domains: ["travail quotidien", "cadre", "organisation", "contraintes"],
+      relation: "les responsabilités et les limites sont envisagées dans l'organisation et le cadre du travail quotidien",
+      motif: "définir ce qui peut être soutenu au quotidien",
+      nuances: ["le cadre ne prouve ni charge professionnelle réelle ni obligation subie", "les limites n'indiquent aucun trouble de santé ou incapacité"],
+      forbidden: ["métier, hiérarchie ou obligation professionnelle réelle", "rendement ou réussite professionnelle", "état de santé ou diagnostic"]
+    },
+    {
+      body: "Jupiter", house: 8,
+      domains: ["mise en commun", "ressources partagées", "transformation"],
+      relation: "l'ouverture et la confiance sont envisagées dans la mise en commun et les transformations",
+      motif: "élargir une perspective dans la mise en commun",
+      nuances: ["les ressources partagées sont un thème symbolique, sans patrimoine ni argent présumé", "aucune transformation biographique n'est annoncée"],
+      forbidden: ["capital, argent reçu, héritage ou dette", "décès ou sexualité", "secret réel ou événement de transformation"]
+    }
+  ].map(({ body, house, domains, relation, motif, nuances, forbidden }) => ({
+    ruleId: `western.body.${ruleSlug(body)}.house.${house}@1`,
+    evidenceType: "NATAL_BODY_HOUSE", match: { body, house, houseSystem: "WHOLE_SIGN" },
+    nature: "LASTRO_RULE", conventionId: "lastro.natal.angle-house-context@1",
+    sourceRefs: ["docs/doctrine/natal-angle-house-context-v1.md", "public/guides/maisons-astrologiques.html"],
+    requiresStableEvidence: true,
+    themes: [relation, `${BODY_THEMES[body][0]} envisagé dans le domaine de ${domains.join(", ")}`],
+    semantics: { concepts: [BODY_THEMES[body][0], BODY_THEMES[body][1], ...domains], relation, motif, nuances },
+    forbidden: [...COMMON_FORBIDDEN, "trait psychologique établi", ...forbidden]
   }))
 ];
 
@@ -421,6 +495,7 @@ export const INTERPRETATION_RULES = Object.freeze(
   [
     ...BASE_INTERPRETATION_RULES,
     ...CONTEXTUAL_NATAL_RULES,
+    ...TARGETED_NATAL_CONTEXT_RULES,
     ...GENERATED_NATAL_SIGN_RULES,
     ...GENERATED_PERSONAL_TRANSIT_RULES,
     ...NATAL_ASPECT_CONVENTION_RULES,
@@ -447,6 +522,8 @@ export function ruleMatchesEvidence(rule, evidence) {
   if (!rule || !evidence || rule.evidenceType !== evidence.type) return false;
   const match = rule.match ?? {};
   const value = evidence.value ?? {};
+  if (rule.requiresStableEvidence && evidence.certainty?.stableAcrossApplicableWindow !== true) return false;
+  if (match.houseSystem && norm(match.houseSystem) !== norm(value.houseSystem)) return false;
   if (match.body && norm(match.body) !== norm(value.body)) return false;
   if (match.house !== undefined && Number(match.house) !== Number(value.house)) return false;
   if (match.angle && norm(match.angle) !== norm(value.angle)) return false;

@@ -252,3 +252,19 @@ test("la roue n'écrit pas de flottants bruts dans ses tracés", () => {
   for (const value of coordinates) assert.match(value, /^-?\d+(?:\.\d{1,3})?$/, `coordonnée non arrondie : ${value}`);
   for (const [, path] of svg.matchAll(/\bd="([^"]+)"/g)) assert.doesNotMatch(path, /\d\.\d{4,}/, "tracé non arrondi");
 });
+
+
+test("une maison individuelle indécidable reste absente malgré un Ascendant stable", () => {
+  const socle = EXACT();
+  socle.housesAvailable = true;
+  socle.housesDecidableWithinMargin = true;
+  const moon = socle.bodies.find((body) => body.body === "Moon");
+  moon.signStableWithinMargin = false;
+  const before = structuredClone(socle);
+  const html = chartSection(socle).html;
+  const row = (body) => html.match(new RegExp(`<div class="natal-position-row" data-body="${body}">([\\s\\S]*?)</div>`))?.[1];
+  assert.ok(row("Moon"));
+  assert.doesNotMatch(row("Moon"), /natal-house/);
+  assert.match(row("Sun"), /natal-house/);
+  assert.deepEqual(socle, before);
+});

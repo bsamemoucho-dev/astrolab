@@ -77,7 +77,7 @@ function estEcrivable(section) {
 }
 
 test("les cinq règles d'aspect du thème existent, avec une convention explicite", () => {
-  assert.equal(INTERPRETATION_LIBRARY_VERSION, "lastro-interpretation-library@0.4.0");
+  assert.equal(INTERPRETATION_LIBRARY_VERSION, "lastro-interpretation-library@0.5.0");
   for (const [ruleId, categorie] of NOUVELLES_REGLES) {
     const regle = interpretationRuleById(ruleId);
     assert.ok(regle, `${ruleId} doit exister`);

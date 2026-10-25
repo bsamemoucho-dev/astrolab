@@ -180,7 +180,7 @@ test("FullDossierPlan defines sections, ownership and authorized rules from Doss
   const emotional = sectionPlanById(fullDossierPlan, "emotional_world");
   const current = sectionPlanById(fullDossierPlan, "current_sky");
 
-  assert.equal(fullDossierPlan.version, "full-dossier-plan@0.5.0");
+  assert.equal(fullDossierPlan.version, "full-dossier-plan@0.6.0");
   assert.ok(fullDossierPlan.sections.length >= 17);
   assert.ok(identity.primaryEvidenceRefs.includes("natal.sun.sign"));
   assert.ok(emotional.primaryEvidenceRefs.includes("natal.moon.sign"));
@@ -1119,7 +1119,7 @@ test("current_sky deterministic lead says est exact when exactAt equals now", ()
   const current = sectionPlanById(fullDossierPlan, "current_sky");
   const transitBlock = current.blockPlans.find((blockPlan) => blockPlan.blockId === "current_sky.transit_01");
 
-  assert.ok(transitBlock.deterministicPrefix.includes("L'aspect est exact le 3 octobre 2026"));
+  assert.ok(transitBlock.deterministicPrefix.includes("L'aspect est exact aujourd'hui, le 3 octobre 2026"));
 });
 
 test("next_weeks deterministic lead uses the same future exactAt wording", () => {

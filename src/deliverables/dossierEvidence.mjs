@@ -194,6 +194,10 @@ function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
         evidenceId: `natal.${bodyKey}.house`,
         type: "NATAL_BODY_HOUSE",
         value: { body: body.body, house, houseSystem: HOUSE_SYSTEM },
+        certainty: {
+          ...bodySignCertainty({ body, natalResult, birth, daySignStability }),
+          stableAcrossApplicableWindow: houseUsable && bodySignCertainty({ body, natalResult, birth, daySignStability }).stableAcrossApplicableWindow === true
+        },
         provenance: base("ADR-007-house-system", "HIGH")
       });
     }
@@ -207,6 +211,12 @@ function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
       evidenceId: `angle.${key(angleKey)}.sign`,
       type: "ANGLE_SIGN",
       value: { angle: angleKey, sign: angle.sign, degreeInSign: round(angle.degreeInSign), longitude: round(angle.longitude) },
+      certainty: {
+        timePrecision: natalResult.uncertainty?.timePrecision ?? birth.timePrecision ?? null,
+        stableAcrossApplicableWindow: (natalResult.uncertainty?.timePrecision ?? birth.timePrecision) === "exact"
+          || angles.uncertaintyWindow?.[angleKey]?.signStable === true,
+        basis: (natalResult.uncertainty?.timePrecision ?? birth.timePrecision) === "exact" ? "exact_time" : "declared_angle_window"
+      },
       provenance: base("ADR-007-house-system", "HIGH")
     });
   }
