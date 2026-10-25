@@ -1,12 +1,12 @@
 import { aspectCategory } from "./figures.mjs";
-import { selectTransitCoverage } from "./transitSelection.mjs";
+import { prepareTransitSelection, selectTransitCoverage } from "./transitSelection.mjs";
 import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
 import { evidenceById } from "./dossierEvidence.mjs";
 import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpretationRules.mjs";
 import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
 import { lengthForHypotheses } from "./readingHypotheses.mjs";
 
-export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.4.0";
+export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.5.0";
 
 // Mode du chapitre « Aspects majeurs » (voir docs/doctrine/aspects-chapter-modes.md) :
 //   - "narrative"  : comportement historique, le chapitre décrit chaque aspect ;
@@ -258,8 +258,8 @@ function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map()
     const limite = section.sectionId === "major_aspects" ? 12 : 5;
     const trier = (refs) =>
       refs
-        .filter((ref) => ref.startsWith("aspect."))
-        .sort((a, b) => evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
+        .filter((ref) => ref.startsWith("aspect.") || (section.sectionId === "supporting_resources" && byId.get(ref)?.type === "NATAL_BODY_SIGN" && byId.get(ref)?.value.body === "Jupiter"))
+        .sort((a, b) => Number(byId.get(b)?.type === "NATAL_BODY_SIGN") - Number(byId.get(a)?.type === "NATAL_BODY_SIGN") || evidencePriority(a) - evidencePriority(b) || a.localeCompare(b))
         .slice(0, limite);
     section.primaryEvidenceRefs = trier(section.primaryEvidenceRefs);
     section.secondaryEvidenceRefs = trier(section.secondaryEvidenceRefs);
@@ -472,7 +472,9 @@ function transitTimingPrefix(packetOrPackets, { nowUtc = null, timeZone = "UTC" 
   if (claims.length === 1) {
     const claim = claims[0];
     const window = transitWindowSentence(claim, { timeZone });
-    const exact = exactSentence(validDate(claim.exactAt), now, timeZone);
+    const start = validDate(claim.startsAt), end = validDate(claim.endsAt), peak = validDate(claim.exactAt);
+    const singleDay = start && end && peak && sameFrenchDate(start, end, timeZone) && sameFrenchDate(start, peak, timeZone);
+    const exact = singleDay ? null : exactSentence(peak, now, timeZone);
     return [window, exact].filter(Boolean).join(" ");
   }
   const first = claims[0];
@@ -490,6 +492,8 @@ function transitTimingPrefix(packetOrPackets, { nowUtc = null, timeZone = "UTC" 
             ? `le ${formatFrenchDate(startsAt, timeZone)}`
             : `du ${formatFrenchDate(startsAt, timeZone)} au ${formatFrenchDate(endsAt, timeZone)}`
           : null;
+      // Multiple occurrences retain an explicit date role for each exactness;
+      // the date validator must be able to bind every date to its own proof.
       const exact = exactAt ? `exact ${formatFrenchDate(exactAt, timeZone)}` : null;
       return [window, exact].filter(Boolean).join(", ");
     })
@@ -625,12 +629,25 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const sections = sectionsMap();
   const ownerByEvidenceRef = {};
   const transitStoryOwners = precomputeTransitStoryOwners(byId);
+  const productionComposition = editorialEngine === "composition" && aspectChapterMode === "reference";
+  const snapshot = [...byId.values()].find((item) => item.type === "TRANSIT_SNAPSHOT")?.value;
+  const transitProofs = [...byId.values()].filter((item) => item.type === "PERSONAL_TRANSIT");
+  const transitSelections = Object.fromEntries(["current", "upcoming"].map((period) => [period,
+    productionComposition ? prepareTransitSelection(transitProofs, {
+      nowUtc: snapshot?.nowUtc, period, horizonDays: snapshot?.horizonDays ?? 42, valueOf: (item) => item.value
+    }) : { items: [], diagnostics: [], axisPairs: [] }
+  ]));
+  const transitOwners = new Map(Object.entries(transitSelections).flatMap(([period, selection]) =>
+    selection.items.map((item) => [item.evidenceId, period === "current" ? "current_sky" : "next_weeks"])));
 
   for (const evidence of byId.values()) {
-    const productionComposition = editorialEngine === "composition" && aspectChapterMode === "reference";
-    const owner = productionComposition && ((evidence.type === "NATAL_BODY_HOUSE" && evidence.value.house === 7) || (evidence.type === "ANGLE_SIGN" && evidence.value.angle === "descendant"))
+    // The source retains RECENT and both angle proofs. They must not become
+    // current narrative packets merely because they are not marked UPCOMING.
+    if (productionComposition && evidence.type === "PERSONAL_TRANSIT" && !transitOwners.has(evidence.evidenceId)) continue;
+    const owner = productionComposition && evidence.type === "NATAL_BODY_SIGN" && evidence.value.body === "Jupiter" ? "supporting_resources"
+      : productionComposition && ((evidence.type === "NATAL_BODY_HOUSE" && evidence.value.house === 7) || (evidence.type === "ANGLE_SIGN" && evidence.value.angle === "descendant"))
       ? "relationships"
-      : productionComposition && evidence.type === "PERSONAL_TRANSIT" ? sectionOwnerForEvidence(evidence)
+      : productionComposition && evidence.type === "PERSONAL_TRANSIT" ? transitOwners.get(evidence.evidenceId)
       : ownerForEvidence(evidence, transitStoryOwners);
     if (owner && sections.has(owner)) {
       sections.get(owner).primaryEvidenceRefs.push(evidence.evidenceId);
@@ -847,13 +864,13 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     } else if (editorialPlan && aspectChapterMode === "reference" && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId)) {
       const figureRefs = new Set((editorialPlan.ideas ?? []).filter((idea) => idea.kind === "figure" && idea.owner === section.sectionId).flatMap((idea) => idea.evidenceRefs));
       const primary = section.evidencePackets.filter((packet) => packet.interpretationDepth === "primary" || packet.evidenceRefs.some((ref) => figureRefs.has(ref)));
-      const recalls = section.evidencePackets.filter((packet) => !primary.includes(packet));
       // A licensed figure must have all its member proofs in the same closed
       // block. Its supporting aspects are not independent recall paragraphs.
       section.blockPlans = section.readingHypotheses.length > 0
         ? [{ blockId: "figure_exploration", packetRefs: primary.map((packet) => packet.packetId) }]
         : buildBlockPlans({ ...section, evidencePackets: primary }, byId);
-      if (recalls.length) section.blockPlans.push({ blockId: "brief_recall", packetRefs: recalls.map((packet) => packet.packetId), narrativeRole: "Rappel factuel bref : une seule phrase au total, aucune nouvelle interprétation.", maxSentences: 1, maxWords: 45, targetWords: 25 });
+      // Secondary proofs remain available to licensed compositions and the
+      // annex. A separate recap block would add an orphan fact after the prose.
     } else {
       section.blockPlans = buildBlockPlans(section, byId);
     }
@@ -870,6 +887,17 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       section.unavailableReason = "no_distinct_interpretive_material";
       section.blockPlans = [];
     }
+    if (productionComposition && ["current_sky", "next_weeks"].includes(section.sectionId)) {
+      const packets = new Map(section.evidencePackets.map((packet) => [packet.packetId, packet]));
+      section.blockPlans = section.blockPlans.map((block) => {
+        const selected = (block.packetRefs ?? []).map((ref) => packets.get(ref)).filter(Boolean);
+        const onlyUninterpretedTransits = selected.length > 0 && selected.every((packet) =>
+          packet.interpretationRuleRefs.length === 0 && (packet.claims ?? []).some((claim) => claim.type === "PERSONAL_TRANSIT"));
+        return onlyUninterpretedTransits && block.deterministicPrefix
+          ? { ...block, deterministic: true, calculatedReference: true, maxQuestions: 0 }
+          : block;
+      });
+    }
     attachTransitNatalHouseEvidence(section, byId);
     section.maxQuestions = 1;
     section.uninterpretedEvidenceRefs = section.evidencePackets.filter((packet) => !packet.interpretationRuleRefs.length).flatMap((packet) => packet.evidenceRefs);
@@ -884,6 +912,10 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     version: FULL_DOSSIER_PLAN_VERSION,
     referenceTimeZone: timeZone,
     interpretationConventions: LASTRO_INTERPRETATION_CONVENTIONS,
+    transitSelectionDiagnostics: Object.fromEntries(Object.entries(transitSelections).map(([period, selection]) => [period, {
+      diagnostics: selection.diagnostics,
+      axisPairs: selection.axisPairs.map((pair) => ({ axis: pair.axis, retainedEvidenceRef: pair.retainedItem.evidenceId, suppressedEvidenceRef: pair.suppressedItem.evidenceId }))
+    }])),
     aspectChapterMode,
     editorialEngine,
     editorialPlan,

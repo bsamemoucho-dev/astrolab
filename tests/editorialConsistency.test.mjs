@@ -56,26 +56,35 @@ test("en production chaque aspect est développé dans son seul chapitre propri�
   }
 });
 
-test("les rappels n'exposent ni thèmes ni concepts et restent limités à une phrase", async () => {
+test("la production ne génère plus de rappel factuel isolé et conserve les preuves", () => {
   const evidence = dossier();
   const plan = buildFullDossierPlan(evidence, { aspectChapterMode: "reference" });
-  let checked = 0;
-  for (const sectionPlan of plan.sections) {
-    const recall = sectionPlan.blockPlans.find((block) => block.blockId === "brief_recall");
-    if (!recall) continue;
-    checked++;
-    const scoped = scopedSectionPlanForBlock(sectionPlan, recall);
-    const prompt = JSON.parse(buildStructuredUserPrompt({ sectionPlan: scoped }));
-    for (const packet of prompt.sectionPlan.blockPlans[0].packets) {
-      assert.deepEqual(packet.themes, []);
-      assert.equal(packet.semantics, undefined);
-    }
-    const validate = (text) => validateStructuredSection({ dossierEvidence: evidence, sectionPlan: scoped, section: { sectionId: scoped.sectionId, blocks: [{ blockId: recall.blockId, text }] } });
-    assert.equal(validate("Un rappel bref invite à poursuivre la réflexion.").ok, true);
-    assert.ok(validate("Un rappel. Un développement supplémentaire.").issues.some((issue) => issue.code === "block_sentence_limit_exceeded"));
-    assert.ok(validate("mot ".repeat(60) + ".").issues.some((issue) => issue.code === "block_word_limit_exceeded"));
+  assert.ok(plan.sections.every((section) => section.blockPlans.every((block) => block.blockId !== "brief_recall")));
+  const referencePackets = plan.sections.flatMap((section) => section.evidencePackets).filter((packet) => packet.interpretationDepth === "reference");
+  assert.ok(referencePackets.length > 0, "le contexte autorisé n'est pas supprimé avec les blocs isolés");
+  const known = new Set(evidence.evidence.map((item) => item.evidenceId));
+  for (const packet of referencePackets) assert.ok(packet.evidenceRefs.every((ref) => known.has(ref)));
+  const socle = buildSocle(calculation.result);
+  assert.equal(socle.retainedAspects.length, evidence.evidence.filter((item) => item.type === "NATAL_ASPECT").length, "les aspects sont conservés dans l'annexe");
+});
+
+test("un rappel explicite garde ses limites strictes sans exposer de thèmes ni concepts", () => {
+  const evidence = dossier();
+  const plan = buildFullDossierPlan(evidence, { aspectChapterMode: "reference" });
+  const section = plan.sections.find((entry) => entry.evidencePackets.some((packet) => packet.interpretationDepth === "reference" && packet.sourceRole !== "licensed_composition_context"));
+  assert.ok(section);
+  const packet = section.evidencePackets.find((entry) => entry.interpretationDepth === "reference" && entry.sourceRole !== "licensed_composition_context");
+  const recall = { blockId: "brief_recall", packetRefs: [packet.packetId], maxSentences: 1, maxWords: 45 };
+  const scoped = scopedSectionPlanForBlock({ ...section, blockPlans: [recall] }, recall);
+  const prompt = JSON.parse(buildStructuredUserPrompt({ sectionPlan: scoped }));
+  for (const exposed of prompt.sectionPlan.blockPlans[0].packets) {
+    assert.deepEqual(exposed.themes, []);
+    assert.equal(exposed.semantics, undefined);
   }
-  assert.ok(checked > 0);
+  const validate = (text) => validateStructuredSection({ dossierEvidence: evidence, sectionPlan: scoped, section: { sectionId: scoped.sectionId, blocks: [{ blockId: recall.blockId, text }] } });
+  assert.equal(validate("Un rappel bref invite à poursuivre la réflexion.").ok, true);
+  assert.ok(validate("Un rappel. Un développement supplémentaire.").issues.some((issue) => issue.code === "block_sentence_limit_exceeded"));
+  assert.ok(validate("mot ".repeat(60) + ".").issues.some((issue) => issue.code === "block_word_limit_exceeded"));
 });
 
 function contacts() {

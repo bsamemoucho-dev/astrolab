@@ -197,9 +197,15 @@ const CSS = `
   .badge-calculated{background:#eef4f0;color:#2f6e56;border:1px solid #cfe3d9}
   .badge-symbolic{background:#f3efff;color:#5b3fd4;border:1px solid #ddd2ff}
   .badge-unavailable{background:#f6f6f6;color:var(--muted);border:1px solid var(--line)}
-  .studied-configurations{font-size:11.5px;line-height:1.5;border-left:2px solid #807887;padding:8px 12px;margin:0 0 16px;break-inside:avoid}
+  .studied-configurations{font-size:11.5px;line-height:1.5;border-left:2px solid #807887;padding:8px 12px;margin:0 0 16px;break-inside:avoid;break-after:avoid-page;page-break-after:avoid}
   .studied-configurations ul{margin:4px 0 0;padding-left:18px}
   h2+.studied-configurations{break-before:avoid-page}
+  .studied-configurations+.block-body{break-before:avoid-page;page-break-before:avoid}
+  .calculated-references{border-top:1px solid var(--line);padding-top:12px;margin-top:18px;break-inside:auto}
+  .calculated-references h3,.dossier-subsection h3{margin:0 0 10px;font-size:17px}
+  .calculated-references li{font-size:12px;line-height:1.65}
+  .calculated-references p{font-size:11px;line-height:1.55;color:var(--muted);text-align:left}
+  .dossier-subsection{margin-top:24px}
   .validation{font-size:12px;color:var(--muted);margin-top:14px}
   .validation .err{color:#c0392b}
   .validation .warn{color:#c98a1b}
@@ -214,8 +220,33 @@ const CSS = `
   .card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:18px}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .chart-wrap{display:grid;grid-template-columns:1fr;gap:16px}
-  .chart-wheel{display:flex;flex-direction:column;align-items:center}
-  .wheel{width:100%;max-width:250px;height:auto;margin:4px auto 8px}
+  /* Le dessin reste vectoriel et carré. Les détails de naissance sont à côté,
+     les répartitions en dessous, sans réduire la roue à une vignette. */
+  .natal-panel{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;break-inside:avoid;page-break-inside:avoid}
+  .chart-wheel{display:flex;flex-direction:column;align-items:center;min-width:0}
+  .wheel{display:block;width:100%;max-width:390px;height:auto;aspect-ratio:1;margin:0 auto}
+  .natal-positions{min-width:0}
+  .natal-positions h2{font-size:23px;line-height:1.2;margin:0 0 10px}
+  .natal-birth{font-size:11px;line-height:1.55;text-align:left;hyphens:none;margin:0 0 12px;color:var(--muted);overflow-wrap:anywhere}
+  .natal-position-note{font-size:9.5px;line-height:1.4;text-align:left;margin:7px 0 0;color:var(--muted)}
+  .natal-position-list{margin:0;font-size:11.5px;line-height:1.45}
+  .natal-position-row{display:grid;grid-template-columns:65px minmax(0,1fr);gap:6px;padding:7px 0;border-top:1px solid #eee9ef;break-inside:avoid}
+  .natal-position-row dt{font-weight:600;margin:0}
+  .natal-position-row dd{margin:0;font-variant-numeric:tabular-nums}
+  .natal-house{display:block;font-size:9.5px;color:var(--muted)}
+  .natal-legend{font-size:10px;line-height:1.5;margin:12px 2px 16px;color:#554f5b;break-inside:avoid;page-break-inside:avoid}
+  .natal-legend h3{font-family:inherit;font-size:11px;margin:0 0 6px}
+  .natal-legend p{font-size:inherit;line-height:inherit;margin:5px 0;text-align:left;hyphens:none}
+  .legend-item{display:inline-block;margin:0 14px 3px 0}
+  .legend-line{display:inline-block;width:22px;height:0;margin:0 6px 3px 0;border-top:1.3px solid #527b9d;vertical-align:middle}
+  .legend-line.tension{border-top-color:#b56d6b;border-top-style:dashed}
+  .legend-line.conjunction{border-top-color:#81748a;border-top-style:dotted}
+  .chart-distributions{display:grid;grid-template-columns:1fr 1fr;gap:14px;break-inside:avoid;page-break-inside:avoid}
+  .chart-distributions .card{border-radius:12px;padding:12px 14px}
+  .chart-distributions h3{font-size:17px;margin:0 0 10px}
+  .chart-page .header-line{margin-bottom:12px;height:2px}
+  .chart-page .chart-intro{font-size:11px;line-height:1.5;text-align:left;hyphens:none;margin-bottom:14px}
+  .chart-page .footer-note{color:#655d68;font-size:9.5px;margin-top:10px}
   .bar-row{display:grid;grid-template-columns:70px 1fr 34px;align-items:center;gap:10px;margin:9px 0;font-size:12px}
   .bar-track{height:8px;border:1px solid #807887;border-radius:99px;background:#eeeaf0;overflow:hidden}
   .bar{height:100%;border-radius:99px;border-top:6px solid currentColor;color:#514959}
@@ -277,9 +308,23 @@ const CSS = `
     .sheet,.cover-page{width:100%;box-shadow:none;padding:28px 32px}
     .cover-inner{padding:32px 24px}
     .two-col{grid-template-columns:1fr}
+    .natal-panel{grid-template-columns:1fr}
+    .natal-positions h2{text-align:center}
+    .natal-position-row{grid-template-columns:90px minmax(0,1fr)}
+    .chart-distributions{grid-template-columns:1fr}
     .big-three{width:100%;grid-template-columns:1fr}
   }
 `;
+
+function configurationsHtml(section) {
+  return section.configurationsStudied?.length
+    ? `<aside class="studied-configurations"><strong>${escapeHtml(section.configurationsLabel)}</strong><ul>${section.configurationsStudied.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul></aside>` : "";
+}
+
+function calculatedReferencesHtml(section) {
+  return section.calculatedReferences?.length
+    ? `<aside class="calculated-references"><h3>${escapeHtml(section.calculatedReferencesLabel)}</h3><ul>${section.calculatedReferences.map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul>${section.calculatedReferencesNote ? `<p>${escapeHtml(section.calculatedReferencesNote)}</p>` : ""}</aside>` : "";
+}
 
 export function renderDossierHtml({ title, personLabel, createdAt, writerMode, sections, author = null, strings = null, verificationNote = null, aiReview = null, cover = null }) {
   const t = strings ?? docStrings("fr");
@@ -310,8 +355,8 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
       const avant = section.kind === "annex" ? '<div class="annex-gap" aria-hidden="true"></div>\n' : "";
       return `${avant}<section class="${classes}">
         <h2>${escapeHtml(section.title)}</h2>
-        ${section.configurationsStudied?.length ? `<aside class="studied-configurations"><strong>${escapeHtml(section.configurationsLabel)}</strong><ul>${section.configurationsStudied.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul></aside>` : ""}
-        <div class="block-body">${markdownToHtml(section.text)}</div>
+        ${configurationsHtml(section)}
+        <div class="block-body">${markdownToHtml(section.text)}${calculatedReferencesHtml(section)}${(section.subsections ?? []).map((subsection) => `<div class="dossier-subsection"><h3>${escapeHtml(subsection.title)}</h3>${configurationsHtml(subsection)}${markdownToHtml(subsection.text)}${calculatedReferencesHtml(subsection)}</div>`).join("")}</div>
       </section>`;
     })
     .join("\n");
@@ -350,7 +395,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
     <div class="brand">${escapeHtml(marque)}</div>
     <div class="sparkle"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 0 L14.4 9.6 L24 12 L14.4 14.4 L12 24 L9.6 14.4 L0 12 L9.6 9.6 Z" fill="#d8c083"/></svg></div>
     <div class="kicker">${escapeHtml(t.titlePrefix)}</div>
-    ${personLabel ? `<div class="cover-name">${escapeHtml(personLabel)}</div>` : `<div class="cover-name">${escapeHtml(title)}</div>`}
+    ${personLabel ? `<div class="cover-name">${escapeHtml(personLabel)}</div>` : `<div class="cover-name">${escapeHtml(t.chartTitle ?? title)}</div>`}
     ${coverCards}
     <div class="cover-note">${escapeHtml(t.coverNote ?? "")}</div>
     <div class="sparkle"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 0 L14.4 9.6 L24 12 L14.4 14.4 L12 24 L9.6 14.4 L0 12 L9.6 9.6 Z" fill="#d8c083"/></svg></div>
@@ -400,6 +445,13 @@ export function renderDossierMarkdown({ title, personLabel, createdAt, sections,
     parts.push(`## ${section.title}`, "", `_${section.badgeLabel}_`, "");
     if (section.configurationsStudied?.length) parts.push(`**${section.configurationsLabel}**`, ...section.configurationsStudied.map((fact) => `- ${fact}`), "");
     parts.push(section.text, "");
+    if (section.calculatedReferences?.length) parts.push(`### ${section.calculatedReferencesLabel}`, "", ...section.calculatedReferences.map((text) => `- ${text}`), "", section.calculatedReferencesNote ?? "", "");
+    for (const subsection of section.subsections ?? []) {
+      parts.push(`### ${subsection.title}`, "");
+      if (subsection.configurationsStudied?.length) parts.push(`**${subsection.configurationsLabel}**`, ...subsection.configurationsStudied.map((fact) => `- ${fact}`), "");
+      parts.push(subsection.text, "");
+      if (subsection.calculatedReferences?.length) parts.push(`#### ${subsection.calculatedReferencesLabel}`, "", ...subsection.calculatedReferences.map((text) => `- ${text}`), "", subsection.calculatedReferencesNote ?? "", "");
+    }
   }
   if (aiReview) {
     parts.push("---", `**${aiReview}**`);

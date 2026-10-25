@@ -53,3 +53,44 @@ test("server prefixes preserve the generated paragraph breaks",async()=>{
  const result=await writeStructuredSectionWithLlm({dossierEvidence:evidence,sectionPlan:p,options:{structuredWriterFn:({sectionPlan})=>output(sectionPlan,clear)}});
  assert.equal(result.section.blocks[0].text,"Le Soleil est en Capricorne.\n\n"+clear);
 });
+
+
+test("an explicitly hypothetical illustration can clarify licensed concepts without adding facts", async () => {
+ const p=plan();
+ const text="Le Soleil en Capricorne met symboliquement la direction personnelle en regard de la construction dans la durée. Par exemple, une situation possible serait de préciser un engagement choisi avant de lui ajouter une nouvelle exigence : une manière d’interroger la responsabilité, sans raconter une expérience du lecteur.";
+ const system=buildStructuredSystemPrompt(p);
+ assert.match(system,/situation explicitement hypothétique/);
+ assert.match(system,/n'ajoute ni fait astrologique/);
+ assert.doesNotMatch(system,/Ne fabrique pas plusieurs façons de vivre/);
+ let calls=0;const result=await writeStructuredSectionWithLlm({dossierEvidence:evidence,sectionPlan:p,options:{structuredWriterFn:({sectionPlan})=>{calls++;return output(sectionPlan,text);}}});
+ assert.equal(result.validation.ok,true);assert.equal(calls,1);assert.equal(result.llmCalls,0);assert.equal(result.section.blocks[0].text,text);
+});
+
+test("overview, relationship development and conclusion receive distinct editorial roles", () => {
+ const prompts=['general_synthesis','relationships','conclusion'].map(sectionId=>buildStructuredSystemPrompt({...plan(),sectionId}));
+ assert.match(prompts[0],/réserve les exemples/i);
+ assert.match(prompts[1],/donne une illustration possible/);
+ assert.match(prompts[2],/sans refaire la synthèse/);
+ assert.match(prompts[2],/Ne termine pas par un commentaire de rédacteur/);
+});
+
+test("a dense valid passage is reformatted once without removing its authorized content", async () => {
+ const p=plan();const sentence="La direction personnelle est ici envisagée à travers la construction dans la durée et la responsabilité choisie sans attribuer une expérience au lecteur. ";
+ const dense=sentence.repeat(8).trim(),aired=Array.from({length:4},()=>sentence.repeat(2).trim()).join("\n\n");let calls=0;
+ const result=await writeStructuredSectionWithLlm({dossierEvidence:evidence,sectionPlan:p,options:{logger:{warn(){}},structuredWriterFn:({sectionPlan,correctionIssues})=>{calls++;if(calls===2)assert.ok(correctionIssues.some(issue=>issue.code==='editorial_dense_paragraph'));return output(sectionPlan,calls===1?dense:aired);}}});
+ assert.equal(calls,2);assert.equal(result.section.blocks[0].text,aired);assert.equal(aired.replace(/\s+/gu,' '),dense.replace(/\s+/gu,' '));
+});
+
+test("conclusion reuse gets one bounded revision from already scoped recaps", async () => {
+ const passage="Une direction personnelle peut être tenue sans demander au lien de décider à sa place de ce qui compte dans un engagement choisi.";
+ const reused=passage+" La lecture ouvre alors un espace pour distinguer ce qui est décidé et ce qui reste à discuter, sans en déduire un comportement ni une issue qui seraient les vôtres.";
+ const p={...plan(),sectionId:'conclusion',validatedChapterRecaps:[{sectionId:'identity',text:passage}]};let calls=0;
+ const result=await writeStructuredSectionWithLlm({dossierEvidence:evidence,sectionPlan:p,options:{logger:{warn(){}},structuredWriterFn:({sectionPlan,correctionIssues})=>{calls++;if(calls===2){assert.ok(correctionIssues.some(issue=>issue.code==='editorial_reused_chapter_passage'));assert.deepEqual(sectionPlan.validatedChapterRecaps,p.validatedChapterRecaps);}return output(sectionPlan,calls===1?reused:clear);}}});
+ assert.equal(calls,2);assert.equal(result.section.blocks[0].text,clear);
+});
+
+test("question allowance stays on one block when a chapter has multiple generated blocks", async () => {
+ const p=plan(),block=p.blockPlans[0];p.blockPlans=[{...block,blockId:'first'},{...block,blockId:'second'}];const budgets=[];
+ const result=await writeStructuredSectionWithLlm({dossierEvidence:evidence,sectionPlan:p,options:{structuredWriterFn:({sectionPlan})=>{budgets.push(sectionPlan.blockPlans[0].maxQuestions);return output(sectionPlan,sectionPlan.blockPlans[0].maxQuestions?'Quel engagement mérite votre attention ?':clear);}}});
+ assert.deepEqual(budgets,[0,1]);assert.equal(result.validation.ok,true);
+});

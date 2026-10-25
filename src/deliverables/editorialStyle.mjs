@@ -24,7 +24,34 @@ function sentencesOf(text) {
     .split(/(?<=[.!?])\s+/u).map((part) => part.trim()).filter(Boolean);
 }
 
-export function editorialStyleFindings(text) {
+function wordsOf(text) {
+  return normalized(text).match(/[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)*/gu) ?? [];
+}
+
+// A long exact run is measurable reuse, not a judgment of semantic originality.
+// Rolling rows bound memory and keep both the source excerpt and client text
+// out of diagnostics/logs. Only already-authorized chapter recaps are supplied.
+function sharedRun(textWords, previousTexts) {
+  let maximum = 0;
+  for (const previous of previousTexts) {
+    if (typeof previous !== "string") continue;
+    const source = wordsOf(previous);
+    let row = new Uint32Array(source.length + 1);
+    for (const word of textWords) {
+      const next = new Uint32Array(source.length + 1);
+      for (let index = 0; index < source.length; index += 1) {
+        if (word === source[index]) {
+          next[index + 1] = row[index] + 1;
+          maximum = Math.max(maximum, next[index + 1]);
+        }
+      }
+      row = next;
+    }
+  }
+  return maximum;
+}
+
+export function editorialStyleFindings(text, { previousTexts = [] } = {}) {
   const source = normalized(text).trim();
   if (!source) return [];
   const findings = [];
@@ -39,6 +66,22 @@ export function editorialStyleFindings(text) {
   });
 
   const paragraphs = source.split(/\n\s*\n/u).map((part) => part.trim()).filter(Boolean);
+  const largestParagraphWords = Math.max(0, ...paragraphs.map((paragraph) => wordsOf(paragraph).length));
+  if (largestParagraphWords >= 150 && paragraphs.some((paragraph) => wordsOf(paragraph).length >= 150 && sentencesOf(paragraph).length >= 3)) findings.push({
+    code: 'editorial_dense_paragraph',
+    message: "Un développement trop dense reste en un seul paragraphe. Répartis ses idées en paragraphes courts séparés par une ligne vide, sans supprimer le contenu autorisé ni ajouter de remplissage.",
+    counts: { largestParagraphWords, paragraphCount: paragraphs.length }
+  });
+
+  const words = wordsOf(source);
+  const priorTexts = Array.isArray(previousTexts) ? previousTexts : [];
+  const maxSharedRun = words.length >= 40 ? sharedRun(words, priorTexts) : 0;
+  if (maxSharedRun >= 12) findings.push({
+    code: 'editorial_reused_chapter_passage',
+    message: "La conclusion reprend une longue formulation d'un chapitre déjà produit. Dégage son apport pour le bilan sans recopier son explication ou son exemple, sans inventer de nouvelle interprétation et sans simplement remplacer quelques mots.",
+    counts: { maxSharedRun, previousTextCount: priorTexts.filter((text) => typeof text === 'string').length }
+  });
+
   const openings = new Map();
   for (const paragraph of paragraphs) {
     // Restrict this suggestion to stock prose openings. Repeated factual labels,

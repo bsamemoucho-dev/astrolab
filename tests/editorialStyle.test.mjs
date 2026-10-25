@@ -76,3 +76,23 @@ test('editorial style: diagnostics never change or truncate the supplied text', 
   assert.ok(editorialStyleFindings(text).length >= 2);
   assert.equal(text, original);
 });
+
+
+test('editorial style: a dense paragraph is measured without requiring extra content', () => {
+  const sentence = "Le symbole distingue une direction choisie et la place donnée à un engagement sans attribuer au lecteur une situation vécue. ";
+  const finding = editorialStyleFindings(sentence.repeat(9)).find((entry) => entry.code === 'editorial_dense_paragraph');
+  assert.ok(finding.counts.largestParagraphWords >= 150);
+  assert.match(finding.message, /sans supprimer le contenu autorisé/);
+  assert.ok(!codes(Array.from({ length: 9 }, () => sentence).join('\n\n')).includes('editorial_dense_paragraph'));
+});
+
+test('editorial style: long verbatim reuse is measured only against authorized supplied text', () => {
+  const passage = "Une direction personnelle peut être tenue sans demander au lien de décider à sa place de ce qui compte dans un engagement choisi.";
+  const text = passage + " La lecture ouvre alors un espace pour distinguer ce qui est décidé et ce qui reste à discuter, sans en déduire un comportement ni une issue qui seraient les vôtres.";
+  assert.ok(!codes(text).includes('editorial_reused_chapter_passage'));
+  const finding = editorialStyleFindings(text, { previousTexts: [passage] }).find((entry) => entry.code === 'editorial_reused_chapter_passage');
+  assert.ok(finding.counts.maxSharedRun >= 12);
+  assert.deepEqual(Object.keys(finding).sort(), ['code', 'counts', 'message']);
+  assert.doesNotMatch(JSON.stringify(finding), /une direction personnelle|engagement choisi/i);
+  assert.ok(!editorialStyleFindings('Une direction personnelle reste un repère bref.', { previousTexts: [passage] }).some((entry) => entry.code === 'editorial_reused_chapter_passage'));
+});

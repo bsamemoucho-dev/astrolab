@@ -35,7 +35,8 @@ const UI_STRINGS = {
   fr: {
     heroTag: "✦ Lecture personnalisée",
     heroTitle: "Votre signe n’est que <span>le début de l’histoire</span>",
-    lead: "Quand vous dites « Je suis Balance ou Capricorne », vous parlez de votre signe solaire : la position du Soleil dans le zodiaque au moment de votre naissance.",
+    heroCta: "Découvrir mon thème",
+    lead: "Votre thème de naissance, expliqué avec clarté. Une lecture symbolique de vos relations, de vos émotions et de votre manière d’agir, à explorer à votre rythme.",
     formTitle: "Votre lecture",
     dateLabel: "Date de naissance",
     hourLabel: "Heure", hourPrecisionLabel: "Précision",
@@ -81,6 +82,7 @@ const UI_STRINGS = {
   en: {
     heroTag: "✦ Personalised reading",
     heroTitle: "Welcome to <span>Lastro</span>.",
+    heroCta: "Explore my birth chart",
     lead: "What your sky says about you.",
     formTitle: "Your reading",
     dateLabel: "Date of birth",
@@ -127,6 +129,7 @@ const UI_STRINGS = {
   de: {
     heroTag: "✦ Persönliche Deutung",
     heroTitle: "Willkommen bei <span>Lastro</span>.",
+    heroCta: "Mein Geburtshoroskop entdecken",
     lead: "Was dein Himmel über dich sagt.",
     formTitle: "Deine Deutung",
     dateLabel: "Geburtsdatum",
@@ -173,6 +176,7 @@ const UI_STRINGS = {
   es: {
     heroTag: "✦ Lectura personalizada",
     heroTitle: "Bienvenido a <span>Lastro</span>.",
+    heroCta: "Descubrir mi carta natal",
     lead: "Lo que tu cielo dice de ti.",
     formTitle: "Tu lectura",
     dateLabel: "Fecha de nacimiento",
@@ -219,6 +223,7 @@ const UI_STRINGS = {
   it: {
     heroTag: "✦ Lettura personalizzata",
     heroTitle: "Benvenuto su <span>Lastro</span>.",
+    heroCta: "Scoprire il mio tema natale",
     lead: "Ciò che il tuo cielo dice di te.",
     formTitle: "La tua lettura",
     dateLabel: "Data di nascita",
@@ -265,6 +270,7 @@ const UI_STRINGS = {
   pt: {
     heroTag: "✦ Leitura personalizada",
     heroTitle: "Bem-vindo à <span>Lastro</span>.",
+    heroCta: "Descobrir o meu mapa natal",
     lead: "O que o seu céu diz sobre você.",
     formTitle: "A sua leitura",
     dateLabel: "Data de nascimento",
@@ -311,6 +317,7 @@ const UI_STRINGS = {
   no: {
     heroTag: "✦ Personlig lesning",
     heroTitle: "Velkommen til <span>Lastro</span>.",
+    heroCta: "Utforsk fødselshoroskopet mitt",
     lead: "Hva himmelen din sier om deg.",
     formTitle: "Lesningen din",
     dateLabel: "Fødselsdato",
@@ -357,6 +364,7 @@ const UI_STRINGS = {
   da: {
     heroTag: "✦ Personlig læsning",
     heroTitle: "Velkommen til <span>Lastro</span>.",
+    heroCta: "Udforsk mit fødselshoroskop",
     lead: "Hvad din himmel siger om dig.",
     formTitle: "Din læsning",
     dateLabel: "Fødselsdato",
@@ -403,6 +411,7 @@ const UI_STRINGS = {
   nl: {
     heroTag: "✦ Persoonlijke lezing",
     heroTitle: "Welkom bij <span>Lastro</span>.",
+    heroCta: "Ontdek mijn geboortehoroscoop",
     lead: "Wat jouw hemel over je zegt.",
     formTitle: "Jouw lezing",
     dateLabel: "Geboortedatum",
@@ -677,6 +686,7 @@ function applyUITranslations() {
     title.innerHTML = t.heroTitle;
   }
   setNodeText("#guest-hero .guest-lead", t.lead);
+  setNodeText("#guest-hero .hero-cta", t.heroCta);
   setNodeText("#express-form > h3", t.formTitle);
 
   setFieldLabel("birthDate", t.dateLabel);

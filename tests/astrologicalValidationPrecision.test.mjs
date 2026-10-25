@@ -127,7 +127,7 @@ test('snapshot deterministic text uses the same dossier zone as transit dates',a
   const plan=buildFullDossierPlan(f.dossierEvidence).sections.find(s=>s.sectionId==='current_sky');
   const intro=plan.blockPlans.find(b=>b.deterministic);const scoped={...plan,blockPlans:[intro]};
   const result=await writeStructuredSectionWithLlm({dossierEvidence:f.dossierEvidence,sectionPlan:scoped,options:{structuredWriterFn:async()=>{throw Error('deterministic block must not call writer');}}});
-  assert.match(result.section.blocks[0].text,/1 janvier 2027/);assert.equal(result.validation.ok,true);
+  assert.match(result.section.blocks[0].text,/1er janvier 2027/);assert.equal(result.validation.ok,true);
 });
 test('invalid reference timezone is not silently replaced',()=>assert.throws(()=>transitFixture({timeZone:'invalid/timezone'}),RangeError));
 

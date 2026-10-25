@@ -11,7 +11,7 @@ export function calendarDate(instant, timeZone = 'UTC') {
   return { year: get('year'), month: get('month'), day: get('day') };
 }
 export function formatFrenchCalendarDate(instant, timeZone = 'UTC') {
-  return new Intl.DateTimeFormat('fr-FR', { timeZone, year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(instant));
+  return new Intl.DateTimeFormat('fr-FR', { timeZone, year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(instant)).replace(/^1(?=\s)/u, '1er');
 }
 const normalize = text => String(text ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const months = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
@@ -58,6 +58,7 @@ export function validateAstrologicalDates({ text, refs = [], timeZone = 'UTC', a
         else if (/\b(?:jusqu'au|se termine le|prend fin le|fin le|fin du)\s*$/u.test(localBefore) || (windowCandidates && /\b(?:et le|au)\s*$/u.test(localBefore))) role = 'endsAt';
         else if (/\b(?:exact(?:e)?|exactitude|culmine|pic)(?:\s+(?:est|sera|a ete|le|du|au)){0,4}\s*$/u.test(localBefore)) role = 'exactAt';
         else if (facts.length && new RegExp(`\\b${namedPoint}\\s+le\\s*$`, 'u').test(localBefore)) role = 'windowDay';
+        else if (/\bpassages retenus\s*:/u.test(sentence) && /(?:^|[;:])\s*le\s*$/u.test(before)) role = 'windowDay';
       }
       previousDateEnd = match.index + match[0].length;
       if (!role) continue;
@@ -69,7 +70,7 @@ export function validateAstrologicalDates({ text, refs = [], timeZone = 'UTC', a
           ? matchesDate(date,r.value.startsAt,timeZone) && matchesDate(date,r.value.endsAt,timeZone)
           : matchesDate(date,r.value[role],timeZone));
         supported = matching.length > 0;
-        if (role === 'startsAt' || role === 'endsAt' || windowCandidates) windowCandidates = matching;
+        if (role === 'startsAt' || role === 'endsAt' || role === 'windowDay' || windowCandidates) windowCandidates = matching;
       }
       if (!supported) issues.push({ code: 'transit_text_date_mismatch', fact: { type:'ASTROLOGICAL_DATE', role, year:date.year, month:date.month, day:date.day } });
     }

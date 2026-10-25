@@ -19,6 +19,7 @@ import {
   zodiacWheelSvg
 } from "../src/deliverables/chart.mjs";
 import { docStrings } from "../src/deliverables/i18n.mjs";
+import { natalWheelLayout } from "../src/deliverables/natalWheel.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../src/deliverables/render.mjs";
 import { buildSocle } from "../src/deliverables/socle.mjs";
 
@@ -39,81 +40,109 @@ const SANS_HEURE = () =>
     docStrings("fr")
   );
 
+function attributes(markup) {
+  return Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map((match) => [match[1], match[2]]));
+}
+
 function jetons(svg) {
-  return [...svg.matchAll(/<circle cx="([\d.-]+)" cy="([\d.-]+)" r="11\.5"/g)].map((m) => ({
-    x: Number(m[1]),
-    y: Number(m[2])
-  }));
+  return [...svg.matchAll(/<circle class="planet-point"[^>]*\/>/g)].map(([markup]) => {
+    const attrs = attributes(markup);
+    return { body: attrs["data-body"], longitude: Number(attrs["data-longitude"]), x: Number(attrs.cx), y: Number(attrs.cy) };
+  });
+}
+
+function angleAxis(svg, name) {
+  const line = [...svg.matchAll(/<line class="chart-angle"[^>]*\/>/g)].find(([markup]) => attributes(markup)["data-angle"] === name);
+  return line ? attributes(line[0]) : null;
 }
 
 test("la roue place les corps à leur longitude calculée", () => {
   const socle = EXACT();
   const svg = zodiacWheelSvg(socle, docStrings("fr"), { size: 320 });
-  const cx = 160;
-  const cy = 160;
+  const layout = natalWheelLayout(socle, { size: 320 });
+  const { cx, cy } = layout;
 
-  // Sept corps, sept jetons, et aucun arc : l'heure est exacte, les positions
-  // sont des points.
+  // Sept corps, sept repères exacts. Les glyphes peuvent être décalés pour
+  // rester lisibles ; les repères astronomiques restent sur le cercle d'aspects.
   const places = jetons(svg);
   assert.equal(places.length, 7);
-  assert.equal((svg.match(/fill-opacity="0.5"/g) ?? []).length, 0);
+  assert.equal((svg.match(/class="planet-range"/g) ?? []).length, 0);
+  assert.deepEqual(places.map((place) => place.body).sort(), socle.bodies.map((body) => body.body).sort());
 
-  // L'Ascendant est décidable : l'axe part du centre vers la GAUCHE (180°).
-  const axe = svg.match(/<line x1="160" y1="160" x2="([\d.-]+)" y2="([\d.-]+)" stroke="#5a447f"/);
+  // L'Ascendant est décidable : son repère est à GAUCHE, au vrai degré. L'axe
+  // est désormais dans la couronne pour ne pas masquer les lignes d'aspects.
+  const axe = angleAxis(svg, "AC");
   assert.ok(axe, "l'axe de l'Ascendant doit être tracé");
-  const [, x2, y2] = axe.map(Number);
-  assert.ok(x2 < cx - 100, `l'Ascendant doit être à gauche (x=${x2})`);
-  assert.ok(Math.abs(y2 - cy) < 1, `l'axe doit être horizontal (y=${y2})`);
+  assert.ok(Number(axe.x1) < cx && Number(axe.x2) < cx - 100, "l'Ascendant doit être à gauche");
+  assert.ok(Math.abs(Number(axe.y1) - cy) < .001 && Math.abs(Number(axe.y2) - cy) < .001, "l'axe doit être horizontal");
+  assert.ok(Math.abs(Number(axe["data-longitude"]) - socle.ascendant.longitude) < 1e-9, "degré calculé conservé malgré la normalisation circulaire");
+  for (const name of ["AC", "DS", "MC", "FC"]) assert.ok(angleAxis(svg, name), `angle ${name} calculé`);
 
-  // Chaque jeton est à la distance du rayon des corps (aucune position fantaisie).
-  const rayons = places.map((place) => Math.hypot(place.x - cx, place.y - cy));
-  for (const rayon of rayons) {
-    assert.ok(Math.abs(rayon - 102.4) < 0.5 || Math.abs(rayon - 81.6) < 0.5, `rayon inattendu : ${rayon}`);
+  for (const place of places) {
+    const rayon = Math.hypot(place.x - cx, place.y - cy);
+    assert.ok(Math.abs(rayon - layout.radius.aspect) < .001, `rayon inattendu : ${rayon}`);
+    assert.equal(place.longitude, socle.bodies.find((body) => body.body === place.body).longitude);
   }
+  assert.equal((svg.match(/class="sign-label"/g) ?? []).length, 12);
+  assert.equal((svg.match(/class="house-cusp"/g) ?? []).length, 12);
 });
 
-test("l'angle d'un corps suit sa longitude", () => {
-  // Soleil en Capricorne 25° et Ascendant en Taureau : le Soleil doit se trouver à
-  // 180 + (295 - 33) = 82° environ, donc en haut à droite du centre.
+test("l'angle de chacun des sept corps suit sa longitude", () => {
   const socle = EXACT();
-  const soleil = socle.bodies.find((body) => body.body === "Sun");
   const svg = zodiacWheelSvg(socle, docStrings("fr"), { size: 320 });
-  const cx = 160;
-  const cy = 160;
   const places = jetons(svg);
-  // On retrouve le jeton du Soleil par sa position attendue.
-  const angleAttendu = 180 + (soleil.longitude - socle.ascendant.longitude);
-  const attendu = {
-    x: cx + 102.4 * Math.cos((angleAttendu * Math.PI) / 180),
-    y: cy - 102.4 * Math.sin((angleAttendu * Math.PI) / 180)
-  };
-  const proche = places.some((place) => Math.hypot(place.x - attendu.x, place.y - attendu.y) < 2);
-  assert.ok(proche, `aucun jeton à la position calculée (${attendu.x.toFixed(1)}, ${attendu.y.toFixed(1)})`);
+  // Vérification indépendante par l'angle à l'écran : ni le déplacement des
+  // étiquettes ni leur ordre dans le SVG ne peuvent modifier le vrai repère.
+  for (const body of socle.bodies) {
+    const place = places.find((entry) => entry.body === body.body);
+    assert.ok(place, body.body);
+    const actual = Math.atan2(160 - place.y, place.x - 160) * 180 / Math.PI;
+    const expected = 180 + body.longitude - socle.ascendant.longitude;
+    const gap = Math.abs(((actual - expected + 540) % 360) - 180);
+    assert.ok(gap < .002, `${body.body} : écart angulaire ${gap}°`);
+  }
 });
 
 test("sans heure, la roue trace des arcs au lieu d'inventer des points", () => {
   const socle = SANS_HEURE();
   const svg = zodiacWheelSvg(socle, docStrings("fr"), { size: 320 });
-  // Aucun jeton : aucune longitude n'est établie.
   assert.equal(jetons(svg).length, 0);
-  // Sept arcs de position, un par corps.
-  assert.equal((svg.match(/fill-opacity="0.5"/g) ?? []).length, 7);
-  // Pas d'axe : l'Ascendant n'est pas calculable, donc rien n'est affirmé.
-  assert.doesNotMatch(svg, /stroke="#5a447f" stroke-width="2.2"/);
+  const ranges = [...svg.matchAll(/<path class="planet-range"[^>]*\/>/g)].map(([path]) => attributes(path));
+  assert.equal(ranges.length, 7);
+  for (const body of socle.bodies) {
+    const range = ranges.find((entry) => entry["data-body"] === body.body);
+    assert.ok(range, body.body);
+    assert.equal(Number(range["data-longitude-start"]), body.longitudeRange.start);
+    assert.equal(Number(range["data-longitude-end"]), body.longitudeRange.end);
+  }
+  assert.doesNotMatch(svg, /class="chart-angle"|class="house-cusp"|class="aspect-line"/);
 });
 
 test("l'Ascendant indécis devient une zone, pas un axe", () => {
   const socle = APPROX();
   assert.equal(socle.ascendant.decidableWithinMargin, false, "le cas de test doit franchir une frontière de signe");
   const svg = zodiacWheelSvg(socle, docStrings("fr"), { size: 320 });
-  // Pas d'axe linéaire, mais la zone balayée et la mention.
-  assert.doesNotMatch(svg, /stroke="#5a447f" stroke-width="2.2"/);
+  assert.equal(angleAxis(svg, "AC"), null);
+  assert.equal(angleAxis(svg, "DS"), null);
   assert.match(svg, /AC \?/);
-  assert.match(svg, /fill-opacity="0.18"/);
-  // Les corps, eux, gardent leurs jetons : leurs longitudes sont calculées.
+  assert.match(svg, /class="angle-range" data-angle="AC"/);
+  assert.doesNotMatch(svg, /class="house-cusp"/);
   assert.equal(jetons(svg).length, 7);
-  // Et la roue ne prétend pas être orientée sur l'Ascendant.
+  assert.equal(natalWheelLayout(socle).anchor, null);
   assert.match(String(docStrings("fr").chartOrientedOnAries), /0° Bélier/);
+});
+
+test("un Milieu du Ciel indécis reste une plage même si l'Ascendant est décidable", () => {
+  const socle = EXACT();
+  socle.midheaven.decidableWithinMargin = false;
+  socle.midheaven.longitudeAtWindowStart = socle.midheaven.longitude - 5;
+  socle.midheaven.longitudeAtWindowEnd = socle.midheaven.longitude + 5;
+  const svg = zodiacWheelSvg(socle, docStrings("fr"));
+  assert.ok(angleAxis(svg, "AC"));
+  assert.equal(angleAxis(svg, "MC"), null);
+  assert.equal(angleAxis(svg, "FC"), null);
+  assert.match(svg, /class="angle-range" data-angle="MC"/);
+  assert.match(svg, /MC \?/);
 });
 
 test("la répartition est calculée, et les corps sans signe en sortent", () => {
@@ -198,9 +227,10 @@ test("le titre de la roue n'est jamais tronqué, dans les neuf langues", () => {
       `${langue} : le titre complet est rendu (${lignes.join(" | ")})`
     );
     const svg = zodiacWheelSvg(soclePour({ timePrecision: "exact", timeValue: "12:30" }, langue), docStrings(langue));
-    // Le texte du centre, recomposé à partir des seules lignes du centre (violet).
-    const centre = [...svg.matchAll(/fill="#4b3f57">([^<]+)<\/text>/g)].map((m) => m[1]).join(" ");
-    assert.equal(centre, titre.toUpperCase(), `${langue} : le centre porte le titre complet`);
+    // Le titre accessible du SVG reste complet ; le centre est maintenant
+    // réservé aux aspects calculés, conformément à la nouvelle présentation.
+    const accessibleTitle = svg.match(/<title>([^<]+)<\/title>/)?.[1];
+    assert.equal(accessibleTitle, titre.replaceAll("&", "&amp;"), `${langue} : le SVG porte le titre complet`);
   }
 });
 
@@ -215,5 +245,10 @@ test("le centre de la roue coupe sur des lignes équilibrées", () => {
 
 test("la roue n'écrit pas de flottants bruts dans ses tracés", () => {
   const svg = zodiacWheelSvg(EXACT(), docStrings("fr"));
-  assert.doesNotMatch(svg, /\d\.\d{5,}/, "aucun rayon du type 150.39999999999998");
+  // Les données astronomiques conservent leur précision. Seules les coordonnées
+  // de présentation doivent être arrondies, sans bruit de virgule flottante.
+  const coordinates = [...svg.matchAll(/\b(?:x|y|cx|cy|x1|y1|x2|y2)="([\d.-]+)"/g)].map((match) => match[1]);
+  assert.ok(coordinates.length > 100);
+  for (const value of coordinates) assert.match(value, /^-?\d+(?:\.\d{1,3})?$/, `coordonnée non arrondie : ${value}`);
+  for (const [, path] of svg.matchAll(/\bd="([^"]+)"/g)) assert.doesNotMatch(path, /\d\.\d{4,}/, "tracé non arrondi");
 });

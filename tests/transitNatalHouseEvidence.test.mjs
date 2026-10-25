@@ -10,7 +10,7 @@ function fixture({ houses = [['Moon', 7, 'WHOLE_SIGN']], natalHouse = 7, houseSy
     { evidenceId: 'transits.snapshot', type: 'TRANSIT_SNAPSHOT', value: { nowUtc: '2026-10-25T12:00:00.000Z', horizonDays: 42 } },
     { evidenceId: 'transit.jupiter.moon', type: 'PERSONAL_TRANSIT', value: {
       status, transitBody: 'Jupiter', natalPoint, aspectType: 'trine', natalHouse, houseSystem,
-      orb: 0.2, phase: 'APPLYING', startsAt: '2026-10-24T22:30:00.000Z', exactAt: '2026-10-25T23:30:00.000Z', endsAt: '2026-10-29T23:30:00.000Z'
+      orb: 0.2, phase: 'APPLYING', startsAt: status === 'UPCOMING' ? '2026-10-25T22:30:00.000Z' : '2026-10-24T22:30:00.000Z', exactAt: '2026-10-25T23:30:00.000Z', endsAt: '2026-10-29T23:30:00.000Z'
     } },
     ...houses.map(([body, house, system]) => ({ evidenceId: `natal.${body.toLowerCase()}.house`, type: 'NATAL_BODY_HOUSE', value: { body, house, houseSystem: system }, provenance: { reliability } })),
     ...extraTransits
