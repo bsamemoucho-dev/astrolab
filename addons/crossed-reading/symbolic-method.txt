@@ -1,0 +1,32 @@
+LASTRO — LECTURE DOCUMENTAIRE LIMITÉE
+Version : lastro-bounded-documented-reading@1.0.0
+
+Cette couche déterministe explique des résultats calculés et un lexique lunaire court. Elle ne remplace pas une consultation complète de Jyotish ou de BaZi et n’ajoute aucune synthèse croisée. Aucun appel LLM, clé, paiement, stockage ou notification.
+
+PÉRIMÈTRE
+- Lune sidérale certaine : le texte mentionne le signe calculé, puis un vocabulaire symbolique bref. La Lune comme symbole de l’esprit et les mots de signe proviennent de P. V. R. Narasimha Rao, Vedic Astrology: An Integrated Approach, §2.3 et §3.2.3. Ces correspondances traditionnelles ne constituent jamais des traits établis.
+- Lexique : Bélier initiative/mouvement ; Taureau stabilité/fidélité ; Gémeaux étude/communication ; Cancer sensibilité/attachement ; Lion affirmation/fierté ; Vierge discernement/discrétion ; Balance équilibre/dialogue ; Scorpion réserve/recherche du caché ; Sagittaire franchise/rectitude ; Capricorne patience/organisation ; Verseau réflexion/persévérance ; Poissons intuition/sensibilité. Les caractérisations physiques, médicales, de caste, de genre, morales ou biographiques du texte source ne sont pas importées.
+- Nakshatra/pada : explication de la division et de son emploi pour le calendrier. Aucun caractère individuel, divinité, fertilité, karma, archétype ou événement n’en est déduit.
+- Dashas : explication des périodes/sous-périodes et noms courants calculés à la date de préparation, avec marges conservées. Aucun effet de planète sur la période n’est ajouté.
+- BaZi : couples tronc/branche, mois solaire et heure civile. Aucun maître du jour interprété, équilibre des cinq mouvements, dix dieux, tronc caché, Da Yun ou destin n’est attribué.
+- Aucun contenu tropical n’est réécrit ou promu dans une autre tradition.
+
+GARDE-FOUS
+Toute phrase personnalisée conserve ses références de preuves dans le résultat structuré. Une preuve absente ou contradictoire bloque avec COMPLEMENT_READING_PROOF_MISMATCH. Un cadre différent bloque avec COMPLEMENT_READING_FRAME_MISMATCH.
+La Lune et son classement doivent être certains selon la tolérance réelle de 61 secondes d’arc ; le nakshatra/pada est recoupé géométriquement. Une autre planète incertaine n’empêche pas d’expliquer un repère lunaire certain. L’heure inconnue ne devient jamais une position unique. Un module hors plage ne reçoit aucune lecture de substitution.
+Les licences des calculateurs restent not_licensed. Le statut distinct bounded_documented_reading décrit cette explication limitée ; il ne prétend pas valider un portrait ni élargir le catalogue tropical existant.
+Le rendu HTML échappe les données et les liens proviennent exclusivement d’URL constantes. Aucun nom de personne, date réelle ou coordonnées privées ne sont inscrits dans le code ou les tests.
+
+SOURCES PRIMAIRES
+P. V. R. Narasimha Rao, ouvrage mis à disposition par son auteur :
+https://www.vedicastrologer.org/articles/vedic_astro_textbook.pdf
+Repères : §1.3, §2.3, §3.2.3, §7.3.2, §16.1–16.3 et §16.7.
+L’auteur signale dans sa préface de 2010 avoir fait évoluer ses recherches ; ce lexique ne constitue pas une doctrine universelle. Le profil Lastro de 365,25 jours reste une convention logicielle explicite, et ne lui est pas attribué.
+
+Hong Kong Observatory, Heavenly Stems and Earthly Branches, tables 2–5 :
+https://www.hko.gov.hk/en/gts/time/stemsandbranches.htm
+Ces tables documentent le cycle et la construction des huit caractères, pas une interprétation individuelle.
+
+Hong Kong Observatory, Hui Tai-wai, What year is it today?, avril 2018 :
+https://www.hko.gov.hk/en/education/astronomy-and-time/time-service/00506-what-year-is-it-today.html
+Source sur la distinction du Nouvel An lunaire officiel et de la frontière Li Chun employée pour le BaZi.

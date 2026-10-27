@@ -99,6 +99,7 @@ import { listMethodRegistry } from "../methodology/registry.mjs";
 import { clearSessionCookie, parseCookies, readJson, securityHeaders, sendJson, sendStatic, setSessionCookie } from "./httpUtils.mjs";
 import { PREVIEW_ROBOTS_BODY, enforcePreviewAccess, noindexEnabled } from "./preview.mjs";
 import { llmBudgetState } from "../deliverables/llmBudget.mjs";
+import { createComplementHttp } from "../../addons/crossed-reading/http.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DEFAULT_PUBLIC_DIR = join(__dirname, "../../public");
@@ -243,6 +244,7 @@ export function createApp(options = {}) {
   // permet d'en injecter un autre dans les tests.
   const pdfRenderer = "pdfRenderer" in options ? options.pdfRenderer : defaultPdfRenderer();
   const cielNowUtc = options.cielNowUtc ?? null;
+  const complementHttp = createComplementHttp(options.complementHttp);
 
   // Compteurs des points d'entrée non authentifiés, créés par application et non
   // au niveau du module : deux applications (les tests en montent plusieurs) ne
@@ -540,6 +542,7 @@ export function createApp(options = {}) {
   }
 
   const routes = [
+    ...complementHttp.routes,
     route("GET", /^\/healthz$/, async (_req, res) => {
       sendJson(res, 200, {
         ok: true,
@@ -1442,6 +1445,7 @@ export function createApp(options = {}) {
     }
   });
   server.on("close", () => {
+    complementHttp.close();
     readingJobsClosed = true;
     if (generationRecoveryTimer) clearInterval(generationRecoveryTimer);
     if (nextReadingTimer) clearTimeout(nextReadingTimer);

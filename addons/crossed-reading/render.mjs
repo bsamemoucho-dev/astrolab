@@ -2,6 +2,7 @@
 // provider configuration or payment module, and never requests remote assets.
 import { zodiacWheelSvg, signDistribution } from "../../src/deliverables/chart.mjs";
 import { docStrings } from "../../src/deliverables/i18n.mjs";
+import { renderSymbolicReading } from "./symbolicReading.mjs";
 
 const SCHEMA = "lastro.independent_reading@0.1.0";
 const BODIES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
@@ -203,8 +204,11 @@ function additionalMetadata(report) {
   return rows.length ? `<h3>Conventions des modules complémentaires</h3>${table(['Repère', 'Valeur'], rows)}` : '';
 }
 
-export function renderIndependentReading(report) {
+export function renderIndependentReading(report, { presentation = 'local' } = {}) {
+  if (!['local', 'web'].includes(presentation)) throw new TypeError('UNSUPPORTED_COMPLEMENT_PRESENTATION');
   assertSupported(report);
+  const web = presentation === 'web';
+  const readingHtml = web ? renderSymbolicReading(report) : '';
   const { frame } = report.tropical;
   const birth = report.birth ?? {};
   const highLatitude = Number.isFinite(birth.latitude) && Math.abs(birth.latitude) >= 65;
@@ -246,9 +250,9 @@ export function renderIndependentReading(report) {
   ];
   const notes = [
     ...(highLatitude ? ["Angles et maisons non restitués à ces latitudes dans ce complément ; positions planétaires conservées."] : []),
-    ...list(socle.uncertaintyNotes), ...list(socle.warnings)
+    ...list(socle.uncertaintyNotes), ...(web ? [] : list(socle.warnings))
   ];
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Lastro · aperçu indépendant · ${escape(report.personLabel ?? "Lecture")}</title><style>${CSS}</style></head>
 <body><main>
 <header><div class="brand">Lastro</div><p class="eyebrow">Aperçu local · complément indépendant</p><h1>Une carte, des repères distincts</h1>${report.personLabel ? `<p class="person">${escape(report.personLabel)}</p>` : ""}<p class="birth">${escape(date(birth.birthDate ?? socle.birth?.date))} · ${escape(timeLabel(birth, socle))}<br>${escape(birth.placeName ?? socle.birth?.placeName ?? "lieu non fourni")} · ${escape(birth.timeZone ?? socle.birth?.timeZone ?? "fuseau non fourni")}</p></header>
@@ -264,4 +268,26 @@ ${baziSection(report.bazi)}
 <details open><summary>Références du calcul et de la préparation</summary><div class="method-details">${table(["Repère", "Valeur"], metadata)}${additionalMetadata(report)}<h3>Traçabilité des repères symboliques</h3>${table(["Placement", "Règle", "Preuve"], entries.map((entry) => [proofLabel(byEvidence.get(entry.evidenceId), byBody), entry.ruleId, entry.evidenceId]))}<p>Schéma ${escape(report.schema)} · préparation ${escape(report.generatedAt ?? "non datée")}${report.chineseAnnual?.frame?.runtimeIcu ? ` · calendrier calculé avec ICU ${escape(report.chineseAnnual.frame.runtimeIcu)}` : ""}.</p></div></details>
 <footer>Complément autonome en aperçu local. Le parcours Lastro existant demeure séparé. Les calculs décrivent des positions et des conventions ; les significations astrologiques relèvent d’une lecture symbolique. Aucun diagnostic, événement biographique ou résultat futur n’est établi par cet aperçu.</footer>
 </main></body></html>`;
+  if (!web) return html;
+  // The factual report and its validation contract remain unchanged. Only this
+  // separate presentation is offered by the independent, stateless web tool.
+  const intro = '<strong>Vos repères de naissance</strong><p>Ce complément réunit des calculs tropicaux, sidéraux et calendaires, avec des explications documentées. Les traditions restent distinctes : les résultats ne constituent ni une prédiction ni un portrait psychologique. Ce document a été calculé sans génération IA.</p>';
+  return html
+    .replace('Aperçu local · complément indépendant', 'Complément indépendant')
+    .replace('Lastro · aperçu indépendant', 'Lastro · complément indépendant')
+    .replace('Une carte, des repères distincts', 'Votre complément de naissance')
+    .replace(/<div class="callout"><strong>Base de préparation locale<\/strong>[\s\S]*?<\/div>/, `<div class="callout">${intro}</div>`)
+    .replace(/<section aria-labelledby="symbolic-title">[\s\S]*?<\/section>/, readingHtml)
+    .replace(/<h2 id="limits-title">Ce qui reste à préparer<\/h2><div class="unavailable">[\s\S]*?<\/div>/, '<h2 id="limits-title">Le périmètre de votre complément</h2><p>Ce complément couvre les positions et maisons calculables, les aspects tropicaux, le secteur lunaire sidéral, les périodes Vimshottari et les quatre piliers civils. Il n’inclut pas de consultation complète de Jyotish ou de BaZi, de progressions ni de lecture transgénérationnelle.</p>')
+    .replace('<details open><summary>Références', '<details><summary>Références')
+    .replace(/<h3>Traçabilité des repères symboliques<\/h3>[\s\S]*?<\/table><\/div>/, '')
+    .replace('Complément autonome en aperçu local.', 'Complément autonome de calculs et de repères documentés.')
+    .replace('Aucune synthèse croisée n’est licenciée ici.', 'Chaque tradition conserve son propre cadre de lecture.')
+    .replace('Périmètre de cet aperçu', 'Périmètre du complément')
+    .replace('</style>', '@media print{header{padding-bottom:8px}.brand{font-size:16pt}.eyebrow{font-size:7pt;margin:6px 0 4px}h1{font-size:23pt;margin:4px 0 7px}.person{font-size:16pt;margin:4px 0}.birth{font-size:9pt;line-height:1.35;margin:4px 0}.callout{margin:12px 0;padding:8px 12px}.callout p{margin:6px 0}section{margin-top:16px}section>h2+p{break-after:avoid}.chart-grid{gap:12px}.wheel{max-width:70mm}.chart-grid table{font-size:8pt}.chart-grid th,.chart-grid td{padding:4px}.chart-grid th:first-child,.chart-grid td:first-child{white-space:nowrap}.angles{display:block}.angles p{min-width:0;display:inline-block;width:48%;font-size:8pt}.legend{line-height:1.35}.documented-reading article{padding:9px 0}.documented-reading details{font-size:8pt}}' + '</style>')
+    .replace('<h3>Conventions des modules complémentaires</h3>', `${list(socle.warnings).length ? `<h3>Notes techniques du moteur</h3><ul>${socle.warnings.map(note => `<li>${escape(note)}</li>`).join('')}</ul>` : ''}<h3>Conventions des modules complémentaires</h3>`)
+    .replace('<title>', '<meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; base-uri \'none\'; form-action \'none\'"><title>')
+    .replace('"Segoe UI",sans-serif', '"Segoe UI","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif')
+    .replace('section{margin-top:38px}', '.chart-grid>*,.summary-grid>*,.small-grid>*{min-width:0}.table-wrap{max-width:100%}th{overflow-wrap:anywhere}.documented-reading article{padding:14px 0;border-top:1px solid var(--line)}.documented-reading article p{max-width:78ch;margin:10px 0}section{margin-top:38px}')
+    .replace('@media print{body{', '@media print{*{print-color-adjust:exact;-webkit-print-color-adjust:exact}body{');
 }

@@ -1,0 +1,38 @@
+LASTRO — LIVRAISON DU COMPLÉMENT INDÉPENDANT
+
+PÉRIMÈTRE
+GET /complement : formulaire indépendant.
+GET /complement/client.js : client sans stockage de données de naissance.
+POST /api/complement/calculate : calculs et HTML, sans conservation serveur.
+Ces routes ne sont disponibles en production qu'après déploiement effectivement vérifié. Elles ne créent ni dossier de commande, paiement, crédit, compte ni notification.
+
+Le document réunit les calculs existants de l'addon (tropical, Lahiri, Vimshottari, quatre piliers civils, année chinoise) et une lecture documentaire circonscrite, avec sources primaires et preuves. Il ne constitue pas une consultation complète de Jyotish/BaZi, un portrait psychologique ni une synthèse entre traditions. Aucun nouveau modèle de rédaction ou transport IA n'est ajouté.
+
+PROTECTIONS
+Une seule demande de calcul active par processus, worker éphémère avec env vide, mémoire128Mo et durée30secondes. Cinq essais/minute/client, trente calculs/heure/processus ; limites explicites et sans fallback. Le serveur principal reste disponible pendant le calcul. Fermeture/timeout : terminaison du worker avant libération du créneau.
+EntréeJSON64Ko et champs stricts, calcul depuis les seules données de naissance, validation de provenance conservée, résultats incertains non transformés en positions uniques. Aucune donnée de naissance dans l'URL, les journaux applicatifs ou le stockage navigateur. Les sauvegardes HTML/PDF demandées par l'utilisateur restent dans le répertoire qu'il choisit.
+L'export PDF utilise l'impression du navigateur ; aucun moteur ni police n'est installé sur Render. Le document contient les transcriptions latines des piliers chinois. L'iframe interdit les scripts ; les seules sources externes fixes s'ouvrent après un clic, sans Referer ni fenêtre d'origine.
+L'empreinte /healthz inclut les modules exécutés sous addons/crossed-reading.
+
+VÉRIFICATIONS LOCALES ET CI
+node --test
+Contrôles supplémentaires : formulaire jusqu'au résultat, trois tailles d'écran, sources sous le vrai CSP, arrêt du worker, base en mémoire inchangée, PDF A4 rendu et inspecté. Ces contrôles ne déclenchent aucun modèle payant, paiement Stripe ou e-mail Brevo.
+Le runtime de production reste Node22 du Dockerfile ; la CI Node22 doit être verte sur le SHA exact de la PR. Ne pas modifier render.yaml : ce fichier décrit uniquement Vtest.
+
+AVANT LA FUSION
+1. Vérifier le diff limité à l'addon, son raccordement dans src/http/app.mjs et sa prise en compte dans src/http/release.mjs. Exclure tous les fichiers de travail étrangers.
+2. Vérifier les tests et la CI du SHA exact.
+3. Accéder au service Render existant ; conserver main, son disque et toutes ses variables Stripe/Brevo/comptes/API. Aucune application du blueprint Vtest.
+4. Exécuter dans le Web Shell, sans démarrer de second serveur :
+   node tools/deploy-preflight.mjs --db "$ASTROLAB_DB_PATH"
+   Si safeAtSnapshot n'est pas vrai, arrêter. Le démarrage existant peut reprendre des générations et notifications : une file active impose un diagnostic, sans relance manuelle.
+5. Faire un nouveau snapshot privé des octets de la base et de l'environnement sur le disque persistant ; répertoire0700, fichiers0600, hashSHA256. Ne jamais afficher leur contenu ni le publier sur GitHub. Vérifier la validitéJSON et garder l'état courant sans mutation. Refaire le préflight immédiatement avant fusion.
+6. Fusionner uniquement le SHA CI validé. Le déploiement automatique existant peut alors démarrer. Si les accès ou le préflight sont indisponibles, ne pas fusionner.
+
+APRÈS LE DÉPLOIEMENT
+Attendre Render Live. Vérifier le SHA Render, /healthz et son empreinte locale attendue, puis GET /complement, son script, /, /guides/, /ciel/ et /api/config. Vérifier les journaux de démarrage sans exposer de données personnelles. Le contrôle de santé/erreurs d'entrée ne nécessite aucun dossier public, paiement ou e-mail. Un éventuel calcul du nouveau complément est déterministe, sans IA et sans commande.
+En cas d'anomalie, arrêter avant toute autre action de production ; fournir le diagnostic.
+
+RETOUR ARRIÈRE
+Avant cette livraison, version connue : 8ba225e4ebf9e05bc40267275df50ce5bb56fb4d ; empreinte01ee74d5b648.
+Redéployer ce commit sur le même service Render, vérifier Live, /healthz et l'empreinte. Conserver la base et l'environnement courants : l'addon n'ajoute ni schéma ni enregistrement à migrer. Ne pas restaurer automatiquement un snapshot ancien si des commandes ont été reçues depuis.

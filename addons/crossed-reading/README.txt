@@ -1,6 +1,6 @@
 LASTRO — COMPLÉMENT INDÉPENDANT : CALCULS JYOTISH, DASHAS ET BAZI
 
-Cette extension reste locale, sans liaison à une route, commande, base, paiement ou notification existante. Les seuls fichiers modifiés/ajoutés sont sous addons/crossed-reading. Aucun déploiement ni appel IA payant. Elle calcule désormais les trois modules demandés ; la lecture symbolique approfondie reste distincte de ces calculs.
+Cette extension possède un parcours web indépendant : /complement et POST /api/complement/calculate. Elle ne crée aucune commande ni donnée en base, n'appelle aucun fournisseur IA et ne déclenche ni paiement ni notification. Les parcours et calculs Lastro existants restent séparés. La lecture proposée explique les repères calculés et un vocabulaire lunaire documenté ; elle ne constitue pas une consultation complète de Jyotish ou de BaZi.
 
 CE QUI EST CALCULÉ
 1. Tropical : moteur existant inchangé, sept corps traditionnels, angles et maisons entières, aspects, éléments et modalités. Résultat/socle/preuves conservés sans mutation.
@@ -12,7 +12,7 @@ CE QUI EST CALCULÉ
 LIRE L'APERÇU
 Les calculs, le vocabulaire symbolique existant et les modules restant à préparer sont séparés. La roue tropicale est le SVG calculé existant ; aucune image générée, position ou texte astrologique inventé ne trace cette carte.
 Les fonctions interprétatives existantes restent exclusivement tropicales. Les nouveaux faits Jyotish/BaZi n'obtiennent aucune licence de portrait psychologique ou de prédiction. Une similitude entre traditions n'ajoute aucune certitude sur la personne.
-Le catalogue de mots existant est une base de rédaction, pas une lecture IA achevée. Les traits, événements, archétypes, dignités, interprétations karmiques/familiales ou transgénérationnelles ne sont pas fabriqués. Aucune donnée parentale supplémentaire n'est collectée.
+Le catalogue tropical reste une base de rédaction dans l'aperçu local. Sur le parcours web, symbolicReading.mjs produit une lecture documentaire courte, reliée aux preuves calculées et aux sources primaires Rao/HKO, sans transport IA. Les traits, événements, archétypes, dignités, interprétations karmiques/familiales ou transgénérationnelles ne sont pas fabriqués. Aucune donnée parentale supplémentaire n'est collectée.
 
 CONVENTIONS ET INCERTITUDES
 Les méthodes sont détaillées dans jyotish-method.txt, vimshottari-method.txt et bazi-method.txt. Conserver ces versions lors de tout export.
@@ -46,4 +46,10 @@ Comparaisons indépendantes :390ayanamshas,42positions planétaires,6nœudsmoyen
 Swiss Ephemeris a servi uniquement d'outil externe de comparaison dans un environnement temporaire. Aucun code/binaireSwiss, bindingPython ou nouvelle dépendance n'a été ajouté à l'application. Aucune modification de la licence du projet.
 
 SUITE DISTINCTE
-Les progressions, la rédaction symbolique autonome et l'éventuelle méthode d'archétypes/transgénérationnel ne font pas partie de ces trois calculateurs. La connexion au site et un éventuel test de rédaction payant nécessitent une décision séparée ; le présent travail ne les déclenche pas.
+Les progressions, une consultation symbolique approfondie et l'éventuelle méthode d'archétypes/transgénérationnel ne font pas partie de ce complément. Aucun appel IA payant n'est ajouté par le raccordement web. Les statuts interpretationStatus:not_licensed et crossTraditionSynthesis:not_licensed restent intacts ; le statut bounded_documented_reading désigne uniquement les explications circonscrites décrites dans symbolic-method.txt.
+
+PARCOURS WEB ET CONFIDENTIALITÉ
+Le serveur ajoute les trois routes du complément et la fermeture de son exécuteur ; aucun parcours de commande existant n'est modifié. Un worker éphémère sans environnement de production effectue le calcul, avec mémoire et durée bornées, une seule demande active, cinq essais par minute et client et trente calculs par heure et processus. Un refus est explicite, jamais remplacé par un résultat fictif.
+Les données de naissance transitent en POST JSON, sans URL personnelle, journal de contenu, stockage navigateur ni persistance serveur. Réponses no-store/no-referrer, contrôles d'origine, validation stricte des champs. Le résultat reste dans la mémoire de la page jusqu'à effacement ou fermeture. Un HTML enregistré ou un PDF appartient au stockage choisi par l'utilisateur ; l'effacement du formulaire ne supprime pas ces fichiers.
+L'iframe du résultat n'exécute aucun script. Les seules fenêtres externes sont les sources fixes ouvertes par un clic, sans Referer ni accès à la fenêtre d'origine. Le PDF est obtenu par l'impression du navigateur, sans installation de moteur PDF serveur. Les caractères chinois sont doublés par leurs transcriptions latines ; le rendu exporté doit être contrôlé.
+L'empreinte /healthz inclut désormais le code de addons/crossed-reading en plus de src/public. La présence de nouvelles routes ne prouve pas un déploiement : vérifier le SHA Render et l'empreinte après livraison.
