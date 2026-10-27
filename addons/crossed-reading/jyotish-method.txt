@@ -1,0 +1,35 @@
+JYOTISH / LAHIRI — MÉTHODE DE CALCUL INDÉPENDANTE V1
+
+Périmètre : faits sidéraux et neuf grahas, pas une interprétation Jyotish ni une synthèse psychologique. Zodiaque sidéral et maisons entières explicitement séparés du zodiaque tropical. Fenêtre UTC de naissance issue du moteur existant ; aucune date civile ou position tirée d'un texte.
+
+AYANAMSHA
+Variante : Lahiri selon le repère IAE1985, 23°15'00.658'' à JD2435553.5 TT (21/03/1956 00:00 TT), orientation vraie incluant la nutation. Cette époque n'est pas minuit UTC.
+Implémentation : vecteur unité à cette longitude dans l'écliptique vraie de l'époque ; transformation en équatorialJ2000 puis en écliptique vraie de la date avec les rotations du moteur astronomy-engine2.1.19 déjà présent (MIT). L'argument de longitude devient l'ayanamsha vraie de date. Soustraction normalisée aux longitudes apparentes vraies des sept corps calculés.
+Cette implémentation est nommée lastro-lahiri-iae1985-ae@1.0.0 ; ce n'est pas un import de la bibliothèque SwissEphemeris ni une déduction par décalage fixe24°.
+Comparaison indépendante :390dates sur1901–2030 à get_ayanamsa_ex_ut(MOSEPH), modeSwissLahiri1, nutation incluse. Écartmaxobservé0.382''.42positionsplanétaires contrôlées :max18.650''; précision déclarée du moteur1'. Une tolérance totale conservatrice61'' protège les classifications, en incluant1'' pour l'ayanamsha. L'accord sur les fixtures ne remplace pas l'incertitude des données de naissance.
+
+NŒUDS
+Rahu est le nœud lunaire MOYEN ascendant, pas une planète ni le nœud vrai osculateur. Polynôme de longitude moyenne de l'argumentlunaireOmega, IERS2003/Simon1994, tempsTT (adapté mathématiquement depuis la formule publiée, coefficients en secondesd'arc). La nutation en longitude du moteur est ajoutée pour rester en écliptique vraie. Ketu est à180°.
+Six référencesSwissMEAN_NODE :écartmax0.210''. Le choix«nœudmoyen» reste une convention explicitement affichée.
+
+ANGLES ET MAISONS
+Le nouveau module utilise GAST Astronomy.SiderealTime et obliquité vraie e_tilt.tobl. Il choisit l'intersection orientale de l'écliptique et de l'horizon, puis soustrait l'ayanamsha. Les maisons sont recalculées à partir du signe de l'Ascendant SIDÉRAL, jamais copiées des maisons tropicales.
+Calcul d'angles seulement pour heure ponctuelle et -65°<latitude<65°. Au-delà, angles/maisons non attribués, neufgrahas et Lune/dashas restent calculables. Les géométries singulières sont refusées. Grilleindépendante456cas :accordSwiss<2.2''; plage retenue168cas<0.6'' pourASC. Le code d'angles tropical actuel n'est pas modifié.
+
+NAKSHATRAS / PADAS
+27secteurs égaux de13°20' depuis0°Bélier sidéral ; quatrepadas de3°20' parnakshatra. L'ordre des maîtres répète Ketu,Vénus,Soleil,Lune,Mars,Rahu,Jupiter,Saturne,Mercure.
+Une frontière de signe,nakshatra oupada située dans±61'' reste incertaine ; pas de maître/pada unique inventé à une frontière.
+
+HEURE INCERTAINE
+Si utcRange n'est pas ponctuel, aucun degré,angle,maison ou classification sidérale unique n'est déclaré. Les longitudes aux deux bornes sont conservées comme échantillons, explicitement sans garantie d'enveloppe complète pour les planètes rétrogrades. Les dashas n'acquièrent pas une chronologie précise dans ce cas.
+
+PREUVES
+Espace jyotish.lahiri.*, types JYOTISH_*, zodiaque sidéral, versionayanamsha,fuseau,UTC,incertitude et moteur conservés. Aucune de ces preuves ne passe par les règles d'interprétation tropicales. Aucun comportement, destin, événement ou bénéfice psychologique n'est inféré.
+
+RÉFÉRENCES
+https://www.astro.com/swisseph/swisseph.htm (varianteLahiri, §2.8.5/appendiceE)
+https://www.astro.com/swisseph/swephprg.htm (§12.2,ayanamshavraie)
+https://github.com/cosinekitty/astronomy (moteurMIT, rotations et précision)
+https://github.com/liberfa/erfa/blob/master/src/faom03.c (formuleIERS2003, argumentslunaires)
+https://www.vedicastrologer.org/articles/vedic_astro_textbook.pdf (nakshatras et conventions Jyotish)
+La bibliothèque Swiss et son bindingPython ont servi uniquement d'outils de comparaison dans un environnement temporaire externe au projet. Aucun code ou binaireSwiss n'est distribué ni appelé par l'application. Les fixtures ne contiennent que des résultats numériques sur dates synthétiques.

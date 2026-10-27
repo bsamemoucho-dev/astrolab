@@ -1,0 +1,11 @@
+SUIVI DISTINCT — ANGLES TROPICAUX AUX HAUTES LATITUDES
+
+Constat lors de la vérification des nouveaux angles Jyotish : le calcul d'angles existant src/astro/angles.mjs emploie GMST/obliquité simplifiés et une intersection qui ne sélectionne pas explicitement l'horizon oriental aux latitudes circumpolaires. La grille de référence indépendante retrouve des écarts supérieurs à61'' dès66° et peut retrouver l'intersection opposée à180° dans les cas circumpolaires.
+
+Ce constat ne remet pas en cause les positions planétaires de l'exemple de Sèvres. Il ne doit pas être dissimulé comme une différence de système de maisons.
+
+Contrainte actuelle : l'utilisateur demande de conserver le fonctionnement existant. Aucun fichier du moteur tropical n'a été modifié pour cet ajout, aucun déploiement effectué.
+
+Le nouveau module sidéral utilise une géométrie séparée vérifiée GAST/obliquité vraie/sélectionorientale et refuse angles/maisons à|latitude|>=65°. Les neufgrahas, nakshatras et dashas restent calculables dans leur plagetemporelle.
+
+Correction future distincte à préparer : remplacer/valider la géométrie tropicale, traiter les singularités et les incertitudes, ajouter un corpus extérieur multilatitudes et comparer les dossiers potentiellement concernés. Ne pas relancer ni modifier automatiquement un ancien dossier.

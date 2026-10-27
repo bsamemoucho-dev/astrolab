@@ -14,10 +14,10 @@ const BIRTH_KEYS = new Set([
 const ASTROLOGICAL_PROOFS = new Set(["NATAL_BODY_SIGN", "NATAL_BODY_HOUSE", "ANGLE_SIGN", "NATAL_ASPECT"]);
 const UNAVAILABLE = Object.freeze([
   { id: "outer-natal-interpretation", title: "Planètes lentes natales", reason: "Cet aperçu natal porte sur les sept corps traditionnels. Uranus, Neptune et Pluton sont calculables dans un autre module existant, mais ne sont ni ajoutés ni interprétés ici." },
-  { id: "jyotisha-natal", title: "Lecture sidérale / Jyotish", reason: "Aucun moteur sidéral ni ayanamsha versionné n’est encore implémenté et validé pour ce complément." },
-  { id: "jyotisha-nakshatras", title: "Nakshatras et padas", reason: "Le calcul sidéral et ses conventions doivent être établis avant d’attribuer un nakshatra ou un pada." },
-  { id: "jyotisha-dashas", title: "Dashas", reason: "Aucun calculateur de dashas documenté et testé n’est disponible." },
-  { id: "chinese-bazi", title: "BaZi / quatre piliers", reason: "Aucun moteur des quatre piliers n’est disponible ; un repère d’année ne constitue pas un BaZi." },
+  { id: "jyotisha-natal", title: "Lecture sidérale / Jyotish", reason: "La couche tropicale ne fournit pas le résultat sidéral ; le complément autonome le calcule séparément." },
+  { id: "jyotisha-nakshatras", title: "Nakshatras et padas", reason: "La couche tropicale ne fournit pas de nakshatra ni de pada ; ils exigent le calcul sidéral séparé." },
+  { id: "jyotisha-dashas", title: "Dashas", reason: "La couche tropicale ne fournit pas de dashas ; le complément les calcule séparément depuis la Lune sidérale." },
+  { id: "chinese-bazi", title: "BaZi / quatre piliers", reason: "La couche tropicale ne fournit pas de quatre piliers ; le complément les calcule séparément selon leurs frontières solaires." },
   { id: "western-progressions", title: "Progressions", reason: "Aucun calculateur de progressions n’est implémenté pour ce complément." },
   { id: "western-cycles", title: "Cycles et transits personnels", reason: "Le moteur de transits existant n’est pas appelé par cet aperçu natal ; aucune période n’est simulée." },
   { id: "jungian-archetypes", title: "Archétypes", reason: "Aucune règle d’attribution d’archétype n’est active pour ce complément." },

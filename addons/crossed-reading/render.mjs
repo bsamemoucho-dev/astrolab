@@ -37,6 +37,7 @@ function assertSupported(report) {
   if (!report.tropical?.socle || report.symbolic?.status !== "catalogue_only") throw new TypeError("INDEPENDENT_READING_CATALOGUE_REQUIRED");
   if (list(report.symbolic.entries).some((entry) => entry.frame !== "western-tropical")) throw new TypeError("INDEPENDENT_READING_SYMBOLIC_FRAME_MISMATCH");
   if (report.crossTraditionSynthesis?.status !== "not_licensed") throw new TypeError("CROSS_TRADITION_SYNTHESIS_NOT_SUPPORTED");
+  assertAdditionalFrames(report);
   const annual = report.chineseAnnual;
   if (annual?.status === "calculated" && (annual.frame?.calendar !== "chinese-lunisolar" || annual.frame.yearBoundary !== "lunar_new_year" || annual.frame.timeZone !== "Asia/Shanghai")) throw new TypeError("CHINESE_ANNUAL_FRAME_REQUIRED");
 }
@@ -73,13 +74,147 @@ function annualReason(reason) {
 }
 function annualSection(annual) {
   if (annual?.status !== "calculated") return `<section aria-labelledby="annual-title"><span class="tag">Module distinct</span><h2 id="annual-title">Repère annuel chinois</h2><div class="callout"><p>Repère indisponible.</p><p class="note">${escape(annualReason(annual?.reason))}</p></div></section>`;
-  return `<section aria-labelledby="annual-title"><span class="tag">Repère calendaire calculé</span><h2 id="annual-title">L’année chinoise de naissance</h2><div class="card"><p class="annual-label">${escape(annual.animalFr)} · ${escape(annual.elementFr)}</p><p>Année associée : <strong>${escape(annual.relatedYear)}</strong>.</p><p class="annual-meta">Calendrier luni-solaire chinois · frontière au Nouvel An lunaire · fuseau Asia/Shanghai.</p><p class="note">L’animal et l’élément nomment le cycle annuel dans cette convention calendaire. Ils ne décrivent pas une personnalité. Ce repère annuel ne calcule pas les quatre piliers du BaZi, dont les conventions doivent être définies séparément.</p></div></section>`;
+  return `<section aria-labelledby="annual-title"><span class="tag">Repère calendaire calculé</span><h2 id="annual-title">L’année chinoise de naissance</h2><div class="card"><p class="annual-label">${escape(annual.animalFr)} · ${escape(annual.elementFr)}</p><p>Année associée : <strong>${escape(annual.relatedYear)}</strong>.</p><p class="annual-meta">Calendrier luni-solaire chinois · frontière au Nouvel An lunaire · fuseau Asia/Shanghai.</p><p class="note">L’animal et l’élément nomment le cycle annuel dans cette convention calendaire. Ils ne décrivent pas une personnalité. Ce repère annuel ne calcule pas les quatre piliers du BaZi ; ceux-ci sont présentés séparément lorsqu’ils sont calculables.</p></div></section>`;
+}
+
+
+function assertAdditionalFrames(report) {
+  const j = report.jyotish;
+  if (j && (j.frame?.zodiac !== 'sidereal' || j.frame.houseSystem !== 'WHOLE_SIGN' || j.frame.ayanamshaId !== 'lahiri_iae1985'
+      || j.frame.numericalLongitudeToleranceDegrees !== 61 / 3600 || j.frame.coordinateSystem !== 'geocentric_apparent_true_ecliptic_of_date'
+      || j.frame.methodVersion !== 'lastro-jyotish-calculation@1.0.0' || j.frame.meanNodeConvention !== 'IERS2003_mean_node_plus_nutation'
+      || j.interpretationStatus !== 'not_licensed' || !['calculated', 'uncertain', 'unavailable'].includes(j.status))) throw new TypeError('JYOTISH_SIDEREAL_LAHIRI_FRAME_REQUIRED');
+  const d = report.dashas;
+  if (d && (d.frame?.method !== 'lastro-vimshottari@0.1.0' || d.frame.system !== 'Vimshottari' || d.frame.zodiac !== 'sidereal'
+      || d.frame.yearDays !== 365.25 || d.frame.cycleYears !== 120 || d.frame.periodBoundary !== 'start_inclusive_end_exclusive'
+      || d.interpretationStatus !== 'not_licensed' || !['calculated', 'uncertain', 'unavailable'].includes(d.status))) throw new TypeError('VIMSHOTTARI_FRAME_REQUIRED');
+  if (d?.status === 'calculated') {
+    const moon = list(j?.evidence).find(proof => proof.evidenceId === d.sourceMoonEvidenceRef);
+    if (!moon || !Number.isFinite(d.frame.moonLongitudeToleranceDegrees) || d.frame.moonLongitudeToleranceDegrees < j.frame.numericalLongitudeToleranceDegrees || moon.type !== 'JYOTISH_BODY_POSITION' || moon.frame !== 'jyotish-sidereal-lahiri' || moon.value?.body !== 'Moon') throw new TypeError('VIMSHOTTARI_SIDEREAL_MOON_SOURCE_REQUIRED');
+  }
+  const b = report.bazi;
+  if (b && (b.frame?.method !== 'bazi-four-pillars' || b.frame.methodVersion !== 'lastro-bazi-civil-jie@1.0.0'
+      || b.frame.calendar !== 'gregorian-civil-plus-solar-jie' || b.frame.yearBoundary !== 'li_chun' || b.frame.monthBoundary !== 'jie_solar_terms'
+      || b.frame.dayBoundary !== 'local_midnight' || b.frame.ziHourConvention !== 'split_at_local_midnight'
+      || b.frame.hourBasis !== 'local_civil' || b.frame.solarTimeCorrectionApplied !== false || b.frame.solarBoundaryGuardSeconds !== 120
+      || b.interpretationStatus !== 'not_licensed' || !['calculated', 'uncertain', 'unavailable'].includes(b.status))) throw new TypeError('BAZI_CIVIL_JIE_FRAME_REQUIRED');
+}
+function methodReason(reason) {
+  const known = {
+    JYOTISH_DATE_OUTSIDE_VERIFIED_RANGE: 'Cette naissance se situe hors de la plage de référence vérifiée (1901–2030).',
+    BAZI_DATE_OUTSIDE_SUPPORTED_RANGE: 'Cette naissance se situe hors de la plage de référence des quatre piliers (1901–2030).',
+    NONZERO_BIRTH_WINDOW: 'La fenêtre de naissance ne permet pas d’attribuer une position unique.',
+    MOON_RANGE_REQUIRED_FOR_BIRTH_WINDOW: 'La fenêtre de naissance nécessite aussi une plage lunaire calculée ; aucun calendrier de périodes précis n’est attribué.',
+    BIRTH_NAKSHATRA_UNCERTAIN: 'La fenêtre de naissance ou la marge numérique traverse une limite de nakshatra ; aucun calendrier de périodes unique n’est attribué.',
+    BIRTH_TIME_OR_LONGITUDE_UNCERTAIN: 'L’heure ou la longitude lunaire reste une plage ; aucun calendrier de périodes précis n’est attribué.',
+    JYOTISH_MOON_UNAVAILABLE: 'La position lunaire sidérale ne permet pas de calculer un calendrier de périodes unique.',
+    SOURCE_SIDEREAL_MOON_UNAVAILABLE: 'La position lunaire sidérale ne permet pas de calculer un calendrier de périodes unique.',
+    EXACT_BIRTH_TIME_REQUIRED_FOR_SIDEREAL_ANGLE: 'L’heure de naissance ne permet pas d’attribuer un angle sidéral unique.'
+  };
+  return known[reason] ?? 'Les données ou leurs marges ne permettent pas d’attribuer un résultat unique dans ce cadre.';
+}
+function jyotishPosition(value) {
+  if (value?.status === 'calculated' && value.signFr && Number.isFinite(value.degreeInSign)) return `${value.signFr} ${number(value.degreeInSign)}°`;
+  const choices = list(value?.candidates).map(candidate => candidate.signFr).filter(Boolean);
+  return choices.length ? `Signe indéterminé : ${choices.join(' / ')}` : 'position non établie';
+}
+function jyotishSection(j) {
+  if (!j) return '';
+  const head = '<section aria-labelledby="jyotish-title"><span class="tag">Calcul sidéral · Lahiri</span><h2 id="jyotish-title">Votre carte sidérale / Jyotish</h2>';
+  if (j.status === 'unavailable') return `${head}<div class="callout"><p>${escape(methodReason(j.reason))}</p></div></section>`;
+  const rows = list(j.positions).map(position => [position.label ?? T.planets?.[position.body] ?? position.body,
+    jyotishPosition(position), position.status === 'calculated' && Number.isInteger(position.house) ? `Maison ${position.house}` : 'non établie']);
+  const n = j.nakshatra;
+  const nak = n?.name ? `${n.name}${Number.isInteger(n.pada) ? ` · pada ${n.pada}` : ' · pada indéterminé'}`
+    : list(n?.candidates).length ? `Nakshatra indéterminé : ${n.candidates.map(value => value.name).join(' / ')}` : 'nakshatra non établi avec cette fenêtre de naissance';
+  const angles = [['Ascendant sidéral', j.angles?.ascendant], ['Milieu du Ciel sidéral', j.angles?.midheaven]];
+  return `${head}<p>Zodiaque <strong>sidéral</strong>, variante <strong>Lahiri IAE 1985</strong> · maisons entières. Les positions sont exprimées dans ce cadre, distinct du zodiaque tropical présenté plus haut.</p>
+  ${table(['Corps ou nœud', 'Position sidérale', 'Maison entière'], rows)}
+  <div class="angles">${angles.map(([label, value]) => `<p><strong>${escape(label)}</strong>${escape(jyotishPosition(value))}</p>`).join('')}</div>
+  <div class="card"><h3>Le nakshatra de la Lune</h3><p>${escape(nak)}</p><p class="note">Un nakshatra est un secteur sidéral de 13°20′ ; un pada en est le quart. ${n?.lord ? `Maître traditionnel du secteur : ${escape(T.planets?.[n.lord] ?? n.lord)}. ` : ''}Ce classement n’établit pas une qualité ou un événement personnel.</p></div>
+  <p class="note">Rahu et Ketu désignent ici les nœuds lunaires <strong>moyens</strong>, pas des planètes physiques. La marge numérique est de 1′01″ : elle protège les frontières de signes et de secteurs. Une maison ou un degré non établi n’est pas remplacé par une valeur fictive.</p>
+  ${list(j.warnings).length ? `<div class="callout precision"><ul>${j.warnings.map(warning => `<li>${escape(warning)}</li>`).join('')}</ul></div>` : ''}</section>`;
+}
+function calendarDate(value, timeZone) {
+  if (typeof value !== 'string' || !value.endsWith('Z') || !Number.isFinite(Date.parse(value))) throw new TypeError('TRADITIONAL_CALENDAR_UTC_REQUIRED');
+  let text;
+  try { text = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone }).format(new Date(value)); }
+  catch { throw new TypeError('TRADITIONAL_CALENDAR_TIME_ZONE_REQUIRED'); }
+  return text.replace(/^1 /u, '1er ');
+}
+function boundedCalendar(range, zone) {
+  if (!range?.earliest || !range?.latest || Date.parse(range.earliest) > Date.parse(range.latest)) throw new TypeError('DASHA_DATE_RANGE_REQUIRED');
+  const first = calendarDate(range.earliest, zone), last = calendarDate(range.latest, zone);
+  return first === last ? first : `du ${first} au ${last}`;
+}
+const lordLabel = lord => T.planets?.[lord] ?? lord;
+function dashaSection(d) {
+  if (!d) return '';
+  const head = '<section aria-labelledby="dasha-title"><span class="tag">Calendrier traditionnel · calcul de durées</span><h2 id="dasha-title">Les périodes Vimshottari</h2>';
+  if (d.status !== 'calculated') {
+    const choices = list(d.possibleBirthLords).map(lordLabel).join(' / ');
+    return `${head}<div class="callout"><p>${escape(methodReason(d.reason))}</p>${choices ? `<p>Maîtres de départ possibles : ${escape(choices)}.</p>` : ''}</div><p class="note">Aucune date précise de mahadasha ou d’antardasha n’est attribuée tant que les données ne permettent pas un calendrier unique.</p></section>`;
+  }
+  const zone = d.frame.timeZone;
+  const balance = d.birthBalance;
+  const remaining = balance?.remainingYearsRange;
+  const balanceText = Number.isFinite(remaining?.min) && Number.isFinite(remaining?.max)
+    ? `${number(remaining.min, 3)} à ${number(remaining.max, 3)} ans de cette convention`
+    : `${number(balance?.remainingYears, 3)} ans de cette convention`;
+  const rows = list(d.periods).map(period => [lordLabel(period.lord), boundedCalendar(period.startRangeUtc, zone), boundedCalendar(period.endRangeUtc, zone)]);
+  let current = '';
+  if (d.current?.status === 'calculated') {
+    const maha = d.current.mahadasha, antar = d.current.antardasha;
+    current = `<div class="callout"><strong>À la date du ${escape(calendarDate(d.asOfUtc, zone))}</strong><p>Mahadasha : ${escape(lordLabel(maha?.lord))} · antardasha : ${escape(lordLabel(antar?.lord))}.</p></div>
+    <h3>Les neuf sous-périodes de cette mahadasha</h3>${table(['Antardasha', 'Fenêtre du début', 'Fenêtre de la fin'], list(maha?.antardashas).map(period => [lordLabel(period.lord), boundedCalendar(period.startRangeUtc, zone), boundedCalendar(period.endRangeUtc, zone)]))}`;
+  } else if (d.current?.status === 'uncertain') {
+    const candidates = list(d.current.candidates).map(entry => `${lordLabel(entry.mahadashaLord)} / ${lordLabel(entry.antardashaLord)}`).join(' ; ');
+    current = `<div class="callout"><strong>Jonction de périodes incertaine à cette date</strong><p>La marge numérique ne permet pas de choisir une seule paire de maîtres.${candidates ? ` Possibilités : ${escape(candidates)}.` : ''}</p></div>`;
+  } else if (d.current?.status === 'outside_horizon') current = '<p class="note">La date de consultation est hors de l’horizon calculé ; aucune période courante n’est attribuée.</p>';
+  return `${head}<p>Le système répartit un cycle de 120 ans entre neuf maîtres traditionnels à partir du nakshatra lunaire. Une année est ici une <strong>durée fixe de 365,25 jours</strong>. Ce calendrier conventionnel ne prédit pas des événements.</p>
+    <p>À la naissance, le solde de la période « ${escape(lordLabel(balance?.lord))} » est de ${escape(balanceText)}. Son début théorique peut être antérieur à la naissance ; ses sous-périodes ne sont pas redémarrées à cette date.</p>
+    <p class="note">Dates présentées dans le fuseau ${escape(zone)}. Les plages ci-dessous propagent la marge lunaire ; les millisecondes internes ne constituent pas une précision de naissance. Les débuts sont inclus, les fins exclues.</p>
+    ${table(['Mahadasha', 'Fenêtre du début', 'Fenêtre de la fin'], rows)}${current}</section>`;
+}
+function baziSection(b) {
+  if (!b) return '';
+  const head = '<section aria-labelledby="bazi-title"><span class="tag">Quatre piliers · calendrier solaire et civil</span><h2 id="bazi-title">Les quatre piliers du BaZi</h2>';
+  if (b.status === 'unavailable') return `${head}<div class="callout"><p>${escape(methodReason(b.reason))}</p></div></section>`;
+  const rows = [['year', 'Année'], ['month', 'Mois'], ['day', 'Jour'], ['hour', 'Heure']].map(([key, label]) => {
+    const pillar = b.pillars?.[key];
+    if (pillar?.status === 'calculated') return [label, pillar.stem, pillar.branch, `${pillar.ganZhi}${pillar.hanzi ? ` · ${pillar.hanzi}` : ''}`];
+    const candidates = list(pillar?.candidates).map(value => `${value.ganZhi}${value.hanzi ? ` · ${value.hanzi}` : ''}`);
+    return [label, 'non unique', 'non unique', candidates.length ? `Possibilités : ${candidates.join(' / ')}` : 'non établi avec les données fournies'];
+  });
+  return `${head}<p>Chaque pilier associe un tronc et une branche du cycle traditionnel. Dans cette méthode, l’année change à <strong>Li Chun</strong> et les mois aux termes solaires <strong>Jie</strong> : la frontière diffère de l’année populaire au Nouvel An lunaire.</p>
+  ${table(['Pilier', 'Tronc', 'Branche', 'Désignation'], rows)}
+  <p class="note">Convention locale : fuseau ${escape(b.frame.timeZone)}, jour à minuit civil et heure civile incluant l’éventuelle heure d’été. L’heure Zi est partagée à minuit ; aucune correction en heure solaire vraie n’est appliquée. Une naissance proche d’une frontière solaire conserve ses possibilités au lieu de choisir silencieusement un pilier.</p>
+  <p class="note">Ces désignations sont calculées selon les conventions annoncées. Aucun caractère, événement familial ou résultat futur n’en est déduit.</p></section>`;
+}
+function additionalMetadata(report) {
+  const rows = [];
+  if (report.jyotish) {
+    const j = report.jyotish;
+    rows.push(['Méthode sidérale', j.frame.methodVersion], ['Variante d’ayanamsha', j.frame.ayanamshaVersion], ['Référence sidérale', j.frame.ayanamshaId],
+      ['Ayanamsha aux bornes', j.ayanamsha ? `${number(j.ayanamsha.start, 6)}° / ${number(j.ayanamsha.end, 6)}°` : 'non établi'], ['Tolérance des longitudes sidérales', `${number(j.frame.numericalLongitudeToleranceDegrees, 6)}°`]);
+  }
+  if (report.dashas) rows.push(['Méthode de périodes', report.dashas.frame.method], ['Année Vimshottari', `${number(report.dashas.frame.yearDays, 2)} jours`], ['Preuve de la Lune utilisée', report.dashas.sourceMoonEvidenceRef ?? 'calendrier non attribué']);
+  if (report.bazi) rows.push(['Méthode des quatre piliers', report.bazi.frame.methodVersion], ['Fuseau civil du BaZi', report.bazi.frame.timeZone], ['Ancrage du cycle journalier', report.bazi.frame.dayReference?.civilDate ?? 'non fourni'], ['Précision numérique de la recherche solaire', `${number(report.bazi.frame.solarRootSearchPrecisionSeconds, 2)} s`], ['Marge conservatrice de classement aux frontières solaires', `${number(report.bazi.frame.solarBoundaryGuardSeconds, 0)} s`]);
+  return rows.length ? `<h3>Conventions des modules complémentaires</h3>${table(['Repère', 'Valeur'], rows)}` : '';
 }
 
 export function renderIndependentReading(report) {
   assertSupported(report);
-  const { socle, frame } = report.tropical;
+  const { frame } = report.tropical;
   const birth = report.birth ?? {};
+  const highLatitude = Number.isFinite(birth.latitude) && Math.abs(birth.latitude) >= 65;
+  // Presentation-only restriction of this add-on. The legacy result, socle,
+  // proofs, planet longitudes and retained aspects remain untouched.
+  const socle = highLatitude ? {
+    ...report.tropical.socle, ascendant: null, midheaven: null,
+    housesAvailable: false, housesDecidableWithinMargin: false,
+    bodies: list(report.tropical.socle.bodies).map(body => ({ ...body, house: null }))
+  } : report.tropical.socle;
   const bodies = list(socle.bodies).filter((body) => BODIES.includes(body.body));
   const byBody = new Map(bodies.map((body) => [body.body, body]));
   const byEvidence = new Map(list(report.tropical.evidence?.evidence).map((item) => [item.evidenceId, item]));
@@ -97,7 +232,8 @@ export function renderIndependentReading(report) {
   const orbRows = list(socle.aspectConvention?.orbTable).map((orb) => [T.aspects?.[orb.type] ?? orb.type, `${number(orb.orbDegrees, 0)}°`, `${number(orb.orbDegreesWithLuminary, 0)}°`]);
   const distribution = signDistribution(bodies);
   const measures = (values, names) => Object.entries(names).map(([key, label]) => `<div class="measure"><span>${escape(label)}</span><span>${escape(values[key] ?? 0)} / ${escape(distribution.classified)}</span></div>`).join("");
-  const entries = list(report.symbolic.entries);
+  const entries = list(report.symbolic.entries).filter(entry => !highLatitude
+    || !["ANGLE_SIGN", "NATAL_BODY_HOUSE"].includes(byEvidence.get(entry.evidenceId)?.type));
   const catalogue = entries.length ? entries.map((entry) => `<article><h3>${escape(proofLabel(byEvidence.get(entry.evidenceId), byBody))}</h3><ul>${list(entry.themes).map((theme) => `<li>${escape(theme)}</li>`).join("")}</ul></article>`).join("") : `<p>Aucun repère interprétatif licencié n’est fourni dans cet aperçu.</p>`;
   const unavailable = list(report.unavailable).map((item) => `<article><h3>${escape(item.title)}</h3><p>${escape(item.reason)}</p></article>`).join("");
   const metadata = [
@@ -108,18 +244,24 @@ export function renderIndependentReading(report) {
     ["Coordonnées utilisées", `${number(birth.latitude, 5)} ; ${number(birth.longitude, 5)}`], ["Origine déclarée des coordonnées", birth.coordinateSource ?? "non précisée"],
     ["Précision géographique déclarée", birth.coordinateConfidence ?? "non précisée"]
   ];
-  const notes = [...list(socle.uncertaintyNotes), ...list(socle.warnings)];
+  const notes = [
+    ...(highLatitude ? ["Angles et maisons non restitués à ces latitudes dans ce complément ; positions planétaires conservées."] : []),
+    ...list(socle.uncertaintyNotes), ...list(socle.warnings)
+  ];
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Lastro · aperçu indépendant · ${escape(report.personLabel ?? "Lecture")}</title><style>${CSS}</style></head>
 <body><main>
 <header><div class="brand">Lastro</div><p class="eyebrow">Aperçu local · complément indépendant</p><h1>Une carte, des repères distincts</h1>${report.personLabel ? `<p class="person">${escape(report.personLabel)}</p>` : ""}<p class="birth">${escape(date(birth.birthDate ?? socle.birth?.date))} · ${escape(timeLabel(birth, socle))}<br>${escape(birth.placeName ?? socle.birth?.placeName ?? "lieu non fourni")} · ${escape(birth.timeZone ?? socle.birth?.timeZone ?? "fuseau non fourni")}</p></header>
-<div class="callout"><strong>Base de préparation locale</strong><p>Les positions ci-dessous viennent du moteur de calcul existant. Les repères symboliques présentent le vocabulaire des règles disponibles ; une lecture personnalisée complète reste à rédiger et à contrôler. Aucun texte IA nouveau n’est produit par cet aperçu.</p></div>
+<div class="callout"><strong>Base de préparation locale</strong><p>Les positions et calendriers ci-dessous sont calculés selon les méthodes indiquées dans chaque section. Les repères symboliques présentent le vocabulaire des règles disponibles ; une lecture personnalisée complète reste à rédiger et à contrôler. Aucun texte IA nouveau n’est produit par cet aperçu.</p></div>
 <section aria-labelledby="tropical-title"><span class="tag">Calcul tropical occidental</span><h2 id="tropical-title">Votre carte de naissance</h2><p>Zodiaque <strong>tropical</strong> · <strong>maisons entières (Whole Sign)</strong> · sept corps traditionnels. Chaque signe constitue une maison entière ; un autre système de maisons peut donner des numéros différents.</p><div class="chart-grid"><div class="wheel-box">${zodiacWheelSvg(socle, T, { size: 480 })}<p class="legend">Repères et traits : longitudes et aspects réellement calculés. Bleu continu : sextile ou trigone ; rouge tireté : carré ou opposition ; gris pointillé : conjonction, sans classement automatique.<br>AC : Ascendant · DS : Descendant · MC : Milieu du Ciel · FC : Fond du Ciel. R : mouvement rétrograde apparent. Les arcs et « ? » signalent une position incertaine.</p></div><div>${table(["Corps", "Position", "Maison entière", "Mouvement"], positionRows)}<div class="angles">${[["Ascendant", socle.ascendant], ["Milieu du Ciel", socle.midheaven]].map(([label, angle]) => `<p><strong>${label}</strong>${escape(angle?.degreeLabel ?? "non établi avec les données fournies")}</p>`).join("")}</div></div></div>${notes.length ? `<div class="callout precision"><strong>Précision et limites du calcul</strong><ul>${notes.map((note) => `<li>${escape(note)}</li>`).join("")}</ul></div>` : ""}</section>
 <section aria-labelledby="aspects-title"><span class="tag">Géométrie et convention d’orbes</span><h2 id="aspects-title">Les aspects retenus</h2><p>L’orbe réel est l’écart entre l’angle mesuré et l’angle exact de l’aspect. L’orbe maximal est le seuil choisi par Lastro pour le retenir : il s’agit d’une convention astrologique documentée.</p>${aspectRows.length ? table(["Couple", "Aspect", "Orbe réel", "Orbe maximal"], aspectRows) : `<p>Aucun aspect retenu n’est fourni pour cette fenêtre de naissance.</p>`}${orbRows.length ? `<h3>Seuils de la convention ${escape(socle.aspectConvention?.ruleVersionId ?? frame.aspectRuleVersion)}</h3>${table(["Aspect", "Orbe standard", "Avec Soleil ou Lune"], orbRows)}` : ""}<div class="summary-grid"><div class="card"><h3>Les quatre éléments</h3>${measures(distribution.byElement, {fire:"Feu",earth:"Terre",air:"Air",water:"Eau"})}</div><div class="card"><h3>Les trois modalités</h3>${measures(distribution.byModality, {cardinal:"Cardinal",fixed:"Fixe",mutable:"Mutable"})}</div></div><p class="note">Décompte sans pondération des sept corps traditionnels : ${escape(distribution.classified)} signe(s) établi(s), ${escape(distribution.notEstablished.length)} non établi(s). Ce décompte ne mesure pas la force d’une planète ni une qualité personnelle.</p></section>
 <section aria-labelledby="symbolic-title"><span class="tag">Vocabulaire symbolique · catalogue uniquement</span><h2 id="symbolic-title">Des pistes documentées pour la lecture</h2><p>Chaque entrée renvoie à un placement calculé et à sa règle Lastro. Ces mots sont une matière de rédaction ; ils ne constituent pas un portrait psychologique, une prédiction ni une nouvelle interaction entre configurations.</p><div class="catalogue">${catalogue}</div></section>
+${jyotishSection(report.jyotish)}
+${dashaSection(report.dashas)}
 ${annualSection(report.chineseAnnual)}
+${baziSection(report.bazi)}
 <section aria-labelledby="limits-title"><span class="tag">Périmètre de cet aperçu</span><h2 id="limits-title">Ce qui reste à préparer</h2><div class="unavailable">${unavailable || `<p>Aucun autre module n’est déclaré dans cet aperçu.</p>`}</div><div class="callout"><strong>Traditions présentées séparément</strong><p>Aucune synthèse croisée n’est licenciée ici. Une ressemblance entre des vocabulaires occidentaux et chinois n’apporte pas une preuve indépendante sur une personne. Les positions sidérales, nakshatras, dashas et piliers BaZi ne sont jamais déduits du texte d’exemple.</p></div></section>
-<details open><summary>Références du calcul et de la préparation</summary><div class="method-details">${table(["Repère", "Valeur"], metadata)}<h3>Traçabilité des repères symboliques</h3>${table(["Placement", "Règle", "Preuve"], entries.map((entry) => [proofLabel(byEvidence.get(entry.evidenceId), byBody), entry.ruleId, entry.evidenceId]))}<p>Schéma ${escape(report.schema)} · préparation ${escape(report.generatedAt ?? "non datée")}${report.chineseAnnual?.frame?.runtimeIcu ? ` · calendrier calculé avec ICU ${escape(report.chineseAnnual.frame.runtimeIcu)}` : ""}.</p></div></details>
+<details open><summary>Références du calcul et de la préparation</summary><div class="method-details">${table(["Repère", "Valeur"], metadata)}${additionalMetadata(report)}<h3>Traçabilité des repères symboliques</h3>${table(["Placement", "Règle", "Preuve"], entries.map((entry) => [proofLabel(byEvidence.get(entry.evidenceId), byBody), entry.ruleId, entry.evidenceId]))}<p>Schéma ${escape(report.schema)} · préparation ${escape(report.generatedAt ?? "non datée")}${report.chineseAnnual?.frame?.runtimeIcu ? ` · calendrier calculé avec ICU ${escape(report.chineseAnnual.frame.runtimeIcu)}` : ""}.</p></div></details>
 <footer>Complément autonome en aperçu local. Le parcours Lastro existant demeure séparé. Les calculs décrivent des positions et des conventions ; les significations astrologiques relèvent d’une lecture symbolique. Aucun diagnostic, événement biographique ou résultat futur n’est établi par cet aperçu.</footer>
 </main></body></html>`;
 }

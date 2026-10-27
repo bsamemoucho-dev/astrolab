@@ -1,0 +1,58 @@
+LASTRO — FOUR PILLARS: NAMED CIVIL/JIE PROFILE
+Method version: lastro-bazi-civil-jie@1.0.0
+Scope: independent complementary module only, UTC birth windows in 1901–2030.
+
+WHAT IS CALCULATED
+The four Gan-Zhi labels (year, month, day, hour) are calendrical coordinates under the explicit profile below. They are not personal characteristics, compatibility scores, forecasts, a health assessment, or a claim of scientific validity for astrology. No symbolic interpretation licence is created by these labels.
+
+CONVENTIONS, NOT A UNIQUE UNIVERSAL BAZI STANDARD
+- Year changes at the astronomical instant of Li Chun: apparent geocentric tropical Sun longitude315°. It does not change on Lunar New Year's Day.
+- Months begin at the twelve Jie, at successive apparent longitudes315°,345°,15°,45°,75°,105°,135°,165°,195°,225°,255°,285°. The twelve Zhong Qi between them do not create another month.
+- Day changes at midnight on the birth location's declared IANA civil clock.
+- Hour uses the twelve local civil double-hours: Zi23:00–01:00, Chou01:00–03:00, ..., Hai21:00–23:00. Zi is split at midnight for the day-stem dependency. The23:00 next-day convention is not silently substituted.
+- The historical civil offset and DST in IANA are included. No longitude correction, equation of time, local mean solar time, or apparent solar time is applied.
+
+Other BaZi schools or calculators may use true solar time, standard time without DST, or a23:00 day boundary. Those conventions can change an hour or day pillar and must be compared as different profiles. This implementation must not be described as identical to a true-solar-time calculator. Location coordinates remain relevant to the surrounding natal calculation; this civil profile only uses the IANA time zone for its day/hour labels.
+
+ASTRONOMICAL BOUNDARIES
+The already installed astronomy-engine@2.1.19 SearchSunLongitude locates each Jie in UTC with a numerical root tolerance0.01second. A root's numerical tolerance is not its physical accuracy or the precision of the supplied birth time.
+
+A separate conservative classification buffer of±120seconds is applied around solar boundaries. If the declared birth window or this buffer reaches two year/month labels, the relevant pillar is uncertain and no unique stem/branch is supplied. This is a product guard, not a statistical confidence interval. Original UTC roots and input windows remain unchanged.
+
+The year/month classification is global at that astronomical instant: the date printed in a Hong Kong almanac is not copied as a birthplace-local midnight. The astronomical root may fall on different civil dates in Hong Kong and Paris.
+
+GAN-ZHI RULES
+- Year stem/branch follow the60-year cycle, whose Jia-Zi years include1984.
+- First solar month is Yin. The HKO month-stem table gives Bing for Jia/Ji years, Wu for Yi/Geng, Geng for Bing/Xin, Ren for Ding/Ren, Jia for Wu/Gui. Each following Jie advances one stem and one branch.
+- Daily cycle is anchored by the Hong Kong Observatory Almanac2024, January calendar, which labels1January2024甲子(Jia-Zi). Gregorian civil-day differences advance this60-day cycle. The leap-year rules are the Gregorian calendar's existing rules, not a repeated365-day year assumption.
+- The HKO hour-stem table gives Jia-Zi at the first Zi hour for Jia/Ji days, Bing-Zi for Yi/Geng, Wu-Zi for Bing/Xin, Geng-Zi for Ding/Ren, Ren-Zi for Wu/Gui. Each double-hour advances one stem and one branch.
+
+UNCERTAINTY AND SCOPE
+The input is an actual closed UTC interval from the existing natal normaliser, not an invented midpoint. Local midnights, double-hour boundaries and IANA offset transitions are enumerated so that a full day starting and ending in Zi does not falsely yield a certain hour. Skipped and repeated civil times use real UTC candidates from the existing time resolver.
+
+Each pillar independently has status calculated or uncertain. An uncertain pillar has null unique stem/branch and an explicit candidate list. Stable pillars remain available when another pillar is uncertain. Unknown birth time never becomes a certain hour from a contradictory single-point input. Invalid UTC strings, invalid IANA zones, reversed or over48-hour windows fail explicitly. Dates outside1901–2030 yield an unavailable module with no fabricated pillars.
+
+All evidence uses the BAZI_PILLAR type, bazi.pillar.* identifiers and bazi-civil-jie frame. It cannot inherit western/tropical sign licences or use the popular annual Chinese label as a four-pillar substitute. It has interpretationStatus=not_licensed. No sex/gender is required; no luck-cycle direction or luck-cycle starting age is inferred. Those are additional methods, not part of this four-coordinate calculation.
+
+REFERENCE VALIDATION
+- HKO Almanac2024:1January2024甲子,2January乙丑.
+- HKO Almanac2025:1January庚午,18January丁亥,29January戊戌,4February甲辰.
+- HKO2024/2025 almanacs publish Li Chun on4February2024 at16:27HKT and3February2025 at22:10HKT; the numerical UTC roots match within the published minute resolution.
+- Independent developer reference: pyswisseph2.10.3.2 / Swiss Ephemeris2.10.03, solcross_ut with the Moshier mode. All1560Jie for solar years1901–2030 were compared externally: maximum discrepancy51.1596903seconds(LiChun2003), below the120-second classification guard. The1900 prefix cycle was also checked to cover January1901: maximum19.613seconds; DaXue1900diff0.299s, XiaoHan1901diff4.912s, LiChun1901diff10.509s.
+- The grid through2100 showed larger differences(up to151.414seconds). The supported range is therefore bounded at2030 rather than extending an unverified120-second guard.
+
+Swiss Ephemeris is an external development reference only. No Swiss code, data file, binary or runtime dependency is shipped or called by this module. Numerical facts and our own implementation based on the published conventions are used here. Existing project dependencies and production files are unchanged.
+
+SOURCES
+Hong Kong Observatory, stems/branches, month and hour tables:
+https://www.hko.gov.hk/en/gts/time/stemsandbranches.htm
+HKO explanation of popular lunar-new-year versus Spring Commences boundaries:
+https://www.hko.gov.hk/en/education/astronomy-and-time/time-service/00506-what-year-is-it-today.html
+HKO Almanac2024, January and February calendars:
+https://my.weather.gov.hk/en/gts/astron2024/files/HKO_almanac_2024.pdf
+HKO Almanac2025, January and February calendars:
+https://www.hko.gov.hk/tc/gts/astron2025/files/HKO_almanac_2025.pdf
+Astronomy Engine SearchSunLongitude API, already installed under the existing project dependency:
+https://github.com/cosinekitty/astronomy/blob/master/source/js/README.md#SearchSunLongitude
+
+No real person's name, birth date, or address is stored in these source fixtures.

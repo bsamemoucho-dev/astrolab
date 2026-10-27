@@ -59,3 +59,49 @@ test('paid flags, malformed input and forged facts fail before an output is crea
     assert.equal(readFileSync(join(out, 'keep'), 'utf8'), 'existing');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+test('the three real methods are integrated without assigning sidereal or BaZi interpretation rights', () => {
+  const input=args(),before=structuredClone(input),report=buildComplementPreview(input);
+  for(const key of ['jyotish','dashas','bazi'])assert.equal(report[key].status,'calculated',key);
+  assert.equal(report.jyotish.positions.length,9);
+  assert.equal(report.jyotish.frame.zodiac,'sidereal');
+  assert.equal(report.dashas.frame.system,'Vimshottari');
+  assert.equal(report.bazi.frame.yearBoundary,'li_chun');
+  assert.ok(report.unavailable.every(item=>!['jyotisha-natal','jyotisha-nakshatras','jyotisha-dashas','chinese-bazi'].includes(item.id)));
+  assert.ok(report.symbolic.entries.every(item=>item.frame==='western-tropical'));
+  for(const key of ['jyotish','dashas','bazi'])assert.equal(report[key].interpretationStatus,'not_licensed');
+  assert.equal(report.crossTraditionSynthesis.status,'not_licensed');assert.deepEqual(input,before);
+});
+test('dashas are driven by the calculated SIDEREAL Moon and its precision budget, never the tropical Moon', () => {
+  const report=buildComplementPreview(args()),moon=report.jyotish.positions.find(point=>point.body==='Moon');
+  assert.equal(report.dashas.sourceMoonEvidenceRef,moon.evidenceId);
+  assert.equal(report.dashas.birthNakshatra.longitude,moon.longitude);
+  assert.notEqual(report.dashas.birthNakshatra.longitude,report.tropical.socle.bodies.find(point=>point.body==='Moon').longitude);
+  assert.equal(report.dashas.frame.moonLongitudeToleranceDegrees,61/3600);
+  assert.ok(report.dashas.evidence.every(item=>item.type.startsWith('JYOTISH_')));
+});
+test('popular Chinese year and solar BaZi year remain separate across their different new years', () => {
+  const report=buildComplementPreview({...args(),birth:{...BIRTH,birthDate:'2024-02-05',timeValue:'12:00'}});
+  assert.equal(report.chineseAnnual.relatedYear,2023);
+  assert.equal(report.chineseAnnual.frame.yearBoundary,'lunar_new_year');
+  assert.equal(report.bazi.pillars.year.stem,'Jia');assert.equal(report.bazi.pillars.year.branch,'Chen');
+  assert.equal(report.bazi.frame.yearBoundary,'li_chun');
+});
+test('an unknown hour cannot produce a precise sidereal, dasha or hourly BaZi reading', () => {
+  const report=buildComplementPreview({...args(),birth:{...BIRTH,timePrecision:'unknown',timeValue:undefined}});
+  assert.equal(report.jyotish.status,'uncertain');assert.equal(report.dashas.status,'uncertain');
+  assert.deepEqual(report.dashas.periods,[]);assert.equal(report.dashas.birthBalance,undefined);
+  assert.equal(report.bazi.pillars.hour.status,'uncertain');assert.equal(report.bazi.pillars.hour.stem,null);
+});
+test('an unavailable high-latitude Ascendant does not block lunar dashas or the nine grahas', () => {
+  const report=buildComplementPreview({...args(),birth:{...BIRTH,latitude:67}});
+  assert.equal(report.jyotish.angles.ascendant.status,'unavailable');
+  assert.equal(report.jyotish.positions.length,9);
+  assert.equal(report.dashas.status,'calculated');assert.ok(report.dashas.periods.length>0);
+});
+test('outside the reference date range the new modules declare their limits without alternative calculations', () => {
+  const report=buildComplementPreview({...args(),birth:{...BIRTH,birthDate:'1890-01-15'}});
+  for(const key of ['jyotish','dashas','bazi'])assert.equal(report[key].status,'unavailable',key);
+  assert.deepEqual(report.dashas.periods,[]);assert.deepEqual(report.jyotish.positions,[]);
+  assert.ok(report.unavailable.some(item=>item.id==='jyotisha-natal'));
+  assert.ok(report.unavailable.some(item=>item.id==='chinese-bazi'));
+});
