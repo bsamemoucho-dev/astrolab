@@ -20,7 +20,7 @@ Contrôles supplémentaires : formulaire jusqu'au résultat, trois tailles d'éc
 Le runtime de production reste Node22 du Dockerfile ; la CI Node22 doit être verte sur le SHA exact de la PR. Ne pas modifier render.yaml : ce fichier décrit uniquement Vtest.
 
 AVANT LA FUSION
-1. Vérifier le diff limité à l'addon, son raccordement dans src/http/app.mjs et sa prise en compte dans src/http/release.mjs. Exclure tous les fichiers de travail étrangers.
+1. Vérifier le périmètre de la livraison : complément indépendant, tarif18EUR sur toutes les pages actives et création administrative de codes courts à usage unique. Exclure tous les fichiers de travail étrangers.
 2. Vérifier les tests et la CI du SHA exact.
 3. Accéder au service Render existant ; conserver main, son disque et toutes ses variables Stripe/Brevo/comptes/API. Aucune application du blueprint Vtest.
 4. Exécuter dans le Web Shell, sans démarrer de second serveur :
@@ -34,5 +34,14 @@ Attendre Render Live. Vérifier le SHA Render, /healthz et son empreinte locale 
 En cas d'anomalie, arrêter avant toute autre action de production ; fournir le diagnostic.
 
 RETOUR ARRIÈRE
-Avant cette livraison, version connue : 8ba225e4ebf9e05bc40267275df50ce5bb56fb4d ; empreinte01ee74d5b648.
-Redéployer ce commit sur le même service Render, vérifier Live, /healthz et l'empreinte. Conserver la base et l'environnement courants : l'addon n'ajoute ni schéma ni enregistrement à migrer. Ne pas restaurer automatiquement un snapshot ancien si des commandes ont été reçues depuis.
+En cas d'anomalie, arrêter les opérations et présenter le diagnostic avant toute nouvelle action de production.
+Pour un incident propre au complément, ASTROLAB_ENABLE_COMPLEMENT=0 permet de retirer uniquement ses routes au prochain démarrage, après préflight, en conservant la même version commerciale18EUR et la protection des codes6caractères. Vérifier alors les routes restantes et les files sans relancer de dossier.
+La version antérieure8ba225e4ebf9e05bc40267275df50ce5bb56fb4d/01ee74d5b648 sert de repère historique ; ne pas la redéployer telle quelle après les nouvelles ventes18EUR ou l'activation des codes courts : elle perdrait la compatibilité tarifaire et le limiteur court. Un retour arrière plus large doit conserver ces protections et les devis déjà payés, avec tests et CI avant décision.
+Conserver la base et les clés courantes ; ne pas restaurer automatiquement un snapshot ancien si des commandes ou invitations ont été créées depuis.
+
+DEMANDES COMMERCIALES AJOUTÉES
+Le prix public est18EUR, versionlastro-pricing@1.1.0. Les anciennes commandes restent à leur montant effectivement payé. Un snapshot serveur est joint aux nouvelles sessionsStripe ; les reprises vérifient session/montant/devise et produit, avec compatibilité strictement versionnée du catalogue historique5EUR. Un montant500 non documenté reste refusé.
+Avant le déploiement, vérifier et définir explicitement ASTROLAB_PRICE_CENTS=1800 et conserver STRIPE_CURRENCY=eur. Une ancienne valeur500 écraserait le nouveau défaut : ne pas supposer qu'elle est absente. Conserver les clés et les codes privés existants. Aucun paiement de test réel.
+Les invitations demandées sont20codesde6caractères,1usagechacun. Les chaînes en clair restent dans un fichier privé local ; seule leur empreinte normaliséeSHA256 est importée. POST /api/admin/access-codes nécessite une sessionadministrateurcourante, le header x-astrolab-admin-action:create-access-codes et un batchIdUUID. Le modèle opère dans store.transact du serveur actif : ne pas écrire la base avec un CLI concurrent. GET /api/admin/access-codes?batchId=UUID permet de vérifier les comptes/états sans exposer de code ni hash.
+Un lot rejoué doit être identique et ne réactive aucun code utilisé ou révoqué. Les tentatives de codes6caractères sont bornées AVANT toute reconnaissance, même sans code de test partagé. Le générateur historique16caractères, les codes existants et la consommation atomique restent inchangés.
+Ne présenter les20codes comme actifs qu'après import confirmé et lecture de20disponibles. Ne consommer aucun code pour le test, ne créer aucun dossier, ne déclencher aucun e-mail.

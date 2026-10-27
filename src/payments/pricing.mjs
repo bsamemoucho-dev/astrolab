@@ -1,6 +1,6 @@
-// Prix de la lecture : 5 EUR.
+// Prix de la lecture : 18 EUR.
 //
-// Convention versionnée `lastro-pricing@1.0.0`. Le prix est décidé par le
+// Convention versionnée `lastro-pricing@1.1.0`. Le prix est décidé par le
 // SERVEUR, jamais par le client : le navigateur n'envoie qu'un code promo, et le
 // montant transmis à Stripe est recalculé ici. Un montant glissé dans la requête
 // n'est pas corrigé — il n'est même pas lu.
@@ -11,10 +11,11 @@
 
 import { MAX_AMOUNT_CENTS, MIN_AMOUNT_CENTS as STRIPE_MINIMUM_CENTS } from "./stripe.mjs";
 
-export const LASTRO_PRICING_VERSION = "lastro-pricing@1.0.0";
+export const LASTRO_PRICING_VERSION = "lastro-pricing@1.1.0";
+export const LEGACY_PRICING_VERSION = "lastro-pricing@1.0.0";
 
-// 5 EUR — prix paye maintenant.
-export const DEFAULT_PRICE_CENTS = 500;
+// 18 EUR — prix normal des nouvelles commandes.
+export const DEFAULT_PRICE_CENTS = 1800;
 export const DEFAULT_PROMO_CODE = "";
 export const DEFAULT_PROMO_DISCOUNT_CENTS = 0;
 
@@ -51,6 +52,9 @@ export const READING_PURPOSE = "lastro_lecture";
 export const LINE_LABEL = "Lecture symbolique personnalisée (Lastro)";
 
 function entier(valeur, defaut) {
+  if (valeur === null || valeur === undefined || (typeof valeur === "string" && valeur.trim() === "")) {
+    return defaut;
+  }
   const nombre = Number(valeur);
   return Number.isFinite(nombre) ? Math.round(nombre) : defaut;
 }
@@ -182,33 +186,87 @@ export function quotePrice({ promoCode, env = process.env } = {}) {
   };
 }
 
-// Un paiement prouve qu'on a payé — pas qu'on a payé CETTE lecture. Stripe a une
-// seule clé pour tout le compte : une session payée pour un autre produit, ou un
-// lien de paiement créé à la main dans le tableau de bord, ne doit pas ouvrir une
-// lecture. On vérifie donc le montant, la devise, et la marque du produit.
-//
-// Renvoie `null` quand la session est acceptée, sinon le motif du refus.
-export function checkoutSessionProblem(session, env = process.env) {
+function metadataCents(value) {
+  // Stripe returns metadata as strings. Refuse coercion, partial snapshots,
+  // exponent notation and rounding: they are not a server price snapshot.
+  if (typeof value !== "string" || !/^(0|[1-9]\d*)$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed <= MAX_AMOUNT_CENTS ? parsed : null;
+}
+
+function existingDeliveryMatches(session, delivery, amount, currency) {
+  return delivery?.freeAccess === false
+    && typeof session?.id === "string" && session.id.length > 0
+    && delivery.paymentSessionId === session.id
+    && Number.isSafeInteger(delivery.amountCents) && delivery.amountCents === amount
+    && typeof delivery.currency === "string" && delivery.currency.toLowerCase() === currency;
+}
+
+// Called after the server has retrieved the Stripe session and checked its
+// paid status. A payment for another product, currency or unproved amount is
+// not an entitlement. Returns null only when these remaining checks succeed.
+export function checkoutSessionProblem(session, env = process.env, { existingDelivery = null } = {}) {
   const catalogue = pricingCatalogue(env);
-  const montant = Number(session?.amount_total);
-  // Tous les tarifs atteignables, codes privés compris : sinon une lecture payée
-  // 1 € avec un code serait refusée comme « montant inattendu ».
-  const legitimes = new Set(legitimateTotals(env));
-  if (!Number.isFinite(montant) || !legitimes.has(montant)) {
+  const montant = session?.amount_total;
+  if (!Number.isSafeInteger(montant) || montant < STRIPE_MINIMUM_CENTS || montant > MAX_AMOUNT_CENTS) {
     return "amount_mismatch";
   }
-  const devise = String(session?.currency ?? "").toLowerCase();
-  if (devise && devise !== catalogue.currency) {
+  const devise = typeof session?.currency === "string" ? session.currency.toLowerCase() : "";
+  if (devise !== catalogue.currency) {
     return "currency_mismatch";
   }
   const marque = session?.metadata?.purpose ?? null;
-  // Absente : session créée avant cette vérification — le montant suffit à la
-  // reconnaître, et refuser casserait la reprise d'un client déjà débité.
-  // Présente et différente : c'est explicitement un autre produit, on refuse.
-  if (marque && marque !== READING_PURPOSE) {
+  if (marque !== null && marque !== READING_PURPOSE) {
     return "foreign_session";
   }
-  return null;
+
+  const metadata = session?.metadata ?? {};
+  if (typeof metadata !== "object" || Array.isArray(metadata)) return "price_snapshot_invalid";
+  const hasVersion = Object.hasOwn(metadata, "pricing");
+  const version = hasVersion ? metadata.pricing : null;
+  if (hasVersion && ![LASTRO_PRICING_VERSION, LEGACY_PRICING_VERSION].includes(version)) {
+    return "pricing_version_mismatch";
+  }
+  const snapshotFields = ["pricing_base_cents", "pricing_total_cents", "pricing_currency", "pricing_discount_cents"];
+  const hasSnapshot = snapshotFields.some((key) => Object.hasOwn(metadata, key));
+
+  if (version === LASTRO_PRICING_VERSION) {
+    if (marque !== READING_PURPOSE) return "foreign_session";
+    const base = metadataCents(metadata.pricing_base_cents);
+    const total = metadataCents(metadata.pricing_total_cents);
+    const discount = metadataCents(metadata.pricing_discount_cents);
+    if (base === null || total === null || discount === null
+      || base < STRIPE_MINIMUM_CENTS || total < STRIPE_MINIMUM_CENTS
+      || total > base || discount !== base - total
+      || typeof metadata.pricing_currency !== "string" || !/^[a-z]{3}$/.test(metadata.pricing_currency)) {
+      return "price_snapshot_invalid";
+    }
+    if (metadata.pricing_currency !== devise) return "currency_mismatch";
+    if (total !== montant) return "amount_mismatch";
+    if (existingDelivery && !existingDeliveryMatches(session, existingDelivery, montant, devise)) return "delivery_mismatch";
+    // An immutable server snapshot survives later PRICE changes. Currency and
+    // product checks above still apply; client request fields never enter here.
+    return null;
+  }
+  // A partial snapshot or one attached to another version must not fall through
+  // to a cheaper legacy path, even when its total happens to be current.
+  if (hasSnapshot) return "price_snapshot_invalid";
+
+  if (existingDelivery) {
+    // The record comes from the server store, not from the public request body.
+    // A known paid order retains its original price without a second charge.
+    return existingDeliveryMatches(session, existingDelivery, montant, devise) ? null : "delivery_mismatch";
+  }
+  if (version === LEGACY_PRICING_VERSION) {
+    if (marque !== READING_PURPOSE) return "foreign_session";
+    // Only the explicitly marked previous catalogue is eligible. Private codes
+    // retain their configured semantics; 500 is never a global allowed amount.
+    const historiques = new Set(legitimateTotals({ ...env, ASTROLAB_PRICE_CENTS: "500" }));
+    return historiques.has(montant) ? null : "amount_mismatch";
+  }
+  // Unversioned sessions retain the current strict catalogue check. An old
+  // 5 EUR total alone is not proof of an entitlement after the price changes.
+  return new Set(legitimateTotals(env)).has(montant) ? null : "amount_mismatch";
 }
 
 // Ligne de commande Stripe : le client doit lire, sur son reçu, ce qu'il a payé
