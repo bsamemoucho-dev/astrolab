@@ -8,9 +8,10 @@
 // transaction — voir `createPaidDelivery`.
 //
 // Seule l'EMPREINTE du code est enregistrée, jamais le code lui-même : un
-// stockage qui fuite ne distribue pas de lectures gratuites. Les codes font
-// 16 caractères sur un alphabet de 32 (80 bits), donc l'empreinte n'a pas besoin
-// d'être salée — il n'y a rien à deviner par force brute.
+// stockage qui fuite ne contient pas directement les codes. Le générateur
+// historique conserve 16 caractères sur un alphabet de 32 (80 bits). Les lots
+// courts importés par l'outil admin ont une entropie moindre : ils exigent une
+// limitation des tentatives avant vérification et restent à usage unique.
 
 import { createHash, randomInt, randomUUID } from "node:crypto";
 

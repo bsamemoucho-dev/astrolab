@@ -21,6 +21,7 @@ import { writeFileSync } from "node:fs";
 
 import { calculateWesternNatalChart } from "../src/astro/westernNatal.mjs";
 import { priceForModel } from "../src/deliverables/cost.mjs";
+import { DEFAULT_PRICE_CENTS } from "../src/payments/pricing.mjs";
 import { buildDossierEvidence } from "../src/deliverables/dossierEvidence.mjs";
 import { buildFullDossierPlan } from "../src/deliverables/fullDossierPlan.mjs";
 import { blockLengthBudget, maxTokensForBlock } from "../src/deliverables/generationLimits.mjs";
@@ -224,7 +225,7 @@ async function main() {
     );
   }
 
-  console.log(`\nPrix public constaté dans le dépôt : 5,00 EUR → part du coût modèle au plafond ≈ ${((coutPlafond * TAUX_EUR_PAR_USD) / 5 * 100).toFixed(1)} %`);
+  console.log(`\nPrix public par défaut du dépôt : ${(DEFAULT_PRICE_CENTS / 100).toFixed(2).replace(".", ",")} EUR → part du coût modèle au plafond ≈ ${((coutPlafond * TAUX_EUR_PAR_USD) / (DEFAULT_PRICE_CENTS / 100) * 100).toFixed(1)} %`);
   console.log("Estimation : ratio caractères/tokens documenté, pas une tokenisation fournisseur — marge ±15 %.");
 
   if (args.json) {

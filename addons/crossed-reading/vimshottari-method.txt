@@ -1,0 +1,51 @@
+LASTRO — VIMSHOTTARI : PROFIL DE CALCUL INDÉPENDANT
+Version : lastro-vimshottari@0.1.0
+
+PÉRIMÈTRE
+Ce module calcule des périodes traditionnelles à partir d'une longitude sidérale lunaire déjà calculée. Il ne calcule ni éphémérides ni ayanamsha ; leur provenance et leur budget d'erreur relèvent du module sidéral appelant. Il n'applique aucune règle tropicale et ne produit aucune interprétation d'événement, de personnalité ou de destin.
+
+CONVENTION RETENUE
+Le cycle est de 120 ans dans l'ordre Ketu 7, Vénus 20, Soleil 6, Lune 10, Mars 7, Rahu 18, Jupiter 16, Saturne 19, Mercure 17. Le maître du premier nakshatra, Ashwini, est Ketu ; la série de neuf maîtres se répète trois fois pour les 27 nakshatras égaux de 13°20′.
+L'avancement de la Lune dans son nakshatra donne la fraction déjà écoulée du premier terme. Le terme complet commence donc généralement avant la naissance. Le solde à la naissance n'est pas un nouveau terme complet.
+Chaque mahadasha est divisée en neuf antardashas, à partir de son propre maître et dans le même ordre. La durée d'une antardasha est la durée complète de la mahadasha multipliée par les années de son maître, divisée par 120. Les antardashas du premier terme ne sont pas recalées au moment de la naissance.
+
+ANNÉE ET TEMPS
+Une année représente ici une durée fixe de 365,25 jours de 86400000 millisecondes JavaScript. Ce choix documenté n'est pas une vérité unique de toutes les traditions. Des logiciels peuvent utiliser 360 jours,365,2425 jours, une année sidérale ou des passages solaires : leurs dates ne doivent pas être comparées sans aligner le profil.
+Ce calcul n'ajoute pas des années civiles par anniversaire et n'assimile pas toutes les années à 365 jours. Les horodatages utilisent Date/UTC ; aucune précision aux millisecondes de l'éphéméride ou de l'heure déclarée n'est revendiquée. Les secondes intercalaires ne sont pas modélisées par Date.
+Les périodes sont semi-ouvertes : début inclus, fin exclue. L'instant exact d'une jonction appartient au nouveau terme. L'heure de la machine n'est jamais utilisée pour choisir une période courante ; l'appelant doit fournir asOfUtc. Le fuseau est conservé dans frame pour l'affichage, sans modifier les instants UTC.
+
+CONTRAT
+calculateVimshottari({
+  utcRange: {start: ISO_UTC, end: ISO_UTC},
+  moonSiderealLongitude: nombre entre 0 inclus et 360 exclu,
+  moonLongitudeRange: {start, end},           // facultatif pour un instant exact
+  longitudeToleranceDegrees: nombre,        // défaut 0 ; l'appelant doit fournir son vrai budget d'erreur
+  asOfUtc: ISO_UTC,                          // facultatif ; pas de choix courant implicite
+  horizonYears: nombre entre 0 exclu et 120 inclus, // défaut 120
+  timeZone: fuseau IANA                       // défautUTC
+})
+
+Les endpoints lunaires sont un arc prograde : start dans[0,360), end dans[0,360) ou déplié dans[360,720). Ainsi 359°→1° et 359°→361° représentent le même arc de 2°. L'arc est limité à 40°, la fenêtre de naissance à 48 heures. La longitude nominale doit appartenir à l'arc fourni. Les paramètres non déclarés, valeurs manquantes, types coercibles, dates invalides/sansZ, plages contradictoires et accesseurs sont refusés explicitement.
+
+RÉSULTAT EXACT
+status=calculated contient birthNakshatra, birthBalance, periods et éventuellement current. periods donne les termes complets, y compris le début antérieur à la naissance, et leurs neuf antardashas. L'horizon visible va de la naissance à naissance+horizonYears selon l'année fixe ; visibleStartUtc/visibleEndUtc permettent de distinguer cette plage des bornes complètes d'un terme qui la dépasse.
+Si une tolérance numérique est fournie et reste dans le même nakshatra, chaque date nominale est accompagnée d'une plage earliest/latest. Le décalage de l'ancrage vaut : tolérance angulaire /13°20′ × durée du premier maître × 365,25 jours. Tous les termes suivants héritent de ce décalage. Le choix courant devient uncertain avec les maîtres candidats si asOfUtc tombe dans une bande d'incertitude.
+
+DONNÉES INCERTAINES
+Une naissance non ponctuelle, une plage lunaire non ponctuelle ou une tolérance franchissant un nakshatra donne status=uncertain. Aucune timeline datée ni solde nominal unique n'est alors fourni. Les nakshatras/maîtres possibles sont conservés si la plage lunaire est connue. Sans plage lunaire pour une fenêtre de naissance, le motif MOON_RANGE_REQUIRED_FOR_BIRTH_WINDOW est explicite. Aucun midi fictif, arrondi de nakshatra ou choix silencieux ne remplace une donnée incertaine.
+Ces règles privilégient un résultat honnêtement incertain plutôt qu'un tableau de dates précisément affichées mais non justifiées.
+
+SOURCES ET INDÉPENDANCE
+P.V.R. Narasimha Rao, Vedic Astrology: An Integrated Approach, ch 16.2/table 38 p 210 et ch 16.3 p 212 : ordre et durées, solde proportionnel, subdivision du terme complet.
+https://www.vedicastrologer.org/articles/vedic_astro_textbook.pdf
+Le livre contient notamment l'exemple d'une antardasha Vénus/Vénus de 20 × 20/120 ans et Vénus/Soleil de 20 × 6/120 ans ; ces exemples servent de vérification arithmétique.
+
+Rapport publié par l'auteur du logiciel Goravani, en-tête « Dasha Year Used:365.25 » : exemple primaire d'une convention logicielle de 365,25 jours, sans prétendre qu'elle est universelle.
+https://goravani.com/resources/DasGoravani.pdf
+
+Le fichier public de PyJHora a été consulté pour comparer les conventions et les proportions, mais aucun de ses codes ni dépendances n'a été copié ou installé dans Lastro. Sa version actuelle permet d'autres définitions de durée ; ce n'est pas un oracle de dates identiques sans alignement préalable.
+https://raw.githubusercontent.com/naturalstupid/PyJHora/main/src/jhora/horoscope/dhasa/graha/vimsottari.py
+
+VÉRIFICATIONS
+41 tests hors ligne couvrent 27 nakshatras, les exemples de proportions publiés, les fixtures rationnelles calculées séparément avec Python fractions.Fraction+datetime, le début réel avant naissance, les 81 subdivisions d'un cycle, la continuité, les limites incluses/exclues, l'horizon, la tolérance, la jonction Revati/Ashwini, les heures inconnues et les entrées refusées.
+Les tests ne constituent pas une validation scientifique de l'interprétation astrologique. Aucun appel API, clé, stockage client, paiement, notification ou déploiement n'est utilisé.

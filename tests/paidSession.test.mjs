@@ -121,9 +121,12 @@ function withSession(session, run) {
 const SESSION_PAYEE = (extra = {}) => ({
   id: "cs_test_paye",
   payment_status: "paid",
-  amount_total: 500,
+  amount_total: 1800,
   currency: "eur",
-  metadata: { purpose: "lastro_lecture", pricing: "lastro-pricing@1.0.0" },
+  metadata: {
+    purpose: "lastro_lecture", pricing: "lastro-pricing@1.1.0",
+    pricing_base_cents: "1800", pricing_total_cents: "1800", pricing_discount_cents: "0", pricing_currency: "eur"
+  },
   customer_details: { email: "client@example.test" },
   ...extra
 });
@@ -191,10 +194,10 @@ test("session payée pour un autre produit ou à un autre prix : refus", async (
   });
 });
 
-test("session au prix de 5 euros : acceptée", async () => {
-  // 5 € est le prix payé maintenant.
+test("ancienne session versionnée payée 5 euros : acceptée sans nouveau paiement", async () => {
+  // Le tarif ancien reste justifié par la version et la marque serveur.
   await withEnv({ ...STRIPE_KEYS }, () =>
-    withSession(SESSION_PAYEE({ amount_total: 500 }), async () => {
+    withSession(SESSION_PAYEE({ amount_total: 500, metadata: { purpose: "lastro_lecture", pricing: "lastro-pricing@1.0.0" } }), async () => {
       const app = await startApp();
       try {
         const reponse = await post(app.baseUrl, "/api/public/readings", { ...NAISSANCE, paymentSessionId: "cs_test_paye" });

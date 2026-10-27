@@ -18,6 +18,7 @@ import { resolvePlaceForEntry, searchPlacesForEntryDetailed } from "../geo/place
 import { renderCielEventPageBySlug, renderCielHomePage, renderCielOctober2026Page } from "../models/cielService.mjs";
 import { getAdminSummary, listAdminAuditLogs, listAdminReadings, resendAdminReadingEmail } from "../models/adminService.mjs";
 import { renderAdminReadingsPage } from "./adminReadingsPage.mjs";
+import { importAdminAccessCodeBatch, readAdminAccessCodeBatch } from "../models/adminAccessCodes.mjs";
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
 import { getPersonalCurrentSky } from "../models/currentSkyService.mjs";
@@ -52,6 +53,7 @@ import {
   checkoutLineLabel,
   checkoutSessionProblem,
   publicPricing,
+  normalizePromoCode,
   publicQuote,
   quotePrice,
   READING_PURPOSE
@@ -99,6 +101,7 @@ import { listMethodRegistry } from "../methodology/registry.mjs";
 import { clearSessionCookie, parseCookies, readJson, securityHeaders, sendJson, sendStatic, setSessionCookie } from "./httpUtils.mjs";
 import { PREVIEW_ROBOTS_BODY, enforcePreviewAccess, noindexEnabled } from "./preview.mjs";
 import { llmBudgetState } from "../deliverables/llmBudget.mjs";
+import { createComplementHttp } from "../../addons/crossed-reading/http.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DEFAULT_PUBLIC_DIR = join(__dirname, "../../public");
@@ -243,6 +246,8 @@ export function createApp(options = {}) {
   // permet d'en injecter un autre dans les tests.
   const pdfRenderer = "pdfRenderer" in options ? options.pdfRenderer : defaultPdfRenderer();
   const cielNowUtc = options.cielNowUtc ?? null;
+  const complementEnabled = options.complementEnabled ?? process.env.ASTROLAB_ENABLE_COMPLEMENT !== "0";
+  const complementHttp = complementEnabled ? createComplementHttp(options.complementHttp) : { routes: [], close() {} };
 
   // Compteurs des points d'entrée non authentifiés, créés par application et non
   // au niveau du module : deux applications (les tests en montent plusieurs) ne
@@ -265,6 +270,10 @@ export function createApp(options = {}) {
     recuperationParClient: createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 }),
     // Chercher un lieu relaie vers un service externe gratuit.
     lieuxParClient: createRateLimiter({ windowMs: 10 * 60 * 1000, max: 120 }),
+    // Short invitation codes: every attempt counts BEFORE any hash lookup.
+    // Existing long codes and the owner's shared test-code quota stay separate.
+    codesCourtsParClient: createRateLimiter({ windowMs: 60 * 60 * 1000, max: 30 }),
+    codesCourtsService: createRateLimiter({ windowMs: 60 * 60 * 1000, max: 100 }),
     // Tentatives de code de test. PAR CLIENT d'abord : un compteur global
     // permettait à n'importe qui de bloquer le code de l'exploitant pour tout le
     // monde en envoyant vingt mauvais codes. Le plafond de service reste, en
@@ -540,6 +549,7 @@ export function createApp(options = {}) {
   }
 
   const routes = [
+    ...complementHttp.routes,
     route("GET", /^\/healthz$/, async (_req, res) => {
       sendJson(res, 200, {
         ok: true,
@@ -668,6 +678,10 @@ export function createApp(options = {}) {
           metadata: {
             purpose: READING_PURPOSE,
             pricing: quote.version,
+            pricing_base_cents: String(quote.baseCents),
+            pricing_total_cents: String(quote.totalCents),
+            pricing_discount_cents: String(quote.discountCents),
+            pricing_currency: quote.currency,
             promo_code: quote.valid ? quote.promoCode : "none"
           }
         })
@@ -696,6 +710,16 @@ export function createApp(options = {}) {
       const client = clientAddress(req);
       const codeSaisi = String(body.accessCode ?? body.testCode ?? "").trim();
       if (codeSaisi) {
+        if (normalizePromoCode(codeSaisi).length === 6) {
+          const shortClient = limites.codesCourtsParClient.check(client);
+          const shortService = limites.codesCourtsService.check("service");
+          if (shortClient.limited || shortService.limited) {
+            refuseTropDeRequetes(shortClient.limited ? shortClient : shortService,
+              "Trop de tentatives de code. Réessayez dans une heure.");
+          }
+          limites.codesCourtsParClient.hit(client);
+          limites.codesCourtsService.hit("service");
+        }
         if (testCodeEnabled() && testCodeMatches(codeSaisi)) {
           // Le code de test est partagé et illimité par construction : c'est la
           // seule source qu'un plafond doit borner. S'il fuite, il ne peut pas
@@ -848,7 +872,7 @@ export function createApp(options = {}) {
           // Payé ne suffit pas : encore faut-il que ce soit payé POUR cette
           // lecture, au bon prix. Une session d'un autre produit sur le même
           // compte Stripe ne doit pas ouvrir de lecture.
-          const probleme = checkoutSessionProblem(session);
+          const probleme = checkoutSessionProblem(session, process.env, { existingDelivery });
           if (probleme) {
             console.warn(`[Lastro] session de paiement refusée (${probleme}) — ${sessionId}`);
             const error = new Error(
@@ -1308,6 +1332,30 @@ export function createApp(options = {}) {
       const user = await requireUser(store, req);
       sendJson(res, 200, await consumeCredits(store, user.id, await readJson(req)));
     }),
+    route("POST", /^\/api\/admin\/access-codes$/, async (req, res) => {
+      const user = await requireUser(store, req);
+      let originAllowed = req.headers["sec-fetch-site"] !== "cross-site";
+      if (req.headers.origin) {
+        try {
+          const origin = new URL(req.headers.origin);
+          originAllowed = originAllowed && ["https:", "http:"].includes(origin.protocol) && origin.host === req.headers.host;
+        } catch { originAllowed = false; }
+      }
+      if (!originAllowed || String(req.headers["x-astrolab-admin-action"] ?? "") !== "create-access-codes") {
+        const error = new Error("Confirmation de l’action administrative requise.");
+        error.status = 403;
+        error.code = "admin_action_confirmation_required";
+        throw error;
+      }
+      const batch = await importAdminAccessCodeBatch(store, user, await readJson(req));
+      sendJson(res, batch.createdCount ? 201 : 200, batch, { "cache-control": "no-store", "referrer-policy": "no-referrer" });
+    }),
+    route("GET", /^\/api\/admin\/access-codes$/, async (req, res, _params, url) => {
+      const user = await requireUser(store, req);
+      sendJson(res, 200, await readAdminAccessCodeBatch(store, user, url.searchParams.get("batchId")), {
+        "cache-control": "no-store", "referrer-policy": "no-referrer"
+      });
+    }),
     route("GET", /^\/api\/admin\/summary$/, async (req, res) => {
       const user = await requireUser(store, req);
       sendJson(res, 200, await getAdminSummary(store, user), { "cache-control": "no-store" });
@@ -1442,6 +1490,7 @@ export function createApp(options = {}) {
     }
   });
   server.on("close", () => {
+    complementHttp.close();
     readingJobsClosed = true;
     if (generationRecoveryTimer) clearInterval(generationRecoveryTimer);
     if (nextReadingTimer) clearTimeout(nextReadingTimer);

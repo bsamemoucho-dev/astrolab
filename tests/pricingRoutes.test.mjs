@@ -81,19 +81,19 @@ async function post(baseUrl, path, body) {
 
 const SESSION_OK = () => ({
   ok: true,
-  payload: { id: "cs_test_1", client_secret: "cs_test_1_secret", amount_total: 500, currency: "eur" }
+  payload: { id: "cs_test_1", client_secret: "cs_test_1_secret", amount_total: 1800, currency: "eur" }
 });
 
-test("la configuration annonce le prix de 5 euros sans code public", async () => {
+test("la configuration annonce le prix de 18 euros sans code public", async () => {
   const app = await startApp();
   try {
     const config = await (await fetch(`${app.baseUrl}/api/config`)).json();
-    assert.equal(config.pricing.version, "lastro-pricing@1.0.0");
+    assert.equal(config.pricing.version, "lastro-pricing@1.1.0");
     assert.equal(config.pricing.currency, "eur");
-    assert.equal(config.pricing.baseCents, 500);
+    assert.equal(config.pricing.baseCents, 1800);
     assert.equal(config.pricing.promoCode, null);
     assert.equal(config.pricing.promoDiscountCents, 0);
-    assert.equal(config.pricing.totalCents, 500);
+    assert.equal(config.pricing.totalCents, 1800);
   } finally {
     await app.close();
   }
@@ -104,18 +104,18 @@ test("le devis est public : c'est le serveur qui calcule, le site affiche", asyn
   try {
     const avec = await post(app.baseUrl, "/api/public/price-quote", {});
     assert.equal(avec.status, 200);
-    assert.equal(avec.payload.quote.baseCents, 500);
+    assert.equal(avec.payload.quote.baseCents, 1800);
     assert.equal(avec.payload.quote.discountCents, 0);
-    assert.equal(avec.payload.quote.totalCents, 500);
+    assert.equal(avec.payload.quote.totalCents, 1800);
     assert.equal(avec.payload.quote.valid, false);
 
     const sans = await post(app.baseUrl, "/api/public/price-quote", {});
-    assert.equal(sans.payload.quote.totalCents, 500);
+    assert.equal(sans.payload.quote.totalCents, 1800);
     assert.equal(sans.payload.quote.valid, false);
     assert.equal(sans.payload.quote.reason, "empty");
 
     const faux = await post(app.baseUrl, "/api/public/price-quote", { promoCode: "gratuit" });
-    assert.equal(faux.payload.quote.totalCents, 500);
+    assert.equal(faux.payload.quote.totalCents, 1800);
     assert.equal(faux.payload.quote.reason, "unknown");
   } finally {
     await app.close();
@@ -127,22 +127,28 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
     withFakeStripe(SESSION_OK, async (calls) => {
       const app = await startApp();
       try {
-        // Le prix s'applique : 5 €, quoi que raconte le client.
+        // Le prix s'applique : 18 €, quoi que raconte le client.
         const session = await post(app.baseUrl, "/api/public/checkout-session", {
           amountCents: 100,
+          metadata: { pricing_base_cents: "100", pricing_total_cents: "100", pricing_currency: "usd", pricing_discount_cents: "0" },
           promoCode: "",
           language: "fr"
         });
         assert.equal(session.status, 201);
         assert.equal(calls.length, 1);
-        assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "500");
+        assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "1800");
         assert.doesNotMatch(calls[0].body["line_items[0][price_data][product_data][name]"], /offre de lancement/);
         assert.equal(calls[0].body["line_items[0][quantity]"], "1");
+        assert.equal(calls[0].body["metadata[pricing]"], "lastro-pricing@1.1.0");
+        assert.equal(calls[0].body["metadata[pricing_base_cents]"], "1800");
+        assert.equal(calls[0].body["metadata[pricing_total_cents]"], "1800");
+        assert.equal(calls[0].body["metadata[pricing_discount_cents]"], "0");
+        assert.equal(calls[0].body["metadata[pricing_currency]"], "eur");
 
         // Sans code : même tarif, toujours sans lire le montant du client.
         await post(app.baseUrl, "/api/public/checkout-session", { amountCents: 100, label: "cadeau" });
         assert.equal(calls.length, 2);
-        assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "500");
+        assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "1800");
         assert.doesNotMatch(calls[1].body["line_items[0][price_data][product_data][name]"], /cadeau/);
       } finally {
         await app.close();
@@ -193,6 +199,9 @@ test("le prix de l'offre peut être changé sans toucher au code", async () => {
           const session = await post(app.baseUrl, "/api/public/checkout-session", { promoCode: "LANCEMENT2026" });
           assert.equal(session.status, 201);
           assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "2000");
+          assert.equal(calls[0].body["metadata[pricing_base_cents]"], "3500");
+          assert.equal(calls[0].body["metadata[pricing_total_cents]"], "2000");
+          assert.equal(calls[0].body["metadata[pricing_discount_cents]"], "1500");
         } finally {
           await app.close();
         }
@@ -225,7 +234,7 @@ test("le site n'a plus de montant libre, et parle des neuf langues", () => {
   assert.doesNotMatch(page, /id="price-slider"/);
   assert.doesNotMatch(source, /bindPriceSlider/);
   // Aucun champ promo n'est affiché dans le parcours public : l'interface reste
-  // simplement à 5 €.
+  // simplement à 18 €.
   assert.doesNotMatch(page, /id="pay-promo"/);
   assert.doesNotMatch(page, /Code promo|Code éventuel/);
   assert.match(page, /id="pay-price-base" hidden/);
@@ -281,7 +290,7 @@ test("un code privé facture 1 € sans jamais apparaître dans la page", async 
           const publique = JSON.stringify(config);
           assert.doesNotMatch(publique, /kdmjf87gh/i);
           assert.equal(config.pricing.promoCode, null);
-          assert.equal(config.pricing.totalCents, 500);
+          assert.equal(config.pricing.totalCents, 1800);
 
           // Le devis le reconnaît et annonce 1 €.
           const devis = await post(app.baseUrl, "/api/public/price-quote", { promoCode: "KDMjf87Gh" });
@@ -300,6 +309,9 @@ test("un code privé facture 1 € sans jamais apparaître dans la page", async 
           assert.equal(session.status, 201);
           assert.equal(calls.length, 1);
           assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "100");
+          assert.equal(calls[0].body["metadata[pricing_base_cents]"], "1800");
+          assert.equal(calls[0].body["metadata[pricing_total_cents]"], "100");
+          assert.equal(calls[0].body["metadata[pricing_discount_cents]"], "1700");
           assert.match(calls[0].body["line_items[0][price_data][product_data][name]"], /code promotionnel/);
         } finally {
           await app.close();

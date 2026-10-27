@@ -25,3 +25,18 @@ export function promoMessageState(quote) {
   }
   return quote?.reason === "unknown" ? "ko" : "";
 }
+
+// /api/config exposes pricing at the top level. Payment credentials and flags
+// are a separate object and must never become the source of a displayed price.
+export function publicPricingFromConfig(config) {
+  const pricing = config?.pricing;
+  if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)
+      || !Number.isInteger(pricing.baseCents) || pricing.baseCents <= 0
+      || !Number.isInteger(pricing.totalCents) || pricing.totalCents < 0
+      || !Number.isInteger(pricing.promoDiscountCents) || pricing.promoDiscountCents < 0
+      || pricing.totalCents + pricing.promoDiscountCents !== pricing.baseCents
+      || typeof pricing.currency !== "string" || !/^[a-z]{3}$/i.test(pricing.currency)) {
+    return null;
+  }
+  return pricing;
+}
