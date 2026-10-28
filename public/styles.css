@@ -1523,3 +1523,12 @@ input,select,textarea,input:focus,select:focus,textarea:focus { background: var(
 button:focus-visible,a:focus-visible,.place-suggestion:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 ::-webkit-scrollbar-thumb { background: #8d8373; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #716655; background-clip: content-box; }
+
+/* Optional paid discount: visually distinct from free invitations. */
+.promo-code-box { display: grid; gap: 8px; margin: 8px 0 14px; }
+.promo-code-box > label { font-size: 0.76rem; }
+.promo-code-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.promo-code-row input { min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.promo-code-row button { margin: 0; }
+.promo-code-box .pay-hint { margin: 0; }
+@media (max-width: 420px) { .promo-code-row { grid-template-columns: minmax(0, 1fr); } }

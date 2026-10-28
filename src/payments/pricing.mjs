@@ -142,7 +142,7 @@ export function pricingCatalogue(env = process.env) {
 // code PUBLIC à pré-remplir. Jamais le code appliqué quand il est privé — sans
 // quoi le point d'entrée public confirmerait un code qu'on veut discret.
 export function publicQuote(quote) {
-  const { appliedCode: _code, appliedIsPublic: _prive, ...reste } = quote;
+  const { appliedCode: _code, appliedIsPublic: _prive, stripePromotionCodeId: _stripePromotion, ...reste } = quote;
   return reste;
 }
 

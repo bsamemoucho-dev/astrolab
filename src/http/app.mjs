@@ -58,6 +58,7 @@ import {
   quotePrice,
   READING_PURPOSE
 } from "../payments/pricing.mjs";
+import { resolvePromotionQuote } from "../payments/stripePromotionCodes.mjs";
 import {
   createEmbeddedCheckoutSession,
   lastStripeFailure,
@@ -254,6 +255,10 @@ export function createApp(options = {}) {
   // doivent pas partager leurs compteurs, sinon un cas de test hérite de l'état
   // laissé par le précédent. Les valeurs sont commentées à chaque usage.
   const limites = {
+    // Native discount lookups call Stripe. Empty and existing configured codes
+    // retain their local path; both public endpoints share these lookup limits.
+    reductionsParClient: createRateLimiter({ windowMs: 60 * 1000, max: 30 }),
+    reductionsService: createRateLimiter({ windowMs: 60 * 1000, max: 300 }),
     // Inscrire envoie un e-mail : la borne protège la boîte visée et le quota.
     // Dix par heure et par client plutôt que cinq : une annonce de lancement fait
     // s'inscrire plusieurs personnes derrière la même adresse (bureau, wifi
@@ -294,6 +299,25 @@ export function createApp(options = {}) {
     error.status = 429;
     error.retryAfterSeconds = retryAfterSeconds(limite.retryAfterMs);
     throw error;
+  };
+
+  const publicPaymentQuote = async (req, promoCode) => {
+    if (promoCode !== undefined && promoCode !== null
+        && (typeof promoCode !== "string" || promoCode.length > 200)) {
+      throw Object.assign(new Error("Le code de réduction reçu est invalide."), {
+        status: 400, code: "INVALID_PROMOTION_INPUT", expected: true
+      });
+    }
+    const local = quotePrice({ promoCode });
+    if (local.reason !== "unknown" || !/^[a-z0-9]{12}$/.test(normalizePromoCode(promoCode))) return local;
+    const client = clientAddress(req);
+    for (const [limiter, key] of [[limites.reductionsParClient, client], [limites.reductionsService, "service"]]) {
+      const limit = limiter.check(key);
+      if (limit.limited) refuseTropDeRequetes(limit, "Trop de vérifications de codes rapprochées. Réessayez dans un instant.");
+    }
+    limites.reductionsParClient.hit(client);
+    limites.reductionsService.hit("service");
+    return resolvePromotionQuote({ promoCode });
   };
 
   // Une conversion à la fois, et jamais de HTML arbitraire : on ne rend que le
@@ -643,18 +667,32 @@ export function createApp(options = {}) {
     // Devis public : le site affiche le prix calculé par le serveur, jamais le sien.
     route("POST", /^\/api\/public\/price-quote$/, async (req, res) => {
       const body = await readJson(req);
-      sendJson(res, 200, { quote: publicQuote(quotePrice({ promoCode: body.promoCode })) });
+      sendJson(res, 200, { quote: publicQuote(await publicPaymentQuote(req, body.promoCode)) }, { "cache-control": "no-store" });
     }),
     // Le montant n'est JAMAIS lu dans la requête : seul un code promo l'est. Un
     // montant glissé par le client est ignoré, pas négocié.
     route("POST", /^\/api\/public\/checkout-session$/, async (req, res) => {
       const body = await readJson(req);
-      const quote = quotePrice({ promoCode: body.promoCode });
+      const quote = await publicPaymentQuote(req, body.promoCode);
       if (quote.reason === "unknown") {
-        const error = new Error("Ce code promo n'est pas valide : le prix reste à son tarif normal.");
+        const error = new Error("Ce code de réduction est invalide ou déjà utilisé. Aucun paiement n’a été ouvert.");
         error.status = 400;
         error.code = "unknown_promo_code";
+        error.expected = true;
         throw error;
+      }
+      // Expected values only detect a stale displayed quote. They never set
+      // the price, which is independently recalculated above by the server.
+      if (Object.hasOwn(body, "expectedTotalCents") || Object.hasOwn(body, "expectedCurrency")) {
+        if (!Number.isSafeInteger(body.expectedTotalCents) || body.expectedTotalCents < MIN_AMOUNT_CENTS
+            || body.expectedTotalCents > MAX_AMOUNT_CENTS || typeof body.expectedCurrency !== "string"
+            || !/^[a-z]{3}$/.test(body.expectedCurrency)) {
+          throw Object.assign(new Error("Le devis attendu est invalide."), { status: 400, code: "INVALID_EXPECTED_QUOTE", expected: true });
+        }
+        if (body.expectedTotalCents !== quote.totalCents || body.expectedCurrency !== quote.currency) {
+          sendJson(res, 409, { code: "PRICING_CHANGED", error: "Le montant a changé. Vérifiez le nouveau devis avant de poursuivre.", quote: publicQuote(quote) }, { "cache-control": "no-store" });
+          return;
+        }
       }
       // On n'encaisse pas ce qu'on ne peut pas rédiger. Le site masque déjà le
       // bouton, mais un appel direct à l'API le contournerait : le client serait
@@ -672,6 +710,8 @@ export function createApp(options = {}) {
         201,
         await createEmbeddedCheckoutSession({
           amountCents: quote.totalCents,
+          baseAmountCents: quote.baseCents,
+          stripePromotionCodeId: quote.stripePromotionCodeId,
           label: checkoutLineLabel({ quote, language: body.language }),
           // Marque du produit : elle permet de refuser plus tard une session
           // payée pour autre chose sur le même compte Stripe.
@@ -1474,7 +1514,9 @@ export function createApp(options = {}) {
       if (status >= 500 && !error.expected) {
         // Journalisé tel quel côté serveur : c'est là qu'on lit la vraie cause
         // (Render → Logs), jamais dans la réponse au navigateur.
-        console.error(`[Lastro] ${status} ${req.method} ${req.url ?? ""} — ${error.message}`, error.cause ?? "");
+        const target = String(req.url ?? "");
+        const loggedTarget = /^\/api\/public\/(price-quote|checkout-session)(\?|$)/.test(target) ? target.split("?")[0] : target;
+        console.error(`[Lastro] ${status} ${req.method} ${loggedTarget} — ${error.message}`, error.cause ?? "");
       }
       const masked = status === 500 || status === 502;
       const message = error.publicMessage ?? (masked ? "Une erreur interne est survenue. Merci de réessayer dans un instant." : error.message);

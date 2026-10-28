@@ -4,6 +4,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
+import {createPromoQuoteController} from '../public/promo-checkout.js';
 
 const ROOT=new URL('../',import.meta.url);
 const read=relative=>readFileSync(new URL(relative,ROOT),'utf8');
@@ -29,15 +30,16 @@ function harness({language='fr',config={pricing:pricing(),payments:{pricing:{...
   const nodes=new Map();
   const $=selector=>{if(!nodes.has(selector))nodes.set(selector,{textContent:'',hidden:false});return nodes.get(selector)};
   const response=quote??{...pricing(),discountCents:0,valid:false,reason:'empty'};
-  const context=vm.createContext({Intl,$,__config:config,__language:language,api:async()=>({quote:response})});
+  const context=vm.createContext({Intl,$,createPromoQuoteController,__config:config,__language:language,api:async()=>({quote:response})});
   vm.runInContext(pricingSource.replaceAll('export function ','function '),context);
   const prefix=app.slice(app.indexOf('const state ='),app.indexOf('const PLACE_STRINGS'));
   vm.runInContext(prefix,context);
-  for(const name of ['currentLanguage','uiStrings','setNodeText','formatMoney','formatEuros','renderPricingCopy','renderQuote','refreshQuote','applyPricing']){
+  for(const name of ['currentLanguage','uiStrings','setNodeText','formatMoney','formatEuros','renderPricingCopy','renderQuote','syncPaymentAvailability','renderPromoQuote','refreshQuote','applyPricing']){
     let source=declaration(name);
     if(name==='refreshQuote')source='async '+source;
     vm.runInContext(source,context);
   }
+  vm.runInContext(app.slice(app.indexOf('const promoQuotes ='),app.indexOf('\nfunction syncPaymentAvailability')),context);
   vm.runInContext('state.config=__config;state.language=__language;',context);
   return {run:expression=>vm.runInContext(expression,context),text:selector=>$(selector).textContent,node:$,context};
 }
@@ -83,6 +85,7 @@ for(const language of LANGUAGES){
 
 test('a server quote is displayed as received instead of hardcoding the new normal price',async()=>{
   const h=harness({quote:{...pricing(),totalCents:100,discountCents:1700,valid:true,reason:'applied'}});
+  h.run("promoQuotes.setCode('TESTCODEABCD')");
   await h.run('refreshQuote()');
   assert.match(h.text('#pay-price-total'),/1[,.]00\s*€/u);
   assert.match(h.text('#pay-text'),/1[,.]00\s*€/u);
