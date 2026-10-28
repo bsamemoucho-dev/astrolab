@@ -103,3 +103,44 @@ test('disabling only the complement preserves pricing and administrative invitat
   assert.equal((await post(app,'/api/admin/access-codes',payload(),{headers:HEADERS})).status,201);
  }finally{await app.close();previous===undefined?delete process.env.ASTROLAB_PRICE_CENTS:process.env.ASTROLAB_PRICE_CENTS=previous;}
 }));
+
+test('fifty long invitations are imported through the authenticated route and replay preserves use without customer actions',async()=>{
+ const app=await start();try{
+  const longCodes=Array.from({length:50},(_,index)=>'FICTIF'+String(index).padStart(6,'0'));
+  const request={...payload(),codeLength:12,codes:longCodes.map(hash)};
+  for(const actor of [null,'member']){
+   const rejected=await post(app,'/api/admin/access-codes',request,{actor,headers:HEADERS});
+   assert.equal(rejected.status,actor?403:401);
+  }
+  const created=await post(app,'/api/admin/access-codes',request,{headers:HEADERS});
+  assert.equal(created.status,201);assert.equal(created.data.createdCount,50);assert.equal(created.data.codeLength,12);
+  assert.equal(created.data.states.available,50);assert.equal(created.data.usageLimit,1);
+  assert.ok(longCodes.every(code=>!JSON.stringify(created.data).includes(code)));
+  await app.store.transact(state=>{state.accessCodes.find(entry=>entry.batchId===BATCH).usedAt='2026-10-28T12:00:00Z'});
+  const before=JSON.stringify(await app.store.load());
+  const replay=await post(app,'/api/admin/access-codes',request,{headers:HEADERS});
+  assert.equal(replay.status,200);assert.equal(replay.data.createdCount,0);assert.equal(replay.data.codeLength,12);assert.equal(replay.data.states.used,1);
+  const res=await fetch(app.base+'/api/admin/access-codes?batchId='+BATCH,{headers:{cookie:'astrolab_session=token-admin'}});
+  const summary=await res.json();assert.equal(res.status,200);assert.equal(summary.codeLength,12);assert.equal(summary.states.available,49);
+  assert.equal(JSON.stringify(await app.store.load()),before);
+  const state=await app.store.load();assert.equal(state.publicReadings.length,0);assert.equal(state.outbox.length,0);assert.equal(state.orders.length,0);
+ }finally{await app.close()}
+});
+
+test('the protected replacement route retires only its unused old batch and cannot revive it on replay',async()=>{
+ const app=await start();try{
+  assert.equal((await post(app,'/api/admin/access-codes',payload(),{headers:HEADERS})).status,201);
+  const replacementId='00000000-0000-4000-8000-000000000099';
+  const request={batchId:replacementId,label:'Long replacement test',codeLength:12,supersedesBatchId:BATCH,
+   codes:Array.from({length:50},(_,index)=>hash('FICTIF'+String(index).padStart(6,'0')))};
+  assert.equal((await post(app,'/api/admin/access-codes',request,{actor:'member',headers:HEADERS})).status,403);
+  const result=await post(app,'/api/admin/access-codes',request,{headers:HEADERS});
+  assert.equal(result.status,201);assert.equal(result.data.createdCount,50);assert.equal(result.data.states.available,50);
+  const state=await app.store.load();assert.equal(state.accessCodes.filter(entry=>entry.batchId===BATCH&&entry.revokedAt).length,20);
+  assert.equal(state.accessCodes.find(entry=>entry.id==='code-short').revokedAt,null);
+  assert.equal(state.accessCodes.find(entry=>entry.id==='code-long').revokedAt,null);
+  const before=JSON.stringify(state);
+  const replay=await post(app,'/api/admin/access-codes',request,{headers:HEADERS});
+  assert.equal(replay.status,200);assert.equal(replay.data.createdCount,0);assert.equal(JSON.stringify(await app.store.load()),before);
+ }finally{await app.close()}
+});

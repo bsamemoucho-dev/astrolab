@@ -309,7 +309,7 @@ export function createApp(options = {}) {
       });
     }
     const local = quotePrice({ promoCode });
-    if (local.reason !== "unknown" || !/^[a-z0-9]{12}$/.test(normalizePromoCode(promoCode))) return local;
+    if (local.reason !== "unknown" || !/^(?:[a-z0-9]{6}|[a-z0-9]{12})$/.test(normalizePromoCode(promoCode))) return local;
     const client = clientAddress(req);
     for (const [limiter, key] of [[limites.reductionsParClient, client], [limites.reductionsService, "service"]]) {
       const limit = limiter.check(key);

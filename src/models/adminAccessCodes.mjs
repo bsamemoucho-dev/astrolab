@@ -1,11 +1,12 @@
 // Administrative import into the running server's own store. The caller keeps
-// the clear six-character codes locally; only their SHA-256 fingerprints travel
+// the clear codes locally; only their SHA-256 fingerprints travel
 // here. No separate process writes behind the server's in-memory state.
 import { randomUUID } from "node:crypto";
 
-const CODE_LENGTH = 6;
+const DEFAULT_CODE_LENGTH = 6;
+const CODE_LENGTHS = new Set([6, 12]);
 const USAGE_LIMIT = 1;
-const KEYS = new Set(["batchId", "label", "codes", "codeLength"]);
+const KEYS = new Set(["batchId", "label", "codes", "codeLength", "supersedesBatchId"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASH = /^[0-9a-f]{64}$/i;
 
@@ -49,7 +50,10 @@ function normalizedInput(input) {
   }
   const id = batchId(input.batchId);
   if (typeof input.label !== "string" || input.label.length > 120 || /[\u0000-\u001f\u007f]/u.test(input.label)) invalid();
-  if (input.codeLength !== undefined && input.codeLength !== CODE_LENGTH) invalid();
+  const codeLength = input.codeLength === undefined ? DEFAULT_CODE_LENGTH : input.codeLength;
+  if (!CODE_LENGTHS.has(codeLength)) invalid();
+  const supersedesBatchId = input.supersedesBatchId === undefined ? null : batchId(input.supersedesBatchId);
+  if (supersedesBatchId === id || (supersedesBatchId && codeLength !== 12)) invalid();
   if (!Array.isArray(input.codes) || input.codes.length < 1 || input.codes.length > 100) invalid();
   // Copy before awaiting the store, so a caller cannot mutate an import while
   // it waits for another transaction. Array entries must be plain data too.
@@ -61,7 +65,8 @@ function normalizedInput(input) {
     hashes.push(descriptor.value.toLowerCase());
   }
   if (new Set(hashes).size !== hashes.length) invalid();
-  return { batchId: id, label: input.label.trim() || null, hashes: hashes.sort() };
+  if (supersedesBatchId && hashes.length !== 50) invalid();
+  return { batchId: id, label: input.label.trim() || null, codeLength, supersedesBatchId, hashes: hashes.sort() };
 }
 
 function registry(state) {
@@ -82,7 +87,7 @@ function summary(entries, id, createdCount = 0) {
   }
   return {
     batchId: id, createdCount, totalCount: entries.length,
-    usageLimit: USAGE_LIMIT, codeLength: CODE_LENGTH,
+    usageLimit: USAGE_LIMIT, codeLength: entries[0].codeLength,
     ids: entries.map((entry) => entry.id).sort(),
     label: entries[0]?.label ?? null, states
   };
@@ -90,10 +95,33 @@ function summary(entries, id, createdCount = 0) {
 
 function matchingBatch(entries, input) {
   if (entries.length !== input.hashes.length) return false;
-  if (entries.some((entry) => entry.codeLength !== CODE_LENGTH || entry.usageLimit !== USAGE_LIMIT
-      || entry.label !== input.label || entry.expiresAt !== null || typeof entry.hash !== "string")) return false;
+  if (entries.some((entry) => entry.codeLength !== input.codeLength || entry.usageLimit !== USAGE_LIMIT
+      || entry.label !== input.label || entry.expiresAt !== null || typeof entry.hash !== "string"
+      || (entry.supersedesBatchId ?? null) !== input.supersedesBatchId)) return false;
   const existing = entries.map((entry) => entry.hash.toLowerCase()).sort();
   return existing.every((hash, index) => hash === input.hashes[index]);
+}
+
+// The commercial switch retires one unused 20-code short batch while adding
+// its 50 long replacements. It shares the store transaction with consumption:
+// an already granted reading always blocks the switch, never loses its code.
+function supersededEntries(state, input, replay = null) {
+  if (!input.supersedesBatchId) return [];
+  const previous = registry(state).filter(entry => entry.batchId === input.supersedesBatchId);
+  const conflict = () => { throw error("ACCESS_CODE_SUPERSESSION_CONFLICT", 409, "Le lot précédent ne peut pas être remplacé sans risque."); };
+  if (previous.length !== 20 || !Array.isArray(state.publicReadings)) conflict();
+  const ids = new Set(previous.map(entry => entry.id));
+  if (ids.size !== previous.length || [...ids].some(id => typeof id !== "string" || !id)) conflict();
+  if (state.publicReadings.some(reading => ids.has(reading.accessCodeId))) conflict();
+  for (const entry of previous) {
+    if (entry.codeLength !== 6 || entry.usageLimit !== USAGE_LIMIT
+        || entry.usedAt != null || entry.deliveryReference != null) conflict();
+    if (replay) {
+      if (entry.supersededByBatchId !== input.batchId || entry.revokedAt !== replay.createdAt) conflict();
+    } else if (entry.revokedAt != null || entry.supersededByBatchId != null
+        || (entry.expiresAt != null && (!Number.isFinite(Date.parse(entry.expiresAt)) || Date.parse(entry.expiresAt) <= Date.now()))) conflict();
+  }
+  return previous;
 }
 
 export async function importAdminAccessCodeBatch(store, user, input) {
@@ -107,6 +135,7 @@ export async function importAdminAccessCodeBatch(store, user, input) {
       if (!matchingBatch(existing, normalized)) {
         throw error("ACCESS_CODE_BATCH_CONFLICT", 409, "Cet identifiant de lot correspond à un contenu différent.");
       }
+      supersededEntries(state, normalized, existing[0]);
       // A replay proves the same hashes are registered without resetting use,
       // revocation, timestamps or delivery references, or adding an audit row.
       return summary(existing, normalized.batchId);
@@ -118,17 +147,24 @@ export async function importAdminAccessCodeBatch(store, user, input) {
     if (!Array.isArray(state.auditLogs)) {
       throw error("ACCESS_CODE_REGISTRY_INVALID", 500, "Le journal administratif est indisponible.");
     }
+    const previous = supersededEntries(state, normalized);
     const createdAt = new Date().toISOString();
     const added = normalized.hashes.map((hash) => ({
       id: `code_${randomUUID()}`, hash, label: normalized.label,
-      batchId: normalized.batchId, codeLength: CODE_LENGTH, usageLimit: USAGE_LIMIT,
+      batchId: normalized.batchId, codeLength: normalized.codeLength, usageLimit: USAGE_LIMIT,
+      ...(normalized.supersedesBatchId ? { supersedesBatchId: normalized.supersedesBatchId } : {}),
       createdAt, expiresAt: null, usedAt: null, revokedAt: null, deliveryReference: null
     }));
+    for (const entry of previous) {
+      entry.revokedAt = createdAt;
+      entry.supersededByBatchId = normalized.batchId;
+    }
     codes.push(...added);
     state.auditLogs.push({
       id: `audit_${randomUUID()}`, actorUserId: actor.id, ownerUserId: actor.id,
       action: "access_codes.import", subjectType: "AccessCodeBatch", subjectId: normalized.batchId,
-      before: null, after: { count: added.length, codeLength: CODE_LENGTH, usageLimit: USAGE_LIMIT }, createdAt
+      before: null, after: { count: added.length, codeLength: normalized.codeLength, usageLimit: USAGE_LIMIT,
+        ...(previous.length ? { supersedesBatchId: normalized.supersedesBatchId, revokedCount: previous.length } : {}) }, createdAt
     });
     return summary(added, normalized.batchId, added.length);
   });
@@ -147,7 +183,8 @@ export async function readAdminAccessCodeBatch(store, user, value) {
   if (!entries.length) {
     throw error("ACCESS_CODE_BATCH_NOT_FOUND", 404, "Lot de codes introuvable.");
   }
-  if (entries.some((entry) => entry.codeLength !== CODE_LENGTH || entry.usageLimit !== USAGE_LIMIT)) {
+  if (!CODE_LENGTHS.has(entries[0].codeLength)
+      || entries.some((entry) => entry.codeLength !== entries[0].codeLength || entry.usageLimit !== USAGE_LIMIT)) {
     throw error("ACCESS_CODE_REGISTRY_INVALID", 500, "Le registre des codes est indisponible.");
   }
   return summary(entries, id);

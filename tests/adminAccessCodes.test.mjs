@@ -236,3 +236,176 @@ test("one and one hundred imported hashes are supported, and codeLength may be o
     assert.equal(result.createdCount, count); assert.equal(result.codeLength, 6);
   }
 });
+
+test("twelve-character invitations retain their length, privacy and single atomic consumption on replay", async () => {
+  const db = store();
+  const clearCodes = Array.from({ length: 50 }, (_, index) => "FICTIF" + code(index));
+  const request = { batchId: BATCH, label: "Invitations longues fictives", codeLength: 12, codes: clearCodes.map(hashAccessCode) };
+  const created = await importAdminAccessCodeBatch(db, ADMIN, request);
+  assert.equal(created.createdCount, 50);
+  assert.equal(created.codeLength, 12);
+  assert.equal(created.usageLimit, 1);
+  assert.equal(created.states.available, 50);
+  assert.equal(db.state.auditLogs[0].after.codeLength, 12);
+  assert.ok(db.state.accessCodes.every(entry => entry.codeLength === 12));
+  assert.ok(clearCodes.every(code => !JSON.stringify(db.state).includes(code)));
+  assert.ok(request.codes.every(hash => !JSON.stringify(created).includes(hash)));
+  const options = { freeAccess: true, accessCode: clearCodes[0], email: null, amountCents: 0, currency: "eur", language: "fr" };
+  const uses = await Promise.allSettled([createPaidDelivery(db, options), createPaidDelivery(db, options)]);
+  assert.equal(uses.filter(use => use.status === "fulfilled").length, 1);
+  assert.equal(uses.find(use => use.status === "rejected").reason.code, "access_code_utilise");
+  await db.transact(state => revokeAccessCode(state, clearCodes[1]));
+  const before = JSON.stringify(db.state);
+  const replay = await importAdminAccessCodeBatch(db, ADMIN, { ...request, codes: [...request.codes].reverse() });
+  assert.equal(replay.createdCount, 0);
+  assert.equal(replay.codeLength, 12);
+  assert.equal(JSON.stringify(db.state), before);
+  const summary = await readAdminAccessCodeBatch(db, ADMIN, BATCH);
+  assert.equal(summary.codeLength, 12);
+  assert.deepEqual(summary.states, { available: 48, used: 1, revoked: 1, expired: 0 });
+  assert.equal(db.state.publicReadings.length, 1);
+  assert.equal(db.state.outbox.length, 0);
+});
+
+test("a replay cannot relabel either batch length or merge long and short batches", async () => {
+  for (const length of [6, 12]) {
+    const db = store(), request = { ...input(), codeLength: length };
+    await importAdminAccessCodeBatch(db, ADMIN, request);
+    const before = JSON.stringify(db.state);
+    await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, { ...request, codeLength: length === 6 ? 12 : 6 }), fails(409, "ACCESS_CODE_BATCH_CONFLICT"));
+    assert.equal(JSON.stringify(db.state), before);
+    assert.equal((await readAdminAccessCodeBatch(db, ADMIN, BATCH)).codeLength, length);
+  }
+  const db = store();
+  await importAdminAccessCodeBatch(db, ADMIN, input());
+  await importAdminAccessCodeBatch(db, ADMIN, { ...input({ batchId: OTHER_BATCH, offset: 30 }), codeLength: 12 });
+  assert.equal((await readAdminAccessCodeBatch(db, ADMIN, BATCH)).codeLength, 6);
+  assert.equal((await readAdminAccessCodeBatch(db, ADMIN, OTHER_BATCH)).codeLength, 12);
+});
+
+test("long invitations keep administrator permissions and all unsupported length declarations fail without mutation", async () => {
+  const db = store(), request = { ...input(), codeLength: 12 };
+  const before = JSON.stringify(db.state);
+  for (const user of [null, { id: "ordinary", primaryRole: "user" }])
+    await assert.rejects(importAdminAccessCodeBatch(db, user, request), fails(user ? 403 : 401));
+  for (const codeLength of [null, "12", 0, 5, 7, 11, 13, 16, {}, [12]])
+    await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, { ...request, codeLength }), fails(400, "INVALID_ACCESS_CODE_BATCH"));
+  assert.equal(JSON.stringify(db.state), before);
+});
+
+test("verification rejects a corrupt mixed-length batch without changing stored usage", async () => {
+  const db = store();
+  await importAdminAccessCodeBatch(db, ADMIN, { ...input(), codeLength: 12 });
+  db.state.accessCodes[0].codeLength = 6;
+  const before = JSON.stringify(db.state);
+  await assert.rejects(readAdminAccessCodeBatch(db, ADMIN, BATCH), fails(500, "ACCESS_CODE_REGISTRY_INVALID"));
+  assert.equal(JSON.stringify(db.state), before);
+});
+
+function longReplacement() {
+  return { batchId: OTHER_BATCH, label: "Remplacement fictif", codeLength: 12, supersedesBatchId: BATCH,
+    codes: Array.from({ length: 50 }, (_, index) => hashAccessCode("FICTIF" + code(index))) };
+}
+
+test("replacing the unused short batch atomically preserves and revokes its twenty entries while adding fifty long invitations", async () => {
+  const db = store();
+  await importAdminAccessCodeBatch(db, ADMIN, input());
+  const original = structuredClone(db.state.accessCodes);
+  const replacement = longReplacement();
+  const result = await importAdminAccessCodeBatch(db, ADMIN, replacement);
+  assert.equal(result.codeLength, 12);
+  assert.equal(result.createdCount, 50);
+  assert.equal(result.states.available, 50);
+  assert.equal(db.state.accessCodes.length, 70);
+  const newEntries = db.state.accessCodes.filter(entry => entry.batchId === OTHER_BATCH);
+  for (const previous of original) {
+    const entry = db.state.accessCodes.find(entry => entry.id === previous.id);
+    assert.deepEqual(entry, { ...previous, revokedAt: newEntries[0].createdAt, supersededByBatchId: OTHER_BATCH });
+    assert.equal(checkAccessCode(db.state, code(original.indexOf(previous))).reason, "inconnu");
+  }
+  assert.ok(newEntries.every(entry => entry.supersedesBatchId === BATCH && entry.codeLength === 12));
+  assert.deepEqual(db.state.auditLogs[1].after, { count: 50, codeLength: 12, usageLimit: 1, supersedesBatchId: BATCH, revokedCount: 20 });
+  assert.deepEqual((await readAdminAccessCodeBatch(db, ADMIN, BATCH)).states, { available: 0, used: 0, revoked: 20, expired: 0 });
+  const before = JSON.stringify(db.state);
+  const replay = await importAdminAccessCodeBatch(db, ADMIN, replacement);
+  assert.equal(replay.createdCount, 0);
+  assert.equal(JSON.stringify(db.state), before);
+  assert.equal(db.state.publicReadings.length, 0);
+  assert.equal(db.state.outbox.length, 0);
+});
+
+for (const [name, change] of [
+  ["used entry", state => { state.accessCodes[0].usedAt = "2026-01-01T00:00:00Z"; }],
+  ["delivery reference", state => { state.accessCodes[0].deliveryReference = "L-FAKE-EXISTING"; }],
+  ["linked reading", state => { state.publicReadings.push({ id: "fake_reading", accessCodeId: state.accessCodes[0].id }); }],
+  ["revoked entry", state => { state.accessCodes[0].revokedAt = "2026-01-01T00:00:00Z"; }],
+  ["expired entry", state => { state.accessCodes[0].expiresAt = "2020-01-01T00:00:00Z"; }],
+  ["invalid expiry", state => { state.accessCodes[0].expiresAt = "invalid"; }],
+  ["changed quota", state => { state.accessCodes[0].usageLimit = 2; }],
+  ["changed length", state => { state.accessCodes[0].codeLength = 12; }],
+  ["wrong count", state => { state.accessCodes.pop(); }],
+  ["missing previous batch", state => { state.accessCodes = []; }]
+]) test(`supersession refuses ${name} without revoking or adding any code`, async () => {
+  const db = store();
+  await importAdminAccessCodeBatch(db, ADMIN, input());
+  change(db.state);
+  const before = JSON.stringify(db.state);
+  await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, longReplacement()), fails(409, "ACCESS_CODE_SUPERSESSION_CONFLICT"));
+  assert.equal(JSON.stringify(db.state), before);
+});
+
+test("replacement replay binds its origin, does not reset new usage and detects tampering with old revocations", async () => {
+  const db = store();
+  await importAdminAccessCodeBatch(db, ADMIN, input());
+  const replacement = longReplacement();
+  await importAdminAccessCodeBatch(db, ADMIN, replacement);
+  await createPaidDelivery(db, { freeAccess: true, accessCode: "FICTIF" + code(0), email: null, amountCents: 0, currency: "eur" });
+  const before = JSON.stringify(db.state);
+  const replay = await importAdminAccessCodeBatch(db, ADMIN, replacement);
+  assert.equal(replay.createdCount, 0);
+  assert.equal(replay.states.used, 1);
+  assert.equal(JSON.stringify(db.state), before);
+  const withoutOrigin = { ...replacement }; delete withoutOrigin.supersedesBatchId;
+  await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, withoutOrigin), fails(409, "ACCESS_CODE_BATCH_CONFLICT"));
+  assert.equal(JSON.stringify(db.state), before);
+  db.state.accessCodes.find(entry => entry.batchId === BATCH).revokedAt = null;
+  const tampered = JSON.stringify(db.state);
+  await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, replacement), fails(409, "ACCESS_CODE_SUPERSESSION_CONFLICT"));
+  assert.equal(JSON.stringify(db.state), tampered);
+});
+
+test("replacement rolls back revocations and creation together if persistence fails", async () => {
+  const db = store();
+  await importAdminAccessCodeBatch(db, ADMIN, input());
+  const before = JSON.stringify(db.state), save = db.save.bind(db);
+  db.save = async () => { throw new Error("SIMULATED_REPLACEMENT_SAVE_FAILURE"); };
+  await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, longReplacement()), /SIMULATED_REPLACEMENT_SAVE_FAILURE/);
+  assert.equal(JSON.stringify(db.state), before);
+  db.save = save;
+  assert.equal((await importAdminAccessCodeBatch(db, ADMIN, longReplacement())).createdCount, 50);
+});
+
+test("replacement input remains narrow and cannot target itself, another length or partial long batch", async () => {
+  const db = store(), request = longReplacement(), before = JSON.stringify(db.state);
+  for (const override of [{ supersedesBatchId: OTHER_BATCH }, { supersedesBatchId: null }, { supersedesBatchId: "bad" },
+    { codeLength: 6 }, { codes: request.codes.slice(1) }])
+    await assert.rejects(importAdminAccessCodeBatch(db, ADMIN, { ...request, ...override }), fails(400, "INVALID_ACCESS_CODE_BATCH"));
+  assert.equal(JSON.stringify(db.state), before);
+});
+
+test("concurrent old-code consumption and replacement grant only the transaction that wins first", async () => {
+  for (const replacementFirst of [false, true]) {
+    const db = store();
+    await importAdminAccessCodeBatch(db, ADMIN, input());
+    const consume = () => createPaidDelivery(db, { freeAccess: true, accessCode: code(0), email: null, amountCents: 0, currency: "eur" });
+    const replace = () => importAdminAccessCodeBatch(db, ADMIN, longReplacement());
+    const calls = replacementFirst ? [replace, consume] : [consume, replace];
+    const outcomes = await Promise.allSettled(calls.map(call => call()));
+    assert.equal(outcomes[0].status, "fulfilled");
+    assert.equal(outcomes[1].status, "rejected");
+    assert.equal(outcomes[1].reason.code, replacementFirst ? "access_code_inconnu" : "ACCESS_CODE_SUPERSESSION_CONFLICT");
+    assert.equal(db.state.publicReadings.length, replacementFirst ? 0 : 1);
+    assert.equal(db.state.accessCodes.length, replacementFirst ? 70 : 20);
+    assert.equal(db.state.accessCodes.filter(entry => entry.batchId === BATCH && entry.revokedAt).length, replacementFirst ? 20 : 0);
+  }
+});
