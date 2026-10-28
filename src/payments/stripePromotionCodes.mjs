@@ -24,7 +24,9 @@ function emptyMap(value) {
 }
 
 function noProductRestriction(value) {
-  return value === null || (value && typeof value === "object" && !Array.isArray(value)
+  // In Stripe API 2024-06-20, applies_to is optional and is omitted for an
+  // unrestricted coupon, even when explicitly requested through expansion.
+  return value == null || (value && typeof value === "object" && !Array.isArray(value)
     && Object.keys(value).every((key) => key === "products")
     && Array.isArray(value.products) && value.products.length === 0);
 }
@@ -54,7 +56,7 @@ function eligiblePromotion(promotion, code, live) {
     || coupon.amount_off !== DISCOUNT_CENTS || coupon.currency !== "eur"
     || coupon.percent_off != null || coupon.duration !== "once"
     || coupon.redeem_by != null || !compatibleCouponCurrencies(coupon.currency_options)
-    || !Object.hasOwn(coupon, "applies_to") || !noProductRestriction(coupon.applies_to)
+    || !noProductRestriction(coupon.applies_to)
     || coupon.metadata?.purpose !== READING_DISCOUNT_PURPOSE
     || coupon.metadata?.batch_id !== promotion.metadata.batch_id
     || !Number.isInteger(coupon.max_redemptions) || coupon.max_redemptions < 1 || coupon.max_redemptions > 50
@@ -81,8 +83,8 @@ export async function resolvePromotionQuote({ promoCode, env = process.env, fetc
   // A generic, unrestricted code is unique. Refuse ambiguous customer-specific
   // duplicates instead of choosing one. The pinned API embeds coupon directly.
   url.searchParams.set("limit", "2");
-  // Product restrictions are an includable coupon field in this API version.
-  // Absence without expansion cannot prove that the inline product qualifies.
+  // Request optional restrictions where available. Configured restrictions are
+  // refused; the pinned API may still omit an unset optional applies_to field.
   url.searchParams.append("expand[]", "data.coupon.applies_to");
   url.searchParams.append("expand[]", "data.coupon.currency_options");
   let data;

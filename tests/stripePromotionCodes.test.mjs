@@ -96,7 +96,6 @@ const invalidCases = {
   "wrong promo purpose": (p) => { p.metadata.purpose = "other"; },
   "wrong batch": (p) => { p.coupon.metadata.batch_id = "22222222-2222-4222-8222-222222222222"; },
   "missing batch": (p) => { delete p.metadata.batch_id; },
-  "missing product restriction expansion": (p) => { delete p.coupon.applies_to; },
   "wrong purpose": (p) => { p.coupon.metadata.purpose = "other"; },
   "wrong amount": (p) => { p.coupon.amount_off = 1100; },
   "wrong currency": (p) => { p.coupon.currency = "usd"; },
@@ -297,4 +296,25 @@ test("expanded default empty product restrictions and EUR currency option remain
   assert.equal((await lookup(entry)).valid, true);
   entry.coupon.currency_options = null;
   assert.equal((await lookup(entry)).valid, true);
+});
+
+test("the pinned Stripe API may omit its optional unrestricted applies_to field", async () => {
+  const entry = promotion(); delete entry.coupon.applies_to;
+  const quote = await lookup(entry);
+  assert.equal(quote.valid, true);
+  assert.equal(quote.baseCents, 1800);
+  assert.equal(quote.discountCents, 1000);
+  assert.equal(quote.totalCents, 800);
+  assert.equal(quote.currency, "eur");
+  assert.equal(quote.stripePromotionCodeId, entry.id);
+});
+
+test("a malformed present product restriction is never treated as unrestricted", async () => {
+  for (const value of [{}, [], "all", false, { products: null }, { products: [], unexpected: true }]) {
+    const entry = promotion(); entry.coupon.applies_to = value;
+    const quote = await lookup(entry);
+    assert.equal(quote.valid, false, JSON.stringify(value));
+    assert.equal(quote.reason, "unknown");
+    assert.equal(quote.stripePromotionCodeId, undefined);
+  }
 });
