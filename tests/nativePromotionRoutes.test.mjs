@@ -3,14 +3,15 @@ import test from "node:test";
 import { createApp } from "../src/http/app.mjs";
 import { JsonStore } from "../src/db/jsonStore.mjs";
 import { checkoutSessionProblem } from "../src/payments/pricing.mjs";
+import { hashAccessCode } from "../src/models/accessCodeService.mjs";
 
 // Fictional provider objects only. No key or code in this file is provisioned.
 const CODE = "FAKECODE1200";
 const BATCH = "11111111-1111-4111-8111-111111111111";
 const PROMO = "promo_fake_route";
-function promotion() {
+function promotion(code = CODE) {
   return {
-    object: "promotion_code", id: PROMO, code: CODE, active: true, livemode: false,
+    object: "promotion_code", id: PROMO, code, active: true, livemode: false,
     max_redemptions: 1, times_redeemed: 0, customer: null, expires_at: null,
     metadata: { purpose: "lastro_reading_discount", batch_id: BATCH },
     restrictions: { first_time_transaction: false },
@@ -164,18 +165,76 @@ test("non-string promotion inputs are rejected without any provider call", async
   });
 });
 
-test("native lookup quotas cover both endpoints and aliases without blocking the normal price", async () => {
+for (const code of [CODE, "ZX7Q2K"])
+test(`native ${code.length}-character lookup quotas cover both endpoints and aliases without blocking the normal price`, async () => {
   await fixture(async ({ post, calls, setPromotion }) => {
     setPromotion(null);
     for (let i = 0; i < 30; i++) {
-      const code = i % 2 ? "fake-code 1200" : CODE;
-      assert.equal((await post("/api/public/price-quote", { promoCode: code })).status, 200);
+      const alias = i % 2 ? code.toLowerCase().slice(0, 3) + "- " + code.toLowerCase().slice(3) : code;
+      assert.equal((await post("/api/public/price-quote", { promoCode: alias })).status, 200);
     }
-    const blocked = await post("/api/public/checkout-session", { promoCode: CODE });
+    const blocked = await post("/api/public/checkout-session", { promoCode: code });
     assert.equal(blocked.status, 429);
     assert.ok(Number(blocked.headers.get("retry-after")) > 0);
     assert.equal(calls.length, 30);
     assert.equal((await post("/api/public/price-quote", {})).payload.quote.totalCents, 1800);
     assert.equal(calls.length, 30);
+  });
+});
+
+test("six-character reductions retain the private 8 EUR quote, verified native Checkout and stale-price guard", async () => {
+  await fixture(async ({ post, setPromotion, calls, store }) => {
+    const code = "ZX7Q2K";
+    setPromotion(promotion(code));
+    const before = JSON.stringify(await store.load());
+    const quote = await post("/api/public/price-quote", { promoCode: "zx-7q 2k" });
+    assert.equal(quote.status, 200);
+    assert.equal(quote.payload.quote.valid, true);
+    assert.equal(quote.payload.quote.totalCents, 800);
+    assert.equal(quote.headers.get("cache-control"), "no-store");
+    assert.doesNotMatch(JSON.stringify(quote.payload), /ZX7Q2K|promo_fake_route|coupon_fake_route/i);
+    const stale = await post("/api/public/checkout-session", { promoCode: code, expectedTotalCents: 1800, expectedCurrency: "eur" });
+    assert.equal(stale.status, 409);
+    assert.equal(stale.payload.code, "PRICING_CHANGED");
+    assert.equal(calls.filter(call => call.method === "POST").length, 0);
+    const checkout = await post("/api/public/checkout-session", { promoCode: code, expectedTotalCents: 800, expectedCurrency: "eur" });
+    assert.equal(checkout.status, 201);
+    const created = calls.find(call => call.method === "POST");
+    assert.equal(created.body["line_items[0][price_data][unit_amount]"], "1800");
+    assert.equal(created.body["discounts[0][promotion_code]"], PROMO);
+    assert.equal(created.body["metadata[pricing_total_cents]"], "800");
+    assert.equal(created.body["metadata[pricing_discount_cents]"], "1000");
+    assert.equal(JSON.stringify(await store.load()), before);
+  });
+});
+
+test("a registered short free invitation is never silently reinterpreted as a reduction", async () => {
+  await fixture(async ({ post, setPromotion, store, calls }) => {
+    const code = "ZX7Q2K";
+    await store.transact(state => state.accessCodes.push({ id: "code_existing_gift", hash: hashAccessCode(code), usedAt: null, revokedAt: null, expiresAt: null }));
+    setPromotion(null);
+    const before = JSON.stringify(await store.load());
+    const quote = await post("/api/public/price-quote", { promoCode: code });
+    assert.equal(quote.status, 200);
+    assert.equal(quote.payload.quote.valid, false);
+    const checkout = await post("/api/public/checkout-session", { promoCode: code });
+    assert.equal(checkout.status, 400);
+    assert.equal(checkout.payload.code, "unknown_promo_code");
+    assert.equal(calls.filter(call => call.method === "POST").length, 0);
+    assert.equal(JSON.stringify(await store.load()), before);
+  });
+});
+
+test("short native lookup service quota also bounds changing client addresses before contacting Stripe", async () => {
+  await fixture(async ({ post, setPromotion, calls }) => {
+    setPromotion(null);
+    for (let index = 0; index < 300; index++) {
+      const result = await post("/api/public/price-quote", { promoCode: "ZX7Q2K" }, { "x-forwarded-for": "192.0.2." + (Math.floor(index / 25) + 1) });
+      assert.equal(result.status, 200);
+    }
+    const blocked = await post("/api/public/checkout-session", { promoCode: "ZX7Q2K" }, { "x-forwarded-for": "192.0.2.99" });
+    assert.equal(blocked.status, 429);
+    assert.equal(calls.length, 300);
+    assert.equal(calls.some(call => call.method === "POST"), false);
   });
 });

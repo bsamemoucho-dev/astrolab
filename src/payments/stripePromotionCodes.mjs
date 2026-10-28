@@ -68,9 +68,10 @@ function eligiblePromotion(promotion, code, live) {
 export async function resolvePromotionQuote({ promoCode, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const quote = quotePrice({ promoCode, env });
   // Existing public/private environment offers retain their exact semantics.
-  // No native lookup for empty, malformed, invitation or legacy-length codes.
+  // The supported lengths do not grant a discount: Stripe provenance, amount
+  // and single-use quota still decide whether a code is eligible.
   const code = normalizePromoCode(promoCode);
-  if (quote.valid || quote.reason !== "unknown" || !/^[a-z0-9]{12}$/.test(code)) return quote;
+  if (quote.valid || quote.reason !== "unknown" || !/^(?:[a-z0-9]{6}|[a-z0-9]{12})$/.test(code)) return quote;
   // This batch is explicitly 18 EUR less 10 EUR. Do not silently change its
   // commercial terms if a later deployment uses another price or currency.
   if (quote.baseCents !== BASE_CENTS || quote.currency !== "eur") return quote;

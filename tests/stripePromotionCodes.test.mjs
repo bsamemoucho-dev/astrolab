@@ -5,11 +5,12 @@ import { createEmbeddedCheckoutSession, lastStripeFailure } from "../src/payment
 
 // Fictional test-only code and Stripe objects, never provisioned in Stripe.
 const CODE = "ABCDEF123456";
+const SHORT_CODE = "ZX7Q2K";
 const BATCH = "11111111-1111-4111-8111-111111111111";
 const ENV = { STRIPE_SECRET_KEY: "sk_test_FAKE123", STRIPE_PUBLISHABLE_KEY: "pk_test_FAKE123" };
-function promotion() {
+function promotion(code = CODE) {
   return {
-    id: "promo_fake123", object: "promotion_code", active: true, code: CODE,
+    id: "promo_fake123", object: "promotion_code", active: true, code,
     metadata: { purpose: "lastro_reading_discount", batch_id: BATCH },
     customer: null, expires_at: null, livemode: false, max_redemptions: 1, times_redeemed: 0,
     restrictions: { first_time_transaction: false, minimum_amount: null, minimum_amount_currency: null },
@@ -66,7 +67,7 @@ test("native quote uses pinned read-only case-insensitive lookup and exact 18 mi
 
 test("legacy environment offers and non-native inputs never query Stripe", async () => {
   const fetchImpl = async () => assert.fail("no native lookup");
-  for (const promoCode of ["", "unknown", "ABCDEF", "ABCDEF1234567890", "bad<script>!"])
+  for (const promoCode of ["", "ABCDE", "unknown", "ABCDEFGHIJK", "ABCDEFGHIJKLM", "ABCDEF1234567890", "bad<script>!"])
     await resolvePromotionQuote({ promoCode, env: ENV, fetchImpl });
   const quote = await resolvePromotionQuote({ promoCode: CODE, env: { ...ENV, ASTROLAB_PROMO_CODES: `${CODE}=100` }, fetchImpl });
   assert.equal(quote.totalCents, 100);
@@ -74,6 +75,33 @@ test("legacy environment offers and non-native inputs never query Stripe", async
   const publicQuote = await resolvePromotionQuote({ promoCode: CODE, env: { ...ENV, ASTROLAB_PROMO_CODE: CODE, ASTROLAB_PROMO_DISCOUNT_CENTS: "200" }, fetchImpl });
   assert.equal(publicQuote.totalCents, 1600);
   assert.equal(publicQuote.appliedIsPublic, true);
+});
+
+test("six-character native reduction is read-only and keeps the exact one-use 18 minus 10 EUR policy", async () => {
+  let calls = 0;
+  const quote = await resolvePromotionQuote({ promoCode: " zX-7q 2K ", env: ENV, fetchImpl: async (url, init) => {
+    calls++;
+    assert.equal(new URL(url).searchParams.get("code"), SHORT_CODE.toLowerCase());
+    assert.equal(init.method, "GET");
+    assert.equal(init.body, undefined);
+    assert.equal(init.headers["Stripe-Version"], STRIPE_PROMOTION_API_VERSION);
+    return success(list([promotion(SHORT_CODE)]));
+  }});
+  assert.equal(calls, 1);
+  assert.equal(quote.valid, true);
+  assert.equal(quote.baseCents, 1800);
+  assert.equal(quote.discountCents, 1000);
+  assert.equal(quote.totalCents, 800);
+  assert.equal(quote.stripePromotionCodeId, "promo_fake123");
+});
+
+test("a short gift or an unknown code does not become a native reduction merely by its length", async () => {
+  for (const entries of [[], [{ ...promotion(SHORT_CODE), metadata: { purpose: "gift", batch_id: BATCH } }]]) {
+    const quote = await resolvePromotionQuote({ promoCode: SHORT_CODE, env: ENV, fetchImpl: async () => success(list(entries)) });
+    assert.equal(quote.valid, false);
+    assert.equal(quote.reason, "unknown");
+    assert.equal(quote.stripePromotionCodeId, undefined);
+  }
 });
 
 const invalidCases = {
@@ -111,9 +139,10 @@ const invalidCases = {
   "coupon currencies": (p) => { p.coupon.currency_options = { eur: { amount_off: 1100 } }; },
   "unexpanded coupon": (p) => { p.coupon = "coupon_fake123"; }
 };
-for (const [name, mutate] of Object.entries(invalidCases)) test(`reject native code: ${name}`, async () => {
-  const entry = promotion(); mutate(entry);
-  const quote = await lookup(entry);
+for (const code of [CODE, SHORT_CODE])
+for (const [name, mutate] of Object.entries(invalidCases)) test(`reject native ${code.length}-character code: ${name}`, async () => {
+  const entry = promotion(code); mutate(entry);
+  const quote = await lookup(entry, { promoCode: code });
   assert.equal(quote.valid, false);
   assert.equal(quote.reason, "unknown");
   assert.equal(quote.stripePromotionCodeId, undefined);
