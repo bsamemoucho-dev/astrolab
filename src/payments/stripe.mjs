@@ -22,12 +22,12 @@ export const MAX_AMOUNT_CENTS = 99999999; // 999 999,99 € — plafond techniqu
 const SECRET_PREFIXES = ["sk_live_", "sk_test_", "rk_live_", "rk_test_"];
 const PUBLISHABLE_PREFIXES = ["pk_live_", "pk_test_"];
 
-function rawSecret() {
-  return String(process.env.STRIPE_SECRET_KEY ?? "");
+function rawSecret(env = process.env) {
+  return String(env.STRIPE_SECRET_KEY ?? "");
 }
 
-function rawPublishable() {
-  return String(process.env.STRIPE_PUBLISHABLE_KEY ?? "");
+function rawPublishable(env = process.env) {
+  return String(env.STRIPE_PUBLISHABLE_KEY ?? "");
 }
 
 // Une clé recopiée depuis le tableau de bord Stripe arrive parfois avec un
@@ -42,9 +42,9 @@ function cleanKey(value) {
 }
 
 // Problèmes qui rendent le paiement réellement inutilisable.
-export function stripeKeyProblem() {
-  const secret = cleanKey(rawSecret());
-  const publishable = cleanKey(rawPublishable());
+export function stripeKeyProblem(env = process.env) {
+  const secret = cleanKey(rawSecret(env));
+  const publishable = cleanKey(rawPublishable(env));
   if (!secret && !publishable) {
     return null;
   }
@@ -113,19 +113,19 @@ function recordFailure(message) {
   lastFailure = { at: new Date().toISOString(), message: String(message ?? "").slice(0, 300) };
 }
 
-export function stripeConfiguration() {
-  if (stripeKeyProblem()) {
+export function stripeConfiguration(env = process.env) {
+  if (stripeKeyProblem(env)) {
     return null;
   }
-  const secretKey = cleanKey(rawSecret());
-  const publishableKey = cleanKey(rawPublishable());
+  const secretKey = cleanKey(rawSecret(env));
+  const publishableKey = cleanKey(rawPublishable(env));
   if (!secretKey || !publishableKey) {
     return null;
   }
   return {
     secretKey,
     publishableKey,
-    currency: (process.env.STRIPE_CURRENCY?.trim() || "eur").toLowerCase()
+    currency: (env.STRIPE_CURRENCY?.trim() || "eur").toLowerCase()
   };
 }
 
@@ -133,7 +133,7 @@ export function stripeEnabled() {
   return Boolean(stripeConfiguration());
 }
 
-async function stripeRequest(config, path, { method = "GET", body = null } = {}) {
+async function stripeRequest(config, path, { method = "GET", body = null, hideProviderDetails = false } = {}) {
   let response;
   try {
     response = await fetch(`${STRIPE_API}${path}`, {
@@ -150,16 +150,23 @@ async function stripeRequest(config, path, { method = "GET", body = null } = {})
     );
     error.status = 502;
     error.publicMessage = "Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.";
-    error.cause = cause;
-    recordFailure(`${error.message} (${cause?.message ?? cause})`);
+    if (!hideProviderDetails) error.cause = cause;
+    recordFailure(hideProviderDetails ? error.message : `${error.message} (${cause?.message ?? cause})`);
     throw error;
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = data?.error?.message ?? `Stripe request failed (${response.status})`;
+    const message = hideProviderDetails
+      ? "Impossible d’appliquer le code promotionnel au paiement. Merci de vérifier le code ou de réessayer plus tard."
+      : data?.error?.message ?? `Stripe request failed (${response.status})`;
     const error = new Error(message);
     error.status = 502;
     error.publicMessage = "Le paiement est momentanément indisponible. Merci de réessayer dans quelques minutes.";
+    if (hideProviderDetails) {
+      error.code = "PROMOTION_CHECKOUT_FAILED";
+      error.publicMessage = message;
+      error.retryableCheckoutParameter = ["ui_mode", "excluded_payment_method_types", "excluded_payment_method_types[0]"].includes(data?.error?.param);
+    }
     recordFailure(message);
     throw error;
   }
@@ -172,7 +179,7 @@ async function stripeRequest(config, path, { method = "GET", body = null } = {})
 // est épinglé à une version d'API antérieure.
 const EMBEDDED_UI_MODES = ["embedded_page", "embedded"];
 
-export async function createEmbeddedCheckoutSession({ amountCents, label, metadata = null }) {
+export async function createEmbeddedCheckoutSession({ amountCents, label, metadata = null, baseAmountCents = null, stripePromotionCodeId = null }) {
   const config = stripeConfiguration();
   if (!config) {
     const error = new Error("Le paiement n'est pas configuré sur ce site.");
@@ -190,6 +197,19 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
     error.status = 400;
     throw error;
   }
+  const nativePromotion = stripePromotionCodeId !== null && stripePromotionCodeId !== undefined;
+  if (nativePromotion && (!/^promo_[A-Za-z0-9_]+$/.test(stripePromotionCodeId)
+    || !Number.isSafeInteger(amountCents) || !Number.isSafeInteger(baseAmountCents)
+    || baseAmountCents !== 1800 || amountCents !== 800 || config.currency !== "eur")) {
+    const error = new Error("Configuration de réduction invalide.");
+    error.status = 400;
+    error.code = "PROMOTION_CHECKOUT_INVALID";
+    throw error;
+  }
+  // Native discounts apply to the FULL line price. Passing the discounted
+  // total here would apply the 10 EUR twice. amountCents remains the immutable
+  // server quote and is checked against Stripe's calculated total below.
+  const lineAmount = nativePromotion ? baseAmountCents : amount;
   // Paramètres configurés dans Checkout Studio (valeurs fixées par l'interface).
   // `mode` et les lignes de commande restent ceux du produit : paiement unique,
   // montant calculé par le serveur.
@@ -210,9 +230,10 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
     "payment_method_types[0]": "card",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": config.currency,
-    "line_items[0][price_data][unit_amount]": String(amount),
-    "line_items[0][price_data][product_data][name]": label ?? "Lecture symbolique Lastro"
+    "line_items[0][price_data][unit_amount]": String(lineAmount),
+    "line_items[0][price_data][product_data][name]": nativePromotion ? "Lecture symbolique personnalisée (Lastro)" : label ?? "Lecture symbolique Lastro"
   };
+  if (nativePromotion) common["discounts[0][promotion_code]"] = stripePromotionCodeId;
   // Marque du produit sur la session : c'est elle qui permet, côté serveur, de
   // refuser une session payée pour autre chose sur le même compte Stripe.
   for (const [cle, valeur] of Object.entries(metadata ?? {})) {
@@ -239,17 +260,28 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
   let lastError = null;
   for (const body of variantes) {
     try {
-      data = await stripeRequest(config, "/checkout/sessions", { method: "POST", body });
+      data = await stripeRequest(config, "/checkout/sessions", { method: "POST", body, hideProviderDetails: nativePromotion });
       break;
     } catch (error) {
       lastError = error;
-      if (!/ui_mode|excluded_payment_method_types/i.test(error.message)) {
+      if (!error.retryableCheckoutParameter && !/ui_mode|excluded_payment_method_types/i.test(error.message)) {
         throw error;
       }
     }
   }
-  if (!data) {
+  if (!data && (!nativePromotion || lastError)) {
     throw lastError;
+  }
+  if (nativePromotion && (data?.amount_total !== amount || data?.amount_subtotal !== lineAmount
+    || data?.total_details?.amount_discount !== 1000 || data?.currency !== config.currency
+    || typeof data?.id !== "string" || !/^cs_[A-Za-z0-9_]+$/.test(data.id)
+    || typeof data?.client_secret !== "string" || !data.client_secret)) {
+    const error = new Error("Le montant du paiement ne correspond pas à la réduction confirmée.");
+    error.status = 502;
+    error.code = "PROMOTION_CHECKOUT_TOTAL_MISMATCH";
+    error.publicMessage = "Le paiement n’a pas pu être préparé avec cette réduction. Aucun paiement n’a été lancé.";
+    recordFailure(error.message);
+    throw error;
   }
   return {
     sessionId: data.id,

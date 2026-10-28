@@ -233,14 +233,17 @@ test("le site n'a plus de montant libre, et parle des neuf langues", () => {
   assert.doesNotMatch(page, /data-amount=/);
   assert.doesNotMatch(page, /id="price-slider"/);
   assert.doesNotMatch(source, /bindPriceSlider/);
-  // Aucun champ promo n'est affiché dans le parcours public : l'interface reste
-  // simplement à 18 €.
-  assert.doesNotMatch(page, /id="pay-promo"/);
-  assert.doesNotMatch(page, /Code promo|Code éventuel/);
+  // A discount is optional and separate from the existing free invitation.
+  assert.match(page, /id="pay-promo"/);
+  assert.match(page, /id="pay-promo-check" type="button"/);
+  assert.match(page, /id="test-code"/);
+  assert.match(page, /Code de réduction \(facultatif\)/);
   assert.match(page, /id="pay-price-base" hidden/);
   assert.match(source, /\/api\/public\/price-quote/);
-  assert.doesNotMatch(source, /promoInput/);
-  assert.match(source, /promoCode: ""/);
+  assert.match(source, /promoQuotes\.prepareCheckout\(\)/);
+  assert.match(source, /promoCode: confirmed\.promoCode/);
+  assert.match(source, /expectedTotalCents: confirmed\.quote\.totalCents/);
+  assert.match(source, /expectedCurrency: confirmed\.quote\.currency/);
   assert.match(source, /base\.hidden = !hasDiscount/);
   // Le corps envoyé au paiement ne porte aucun montant : cherché dans la requête
   // elle-même, pas dans tout le fichier (la vue commerciale a ses propres tarifs).

@@ -506,6 +506,14 @@
                   </div>
                   <p class="pay-hint" id="pay-price-note" hidden></p>
                 </div>
+                <div class="promo-code-box">
+                  <label for="pay-promo" id="pay-promo-label">Code de réduction (facultatif)</label>
+                  <div class="promo-code-row">
+                    <input id="pay-promo" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="pay-promo-status">
+                    <button id="pay-promo-check" type="button" class="secondary" disabled>Vérifier</button>
+                  </div>
+                  <p id="pay-promo-status" class="pay-hint" role="status" aria-live="polite" aria-atomic="true">Ce code réduit le prix. Les invitations gratuites se saisissent séparément ci-dessous.</p>
+                </div>
                 <div class="ai-notice">
                   <strong id="ai-notice-title">Texte généré par une intelligence artificielle</strong>
                   <span id="ai-notice-text">Votre lecture est rédigée automatiquement à partir de vos données de naissance, dont le calcul est vérifié. Chaque section est confrontée automatiquement aux faits calculés (positions, aspects, maisons, dates) et reprise si elle les contredit ; aucune relecture humaine n'a lieu. Une IA peut néanmoins se tromper, mal interpréter ou inventer une nuance : c'est un outil de réflexion, pas une vérité, ni un diagnostic, ni une prédiction d'événements.</span>
@@ -517,10 +525,10 @@
                 <button id="pay-start" class="pay-button" type="button" disabled>Continuer vers le paiement →</button>
                 <div id="test-code-box" class="test-code-box" hidden>
                   <p class="test-code-toggle-line">
-                    <button type="button" id="test-code-toggle" class="link-button" hidden>J'ai un code</button>
+                    <button type="button" id="test-code-toggle" class="link-button" hidden>J’ai une invitation gratuite</button>
                   </p>
                   <div id="test-code-fields" hidden>
-                    <label for="test-code"><span id="test-code-label">Code</span>
+                    <label for="test-code"><span id="test-code-label">Invitation gratuite</span>
                       <input id="test-code" type="text" autocomplete="off" spellcheck="false" placeholder="Collez votre code">
                     </label>
                     <p class="pay-hint" id="test-code-hint">Ce code remplace le paiement. Il n'est valable qu'une fois.</p>
