@@ -1,0 +1,43 @@
+/* Isolated welcome card: the existing forms, price and guest layout stay in charge. */
+.seasonal-sky[hidden], body:not(.guest) .seasonal-sky { display: none !important; }
+.seasonal-sky {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 26px;
+  max-width: 980px;
+  margin: 0 auto 26px;
+  padding: 25px 30px;
+  border: 1px solid #e6ddcc;
+  border-radius: 22px;
+  background: linear-gradient(110deg, #f5ecda, #fffdf8 55%, #fff);
+  color: #283044;
+}
+.seasonal-sky-emblem {
+  width: 104px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  color: #8e682d;
+}
+.seasonal-sky-emblem svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.seasonal-sky-symbol { font-family: Georgia, "Times New Roman", serif; font-size: 2.5rem; line-height: 1; }
+.seasonal-sky-copy { min-width: 0; }
+.seasonal-sky .seasonal-sky-kicker { margin: 0 0 4px; color: #806134; font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.seasonal-sky h2 { font-family: var(--serif, Georgia, serif); font-size: clamp(1.8rem, 5vw, 2.3rem); font-weight: 500; line-height: 1.15; margin: 0 0 7px; color: #283044; }
+.seasonal-sky .seasonal-sky-fact { margin: 0; color: #384153; font-size: .98rem; line-height: 1.6; }
+.seasonal-sky .seasonal-sky-invitation { margin: 5px 0 0; color: #5b6170; font-size: .91rem; line-height: 1.6; }
+.seasonal-sky-footer { margin-top: 10px; display: flex; align-items: center; gap: 8px 20px; flex-wrap: wrap; }
+.seasonal-sky-date { color: #666b76; font-size: .75rem; }
+.seasonal-sky a { font-size: .9rem; color: #79571e; text-underline-offset: 4px; font-weight: 600; }
+.seasonal-sky a:hover { color: #3e301b; }
+.seasonal-sky a:focus-visible { outline: 2px solid #956d2b; outline-offset: 5px; border-radius: 2px; }
+@media (max-width: 600px) {
+  .seasonal-sky { grid-template-columns: 64px minmax(0, 1fr); align-items: start; gap: 15px; padding: 21px 18px; border-radius: 18px; margin-bottom: 20px; }
+  .seasonal-sky-emblem { width: 64px; height: 64px; margin-top: 6px; }
+  .seasonal-sky-symbol { font-size: 1.8rem; }
+  .seasonal-sky-footer { align-items: flex-start; gap: 10px; }
+  .seasonal-sky-date { width: 100%; }
+}
+@media print { .seasonal-sky { break-inside: avoid; background: white; } }

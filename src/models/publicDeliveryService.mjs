@@ -14,7 +14,8 @@
 
 import { randomBytes, randomUUID } from "node:crypto";
 
-import { consumeAccessCode, markAccessCodeUsed } from "./accessCodeService.mjs";
+import { consumeAccessCode, consumeAccessCodeById, markAccessCodeUsed } from "./accessCodeService.mjs";
+import { invitationForAccessCode, requireInvitation } from "./emailInvitationService.mjs";
 
 // Alphabet de 32 caractères (ni I, ni O, ni 0, ni 1 : illisibles au téléphone).
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -157,18 +158,61 @@ export async function purgeExpiredDeliveries(store, now = Date.now()) {
 // simultanées passer toutes les deux.
 export async function createPaidDelivery(
   store,
-  { paymentSessionId, email, amountCents, currency, language, input, freeAccess = false, accessCode = null, sharedFreeAccessQuota = false, sharedFreeAccessQuotaKey = null } = {},
+  { paymentSessionId, email, amountCents, currency, language, input, freeAccess = false, accessCode = null, invitationToken = null, sharedFreeAccessQuota = false, sharedFreeAccessQuotaKey = null } = {},
   now = Date.now()
 ) {
   return store.transact((state) => {
     const session = String(paymentSessionId ?? "").trim();
+    let invitation = invitationToken === null ? null : requireInvitation(state, invitationToken, { email: email ?? "", now });
+    if (invitation?.usedAt) {
+      const previous = state.publicReadings.find(delivery => delivery.id === invitation.deliveryId
+        && delivery.reference === invitation.deliveryReference && delivery.emailInvitationId === invitation.id);
+      if (!previous || Date.parse(previous.expiresAt) <= now) {
+        throw Object.assign(new Error("La durée de conservation de cette lecture est terminée."), {
+          code: "INVITATION_DELIVERY_EXPIRED", status: 410, expected: true
+        });
+      }
+      return { created: false, delivery: previous };
+    }
     const existing = session
       ? state.publicReadings.find((delivery) => delivery.paymentSessionId === session)
       : null;
     if (existing) {
+      if (invitation && existing.emailInvitationId !== invitation.id) {
+        throw Object.assign(new Error("Ce paiement correspond à une autre lecture."), {
+          code: "INVITATION_PAYMENT_MISMATCH", status: 409, expected: true
+        });
+      }
       return { created: false, delivery: existing };
     }
-    const entreeCode = accessCode ? consumeAccessCode(state, accessCode, now) : null;
+    let entreeCode = accessCode ? consumeAccessCode(state, accessCode, now) : null;
+    if (entreeCode) {
+      if (invitation && invitation.accessCodeId !== entreeCode.id) {
+        throw Object.assign(new Error("Ce code correspond à une autre invitation."), {
+          code: "INVITATION_GRANT_MISMATCH", status: 403, expected: true
+        });
+      }
+      const assigned = invitationForAccessCode(state, entreeCode, { email, now });
+      if (assigned && invitation && assigned.id !== invitation.id) {
+        throw Object.assign(new Error("Ce code correspond à une autre invitation."), {
+          code: "INVITATION_GRANT_MISMATCH", status: 403, expected: true
+        });
+      }
+      invitation ??= assigned;
+    }
+    if (invitation) {
+      const expectedSession = invitation.checkoutSessionId ?? invitation.checkout?.sessionId ?? null;
+      const euro = String(currency ?? "").toLowerCase() === "eur";
+      const free = invitation.kind === "free" && freeAccess === true && !session && amountCents === 0 && euro;
+      const discounted = invitation.kind === "discount10" && freeAccess === false && session && session === expectedSession
+        && amountCents === 800 && euro && !entreeCode;
+      if (!free && !discounted) {
+        throw Object.assign(new Error("L'avantage ne correspond pas à cette lecture."), {
+          code: "INVITATION_PAYMENT_MISMATCH", status: 403, expected: true
+        });
+      }
+      if (free) entreeCode = consumeAccessCodeById(state, invitation.accessCodeId, now);
+    }
     const createdAt = nowIso(now);
     const delivery = {
       id: store.id("reading"),
@@ -184,6 +228,7 @@ export async function createPaidDelivery(
       sharedFreeAccessQuotaKey: sharedFreeAccessQuotaKey ? String(sharedFreeAccessQuotaKey).slice(0, 120) : null,
       // Traçabilité : on saura quelle source a ouvert cette lecture gratuite.
       accessCodeId: entreeCode?.id ?? null,
+      ...(invitation ? { emailInvitationId: invitation.id } : {}),
       status: "queued",
       input: input ?? null,
       reading: null,
@@ -205,6 +250,12 @@ export async function createPaidDelivery(
     };
     state.publicReadings.push(delivery);
     markAccessCodeUsed(entreeCode, { reference: delivery.reference, now });
+    if (invitation) {
+      invitation.usedAt = createdAt;
+      invitation.deliveryId = delivery.id;
+      invitation.deliveryReference = delivery.reference;
+      if (session) invitation.paymentSessionId = session;
+    }
     purgeExpired(state, now);
     return { created: true, delivery };
   });

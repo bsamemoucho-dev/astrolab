@@ -50,6 +50,7 @@ export function renderAdminReadingsPage() {
 <body>
   <header>
     <h1>Lectures publiques</h1>
+    <p><a href="/rouflaquette/invitations">Invitations par e-mail</a></p>
     <div class="metrics" id="metrics"></div>
   </header>
   <main>

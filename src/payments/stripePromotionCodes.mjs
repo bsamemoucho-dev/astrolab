@@ -36,7 +36,7 @@ function compatibleCouponCurrencies(value) {
     && Object.keys(value).length === 1 && value.eur?.amount_off === DISCOUNT_CENTS);
 }
 
-function eligiblePromotion(promotion, code, live) {
+export function eligiblePromotion(promotion, code, live) {
   if (!promotion || promotion.object !== "promotion_code"
     || !/^promo_[A-Za-z0-9_]+$/.test(promotion.id ?? "")
     || typeof promotion.code !== "string" || promotion.code.toLowerCase() !== code
@@ -63,6 +63,34 @@ function eligiblePromotion(promotion, code, live) {
     || !Number.isInteger(coupon.times_redeemed) || coupon.times_redeemed < 0
     || coupon.times_redeemed >= coupon.max_redemptions) return false;
   return true;
+}
+
+// The invitation stores a server-selected promotion ID, never a public code.
+// Resolve it with the same native eligibility rules as the ordinary checkout.
+export async function resolvePromotionQuoteById({ promotionCodeId, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+  const unavailable = () => Object.assign(new Error("Cette réduction n’est plus disponible. Aucun paiement n’a été ouvert."), {
+    status: 409, code: "INVITATION_DISCOUNT_UNAVAILABLE", expected: true
+  });
+  if (!/^promo_[A-Za-z0-9_]+$/.test(promotionCodeId ?? "")) throw unavailable();
+  const quote = quotePrice({ promoCode: "", env });
+  if (quote.baseCents !== BASE_CENTS || quote.totalCents !== BASE_CENTS || quote.currency !== "eur") throw unavailable();
+  const config = stripeConfiguration(env);
+  if (!config || typeof fetchImpl !== "function") throw providerUnavailable();
+  let promotion;
+  try {
+    const response = await fetchImpl(`${STRIPE_PROMOTIONS_URL}/${encodeURIComponent(promotionCodeId)}`, {
+      method: "GET", redirect: "error",
+      headers: { Authorization: `Bearer ${config.secretKey}`, "Stripe-Version": STRIPE_PROMOTION_API_VERSION },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response?.ok) throw providerUnavailable();
+    promotion = await response.json();
+  } catch { throw providerUnavailable(); }
+  const code = normalizePromoCode(promotion?.code);
+  if (promotion?.id !== promotionCodeId || !/^(?:[a-z0-9]{6}|[a-z0-9]{12})$/.test(code)
+      || !eligiblePromotion(promotion, code, config.secretKey.includes("_live_"))) throw unavailable();
+  return { ...quote, discountCents: DISCOUNT_CENTS, totalCents: BASE_CENTS - DISCOUNT_CENTS,
+    appliedCode: code, appliedIsPublic: false, valid: true, reason: "applied", stripePromotionCodeId: promotion.id };
 }
 
 export async function resolvePromotionQuote({ promoCode, env = process.env, fetchImpl = globalThis.fetch } = {}) {

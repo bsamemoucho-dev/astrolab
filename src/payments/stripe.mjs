@@ -133,13 +133,14 @@ export function stripeEnabled() {
   return Boolean(stripeConfiguration());
 }
 
-async function stripeRequest(config, path, { method = "GET", body = null, hideProviderDetails = false } = {}) {
+async function stripeRequest(config, path, { method = "GET", body = null, hideProviderDetails = false, idempotencyKey = null } = {}) {
   let response;
   try {
     response = await fetch(`${STRIPE_API}${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${config.secretKey}`,
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
         ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {})
       },
       body: body ? new URLSearchParams(body).toString() : undefined
@@ -179,7 +180,7 @@ async function stripeRequest(config, path, { method = "GET", body = null, hidePr
 // est épinglé à une version d'API antérieure.
 const EMBEDDED_UI_MODES = ["embedded_page", "embedded"];
 
-export async function createEmbeddedCheckoutSession({ amountCents, label, metadata = null, baseAmountCents = null, stripePromotionCodeId = null }) {
+export async function createEmbeddedCheckoutSession({ amountCents, label, metadata = null, baseAmountCents = null, stripePromotionCodeId = null, idempotencyKey = null, customerEmail = null }) {
   const config = stripeConfiguration();
   if (!config) {
     const error = new Error("Le paiement n'est pas configuré sur ce site.");
@@ -198,6 +199,13 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
     throw error;
   }
   const nativePromotion = stripePromotionCodeId !== null && stripePromotionCodeId !== undefined;
+  if (idempotencyKey !== null && !/^[A-Za-z0-9:_-]{1,180}$/.test(idempotencyKey)) {
+    throw Object.assign(new Error("Clé de reprise du paiement invalide."), { status: 400, code: "INVALID_CHECKOUT_IDEMPOTENCY_KEY" });
+  }
+  if (customerEmail !== null && (typeof customerEmail !== "string" || customerEmail.length > 254
+      || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail))) {
+    throw Object.assign(new Error("Adresse destinataire invalide."), { status: 400, code: "INVALID_CHECKOUT_RECIPIENT" });
+  }
   if (nativePromotion && (!/^promo_[A-Za-z0-9_]+$/.test(stripePromotionCodeId)
     || !Number.isSafeInteger(amountCents) || !Number.isSafeInteger(baseAmountCents)
     || baseAmountCents !== 1800 || amountCents !== 800 || config.currency !== "eur")) {
@@ -234,6 +242,7 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
     "line_items[0][price_data][product_data][name]": nativePromotion ? "Lecture symbolique personnalisée (Lastro)" : label ?? "Lecture symbolique Lastro"
   };
   if (nativePromotion) common["discounts[0][promotion_code]"] = stripePromotionCodeId;
+  if (customerEmail) common.customer_email = customerEmail;
   // Marque du produit sur la session : c'est elle qui permet, côté serveur, de
   // refuser une session payée pour autre chose sur le même compte Stripe.
   for (const [cle, valeur] of Object.entries(metadata ?? {})) {
@@ -258,9 +267,10 @@ export async function createEmbeddedCheckoutSession({ amountCents, label, metada
 
   let data = null;
   let lastError = null;
-  for (const body of variantes) {
+  for (const [variantIndex, body] of variantes.entries()) {
     try {
-      data = await stripeRequest(config, "/checkout/sessions", { method: "POST", body, hideProviderDetails: nativePromotion });
+      data = await stripeRequest(config, "/checkout/sessions", { method: "POST", body, hideProviderDetails: nativePromotion,
+        idempotencyKey: idempotencyKey ? `${idempotencyKey}:${variantIndex}` : null });
       break;
     } catch (error) {
       lastError = error;

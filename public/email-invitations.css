@@ -1,0 +1,10 @@
+.email-invitation-banner { margin: 0 0 1.5rem; padding: clamp(1.2rem, 3vw, 2rem); background: #fffaf0; border: 1px solid #dfcfb4; border-radius: 20px; color: #24242d; scroll-margin-top: 5rem; }
+.email-invitation-banner h2 { margin: 0 0 .65rem; font-size: clamp(1.3rem, 3vw, 1.8rem); line-height: 1.2; }
+.email-invitation-banner p { margin: .5rem 0; line-height: 1.6; }
+.email-invitation-banner .hint { color: #67625b; font-size: .9rem; }
+.email-invitation-banner a { display: inline-flex; margin-top: .7rem; padding: .75rem 1rem; border-radius: 999px; background: #29293a; color: #fff; text-decoration: none; }
+.email-invitation-banner a:focus-visible { outline: 3px solid #a6793f; outline-offset: 4px; }
+#express-form input[readonly] { background: #f5f1ea; color: #4d4943; }
+@media print { .email-invitation-banner { display: none; } }
+
+.email-invitation-exit { display:block; margin-top:1rem; }
