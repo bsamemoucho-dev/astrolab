@@ -18,6 +18,11 @@ import { resolvePlaceForEntry, searchPlacesForEntryDetailed } from "../geo/place
 import { renderCielEventPageBySlug, renderCielHomePage, renderCielOctober2026Page } from "../models/cielService.mjs";
 import { getAdminSummary, listAdminAuditLogs, listAdminReadings, resendAdminReadingEmail } from "../models/adminService.mjs";
 import { renderAdminReadingsPage } from "./adminReadingsPage.mjs";
+import { renderAdminInvitationsPage } from "./adminInvitationsPage.mjs";
+import { buildSeasonalSky } from "../astro/seasonalSky.mjs";
+import { createEmailInvitation, listAdminEmailInvitations, requireInvitation, invitationForAccessCode, INVITATION_EMAIL_TYPE } from "../models/emailInvitationService.mjs";
+import { createInvitationCheckout, resolveEmailInvitation } from "../models/invitationCheckoutService.mjs";
+import { readPromotionInventory } from "../payments/promotionInventory.mjs";
 import { importAdminAccessCodeBatch, readAdminAccessCodeBatch } from "../models/adminAccessCodes.mjs";
 import { createAnalysis, getAnalysis, listAnalyses } from "../models/analysisService.mjs";
 import { consumeCredits, createDevelopmentCreditOrder, getCommerceSummary } from "../models/commerceService.mjs";
@@ -259,6 +264,8 @@ export function createApp(options = {}) {
     // retain their local path; both public endpoints share these lookup limits.
     reductionsParClient: createRateLimiter({ windowMs: 60 * 1000, max: 30 }),
     reductionsService: createRateLimiter({ windowMs: 60 * 1000, max: 300 }),
+    invitationsParClient: createRateLimiter({ windowMs: 60 * 1000, max: 30 }),
+    invitationsService: createRateLimiter({ windowMs: 60 * 1000, max: 300 }),
     // Inscrire envoie un e-mail : la borne protège la boîte visée et le quota.
     // Dix par heure et par client plutôt que cinq : une annonce de lancement fait
     // s'inscrire plusieurs personnes derrière la même adresse (bureau, wifi
@@ -317,7 +324,54 @@ export function createApp(options = {}) {
     }
     limites.reductionsParClient.hit(client);
     limites.reductionsService.hit("service");
-    return resolvePromotionQuote({ promoCode });
+    const resolved = await resolvePromotionQuote({ promoCode });
+    if (resolved.stripePromotionCodeId && (await store.load()).emailInvitations?.some(entry =>
+      !entry.revokedAt && entry.stripePromotionCodeId === resolved.stripePromotionCodeId)) {
+      throw Object.assign(new Error("Cette réduction est réservée à une invitation personnelle. Utilisez le lien reçu par e-mail."), {
+        status: 403, code: "INVITATION_LINK_REQUIRED", expected: true
+      });
+    }
+    return resolved;
+  };
+
+  const invitationInventory = async () => {
+    try {
+      return options.invitationPromotionInventory ? await options.invitationPromotionInventory()
+        : await readPromotionInventory({ stateDir: options.invitationPromotionStateDir });
+    } catch {
+      throw Object.assign(new Error("Le stock de réductions est momentanément indisponible."), { status: 503, code: "INVITATION_STOCK_UNAVAILABLE", expected: true });
+    }
+  };
+  const invitationBaseUrl = (req) => {
+    const configured = publicBaseUrl(req);
+    const url = new URL(configured);
+    return ["lastro.fr", "www.lastro.fr"].includes(url.hostname) ? "https://www.lastro.fr" : configured;
+  };
+  const invitationToken = (req, body, field = "invitationToken") => {
+    if (!Object.hasOwn(body, field)) return null;
+    const client = clientAddress(req);
+    for (const [limiter, key] of [[limites.invitationsParClient, client], [limites.invitationsService, "service"]]) {
+      const limit = limiter.check(key);
+      if (limit.limited) refuseTropDeRequetes(limit, "Trop de vérifications d’invitations rapprochées. Réessayez dans un instant.");
+    }
+    limites.invitationsParClient.hit(client); limites.invitationsService.hit("service");
+    if (typeof body[field] !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(body[field])
+        || [body.promoCode, body.accessCode, body.testCode].some(value => value != null && String(value).trim() !== "")) {
+      throw Object.assign(new Error("L’invitation reçue est invalide."), { status: 400, code: "INVALID_INVITATION_INPUT", expected: true });
+    }
+    return body[field];
+  };
+  const requireInvitationAdminAction = (req) => {
+    let allowed = req.headers["sec-fetch-site"] !== "cross-site";
+    if (req.headers.origin) {
+      try {
+        const origin = new URL(req.headers.origin);
+        allowed = allowed && ["https:", "http:"].includes(origin.protocol) && origin.host === req.headers.host;
+      } catch { allowed = false; }
+    }
+    if (!allowed || req.headers["x-astrolab-admin-action"] !== "send-email-invitation") {
+      throw Object.assign(new Error("Cette action administrateur n’est pas autorisée."), { status: 403, code: "ADMIN_INVITATION_ACTION_REQUIRED", expected: true });
+    }
   };
 
   // Une conversion à la fois, et jamais de HTML arbitraire : on ne rend que le
@@ -513,6 +567,8 @@ export function createApp(options = {}) {
         });
       }
       await flushOutboxWithAlerts();
+      await detectStaleSendingEmails(store, { types: [INVITATION_EMAIL_TYPE] });
+      await flushQueuedEmails(store, { types: [INVITATION_EMAIL_TYPE], send: options.invitationEmailSender ?? sendEmail });
     } catch (error) {
       console.warn(`[Lastro] entretien outbox impossible — ${error.message}`);
     } finally {
@@ -631,6 +687,64 @@ export function createApp(options = {}) {
       });
       res.end(html);
     }),
+    route("GET", /^\/rouflaquette\/invitations\/?$/, async (req, res) => {
+      const user = await requireUser(store, req);
+      await getAdminSummary(store, user);
+      res.writeHead(200, { ...securityHeaders(), "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" });
+      res.end(renderAdminInvitationsPage());
+    }),
+    route("GET", /^\/api\/admin\/email-invitations$/, async (req, res) => {
+      const user = await requireUser(store, req);
+      await getAdminSummary(store, user);
+      let stock = null;
+      try { stock = await invitationInventory(); } catch { /* A missing provider must never advertise available discounts. */ }
+      const result = await listAdminEmailInvitations(store, user, { promotionInventory: stock });
+      const state = await store.load(), available = new Set((stock ?? []).map(item => item.id));
+      for (const row of result.invitations) {
+        if (row.kind !== "discount10" || row.usedAt) continue;
+        const entry = state.emailInvitations?.find(item => item.id === row.id);
+        if (stock !== null && available.has(entry?.stripePromotionCodeId)) continue;
+        let status = stock === null ? "unknown" : "unavailable";
+        const sessionId = entry?.checkoutSessionId ?? entry?.checkout?.sessionId;
+        if (sessionId) {
+          try {
+            const session = await retrieveCheckoutSession(sessionId);
+            if (session.id === sessionId && session.metadata?.invitation_id === entry.id
+                && session.payment_status === "paid" && session.amount_total === 800
+                && session.currency === "eur" && !checkoutSessionProblem(session)) status = "payment_confirmed";
+          } catch { status = "unknown"; }
+        }
+        row.status = status;
+        row.usage.status = status;
+      }
+      sendJson(res, 200, { ...result, ...(stock === null ? { stockWarning: "Le stock de réductions est momentanément indisponible." } : {}) }, { "cache-control": "no-store" });
+    }),
+    route("POST", /^\/api\/admin\/email-invitations$/, async (req, res) => {
+      const user = await requireUser(store, req);
+      await getAdminSummary(store, user);
+      requireInvitationAdminAction(req);
+      if (!emailEnabled()) throw Object.assign(new Error("L’envoi d’e-mails est momentanément indisponible."), { status: 503, code: "INVITATION_EMAIL_UNAVAILABLE", expected: true });
+      const body = await readJson(req);
+      const stock = body.kind === "discount10" ? await invitationInventory() : [];
+      if (body.kind === "discount10") {
+        const price = quotePrice({});
+        if (price.baseCents !== 1800 || price.currency !== "eur") throw Object.assign(new Error("Cette offre ne peut pas être envoyée pour le moment."), { status: 503, code: "INVITATION_OFFER_UNAVAILABLE", expected: true });
+      }
+      const result = await createEmailInvitation(store, user, body, { baseUrl: invitationBaseUrl(req), promotionInventory: stock });
+      // Sending is queued once. A lost HTTP response or another click does not
+      // enqueue a second message or allocate a second grant.
+      void runOutboxMaintenance();
+      sendJson(res, result.created ? 202 : 200, result, { "cache-control": "no-store" });
+    }),
+    route("GET", /^\/api\/public\/seasonal-sky$/, async (_req, res) => {
+      sendJson(res, 200, buildSeasonalSky({ now: options.seasonalNow ?? new Date() }), { "cache-control": "no-cache" });
+    }),
+    route("POST", /^\/api\/public\/invitations\/resolve$/, async (req, res) => {
+      const body = await readJson(req), token = invitationToken(req, body, "token");
+      if (!token) throw Object.assign(new Error("Invitation manquante."), { status: 400, code: "INVALID_INVITATION_INPUT", expected: true });
+      sendJson(res, 200, await resolveEmailInvitation(store, token, { baseUrl: invitationBaseUrl(req) }), { "cache-control": "no-store" });
+    }),
     route("GET", /^\/rouflaquette\/?$/, async (req, res) => {
       const user = await requireUser(store, req);
       await getAdminSummary(store, user);
@@ -667,12 +781,29 @@ export function createApp(options = {}) {
     // Devis public : le site affiche le prix calculé par le serveur, jamais le sien.
     route("POST", /^\/api\/public\/price-quote$/, async (req, res) => {
       const body = await readJson(req);
+      const token = invitationToken(req, body);
+      if (token) {
+        const result = await resolveEmailInvitation(store, token, { baseUrl: invitationBaseUrl(req) });
+        if (result.invitation.status !== "available" || !result.invitation.quote) {
+          throw Object.assign(new Error("Cette invitation n’est plus disponible pour une nouvelle lecture."), { status: 409, code: "INVITATION_UNAVAILABLE", expected: true });
+        }
+        sendJson(res, 200, { quote: result.invitation.quote }, { "cache-control": "no-store" });
+        return;
+      }
       sendJson(res, 200, { quote: publicQuote(await publicPaymentQuote(req, body.promoCode)) }, { "cache-control": "no-store" });
     }),
     // Le montant n'est JAMAIS lu dans la requête : seul un code promo l'est. Un
     // montant glissé par le client est ignoré, pas négocié.
     route("POST", /^\/api\/public\/checkout-session$/, async (req, res) => {
       const body = await readJson(req);
+      const token = invitationToken(req, body);
+      if (token) {
+        if (!llmConfiguration()) throw Object.assign(new Error("La rédaction est momentanément indisponible. Aucun paiement n’a été ouvert."), { status: 503, code: "writer_unavailable", expected: true });
+        sendJson(res, 201, await createInvitationCheckout(store, token, {
+          expectedTotalCents: body.expectedTotalCents, expectedCurrency: body.expectedCurrency, language: body.language
+        }), { "cache-control": "no-store" });
+        return;
+      }
       const quote = await publicPaymentQuote(req, body.promoCode);
       if (quote.reason === "unknown") {
         const error = new Error("Ce code de réduction est invalide ou déjà utilisé. Aucun paiement n’a été ouvert.");
@@ -730,6 +861,8 @@ export function createApp(options = {}) {
     route("POST", /^\/api\/public\/readings$/, async (req, res) => {
       const body = await readJson(req);
       const deliveryEmail = validateDeliveryEmail(body.deliveryEmail);
+      const emailInvitationToken = invitationToken(req, body);
+      let emailInvitation = emailInvitationToken ? requireInvitation(await store.load(), emailInvitationToken, { email: deliveryEmail }) : null;
 
       // Accès gratuit : deux sources, un seul chemin.
       //
@@ -742,7 +875,7 @@ export function createApp(options = {}) {
       // unique a lieu dans la transaction qui crée la livraison (voir
       // `createPaidDelivery`) : c'est le seul endroit où vérifier et consommer ne
       // peuvent pas être séparés par une autre requête.
-      let freeAccess = false;
+      let freeAccess = emailInvitation?.kind === "free";
       let accessCode = null;
       // Le quota ne compte que les lectures réellement accordées : une demande
       // incomplète ne doit pas consommer le quota de quelqu'un.
@@ -782,6 +915,7 @@ export function createApp(options = {}) {
           // rien. Seule la transaction de création fait autorité.
           const controle = checkAccessCode(await store.load(), codeSaisi);
           if (controle.ok) {
+            emailInvitation = invitationForAccessCode(await store.load(), controle.entry, { email: deliveryEmail });
             freeAccess = true;
             accessCode = codeSaisi;
             // Journalisé avec l'identifiant du registre, jamais avec le code.
@@ -832,6 +966,9 @@ export function createApp(options = {}) {
       // ne doit pas brûler le code de quelqu'un. La livraison serait de toute
       // façon enregistrée avant la rédaction, donc le code serait consommé pour
       // une lecture qui ne peut pas être écrite.
+      if (emailInvitation?.kind === "free" && !emailInvitation.usedAt && !llmConfiguration() && !options.publicReadingWriter) {
+        throw Object.assign(new Error("La rédaction est momentanément indisponible. Votre invitation reste disponible."), { status: 503, code: "writer_unavailable", expected: true });
+      }
       if (
         freeAccess ||
         process.env.ASTROLAB_ALLOW_FREE_READINGS === "1" ||
@@ -843,6 +980,9 @@ export function createApp(options = {}) {
       let payment = null;
       let existingDelivery = null;
       const sessionId = String(body.paymentSessionId ?? "").trim();
+      if (emailInvitation?.kind === "free" && sessionId) {
+        throw Object.assign(new Error("Cette invitation offerte ne nécessite aucun paiement."), { status: 400, code: "INVITATION_PAYMENT_MISMATCH", expected: true });
+      }
       if (!freeAccess) {
         // Clés Stripe présentes mais inutilisables (recopie incomplète, modes
         // mélangés…) : on refuse la lecture plutôt que de l'offrir par accident.
@@ -893,6 +1033,9 @@ export function createApp(options = {}) {
           // et qu'elle est prête, on la relivre telle quelle, sans rien régénérer
           // ni redemander de paiement. C'est ce qui rend une perte réparable.
           existingDelivery = await findDeliveryByPaymentSession(store, sessionId);
+          if (emailInvitation && existingDelivery && existingDelivery.emailInvitationId !== emailInvitation.id) {
+            throw Object.assign(new Error("Ce paiement correspond à une autre invitation."), { status: 403, code: "INVITATION_PAYMENT_MISMATCH", expected: true });
+          }
           if (existingDelivery?.status === "ready") {
             const link = deliveryLink(existingDelivery.token, publicBaseUrl(req));
             sendJson(res, 200, {
@@ -904,6 +1047,12 @@ export function createApp(options = {}) {
             return;
           }
           const session = await retrieveCheckoutSession(sessionId);
+          if ((emailInvitation && (emailInvitation.kind !== "discount10"
+                || session.metadata?.invitation_id !== emailInvitation.id
+                || sessionId !== (emailInvitation.checkoutSessionId ?? emailInvitation.checkout?.sessionId)))
+              || (!emailInvitation && session.metadata?.invitation_id)) {
+            throw Object.assign(new Error("Ce paiement doit être utilisé avec son invitation personnelle."), { status: 403, code: "INVITATION_PAYMENT_MISMATCH", expected: true });
+          }
           if (session.payment_status !== "paid") {
             const error = new Error("Le paiement n'est pas encore confirmé. Patientez quelques secondes puis réessayez.");
             error.status = 402;
@@ -944,12 +1093,13 @@ export function createApp(options = {}) {
         const created = await createPaidDelivery(store, {
           paymentSessionId: payment?.sessionId ?? null,
           email: deliveryEmail,
-          amountCents: payment?.amountCents ?? null,
-          currency: payment?.currency ?? null,
+          amountCents: payment?.amountCents ?? (emailInvitation?.kind === "free" ? 0 : null),
+          currency: payment?.currency ?? (emailInvitation?.kind === "free" ? "eur" : null),
           language: body.language ?? null,
           input: storableInput(body),
           freeAccess,
           accessCode,
+          invitationToken: emailInvitationToken,
           sharedFreeAccessQuota: compteQuotaPartage,
           sharedFreeAccessQuotaKey: client
         });
@@ -1515,7 +1665,7 @@ export function createApp(options = {}) {
         // Journalisé tel quel côté serveur : c'est là qu'on lit la vraie cause
         // (Render → Logs), jamais dans la réponse au navigateur.
         const target = String(req.url ?? "");
-        const loggedTarget = /^\/api\/public\/(price-quote|checkout-session)(\?|$)/.test(target) ? target.split("?")[0] : target;
+        const loggedTarget = target.split("?")[0];
         console.error(`[Lastro] ${status} ${req.method} ${loggedTarget} — ${error.message}`, error.cause ?? "");
       }
       const masked = status === 500 || status === 502;

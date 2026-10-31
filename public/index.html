@@ -23,6 +23,7 @@
       }
     </script>
     <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/seasonal-sky.css">
   </head>
   <body class="guest">
     <main class="app-shell">
@@ -461,6 +462,28 @@
           </div>
 
           <div class="express-wrap">
+            <section id="seasonal-sky" class="seasonal-sky" aria-labelledby="seasonal-sky-title" hidden>
+              <div class="seasonal-sky-emblem" aria-hidden="true">
+                <svg viewBox="0 0 104 104" fill="none" focusable="false">
+                  <circle cx="52" cy="52" r="35" stroke="currentColor" stroke-opacity=".35"/>
+                  <circle cx="52" cy="52" r="44" stroke="currentColor" stroke-opacity=".16"/>
+                  <path d="M52 2v9m0 82v9M2 52h9m82 0h9M17 17l6 6m58 58 6 6M17 87l6-6m58-58 6-6" stroke="currentColor" stroke-opacity=".5" stroke-linecap="round"/>
+                </svg>
+                <span id="seasonal-sky-symbol" class="seasonal-sky-symbol"></span>
+              </div>
+              <div class="seasonal-sky-copy">
+                <p id="seasonal-sky-kicker" class="seasonal-sky-kicker"></p>
+                <h2 id="seasonal-sky-title"></h2>
+                <p id="seasonal-sky-fact" class="seasonal-sky-fact"></p>
+                <p id="seasonal-sky-invitation" class="seasonal-sky-invitation"></p>
+                <div class="seasonal-sky-footer">
+                  <time id="seasonal-sky-date" class="seasonal-sky-date"></time>
+                  <a id="seasonal-sky-guide" href="/guides/signes/"></a>
+                  <a id="seasonal-sky-ciel" href="/ciel/"></a>
+                </div>
+              </div>
+            </section>
+
             <form id="express-form" class="panel">
               <h3>Votre lecture</h3>
               <label>Date de naissance <input name="birthDate" type="date" required></label>
@@ -696,5 +719,6 @@
       </section>
     </main>
     <script src="/app.js" type="module"></script>
+    <script src="/seasonal-sky.js" type="module"></script>
   </body>
 </html>

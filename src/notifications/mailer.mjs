@@ -75,7 +75,7 @@ export function verificationEmail(language, code) {
   return { subject: modele.subject, body: modele.body(String(code ?? "")) };
 }
 
-export async function sendEmail({ to, subject, text, html = null }) {
+export async function sendEmail({ to, subject, text, html = null, attachments = null, idempotencyKey = null }) {
   const config = emailConfiguration();
   if (!config) {
     const error = new Error("L'envoi d'e-mails n'est pas configuré sur ce site.");
@@ -87,6 +87,17 @@ export async function sendEmail({ to, subject, text, html = null }) {
     const error = new Error("Adresse e-mail du destinataire manquante ou invalide.");
     error.status = 400;
     throw error;
+  }
+
+  const invitation = idempotencyKey !== null;
+  if (invitation && (typeof idempotencyKey !== "string" || !/^lastro-invitation-inv_[a-f0-9-]{36}$/.test(idempotencyKey))) {
+    throw Object.assign(new Error("Identifiant d'envoi invalide."), { status: 400, code: "INVITATION_EMAIL_INVALID" });
+  }
+  if (attachments !== null && (!invitation || !Array.isArray(attachments) || attachments.length !== 1
+      || attachments[0]?.name !== "invitation-lastro.png" || typeof attachments[0]?.content !== "string"
+      || attachments[0].content.length > 1000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachments[0].content)
+      || !Buffer.from(attachments[0].content, "base64").subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))) {
+    throw Object.assign(new Error("Pièce jointe d'invitation invalide."), { status: 400, code: "INVITATION_EMAIL_INVALID" });
   }
 
   let response;
@@ -104,22 +115,26 @@ export async function sendEmail({ to, subject, text, html = null }) {
         ...(config.replyTo && config.replyTo.includes("@") ? { replyTo: { email: config.replyTo } } : {}),
         subject: String(subject ?? "Lastro").slice(0, 200),
         textContent: String(text ?? ""),
-        ...(html ? { htmlContent: html } : {})
+        ...(html ? { htmlContent: html } : {}),
+        ...(attachments ? { attachment: attachments.map(({ name, content }) => ({ name, content })) } : {}),
+        ...(invitation ? { headers: { IdempotencyKey: idempotencyKey } } : {})
       })
     });
   } catch (cause) {
     const error = new Error("Impossible de joindre le service d'e-mail.");
     error.status = 502;
     error.publicMessage = "L'envoi de l'e-mail a échoué. Votre lecture reste accessible avec votre lien.";
-    error.cause = cause;
+    if (!invitation) error.cause = cause;
+    else error.invitationDeliveryUncertain = true;
     throw error;
   }
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    const error = new Error(payload?.message ?? `Envoi refusé par le service d'e-mail (${response.status}).`);
+    const error = new Error(invitation ? "Le service d'e-mail a refusé l'invitation." : payload?.message ?? `Envoi refusé par le service d'e-mail (${response.status}).`);
     error.status = 502;
     error.publicMessage = "L'envoi de l'e-mail a échoué. Votre lecture reste accessible avec votre lien.";
+    if (invitation) error.invitationDeliveryUncertain = response.status >= 500;
     throw error;
   }
   const payload = await response.json().catch(() => ({}));
@@ -158,6 +173,13 @@ async function markQueuedEmailSent(store, id, result) {
       entry.error = null;
       entry.nextAttemptAt = null;
       entry.providerMessageId = result?.providerMessageId ?? null;
+      if (entry.type === "reading_invitation") {
+        // The provider has accepted this message, not confirmed its delivery.
+        // The queued clear link and its QR are no longer needed on the server.
+        entry.body = null;
+        entry.html = null;
+        entry.attachments = null;
+      }
     }
   });
 }
@@ -166,6 +188,16 @@ async function markQueuedEmailFailed(store, id, error) {
   return store.transact((state) => {
     const entry = state.outbox.find((mail) => mail.id === id);
     if (entry) {
+      if (entry.type === "reading_invitation") {
+        // An uncertain acceptance must never trigger a blind duplicate send.
+        entry.status = "failed";
+        entry.manualReviewRequired = Boolean(error.invitationDeliveryUncertain ?? true);
+        entry.failureKind = entry.manualReviewRequired ? "provider_acceptance_unknown" : "provider_rejected";
+        entry.error = entry.manualReviewRequired ? "Statut fournisseur inconnu : vérifier avant tout nouvel envoi." : "Le fournisseur a refusé l'invitation.";
+        entry.failedAt = new Date().toISOString();
+        entry.nextAttemptAt = null;
+        return structuredClone(entry);
+      }
       entry.status = Number(entry.attempts ?? 0) >= OUTBOX_MAX_ATTEMPTS ? "failed" : "pending";
       entry.error = String(error.message ?? "envoi impossible").slice(0, 300);
       entry.failedAt = new Date().toISOString();
@@ -230,7 +262,8 @@ export async function flushQueuedEmails(
       break;
     }
     try {
-      const result = await send({ to: mail.to, subject: mail.subject, text: mail.body, html: mail.html ?? null });
+      const result = await send({ to: mail.to, subject: mail.subject, text: mail.body, html: mail.html ?? null,
+        ...(mail.type === "reading_invitation" ? { attachments: mail.attachments, idempotencyKey: mail.idempotencyKey } : {}) });
       await markQueuedEmailSent(store, mail.id, result);
       sent += 1;
     } catch (error) {
@@ -243,7 +276,7 @@ export async function flushQueuedEmails(
         }
         await onFinalFailure?.(marked, error);
       }
-      console.warn(`[Lastro] e-mail non envoyé — ${error.message}`);
+      console.warn(mail.type === "reading_invitation" ? "[Lastro] invitation non envoyée ; consulter le suivi administrateur." : `[Lastro] e-mail non envoyé — ${error.message}`);
     }
   }
   return { sent, failed, finalFailures, skipped: false };

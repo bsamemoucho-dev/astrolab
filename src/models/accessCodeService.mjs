@@ -102,6 +102,16 @@ export function consumeAccessCode(state, code, now = Date.now()) {
   return controle.entry;
 }
 
+// Server-only lookup after verification of an e-mail invitation token. The
+// identifier is never accepted as a public replacement for a secret code.
+export function consumeAccessCodeById(state, id, now = Date.now()) {
+  const entry = (state.accessCodes ?? []).find(candidate => candidate.id === id);
+  if (!entry || entry.revokedAt) throw accessCodeError("inconnu");
+  if (entry.usedAt) throw accessCodeError("utilise");
+  if (entry.expiresAt && (!Number.isFinite(Date.parse(entry.expiresAt)) || Date.parse(entry.expiresAt) <= now)) throw accessCodeError("expire");
+  return entry;
+}
+
 export function markAccessCodeUsed(entry, { reference = null, now = Date.now() } = {}) {
   if (!entry) {
     return;

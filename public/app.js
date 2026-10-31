@@ -1,5 +1,6 @@
 import { fillTemplate, publicPricingFromConfig } from "./pricing-ui.js";
 import { createPromoQuoteController } from "./promo-checkout.js";
+import { createEmailInvitationController, invitationStrings } from "./email-invitations.js";
 
 const state = {
   user: null,
@@ -20,7 +21,9 @@ const state = {
   pendingCheckoutSession: null,
   generationStarting: false,
   promoInputInitialized: false,
-  promoInputEdited: false
+  promoInputEdited: false,
+  emailInvitation: null,
+  emailInvitationToken: null
 };
 
 // Prix public par défaut : 18 EUR ; le devis effectif vient du serveur.
@@ -1657,7 +1660,7 @@ function renderQuote(quote) {
 // Code and quote are associated in memory, never in a URL, log or browser store.
 const promoQuotes = createPromoQuoteController({
   requestQuote: async (promoCode) => (await api("/api/public/price-quote", {
-    method: "POST", body: { promoCode }
+    method: "POST", body: state.emailInvitationToken ? { invitationToken: state.emailInvitationToken } : { promoCode }
   }))?.quote,
   onChange: (snapshot) => {
     state.promoQuote = snapshot;
@@ -1667,30 +1670,38 @@ const promoQuotes = createPromoQuoteController({
 });
 
 function syncPaymentAvailability() {
-  const hasGift = Boolean($("#test-code")?.value?.trim());
-  const hasPromo = Boolean(state.promoQuote?.code);
+  const invited = Boolean(state.emailInvitation?.active);
+  const invitationReady = state.emailInvitation?.status === "available";
+  const hasGift = Boolean(invited && invitationReady && state.emailInvitation.invitation?.kind === "free") || (!invited && Boolean($("#test-code")?.value?.trim()));
+  const hasPromo = Boolean(state.promoQuote?.code) || Boolean(invited && state.emailInvitation.invitation?.kind === "discount10");
   const locked = state.paymentStarting || state.paymentMounted
     || Boolean(state.pendingCheckoutSession || state.paymentSessionId || state.pendingReadingJob);
   const resumingCheckout = Boolean(state.pendingCheckoutSession && !state.paymentMounted
     && state.pendingCheckoutSession.confirmed?.revision === state.promoQuote?.revision
     && state.promoQuote?.status === "ready");
-  const validPromo = state.promoQuote?.status === "ready";
+  const paidInvitation = invited && invitationReady && state.emailInvitation.invitation?.paymentConfirmed;
+  const validPromo = paidInvitation || state.promoQuote?.status === "ready";
   const button = $("#pay-start");
   if (button) {
     button.disabled = state.paymentStarting || state.paymentMounted || state.generationStarting
-      || Boolean(state.pendingReadingJob) || !($("#ai-consent")?.checked ?? false)
+      || Boolean(state.pendingReadingJob) || (invited && !invitationReady) || !($("#ai-consent")?.checked ?? false)
       || (!resumingCheckout && ((hasGift && hasPromo) || (hasPromo && !validPromo)));
-    button.textContent = hasGift ? uiStrings().submit : uiStrings().payStart;
+    button.textContent = hasGift || paidInvitation ? uiStrings().submit : uiStrings().payStart;
   }
   const input = $("#pay-promo");
-  if (input) input.disabled = locked;
+  if (input) input.disabled = locked || invited;
   const giftInput = $("#test-code");
-  if (giftInput) giftInput.disabled = locked;
+  if (giftInput) giftInput.disabled = locked || invited;
   const check = $("#pay-promo-check");
   if (check) check.disabled = locked || !hasPromo || state.promoQuote?.status === "loading";
 }
 
 function renderPromoQuote() {
+  if (state.emailInvitation?.active) {
+    renderEmailInvitation();
+    syncPaymentAvailability();
+    return;
+  }
   const current = state.promoQuote;
   const t = uiStrings();
   if (current?.status === "ready") {
@@ -1731,12 +1742,21 @@ function renderPromoQuote() {
 }
 
 async function refreshQuote() {
+  if (state.emailInvitation?.active && (state.emailInvitation.status !== "available" || state.emailInvitation.invitation?.kind === "free")) {
+    renderEmailInvitation();
+    return state.emailInvitation.status === "available" ? state.emailInvitation.invitation.quote : null;
+  }
   return promoQuotes.refresh();
 }
 
 // Au chargement : affiche le tarif connu, puis
 // le fait confirmer par le serveur.
 function applyPricing() {
+  if (state.emailInvitation?.active) {
+    renderEmailInvitation();
+    if (state.emailInvitation.status === "available" && state.emailInvitation.invitation?.kind === "discount10") void refreshQuote();
+    return;
+  }
   const pricing = publicPricingFromConfig(state.config) ?? null;
   const t = uiStrings();
   if (!pricing) {
@@ -1781,6 +1801,147 @@ function applyPricing() {
   }
   void refreshQuote();
 }
+
+// All links created from an invitation response have already been checked by
+// the isolated controller. Personal data is inserted only as text/value.
+function renderEmailInvitation() {
+  const form = $("#express-form");
+  if (!form) return;
+  const current = state.emailInvitation;
+  let banner = $("#email-invitation-banner");
+  if (!current?.active) {
+    if (banner) banner.hidden = true;
+    form.hidden = false;
+    const email = form.querySelector('[name="deliveryEmail"]');
+    if (email) email.readOnly = false;
+    const promo = $("#pay-promo")?.closest?.(".promo-code-box");
+    if (promo) promo.hidden = false;
+    const gift = $("#test-code-box");
+    if (gift) gift.hidden = !Boolean(state.config?.codesEnabled ?? state.config?.testCodeEnabled);
+    setNodeText("#pay-note", uiStrings().payNote);
+    return;
+  }
+  const t = invitationStrings(currentLanguage());
+  if (!banner) {
+    banner = document.createElement("section");
+    banner.id = "email-invitation-banner";
+    banner.className = "email-invitation-banner";
+    banner.setAttribute("aria-live", "polite");
+    form.before(banner);
+  }
+  banner.hidden = false;
+  banner.replaceChildren();
+  const title = document.createElement("h2");
+  title.textContent = t.title;
+  const message = document.createElement("p");
+  const info = current.invitation;
+  const ready = current.status === "available";
+  const priceError = ready && !info.paymentConfirmed && info.kind === "discount10" && ["rejected", "error"].includes(state.promoQuote?.status);
+  message.textContent = priceError ? t.invalid : ready ? (info.paymentConfirmed ? t.paid : info.kind === "free" ? t.free : t.discount)
+    : current.status === "used" ? t.used
+      : ["loading", "unresolved"].includes(current.status) ? t.loading : t.invalid;
+  banner.append(title, message);
+  form.hidden = !ready;
+  if (["used", "unavailable"].includes(current.status)) {
+    const exit = document.createElement("button");
+    exit.type = "button";
+    exit.className = "secondary email-invitation-exit";
+    exit.textContent = t.exit;
+    exit.addEventListener("click", () => { emailInvitations.clear(); applyPricing(); });
+    banner.append(exit);
+  }
+  if (info?.delivery) {
+    const link = document.createElement("a");
+    link.href = info.delivery.link;
+    link.textContent = t.open;
+    banner.append(link);
+  }
+  if (ready) {
+    const note = document.createElement("p");
+    note.className = "hint";
+    note.textContent = t.oneUse;
+    banner.append(note);
+    const email = form.querySelector('[name="deliveryEmail"]');
+    if (email) { email.value = info.recipientEmail; email.readOnly = true; }
+    const promo = $("#pay-promo")?.closest?.(".promo-code-box");
+    if (promo) promo.hidden = true;
+    const gift = $("#test-code-box");
+    if (gift) gift.hidden = true;
+    const giftInput = $("#test-code");
+    if (giftInput) giftInput.value = "";
+    const promoInput = $("#pay-promo");
+    if (promoInput) promoInput.value = "";
+    // The server-supplied invitation price is the only price displayed here.
+    const quote = info.kind === "discount10" && state.promoQuote?.status === "ready"
+      ? state.promoQuote.quote : info.quote;
+    if (priceError) {
+      setNodeText("#pay-price-total", "—");
+      const base = $("#pay-price-base");
+      if (base) base.hidden = true;
+    } else {
+      renderQuote(quote);
+    }
+    setNodeText("#pay-title", t.title);
+    setNodeText("#pay-text", info.paymentConfirmed ? t.paid : info.kind === "free" ? t.free : t.discount);
+    setNodeText("#pay-note", info.kind === "free" ? t.freeNote : uiStrings().payNote);
+    setNodeText("#pay-price-note", t.oneUse);
+    const priceNote = $("#pay-price-note");
+    if (priceNote) priceNote.hidden = false;
+  }
+}
+
+const emailInvitations = createEmailInvitationController({
+  href: window.location.href,
+  storage: (() => { try { return window.sessionStorage; } catch { return null; } })(),
+  replaceUrl: (path) => window.history.replaceState(null, "", path),
+  requestResolve: (token) => api("/api/public/invitations/resolve", { method: "POST", body: { token } }),
+  onChange: (snapshot) => {
+    state.emailInvitation = snapshot;
+    state.emailInvitationToken = snapshot.token;
+    promoQuotes.setInvitationContext(Boolean(snapshot.active && snapshot.invitation?.kind === "discount10"));
+    renderEmailInvitation();
+    syncPaymentAvailability();
+  }
+});
+state.emailInvitation = emailInvitations.snapshot();
+state.emailInvitationToken = state.emailInvitation.token;
+if (state.emailInvitation.active) {
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = "/email-invitations.css";
+  document.head.append(css);
+}
+window.addEventListener("hashchange", async () => {
+  const busy = Boolean(state.paymentStarting || state.generationStarting || state.paymentMounted
+    || state.pendingCheckoutSession || state.paymentSessionId || state.pendingReadingJob);
+  const incoming = new URLSearchParams(window.location.hash.slice(1)).has("invitation");
+  if (!incoming) return;
+  if (!emailInvitations.navigate(window.location.href, { preserveCurrent: busy })) {
+    if (busy) showMessage(invitationStrings(currentLanguage()).busy, true);
+    return;
+  }
+  if (!document.querySelector('link[href="/email-invitations.css"]')) {
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "/email-invitations.css";
+    document.head.append(css);
+  }
+  state.pendingReadingBody = null;
+  state.guestReading = null;
+  state.readingToken = null;
+  state.recovery = null;
+  $("#express-form")?.reset();
+  for (const selector of ["#express-payment", "#express-progress", "#express-viewer", "#express-place-details"]) {
+    const node = $(selector);
+    if (node) node.hidden = true;
+  }
+  state.user = null;
+  applyGuestLayout();
+  setView("express");
+  await emailInvitations.resolve();
+  if (state.emailInvitation.status === "available" && state.emailInvitation.invitation.kind === "discount10") await refreshQuote();
+  $("#email-invitation-banner")?.scrollIntoView({ block: "start" });
+});
 
 function renderPeople() {
   const list = $("#people-list");
@@ -3205,6 +3366,7 @@ function bindExpressForm() {
     if (continueButton) continueButton.hidden = true;
     const startButton = $("#pay-start");
     if (startButton) startButton.hidden = false;
+    if (state.emailInvitation?.active) emailInvitations.clear();
     promoQuotes.setCode("");
     syncPaymentAvailability();
   };
@@ -3230,9 +3392,23 @@ function bindExpressForm() {
     const body = state.pendingReadingBody;
     if (!body || state.paymentStarting || state.paymentMounted || state.generationStarting
         || state.pendingReadingJob || !($("#ai-consent")?.checked ?? false)) return;
+    const invited = Boolean(state.emailInvitation?.active);
+    if (invited && state.emailInvitation.status !== "available") return;
+    if (invited && state.emailInvitation.invitation.paymentConfirmed) {
+      state.paymentStarting = true;
+      state.paymentSessionId = state.emailInvitation.invitation.checkoutSessionId;
+      syncPaymentAvailability();
+      try {
+        await runGeneration(state.paymentSessionId);
+      } finally {
+        state.paymentStarting = false;
+        syncPaymentAvailability();
+      }
+      return;
+    }
     const resuming = state.pendingCheckoutSession;
-    if (!resuming) promoQuotes.setCode($("#pay-promo")?.value ?? "");
-    const testCode = !resuming && testCodeInput ? testCodeInput.value.trim() : "";
+    if (!resuming && !invited) promoQuotes.setCode($("#pay-promo")?.value ?? "");
+    const testCode = !invited && !resuming && testCodeInput ? testCodeInput.value.trim() : "";
     if (testCode && state.promoQuote?.code) {
       renderPromoQuote();
       return;
@@ -3241,9 +3417,9 @@ function bindExpressForm() {
     syncPaymentAvailability();
     setPayStatus(uiStrings().payPreparing);
     // The existing free-invitation path never opens a Stripe checkout.
-    if (testCode) {
+    if (testCode || (invited && state.emailInvitation.invitation.kind === "free")) {
       try {
-        await runGeneration(null, testCode);
+        await runGeneration(null, testCode || null);
       } finally {
         state.paymentStarting = false;
         syncPaymentAvailability();
@@ -3257,7 +3433,7 @@ function bindExpressForm() {
       const session = resuming?.session ?? await api("/api/public/checkout-session", {
         method: "POST",
         body: {
-          promoCode: confirmed.promoCode, language: state.language ?? "fr",
+          ...(state.emailInvitationToken ? { invitationToken: state.emailInvitationToken } : { promoCode: confirmed.promoCode }), language: state.language ?? "fr",
           expectedTotalCents: confirmed.quote.totalCents, expectedCurrency: confirmed.quote.currency
         }
       });
@@ -3318,7 +3494,7 @@ function bindExpressForm() {
     // Le champ sert aux deux sources : le code de test de l'exploitant et les
     // codes à usage unique. Il n'apparaît que si l'une des deux existe — un champ
     // qui ne peut rien accepter est pire que pas de champ.
-    const enabled = Boolean(state.config?.codesEnabled ?? state.config?.testCodeEnabled);
+    const enabled = !state.emailInvitation?.active && Boolean(state.config?.codesEnabled ?? state.config?.testCodeEnabled);
     if (testCodeBox) {
       testCodeBox.hidden = !enabled;
     }
@@ -3384,6 +3560,7 @@ function bindExpressForm() {
         body: {
           ...body,
           paymentSessionId,
+          ...(state.emailInvitationToken ? { invitationToken: state.emailInvitationToken } : {}),
           // Le serveur reconnaît les deux sources ; le champ envoyé distingue
           // seulement le message d'erreur (« code » plutôt que « code de test »).
           ...(code ? (state.config?.codesEnabled ? { accessCode: code } : { testCode: code }) : {})
@@ -3445,6 +3622,10 @@ function bindExpressForm() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (preserveActiveOrder()) return;
+    if (state.emailInvitation?.active && state.emailInvitation.status !== "available") {
+      showMessage(invitationStrings(currentLanguage()).invalid, true);
+      return;
+    }
     if (!(await ensureResolvedPlace(form, "express-place-details", true))) {
       return;
     }
@@ -4154,6 +4335,15 @@ async function loadConfig() {
 async function boot() {
   bindForms();
   await loadConfig();
+  if (state.emailInvitation?.active && !recoveryTokenFromPath()) {
+    state.currentView = "express";
+    applyGuestLayout();
+    setView("express");
+    await emailInvitations.resolve();
+    if (state.emailInvitation.status === "available" && state.emailInvitation.invitation.kind === "discount10") await refreshQuote();
+    $("#email-invitation-banner")?.scrollIntoView({ block: "start" });
+    return;
+  }
   if (recoveryTokenFromPath()) {
     // Lien de récupération : page visiteur, sans la coquille de l'espace pro,
     // et la lecture s'affiche à la place du formulaire.

@@ -20,12 +20,13 @@ export function createPromoQuoteController({ requestQuote, onChange = () => {} }
   let revision = 0;
   let status = "idle";
   let quote = null;
-  const snapshot = () => ({ code, status, quote, revision });
+  let invitation = false;
+  const snapshot = () => ({ code, status, quote, revision, ...(invitation ? { invitation: true } : {}) });
   const publish = () => onChange(snapshot());
   const invalidate = () => {
     revision += 1;
     quote = null;
-    status = code ? "unverified" : "idle";
+    status = code || invitation ? "unverified" : "idle";
     publish();
   };
   const setCode = (value) => {
@@ -36,17 +37,29 @@ export function createPromoQuoteController({ requestQuote, onChange = () => {} }
     }
     return snapshot();
   };
+  // This is a pricing context, never the invitation capability itself. Its
+  // token is transported separately by the caller in a POST body.
+  const setInvitationContext = (value) => {
+    const next = Boolean(value);
+    if (next !== invitation) {
+      invitation = next;
+      code = "";
+      invalidate();
+    }
+    return snapshot();
+  };
   const refresh = async () => {
     const requestedCode = code;
+    const requestedInvitation = invitation;
     const requestRevision = ++revision;
     status = "loading";
     quote = null;
     publish();
     try {
       const response = await requestQuote(requestedCode);
-      if (requestRevision !== revision || code !== requestedCode) return null;
-      if (!usableQuote(response, Boolean(requestedCode))) {
-        status = requestedCode && response?.valid === false ? "rejected" : "error";
+      if (requestRevision !== revision || code !== requestedCode || requestedInvitation !== invitation) return null;
+      if (!usableQuote(response, Boolean(requestedCode) || requestedInvitation)) {
+        status = (requestedCode || requestedInvitation) && response?.valid === false ? "rejected" : "error";
         publish();
         return null;
       }
@@ -61,7 +74,7 @@ export function createPromoQuoteController({ requestQuote, onChange = () => {} }
       publish();
       return quote;
     } catch {
-      if (requestRevision !== revision || code !== requestedCode) return null;
+      if (requestRevision !== revision || code !== requestedCode || requestedInvitation !== invitation) return null;
       status = "error";
       publish();
       return null;
@@ -69,15 +82,16 @@ export function createPromoQuoteController({ requestQuote, onChange = () => {} }
   };
   const prepareCheckout = async () => {
     const requestCode = code;
+    const requestedInvitation = invitation;
     const confirmed = await refresh();
-    if (!confirmed || status !== "ready" || code !== requestCode) {
+    if (!confirmed || status !== "ready" || code !== requestCode || requestedInvitation !== invitation) {
       const error = new Error("A current server quote is required before payment.");
       error.code = "PRICE_QUOTE_REQUIRED";
       throw error;
     }
-    return Object.freeze({ promoCode: code, quote: confirmed, revision });
+    return Object.freeze({ promoCode: code, quote: confirmed, revision, ...(invitation ? { invitation: true } : {}) });
   };
   const isCurrent = (ticket) => Boolean(ticket && ticket.revision === revision
-    && ticket.promoCode === code && ticket.quote === quote && status === "ready");
-  return { snapshot, setCode, refresh, invalidate, prepareCheckout, isCurrent };
+    && ticket.promoCode === code && Boolean(ticket.invitation) === invitation && ticket.quote === quote && status === "ready");
+  return { snapshot, setCode, setInvitationContext, refresh, invalidate, prepareCheckout, isCurrent };
 }
