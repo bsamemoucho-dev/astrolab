@@ -1,11 +1,11 @@
 import { validateAstrologicalDates, referenceTimeZone } from "./calendarDates.mjs";
-import { evidenceById } from "./dossierEvidence.mjs";
+import { evidenceById, isEvidenceDeterminateForClaim } from "./dossierEvidence.mjs";
 import { interpretationRuleById, ruleMatchesEvidence } from "./interpretationRules.mjs";
 import { aspectIdentifier } from "./figures.mjs";
 import { countWords } from "./generationLimits.mjs";
 import { detectCrossedClaims, isCrossingLicensed } from "./crossedClaims.mjs";
 
-export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.5.0";
+export const CLAIM_VALIDATOR_VERSION = "dossier-factual-claims@0.6.0";
 
 function norm(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -165,7 +165,15 @@ function hasPointSignClaim(text, words, sign) {
   const anyPoint = new RegExp(`\\b(?:${PLACEMENT_POINT_PATTERN})\\b`, "iu");
   const coordinatedSubject = new RegExp(`^\\s*(?:,|et|ainsi que|and)\\s*(?:(?:une?|le|la|les|votre|vos|the|your)\\s+|l['’])?(?:${PLACEMENT_POINT_PATTERN})\\b`, "iu");
   for (const mention of source.matchAll(mentions)) {
-    const match = source.slice(mention.index + mention[0].length).match(followingSign);
+    const tail = source.slice(mention.index + mention[0].length);
+    // A bounded explanatory apposition does not introduce another subject:
+    // "Le Descendant, repère symbolique des partenariats, se situe en Gémeaux."
+    // Never erase an astrological fact or cross a sentence to obtain a binding.
+    const withoutApposition = tail.replace(/^\s*(?:,([^,;.!?\n]{1,120}),|\(([^();.!?\n]{1,120})\))/u, (apposition, commaText, parenthesisText) => {
+      const content = commaText ?? parenthesisText;
+      return anyPoint.test(content) || anySign.test(content) || new RegExp(`\\b(?:${ASPECT_PATTERN})\\b`, "iu").test(content) ? apposition : " ";
+    });
+    const match = withoutApposition.match(followingSign);
     if (!match || anySign.test(match[1])) continue;
     let gap = match[1];
     // Several subjects can share one placement: "Lune et Vénus en Balance".
@@ -784,6 +792,13 @@ export function validateDossierClaims({ dossierEvidence, claims = [] } = {}) {
     const { issues: refIssues, refs } = requireEvidence(claim, byId);
     issues.push(...refIssues);
     if (refIssues.length > 0) continue;
+    const timePrecision = byId.get("birth.identity")?.value?.timePrecision ?? null;
+    const expectedType = claim.type === "NATAL_ASPECT_ORB" ? "NATAL_ASPECT" : claim.type;
+    for (const ref of refs.filter((item) => item.type === expectedType)) {
+      if (!isEvidenceDeterminateForClaim(ref, { timePrecision })) {
+        issues.push(error(claim, "uncertain_factual_claim", "La valeur nominale calculée ne permet pas d'affirmer ce fait dans toute la plage de naissance déclarée.", { evidenceRef: ref.evidenceId }));
+      }
+    }
     issues.push(...validateAgainstEvidence(claim, refs));
   }
   return {
@@ -799,6 +814,7 @@ export function validateGeneratedSection({ dossierEvidence, section } = {}) {
 
 export function validateStructuredSection({ dossierEvidence, sectionPlan, section } = {}) {
   const byId = evidenceById(dossierEvidence);
+  const timePrecision = byId.get("birth.identity")?.value?.timePrecision ?? null;
   const issues = [];
   const warnings = [];
   if (!section || section.sectionId !== sectionPlan?.sectionId) {
@@ -872,13 +888,20 @@ export function validateStructuredSection({ dossierEvidence, sectionPlan, sectio
       if (!allowedRules.has(ruleId)) {
         issues.push(claimlikeForBlock(block, "interpretation_rule_not_allowed", `Règle non autorisée dans ${section.sectionId} : ${ruleId}.`, { ruleId }));
       }
-      if (!resolvedRefs.some((ref) => ruleMatchesEvidence(rule, ref))) {
+      if (!resolvedRefs.some((ref) => isEvidenceDeterminateForClaim(ref, { timePrecision }) && ruleMatchesEvidence(rule, ref))) {
         issues.push(claimlikeForBlock(block, "interpretation_rule_without_matching_evidence", `Règle ${ruleId} sans preuve compatible dans le bloc.`, { ruleId }));
       }
     }
+    const determinateRefs = resolvedRefs.filter((ref) => isEvidenceDeterminateForClaim(ref, { timePrecision }));
     for (const fact of detectAstrologicalTextFacts(block.text)) {
-      if (!textFactSupported(fact, resolvedRefs)) {
-        issues.push(claimlikeForBlock(block, "undeclared_text_fact", "Le texte contient un fait astrologique concret non couvert par les evidenceRefs du bloc.", { fact }));
+      if (!textFactSupported(fact, determinateRefs)) {
+        const nominalOnly = textFactSupported(fact, resolvedRefs);
+        issues.push(claimlikeForBlock(block, "undeclared_text_fact", nominalOnly
+          ? "Le texte affirme comme établi un fait nominal non décidable dans la plage de naissance."
+          : "Le texte contient un fait astrologique concret non couvert par les evidenceRefs du bloc.", {
+          fact,
+          ...(nominalOnly ? { reason: "source_fact_undecidable", evidenceRefs: resolvedRefs.filter((ref) => textFactSupported(fact, [ref])).map((ref) => ref.evidenceId) } : {})
+        }));
       }
     }
     // Croisements : le rédacteur ne peut pas faire dialoguer deux configurations

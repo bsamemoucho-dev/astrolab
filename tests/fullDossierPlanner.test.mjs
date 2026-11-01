@@ -180,7 +180,7 @@ test("FullDossierPlan defines sections, ownership and authorized rules from Doss
   const emotional = sectionPlanById(fullDossierPlan, "emotional_world");
   const current = sectionPlanById(fullDossierPlan, "current_sky");
 
-  assert.equal(fullDossierPlan.version, "full-dossier-plan@0.6.0");
+  assert.equal(fullDossierPlan.version, "full-dossier-plan@0.7.0");
   assert.ok(fullDossierPlan.sections.length >= 17);
   assert.ok(identity.primaryEvidenceRefs.includes("natal.sun.sign"));
   assert.ok(emotional.primaryEvidenceRefs.includes("natal.moon.sign"));

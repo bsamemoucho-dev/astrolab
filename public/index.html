@@ -486,6 +486,7 @@
 
             <form id="express-form" class="panel">
               <h3>Votre lecture</h3>
+              <label>Prénom (facultatif) <input name="firstName" autocomplete="given-name" placeholder="ex. Caroline"></label>
               <label>Date de naissance <input name="birthDate" type="date" required></label>
               <div class="time-simple">
                 <label>Précision
@@ -564,8 +565,7 @@
               </div>
 
               <details class="parent-fieldset express-optional">
-                <summary>Personnaliser — prénom &amp; question (optionnel)</summary>
-                <label>Prénom <input name="firstName" placeholder="ex. Caroline"></label>
+                <summary>Votre question (optionnel)</summary>
                 <label>Votre question <textarea name="intention" rows="2" placeholder="Ce que vous aimeriez éclairer…"></textarea></label>
               </details>
               <!-- Bloc parents MASQUÉ (18/10/2026) : le dossier payant (plan « full dossier »

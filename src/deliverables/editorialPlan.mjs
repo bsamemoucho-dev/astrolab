@@ -23,7 +23,7 @@ export const EDITORIAL_PLAN_VERSION = "lastro-editorial-plan@1.4.0";
 // Missions par chapitre — version courte, injectée telle quelle dans le prompt.
 const MISSIONS = {
   general_synthesis:
-    "Présente brièvement le fil conducteur étayé, les domaines de vie concernés et les principales différences entre les dynamiques du thème. Annonce l’orientation de la lecture sans développer les nuances personnelles et situations concrètes réservées aux chapitres propriétaires. Ne livre pas d’emblée leur leçon détaillée et ne transforme pas la synthèse en trois reformulations du même réseau.",
+    "Présente brièvement le fil conducteur étayé, les domaines de vie concernés et les principales différences entre les dynamiques du thème. Lorsque des placements ne sont reliés par aucune licence, présente leurs fonctions côte à côte, avec leur apport propre, sans inventer une combinaison, une compensation ou une tension entre eux. Annonce l’orientation de la lecture sans développer les nuances personnelles et situations concrètes réservées aux chapitres propriétaires. Ne livre pas d’emblée leur leçon détaillée et ne transforme pas la synthèse en trois reformulations du même réseau.",
   internal_tensions:
     "Montre une tension sans la refermer. Décris ce que chaque opposition met en jeu, puis, si une figure calculée relie ses extrémités à un troisième corps, dis ce que ce troisième terme change dans la lecture. Tu ne redéveloppes pas les ressources traitées ailleurs : tu peux les nommer en une clause.",
   supporting_resources:

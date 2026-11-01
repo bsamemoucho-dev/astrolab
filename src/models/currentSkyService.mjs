@@ -1,3 +1,4 @@
+import { angleSignCertainty } from "../astro/angleUncertainty.mjs";
 import { selectTransitCoverage, TRANSIT_SELECTION_VERSION } from "../deliverables/transitSelection.mjs";
 import { ASTRONOMY_ENGINE_VERSION } from "../astro/constants.mjs";
 import { hashPayload } from "../astro/westernNatal.mjs";
@@ -264,7 +265,8 @@ function natalPointsFromChart(natal) {
   const angles = natal.astronomicalCalculation?.angles ?? {};
   for (const key of ["ascendant", "descendant", "midheaven", "imumCoeli"]) {
     const angle = angles[key];
-    if (!angle || !Number.isFinite(angle.longitude) || houseReliability !== "stable") {
+    if (!angle || !Number.isFinite(angle.longitude) || houseReliability !== "stable"
+      || !angleSignCertainty(natal, key).stableAcrossApplicableWindow) {
       continue;
     }
     points.push({

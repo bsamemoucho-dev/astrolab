@@ -200,11 +200,15 @@ function anglesAt(normalizedInput, instant) {
   });
 }
 
-function describeAngleWindow(angleAtStart, angleAtEnd) {
+function describeAngleWindow(angleAtStart, angleAtEnd, angleAtReference, marginMinutes) {
   if (!angleAtStart || !angleAtEnd) {
     return null;
   }
-  const signStable = angleAtStart.sign === angleAtEnd.sign;
+  const signsInWindow = [...new Set([angleAtStart.sign, angleAtReference?.sign, angleAtEnd.sign].filter(Boolean))];
+  // The endpoint/reference method has no verified full-window coverage for
+  // wider margins. Equal endpoint signs may hide a full rotation (±12h).
+  // Keep the measured coordinates, but never certify their nominal sign.
+  const signStable = Number.isFinite(marginMinutes) && marginMinutes <= 60 && signsInWindow.length === 1;
   return {
     longitudeAtWindowStart: angleAtStart.longitude,
     longitudeAtWindowEnd: angleAtEnd.longitude,
@@ -213,7 +217,8 @@ function describeAngleWindow(angleAtStart, angleAtEnd) {
     signAtWindowStart: angleAtStart.sign,
     signAtWindowEnd: angleAtEnd.sign,
     signStable,
-    signsInWindow: signStable ? [angleAtStart.sign] : [angleAtStart.sign, angleAtEnd.sign]
+    signsInWindow,
+    ...(marginMinutes > 60 ? { stabilityVerification: "wide_margin_not_certified", sampledSignsOnly: true } : {})
   };
 }
 
@@ -239,8 +244,10 @@ function markApproximateAngleUncertainty(angles, normalizedInput, window) {
     uncertaintyWindow: {
       marginMinutes,
       marginSource: normalizedInput.timeMarginSource,
-      ascendant: describeAngleWindow(start.ascendant, end.ascendant),
-      midheaven: describeAngleWindow(start.midheaven, end.midheaven)
+      ascendant: describeAngleWindow(start.ascendant, end.ascendant, angles.ascendant, marginMinutes),
+      descendant: describeAngleWindow(start.descendant, end.descendant, angles.descendant, marginMinutes),
+      midheaven: describeAngleWindow(start.midheaven, end.midheaven, angles.midheaven, marginMinutes),
+      imumCoeli: describeAngleWindow(start.imumCoeli, end.imumCoeli, angles.imumCoeli, marginMinutes)
     },
     warning: `Angles were calculated from the reference time within the declared ±${marginMinutes} min window; anything outside that window is not covered.`
   };
@@ -730,8 +737,8 @@ function buildDeterministicPayload(normalizedInput, window, positions, angles, h
         ...(normalizedInput.calculationMode === "approximate_time"
           ? [
               "exact_angle_longitudes_within_declared_margin",
-              ...(margin?.ascendantSignStable ? [] : ["ascendant_sign_within_declared_margin", "houses_within_declared_margin"]),
-              ...(margin?.midheavenSignStable ? [] : ["midheaven_sign_within_declared_margin"]),
+              ...(margin?.ascendantSignStable ? [] : ["ascendant_sign_within_declared_margin", "descendant_sign_within_declared_margin", "houses_within_declared_margin"]),
+              ...(margin?.midheavenSignStable ? [] : ["midheaven_sign_within_declared_margin", "imum_coeli_sign_within_declared_margin"]),
               ...(margin?.sectStable ? [] : ["sect_within_declared_margin"]),
               ...(margin && margin.unstableBodySigns.length > 0 ? ["body_signs_within_declared_margin"] : [])
             ]

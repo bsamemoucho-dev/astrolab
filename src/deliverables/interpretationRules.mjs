@@ -1,3 +1,4 @@
+import { isEvidenceDeterminateForClaim } from "./evidenceCertainty.mjs";
 import { RELATIONAL_AFFECTION_RULES, RELATIONAL_AFFECTION_SCOPE } from "./relationalAffectionRules.mjs";
 
 export const INTERPRETATION_LIBRARY_VERSION = "lastro-interpretation-library@0.5.0";
@@ -520,6 +521,7 @@ export function interpretationRuleById(ruleId) {
 
 export function ruleMatchesEvidence(rule, evidence) {
   if (!rule || !evidence || rule.evidenceType !== evidence.type) return false;
+  if (!isEvidenceDeterminateForClaim(evidence)) return false;
   const match = rule.match ?? {};
   const value = evidence.value ?? {};
   if (rule.requiresStableEvidence && evidence.certainty?.stableAcrossApplicableWindow !== true) return false;
