@@ -75,10 +75,15 @@ function lunarSections(report) {
   const classification=classifySiderealLongitude(moon.longitude,LONGITUDE_TOLERANCE_DEGREES);
   requireProof(classification.status==='calculated' && classification.sign===moon.sign && SIGNS[moon.sign]);
   const ref=pointProof(j,moon), item=SIGNS[moon.sign];
-  const sections=[section('sidereal-moon','Une entrée par la Lune','jyotish-sidereal-lahiri',[
+  const lunarSection=section('sidereal-moon','Une entrée par la Lune','jyotish-sidereal-lahiri',[
     para('calculated',`Dans le zodiaque sidéral Lahiri, votre Lune se situe en ${item.fr}.`,[ref]),
     para('traditional_vocabulary',`Le Jyotish emploie la Lune comme symbole de l’esprit. Pour ce signe, le lexique retenu propose les mots « ${item.words} ». Ils ouvrent une piste de réflexion, sans établir une manière de penser ou de ressentir.`,[ref],['rao-basics'])
-  ],[`complement.documented.moon.sign.${moon.sign.toLowerCase()}@1`])];
+  ],[`complement.documented.moon.sign.${moon.sign.toLowerCase()}@1`]);
+  // A writing layer may reuse this already checked vocabulary. It receives no
+  // new interpretation licence and never takes a sign or text from the caller.
+  lunarSection.vocabulary={signId:moon.sign,signName:item.fr,words:item.words,
+    proofRefs:[ref],sourceRefs:['rao-basics'],ruleRefs:[...lunarSection.ruleIds]};
+  const sections=[lunarSection];
   const nak=j.nakshatra;
   if(nak?.status==='calculated') {
     const derived=classifyNakshatra(moon.longitude,LONGITUDE_TOLERANCE_DEGREES);
