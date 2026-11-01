@@ -1,5 +1,7 @@
 import { ASTRONOMY_ENGINE_VERSION } from "../astro/constants.mjs";
 import { uncertainIntervalAnalysis } from "../astro/signWindows.mjs";
+import { angleSignCertainty } from "../astro/angleUncertainty.mjs";
+export { isEvidenceDeterminateForClaim } from "./evidenceCertainty.mjs";
 import { hashPayload } from "../astro/westernNatal.mjs";
 import { timezoneDatabaseVersion } from "../astro/time.mjs";
 import { ELEMENT_BY_SIGN, MODALITY_BY_SIGN, LASTRO_DISTRIBUTION_RULE_VERSION } from "./chart.mjs";
@@ -10,6 +12,7 @@ export const DOSSIER_EVIDENCE_VERSION = "dossier-evidence@0.1.0";
 const HOUSE_SYSTEM = "WHOLE_SIGN";
 const BODY_ORDER = Object.freeze(["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"]);
 const ANGLE_KEYS = Object.freeze(["ascendant", "descendant", "midheaven", "imumCoeli"]);
+const ANGLE_KEY_BY_TRANSIT_POINT = Object.freeze({ ASC: "ascendant", DSC: "descendant", MC: "midheaven", IC: "imumCoeli", ...Object.fromEntries(ANGLE_KEYS.map((angle) => [angle, angle])) });
 
 function key(value) {
   return String(value ?? "")
@@ -149,7 +152,8 @@ function aspectCertainty({ aspect, natalResult, birth }) {
 function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
   const birth = natalResult.normalizedInput ?? {};
   const houses = Array.isArray(natalResult.structuralAstrology?.houses) ? natalResult.structuralAstrology.houses : [];
-  const houseUsable = houses.length > 0 && natalResult.structuralAstrology?.houseUncertainty?.housesDecidableWithinMargin !== false;
+  const houseUsable = houses.length > 0 && natalResult.structuralAstrology?.houseUncertainty?.housesDecidableWithinMargin !== false
+    && angleSignCertainty(natalResult, "ascendant").stableAcrossApplicableWindow;
   const base = (ruleVersion = null, reliability = "HIGH") => provenance({ natalResult, natalRun, ruleVersion, reliability, generatedAt });
   const daySignStability = unknownCivilDaySignStability(natalResult, birth);
 
@@ -211,12 +215,7 @@ function buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt }) {
       evidenceId: `angle.${key(angleKey)}.sign`,
       type: "ANGLE_SIGN",
       value: { angle: angleKey, sign: angle.sign, degreeInSign: round(angle.degreeInSign), longitude: round(angle.longitude) },
-      certainty: {
-        timePrecision: natalResult.uncertainty?.timePrecision ?? birth.timePrecision ?? null,
-        stableAcrossApplicableWindow: (natalResult.uncertainty?.timePrecision ?? birth.timePrecision) === "exact"
-          || angles.uncertaintyWindow?.[angleKey]?.signStable === true,
-        basis: (natalResult.uncertainty?.timePrecision ?? birth.timePrecision) === "exact" ? "exact_time" : "declared_angle_window"
-      },
+      certainty: angleSignCertainty(natalResult, angleKey),
       provenance: base("ADR-007-house-system", "HIGH")
     });
   }
@@ -290,7 +289,7 @@ function transitSignature(result) {
   }).slice(0, 16);
 }
 
-function buildTransitEvidence({ evidence, currentSky, generatedAt }) {
+function buildTransitEvidence({ evidence, natalResult, currentSky, generatedAt }) {
   if (!currentSky) return;
   const all = [...(currentSky.current ?? []), ...(currentSky.upcoming ?? []), ...(currentSky.recent ?? [])];
   add(evidence, {
@@ -330,6 +329,9 @@ function buildTransitEvidence({ evidence, currentSky, generatedAt }) {
         natalHouse: contact.natalHouse ?? null,
         houseSystem: contact.houseSystem ?? null
       },
+      ...(ANGLE_KEY_BY_TRANSIT_POINT[contact.natalPoint]
+        ? { certainty: angleSignCertainty(natalResult, ANGLE_KEY_BY_TRANSIT_POINT[contact.natalPoint]) }
+        : {}),
       provenance: provenance({
         currentSky,
         source: "current-sky",
@@ -349,7 +351,7 @@ export function buildDossierEvidence({ natalResult, natalRun = null, currentSky 
   }
   const evidence = [];
   buildNatalEvidence({ evidence, natalResult, natalRun, generatedAt });
-  buildTransitEvidence({ evidence, currentSky, generatedAt });
+  buildTransitEvidence({ evidence, natalResult, currentSky, generatedAt });
   // Aucune preuve parentale n'est créée sans date de naissance : une entrée
   // réduite à un nom ou à une ville ne calculerait rien et ne servirait qu'à
   // conserver des données de tiers sans usage.

@@ -249,6 +249,7 @@ export function chartBlockHtml(socle, strings = null, options = {}) {
     ...(uncertain ? [`  <p class="natal-uncertainty-legend">${escapeXml(labels.uncertainty)}</p>`] : []),
     `  <p>${escapeXml(orientation)} ${escapeXml(labels.limits)}</p>`,
     `</div>`,
+    `<div class="chart-distribution-group">`,
     `<div class="chart-distributions">`,
     `  <div class="card"><h3>${escapeXml(t.chartElements ?? "")}</h3>`,
     barRows(distribution.byElement, ELEMENT_ORDER, libelle, (cle) => ELEMENT_COLOURS[cle], total),
@@ -257,7 +258,8 @@ export function chartBlockHtml(socle, strings = null, options = {}) {
     barRows(distribution.byModality, MODALITY_ORDER, libelle, (cle) => MODALITY_COLOURS[cle], total),
     `  </div>`,
     `</div>`,
-    `<p class="footer-note chart-distribution-note">${escapeXml(t.chartDistributionIntro ?? "")}${notes.length ? ` ${escapeXml(notes.join(" "))}` : ""}</p>`
+    `<p class="footer-note chart-distribution-note">${escapeXml(t.chartDistributionIntro ?? "")}${notes.length ? ` ${escapeXml(notes.join(" "))}` : ""}</p>`,
+    `</div>`
   ].join("\n");
 }
 

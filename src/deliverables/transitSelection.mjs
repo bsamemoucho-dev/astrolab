@@ -87,14 +87,15 @@ export function prepareTransitSelection(items, options = {}) {
   return { items: candidates.filter((_, index) => !removed.has(index)).map((entry) => entry.item), diagnostics, axisPairs };
 }
 
-export function selectTransitCoverage(items, limit, valueOf = (item) => item, options = null) {
+export function selectTransitCoverage(items, limit, valueOf = (item) => item, options = null, priorityOf = null) {
   const candidates = options ? prepareTransitSelection(items, { ...options, valueOf }).items : items;
   if (!Number.isFinite(limit) || limit <= 0) return [];
   const count = Math.floor(limit);
   if (candidates.length <= count) return [...candidates];
   const dated = candidates.map((item, index) => {
     const value = valueOf(item) ?? {};
-    return { item, index, time: timeOf(value.exactAt ?? value.startsAt), body: value.transitBody };
+    const priority = typeof priorityOf === "function" ? priorityOf(item) : 0;
+    return { item, index, time: timeOf(value.exactAt ?? value.startsAt), body: value.transitBody, priority: Number.isFinite(priority) ? priority : 0 };
   }).filter((entry) => Number.isFinite(entry.time)).sort((a, b) => a.time - b.time || a.index - b.index);
   if (!dated.length) return candidates.slice(0, count);
   const selected = new Set();
@@ -102,7 +103,7 @@ export function selectTransitCoverage(items, limit, valueOf = (item) => item, op
   const buckets = Math.min(6, count);
   const first = dated[0].time, span = Math.max(1, dated.at(-1).time - first + 1);
   const pick = (pool) => {
-    const candidate = [...pool].sort((a, b) => (bodies.get(a.body) ?? 0) - (bodies.get(b.body) ?? 0) || a.time - b.time || a.index - b.index)[0];
+    const candidate = [...pool].sort((a, b) => a.priority - b.priority || (bodies.get(a.body) ?? 0) - (bodies.get(b.body) ?? 0) || a.time - b.time || a.index - b.index)[0];
     if (!candidate) return;
     selected.add(candidate.index);
     bodies.set(candidate.body, (bodies.get(candidate.body) ?? 0) + 1);

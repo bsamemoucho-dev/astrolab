@@ -3,12 +3,17 @@ import { licensedContextNarrativeRole } from "./licensedContextFocus.mjs";
 import { aspectCategory } from "./figures.mjs";
 import { prepareTransitSelection, selectTransitCoverage } from "./transitSelection.mjs";
 import { referenceTimeZone, formatFrenchCalendarDate } from "./calendarDates.mjs";
-import { evidenceById } from "./dossierEvidence.mjs";
+import { evidenceById, isEvidenceDeterminateForClaim } from "./dossierEvidence.mjs";
 import { rulesForEvidence, LASTRO_INTERPRETATION_CONVENTIONS } from "./interpretationRules.mjs";
 import { buildEditorialPlan, crossReferenceAdditions } from "./editorialPlan.mjs";
 import { lengthForHypotheses } from "./readingHypotheses.mjs";
 
-export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.6.0";
+export const FULL_DOSSIER_PLAN_VERSION = "full-dossier-plan@0.7.0";
+
+// Editorial caps apply only to the production composition, never to the
+// astronomical calculation or complete evidence/annex. Six future slots retain
+// one possible contact per week across the configured six-week horizon.
+const PRODUCTION_TRANSIT_LIMITS = Object.freeze({ current_sky: 4, next_weeks: 6 });
 
 // Mode du chapitre « Aspects majeurs » (voir docs/doctrine/aspects-chapter-modes.md) :
 //   - "narrative"  : comportement historique, le chapitre décrit chaque aspect ;
@@ -229,7 +234,7 @@ function evidencePriority(ref) {
 // Les preuves qui portent une idée possédée par le chapitre ne peuvent pas être
 // évincées par un plafond : sans elles, la thèse ou la figure ne serait plus
 // démontrable.
-function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map()) {
+function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map(), { productionComposition = false } = {}) {
   const retenir = (refs, limite) => {
     const proteges = refs.filter((ref) => protectedRefs.has(ref));
     const complement = refs
@@ -243,7 +248,7 @@ function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map()
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => selected.has(ref));
   }
   if (section.sectionId === "next_weeks") {
-    section.primaryEvidenceRefs = selectTransitCoverage(section.primaryEvidenceRefs, 8, (ref) => byId.get(ref)?.value);
+    section.primaryEvidenceRefs = selectTransitCoverage(section.primaryEvidenceRefs, productionComposition ? PRODUCTION_TRANSIT_LIMITS.next_weeks : 8, (ref) => byId.get(ref)?.value, null, productionComposition ? (ref) => transitNarrativePriority(byId.get(ref)) : null);
     section.secondaryEvidenceRefs = section.secondaryEvidenceRefs.slice(0, 4);
   }
   if (section.sectionId === "conclusion") {
@@ -266,6 +271,35 @@ function capSectionEvidence(section, protectedRefs = new Set(), byId = new Map()
     section.primaryEvidenceRefs = trier(section.primaryEvidenceRefs);
     section.secondaryEvidenceRefs = trier(section.secondaryEvidenceRefs);
   }
+}
+
+
+const NATAL_FUNCTION_FOCUS = Object.freeze({
+  identity: { body: "Sun", instruction: "Précise la direction personnelle et les choix qui donnent un axe à l’identité ; ne transforme pas ce passage en description de la conversation ou du lien affectif." },
+  emotional_world: { body: "Moon", instruction: "Développe le besoin de sécurité intérieure et le rythme du ressenti ; ne le remplace pas par une description de la pensée ou de la manière de parler." },
+  communication: { body: "Mercury", instruction: "Développe la pensée et le langage : comment une idée est reliée, précisée ou formulée. Ne redécris pas l’identité ou la manière de s’attacher." },
+  affectivity: { body: "Venus", instruction: "Développe la manière d’accorder de la valeur et de créer du lien ; ne refais pas le chapitre consacré à la pensée et au langage." },
+  action: { body: "Mars", instruction: "Développe l’élan d’action et la manière d’engager l’énergie, sans réécrire les besoins affectifs ou les méthodes de pensée." },
+  work_realization: { body: "Saturn", instruction: "Développe la responsabilité et les limites : ce qui donne un cadre à l’engagement. Ne déduis aucun métier ni réussite, et ne redécris pas les qualités générales du signe." },
+  supporting_resources: { body: "Jupiter", instruction: "Développe l’élargissement, la confiance et le rapport aux possibilités, sans les réduire à une nouvelle description de la direction personnelle." }
+});
+
+function natalSignFocus(section, blockPlan, byId) {
+  const focus = NATAL_FUNCTION_FOCUS[section.sectionId];
+  if (!focus) return null;
+  const refs = new Set((blockPlan.packetRefs ?? []).flatMap((ref) => section.evidencePackets.find((packet) => packet.packetId === ref)?.evidenceRefs ?? []));
+  const proof = [...refs].map((ref) => byId.get(ref)).find((item) => item?.type === "NATAL_BODY_SIGN" && item.value.body === focus.body && rulesForEvidence(item).length > 0);
+  if (!proof) return null;
+  const sharedSign = [...byId.values()].filter((item) => item.type === "NATAL_BODY_SIGN" && item.value.sign === proof.value.sign && rulesForEvidence(item).length > 0).length > 1;
+  return [focus.instruction, sharedSign ? "Le même signe apparaît dans plusieurs chapitres : ses mots-clés communs ne constituent pas plusieurs idées. Retire leur nouvelle énumération et développe uniquement l’apport de la fonction propriétaire. Ce signe partagé n’autorise aucune interaction entre placements." : null].filter(Boolean).join(" ");
+}
+
+function transitNarrativePriority(evidence) {
+  const value = evidence?.value ?? {};
+  // Selection only: favor a licensed reading over an unlicensed reference, and
+  // a non-lunar contact over a few-hour lunar passage within the same time bucket.
+  // No statement about individual importance or a new astrological rule follows.
+  return (rulesForEvidence(evidence).length ? 0 : 2) + (value.transitBody === "Moon" ? 1 : 0);
 }
 
 function packetKey(value) {
@@ -497,7 +531,9 @@ function transitTimingPrefix(packetOrPackets, { nowUtc = null, timeZone = "UTC" 
     const start = validDate(claim.startsAt), end = validDate(claim.endsAt), peak = validDate(claim.exactAt);
     const singleDay = start && end && peak && sameFrenchDate(start, end, timeZone) && sameFrenchDate(start, peak, timeZone);
     const exact = singleDay ? null : exactSentence(peak, now, timeZone);
-    return [window, exact].filter(Boolean).join(" ");
+    const laterToday = now && start && start > now && sameFrenchDate(start, now, timeZone)
+      ? "Plus tard aujourd’hui, après l’instant de référence." : null;
+    return [laterToday, window, exact].filter(Boolean).join(" ");
   }
   const first = claims[0];
   const aspect = aspectWithArticle(first.aspectType);
@@ -650,7 +686,11 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const aspectChapterMode = options.aspectChapterMode ?? "narrative";
   // Validate the declared zone; never silently replace an invalid zone.
   new Intl.DateTimeFormat("fr-FR", { timeZone });
-  const byId = evidenceById(dossierEvidence);
+  const allEvidence = evidenceById(dossierEvidence);
+  const timePrecision = [...allEvidence.values()].find((item) => item.type === "BIRTH_CONTEXT")?.value?.timePrecision ?? null;
+  // Nominal values are retained in the evidence and annex, but cannot license
+  // definitive prose while their applicable uncertainty window is undecidable.
+  const byId = new Map([...allEvidence].filter(([, item]) => isEvidenceDeterminateForClaim(item, { timePrecision })));
   const sections = sectionsMap();
   const ownerByEvidenceRef = {};
   const transitStoryOwners = precomputeTransitStoryOwners(byId);
@@ -701,6 +741,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   }
 
   const allRefs = [...byId.keys()];
+  const sourceRefs = [...allEvidence.keys()];
   for (const section of sections.values()) {
     section.referenceTimeZone = timeZone;
     section.primaryEvidenceRefs = [...new Set(section.primaryEvidenceRefs)];
@@ -710,7 +751,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     section.secondaryEvidenceRefs = [...new Set(section.secondaryEvidenceRefs)].filter(
       (ref) => !section.primaryEvidenceRefs.includes(ref)
     );
-    capSectionEvidence(section, new Set(), byId);
+    capSectionEvidence(section, new Set(), byId, { productionComposition });
   }
 
   // 1. Plan éditorial global : thèse, idées, propriétaires, missions, mémoire.
@@ -719,7 +760,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
   const editorialPlan = editorialEngine === "legacy"
     ? null
     : buildEditorialPlan({
-        dossierEvidence,
+        dossierEvidence: { ...dossierEvidence, evidence: [...byId.values()] },
         rulesForEvidence,
         sections: [...sections.values()],
         ownerByEvidenceRef,
@@ -772,10 +813,15 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     for (const relation of section.allowedRelations ?? []) {
       for (const ref of relation.evidenceRefs ?? []) protegees.add(ref);
     }
-    capSectionEvidence(section, protegees, byId);
+    capSectionEvidence(section, protegees, byId, { productionComposition });
     if (editorialPlan && aspectChapterMode === "reference" && section.sectionId === "current_sky") {
       const transits = section.primaryEvidenceRefs.filter((ref) => byId.get(ref)?.type === "PERSONAL_TRANSIT");
-      const selected = new Set(selectTransitCoverage(transits, 8, (ref) => byId.get(ref)?.value));
+      // Current contacts all overlap the same reference instant: temporal
+      // buckets would preserve an isolated lunar peak at the expense of an
+      // available longer contact. Reserve time coverage for the future section.
+      const selected = new Set([...transits].sort((a, b) =>
+        transitNarrativePriority(byId.get(a)) - transitNarrativePriority(byId.get(b)) ||
+        a.localeCompare(b)).slice(0, PRODUCTION_TRANSIT_LIMITS.current_sky));
       section.primaryEvidenceRefs = section.primaryEvidenceRefs.filter((ref) => byId.get(ref)?.type !== "PERSONAL_TRANSIT" || selected.has(ref));
     }
   }
@@ -820,7 +866,7 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       )
     ];
     const allowed = new Set([...section.primaryEvidenceRefs, ...section.secondaryEvidenceRefs]);
-    section.forbiddenEvidenceRefs = allRefs.filter((ref) => !allowed.has(ref));
+    section.forbiddenEvidenceRefs = sourceRefs.filter((ref) => !allowed.has(ref));
     section.alreadyInterpretedEvidenceRefs = section.secondaryEvidenceRefs.filter((ref) => ownerByEvidenceRef[ref] && ownerByEvidenceRef[ref] !== section.sectionId);
     if (section.sectionId === "houses" && !allRefs.some((ref) => /\.house$/.test(ref))) {
       section.preconditions.push({ status: "unavailable", reason: "houses_unavailable_for_birth_time" });
@@ -888,7 +934,11 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
       section.blockPlans = [{ blockId: "composition", packetRefs: section.evidencePackets.map((packet) => packet.packetId) }];
     } else if (editorialPlan && aspectChapterMode === "reference" && !["current_sky", "next_weeks", "major_aspects"].includes(section.sectionId)) {
       const figureRefs = new Set((editorialPlan.ideas ?? []).filter((idea) => idea.kind === "figure" && idea.owner === section.sectionId).flatMap((idea) => idea.evidenceRefs));
-      const primary = section.evidencePackets.filter((packet) => packet.interpretationDepth === "primary" || packet.evidenceRefs.some((ref) => figureRefs.has(ref)));
+      const primary = section.evidencePackets.filter((packet) =>
+        (packet.interpretationDepth === "primary" && packet.interpretationRuleRefs.length > 0) || packet.evidenceRefs.some((ref) => figureRefs.has(ref)));
+      // A calculated aspect without an applicable natal rule belongs to the
+      // reference evidence/annex. Prefixing it to an unrelated sign paragraph
+      // promises an interpretation that the block is explicitly forbidden to give.
       // A licensed figure must have all its member proofs in the same closed
       // block. Its supporting aspects are not independent recall paragraphs.
       section.blockPlans = section.readingHypotheses.length > 0
@@ -926,7 +976,9 @@ export function buildFullDossierPlan(dossierEvidence, options = {}) {
     attachTransitCalendarContext(section, byId);
     attachTransitNatalHouseEvidence(section, byId);
     section.blockPlans = section.blockPlans.map((blockPlan) => {
-      const narrativeRole = licensedContextNarrativeRole({ blockPlan, evidencePackets: section.evidencePackets, byId });
+      const contextualRole = licensedContextNarrativeRole({ blockPlan, evidencePackets: section.evidencePackets, byId });
+      const signRole = productionComposition ? natalSignFocus(section, blockPlan, byId) : null;
+      const narrativeRole = [contextualRole, signRole].filter(Boolean).join("\n");
       return narrativeRole ? { ...blockPlan, narrativeRole } : blockPlan;
     });
     section.maxQuestions = 1;

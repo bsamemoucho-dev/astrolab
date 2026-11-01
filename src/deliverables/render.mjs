@@ -207,6 +207,13 @@ const CSS = `
   .calculated-references li{font-size:12px;line-height:1.65}
   .calculated-references p{font-size:11px;line-height:1.55;color:var(--muted);text-align:left}
   .dossier-subsection{margin-top:24px}
+  .dossier-contents{margin:0 0 2em;padding:14px 0 16px;border-bottom:1px solid var(--line);break-inside:avoid;page-break-inside:avoid}
+  .dossier-contents h2{font-size:20px;margin:0 0 10px}
+  .dossier-contents ol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px;row-gap:4px;margin:0;padding-left:20px;list-style:decimal;font-size:11px;line-height:1.5;text-align:left;hyphens:none}
+  .dossier-contents li+li{margin-top:0}
+  .dossier-contents a{text-decoration:none}
+  .section-anchor{display:block;height:0;scroll-margin-top:24px}
+  .chapter-compact{break-inside:avoid-page;page-break-inside:avoid}
   .block.reference p{font-size:12.5px;line-height:1.55;text-align:left}
   .block.reference td,.block.reference th{padding:7px 6px}
   .block.reference td{line-height:1.45}
@@ -250,6 +257,7 @@ const CSS = `
   .chart-distributions h3{font-size:17px;margin:0 0 10px}
   .chart-page .header-line{margin-bottom:12px;height:2px}
   .chart-page .chart-intro{font-size:11px;line-height:1.5;text-align:left;hyphens:none;margin-bottom:14px}
+  .chart-distribution-group{break-inside:avoid;page-break-inside:avoid}
   .chart-page .footer-note{color:#655d68;font-size:9.5px;margin-top:10px}
   .bar-row{display:grid;grid-template-columns:70px 1fr 34px;align-items:center;gap:10px;margin:9px 0;font-size:12px}
   .bar-track{height:8px;border:1px solid #807887;border-radius:99px;background:#eeeaf0;overflow:hidden}
@@ -269,8 +277,9 @@ const CSS = `
   .ethical-closing{font-family:Georgia,"Times New Roman","Liberation Serif","DejaVu Serif",serif;font-size:13px}
   footer p{line-height:1.55;text-align:left;hyphens:none}
 
-  /* Chaque grande pièce commence sur sa page : la carte du ciel, puis l'annexe. */
-  section.block.chart-page{break-before:page;page-break-before:always;break-after:page;page-break-after:always;margin-top:0}
+  /* Carte et annexe commencent sur leur page. La carte ne force pas de page
+     suivante : si elle déborde, la narration peut remplir le reste de page. */
+  section.block.chart-page{break-before:page;page-break-before:always;break-after:auto;page-break-after:auto;margin-top:0}
   section.block.annex{break-before:page;page-break-before:always;margin-top:0}
   /* Deux lignes vides avant l'annexe, demandées explicitement. À l'écran (où le
      saut de page n'existe pas) elles séparent vraiment les deux blocs ; à
@@ -288,15 +297,32 @@ const CSS = `
      Si un navigateur ignore :first, la couverture se contente de la zone
      imprimable — d'où les hauteurs en vh, qui ne débordent jamais. */
   @page :first{margin:0}
+  /* Native page counters in Chromium 131+ (including browser Save as PDF).
+     Separate @page rules keep page geometry independent of margin content. */
+  @page{
+    @bottom-center{content:counter(page) " / " counter(pages);font-family:Arial,sans-serif;font-size:9px;color:#746f7d}
+  }
+  @page :first{
+    @bottom-center{content:none}
+  }
   @media print{
     body{background:#fff}
     .chart-page,.chart-page *,.chart-page *::after{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .sheet > .caveat + section.block.chart-page{break-before:auto;page-break-before:auto;margin-top:0}
-    .cover-page{background:#fff;color:var(--ink)}
+    .cover-page{background:linear-gradient(155deg,#fffdf9 0%,#f5f0f8 66%,#eee4f1 100%);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .cover-page .brand,.cover-page .kicker,.cover-page .cover-note,.cover-page .big-card small,.cover-page .big-card i{color:var(--muted)}
     .cover-page .big-card{background:#fff;border-color:var(--line)}
     .sheet{width:auto;margin:0;box-shadow:none;padding:0}
     section.block.reference{margin-top:1.6em}
+    .block.reference td,.block.reference th{padding:5px 6px;font-size:11.5px;line-height:1.4}
+    .block-body > p,.dossier-subsection > p{break-inside:avoid-page;page-break-inside:avoid}
+    .chart-page .natal-panel{padding:12px;gap:12px}
+    .chart-page .natal-legend{font-size:9.5px;line-height:1.4;margin:8px 2px 10px}
+    .chart-page .natal-legend p{margin:4px 0}
+    .chart-page .chart-distributions .card{padding:10px 12px}
+    .chart-page .chart-distribution-note{font-size:9px;line-height:1.4;margin-top:8px}
+    .chart-page .chart-distributions{break-after:avoid-page;page-break-after:avoid}
+    .dossier-contents a{color:var(--ink)}
     .annex-gap{display:none}
     .cover-page{width:auto;min-height:100vh;margin:0;box-shadow:none}
     .cover-inner{min-height:100vh;padding:14mm 18mm}
@@ -322,6 +348,35 @@ const CSS = `
   }
 `;
 
+const CONTENTS_LABELS = Object.freeze({
+  fr: { title: "Sommaire", chart: "Carte du ciel", annex: "Annexe de calcul" },
+  en: { title: "Contents", chart: "Birth chart", annex: "Calculation appendix" },
+  de: { title: "Inhalt", chart: "Geburtskarte", annex: "Berechnungsanhang" },
+  es: { title: "Índice", chart: "Carta natal", annex: "Anexo de cálculo" },
+  it: { title: "Indice", chart: "Carta natale", annex: "Appendice di calcolo" },
+  pt: { title: "Índice", chart: "Mapa natal", annex: "Anexo de cálculo" },
+  no: { title: "Innhold", chart: "Fødselskart", annex: "Beregningsvedlegg" },
+  da: { title: "Indhold", chart: "Fødselskort", annex: "Beregningsbilag" },
+  nl: { title: "Inhoud", chart: "Geboortekaart", annex: "Berekeningsbijlage" }
+});
+
+function contentsHtml(sections, strings) {
+  if (sections.length < 2) return "";
+  const labels = CONTENTS_LABELS[strings.lang] ?? CONTENTS_LABELS.fr;
+  return `<nav class="dossier-contents" aria-label="${escapeHtml(labels.title)}"><h2>${escapeHtml(labels.title)}</h2><ol>${sections.map((section, index) => {
+    const label = section.kind === "chart" ? labels.chart : section.kind === "annex" ? labels.annex : section.title;
+    return `<li><a href="#dossier-section-${index + 1}">${escapeHtml(label)}</a></li>`;
+  }).join("")}</ol></nav>`;
+}
+
+function compactChapter(section) {
+  if (!["emotional_world", "conclusion"].includes(section.id)) return false;
+  const prose = [section.text, ...(section.configurationsStudied ?? []), ...(section.calculatedReferences ?? []), ...(section.subsections ?? []).flatMap((part) => [part.title, part.text, ...(part.configurationsStudied ?? []), ...(part.calculatedReferences ?? [])])];
+  // A short chapter should move as a whole instead of leaving a title, a lead
+  // or a closing paragraph alone. Long chapters retain normal page flow.
+  return prose.join(" ").trim().split(/\s+/u).length <= 180;
+}
+
 function configurationsHtml(section) {
   return section.configurationsStudied?.length
     ? `<aside class="studied-configurations"><strong>${escapeHtml(section.configurationsLabel)}</strong><ul>${section.configurationsStudied.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul></aside>` : "";
@@ -346,24 +401,29 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
   // message interne. Ces informations servent à l'exploitation, pas au lecteur.
   // Une section indisponible disparaît : on ne montre jamais « module non
   // disponible » à quelqu'un qui vient de payer.
-  const body = sections
-    .filter((section) => section.badgeCode !== "unavailable")
-    .map((section) => {
+  const visibleSections = sections.filter((section) => section.badgeCode !== "unavailable");
+  const contents = contentsHtml(visibleSections, t);
+  const firstChartIndex = visibleSections.findIndex((section) => section.kind === "chart");
+  const body = visibleSections
+    .map((section, index) => {
+      const anchor = `<span class="section-anchor" id="dossier-section-${index + 1}" aria-hidden="true"></span>`;
+      const navigation = index === firstChartIndex ? contents : "";
       // L'annexe est une section comme les autres : toujours visible, jamais
       // repliée derrière un « détail » cliquable. Un document payant n'a pas de
       // contenu caché, et le repli était la cause d'une annexe absente du PDF.
       // La carte du ciel arrive avec son HTML calculé (roue SVG, graphiques).
       if (section.kind === "chart") {
-        return `<section class="block chart-page"><div class="block-body">${section.html ?? ""}</div></section>`;
+        return `<section class="block chart-page">${anchor}<div class="block-body">${section.html ?? ""}</div></section>${navigation}`;
       }
       const classes = section.kind === "annex" ? "block annex" : section.kind === "reference" ? "block reference" : "block";
       // Deux lignes vides avant l'annexe (voir .annex-gap).
       const avant = section.kind === "annex" ? '<div class="annex-gap" aria-hidden="true"></div>\n' : "";
-      return `${avant}<section class="${classes}">
+      const keepTogether = compactChapter(section);
+      return `${avant}<section class="${classes}">${anchor}${keepTogether ? '<div class="chapter-compact">' : ""}
         <h2>${escapeHtml(section.title)}</h2>
         ${configurationsHtml(section)}
         <div class="block-body">${markdownToHtml(section.text)}${calculatedReferencesHtml(section)}${(section.subsections ?? []).map((subsection) => `<div class="dossier-subsection"><h3>${escapeHtml(subsection.title)}</h3>${configurationsHtml(subsection)}${markdownToHtml(subsection.text)}${calculatedReferencesHtml(subsection)}</div>`).join("")}</div>
-      </section>`;
+      ${keepTogether ? "</div>" : ""}</section>`;
     })
     .join("\n");
 
@@ -409,7 +469,7 @@ export function renderDossierHtml({ title, personLabel, createdAt, writerMode, s
 </div>
 <div class="sheet">
   <div class="caveat">${escapeHtml(t.caveat)}</div>
-  ${body}
+  ${firstChartIndex < 0 ? contents : ""}${body}
   <footer>
     ${aiReview ? `<p class="ai-review">${escapeHtml(aiReview)}</p>` : ""}
     <p class="ethical-closing">${escapeHtml(t.ethicalClosing)}</p>

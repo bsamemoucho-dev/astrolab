@@ -1,0 +1,60 @@
+UNCERTAIN NATAL AXES AND CLIENT PRESENTATION
+
+An approximate birth time can put an axis across a sign boundary. A nominal
+longitude is still calculated at the supplied reference time, but it cannot
+license an unqualified sign claim or an interpretation of that sign.
+
+Causes
+- Only ASC/MC carried explicit angle windows. Older saved calculations need the
+  opposite DSC/IC window reconstructed by the exact 180-degree relationship.
+- Some historical interpretation rules and factual comparisons did not enforce
+  the evidence's declared instability. A nominal match was sufficient.
+- A bounded sign detector could miss a factual angle/sign statement interrupted
+  by an explanatory phrase. Coverage must include the actual sentence form.
+
+Policy
+- Keep numerical positions and uncertain source evidence for annotated reference.
+- Apply the same determination policy to interpretation rules, plan inputs,
+  factual claims, prose facts and personally timed angle contacts.
+- Reject an unqualified nominal fact from unstable evidence. Text still produces
+  undeclared_text_fact, with source_fact_undecidable as the diagnostic reason.
+- Do not infer certainty from several agreeing symbols. Unknown or interval
+  birth times do not supply a single angle or house.
+- Invalid server prefixes remain blocking before any model correction attempt.
+
+Editorial presentation
+- Announce a natal configuration in prose only when the block owns an applicable
+  interpretation rule. Keep other calculated aspects in the reference evidence.
+- Assign the distinct existing planetary function to same-sign chapters. A shared
+  sign or a contrast between two signs is not an interaction licence.
+- The production selection is capped at four current and six future contacts,
+  with time coverage retained and a preference for available interpretive matter.
+  A contact starting later on the reference civil day remains UPCOMING and is
+  explicitly labelled as later today. No astronomical instant is reclassified.
+- The natal Moon/Mars square has no active general-reading rule in the existing
+  catalogue. A relational-scoped rule must not be reused as a general licence.
+  Developing that interpretation needs a separate documented catalogue change.
+
+Print and identity
+- Group chart distributions with their note, keep paragraphs together when they
+  fit, and add linked contents and native page numbering in compatible Chromium.
+- Retain a pale economical print cover, not the ink-heavy screen gradient.
+- Read the name only from the supplied firstName; never derive it from an email
+  or filename. The existing optional public field is moved before birth details.
+
+Validation and limits
+- Regression fixtures contain synthetic evidence or fictional birth data only.
+- Full public service checks use an injected offline writer, never a paid API.
+- Existing functional assertions remain unchanged. The plan's literal version
+  expectation advances from 0.6.0 to 0.7.0 for method traceability. A multi-block
+  prompt test now uses exact time: its former approximate fixture included
+  undecidable MC/IC just to reach two blocks. Its two-block assertion is kept.
+- Print QA can reuse already-produced text to measure layout. Such an artifact
+  is a layout preview, not a factually corrected client dossier.
+- These checks do not certify semantic originality or subjective writing quality.
+- No stored dossier is rewritten, regenerated or notified by this change.
+
+Additional boundary: margins wider than 60 minutes do not certify angle or
+house signs under the endpoint/reference analysis. Full-rotation aliasing must
+not turn equal sampled endpoints into a claim of stability. Positions remain
+available as nominal measurements, not as an exhaustive sign-window list.

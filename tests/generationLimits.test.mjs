@@ -48,12 +48,12 @@ const LIEU = {
   coordinateConfidence: "unverified"
 };
 
-function planDuThemes() {
+function planDuThemes({ timePrecision = "approximate" } = {}) {
   const calculation = calculateWesternNatalChart(
     {
       personId: "demo-limites",
       birthDate: "1979-03-14",
-      timePrecision: "approximate",
+      timePrecision,
       timeValue: "09:00",
       timeMarginMinutes: 30,
       ...LIEU
@@ -202,7 +202,9 @@ test("la dépense théorique d'un dossier est bornée par le nombre de blocs", (
 // ---------------------------------------------------------------------------
 
 test("le prompt ne répète plus l'objectif de la section à chaque bloc", () => {
-  const { plan } = planDuThemes();
+  // This tests a multi-block prompt, not permission to use undecidable angles.
+  // At approximate time MC/IC are excluded; exact time supplies two real blocks.
+  const { plan } = planDuThemes({ timePrecision: "exact" });
   const identity = sectionDuPlan(plan, "identity");
   assert.equal(identity.blockPlans.length, 2, "identité doit avoir deux blocs sur ce thème");
 
