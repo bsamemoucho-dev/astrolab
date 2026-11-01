@@ -3,11 +3,13 @@
 import { zodiacWheelSvg, signDistribution } from "../../src/deliverables/chart.mjs";
 import { docStrings } from "../../src/deliverables/i18n.mjs";
 import { renderSymbolicReading } from "./symbolicReading.mjs";
+import { renderSoulLetter } from "./soulLetter.mjs";
 
 const SCHEMA = "lastro.independent_reading@0.1.0";
 const BODIES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
 const T = docStrings("fr");
 const CSS = `
+.soul-letter{max-width:74ch;background:#fff;border-top:1px solid var(--line);padding:24px 0 8px}.soul-letter p{max-width:68ch;margin:14px 0}.soul-letter h2{break-after:avoid}.soul-letter p{orphans:3;widows:3}.soul-letter .note{max-width:78ch;font-size:12px}
 :root{color-scheme:light;--ink:#282d36;--muted:#62666c;--line:#dedbd5;--paper:#faf8f4;--gold:#886237}
 *{box-sizing:border-box}.person,.birth,p,li,td,h3{overflow-wrap:anywhere}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.65 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 main{max-width:1100px;margin:40px auto;padding:0 28px 35px}header{border-bottom:1px solid var(--line);padding:18px 0 30px}.brand{font:700 25px Georgia,serif}.eyebrow{color:var(--gold);font-size:11px;letter-spacing:.15em;font-weight:700;text-transform:uppercase;margin:15px 0 5px}
@@ -209,6 +211,7 @@ export function renderIndependentReading(report, { presentation = 'local' } = {}
   assertSupported(report);
   const web = presentation === 'web';
   const readingHtml = web ? renderSymbolicReading(report) : '';
+  const soulLetterHtml = web ? renderSoulLetter(report) : '';
   const { frame } = report.tropical;
   const birth = report.birth ?? {};
   const highLatitude = Number.isFinite(birth.latitude) && Math.abs(birth.latitude) >= 65;
@@ -264,6 +267,7 @@ ${jyotishSection(report.jyotish)}
 ${dashaSection(report.dashas)}
 ${annualSection(report.chineseAnnual)}
 ${baziSection(report.bazi)}
+${soulLetterHtml}
 <section aria-labelledby="limits-title"><span class="tag">Périmètre de cet aperçu</span><h2 id="limits-title">Ce qui reste à préparer</h2><div class="unavailable">${unavailable || `<p>Aucun autre module n’est déclaré dans cet aperçu.</p>`}</div><div class="callout"><strong>Traditions présentées séparément</strong><p>Aucune synthèse croisée n’est licenciée ici. Une ressemblance entre des vocabulaires occidentaux et chinois n’apporte pas une preuve indépendante sur une personne. Les positions sidérales, nakshatras, dashas et piliers BaZi ne sont jamais déduits du texte d’exemple.</p></div></section>
 <details open><summary>Références du calcul et de la préparation</summary><div class="method-details">${table(["Repère", "Valeur"], metadata)}${additionalMetadata(report)}<h3>Traçabilité des repères symboliques</h3>${table(["Placement", "Règle", "Preuve"], entries.map((entry) => [proofLabel(byEvidence.get(entry.evidenceId), byBody), entry.ruleId, entry.evidenceId]))}<p>Schéma ${escape(report.schema)} · préparation ${escape(report.generatedAt ?? "non datée")}${report.chineseAnnual?.frame?.runtimeIcu ? ` · calendrier calculé avec ICU ${escape(report.chineseAnnual.frame.runtimeIcu)}` : ""}.</p></div></details>
 <footer>Complément autonome en aperçu local. Le parcours Lastro existant demeure séparé. Les calculs décrivent des positions et des conventions ; les significations astrologiques relèvent d’une lecture symbolique. Aucun diagnostic, événement biographique ou résultat futur n’est établi par cet aperçu.</footer>

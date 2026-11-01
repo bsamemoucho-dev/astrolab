@@ -1,0 +1,23 @@
+LASTRO — LETTRE D’ÂME DU COMPLÉMENT INDÉPENDANT
+Version d’écriture : lastro-symbolic-soul-letter@1.0.0
+
+NATURE ET PÉRIMÈTRE
+Cette lettre est un exercice littéraire symbolique court. Son titre ne désigne ni une âme mesurée, ni une connaissance de l'intimité de la personne. Elle n'établit aucun caractère, passé, événement, karma ou avenir. Elle appartient exclusivement au complément indépendant, séparé du dossier principal.
+
+MATIÈRE AUTORISÉE
+La lettre reprend seulement la Lune sidérale certaine et les mots du lexique lunaire déjà documenté dans symbolic-method.txt. Elle ne combine pas les interprétations tropicales, les dashas et le BaZi et ne crée aucune nouvelle convention astrologique.
+buildSymbolicReading reconstruit et vérifie la preuve lunaire et le cadre Lahiri. Le vocabulaire structuré vient de son catalogue interne ; les étiquettes, textes, règles ou URL fournis par un appelant ne sont pas des sources autorisées.
+Chaque passage personnalisé conserve ses références à la preuve lunaire, à la source Rao déjà employée et à la règle lunaire existante. L'identifiant de méthode ci-dessus décrit seulement la rédaction de cette lettre : il n'élargit aucune licence d'interprétation.
+
+ÉCRITURE
+Trois paragraphes courts proposent des exemples à explorer librement à partir de ce vocabulaire : deux passages concrets, puis une question ouverte. Le plafond est de 160 mots, sans longueur minimale à atteindre. Ce sont des invitations de lecture, sans affirmation sur la personnalité ni conseil imposé. Une question au maximum. Aucune signature fictive, identité devinée, histoire de famille ou résultat futur. Le texte ne reformule pas tout le dossier et ne vise aucun nombre de pages.
+
+INCERTITUDE ET ERREURS
+Sans Lune sidérale certaine, notamment quand la fenêtre horaire ne permet pas une position unique ou que le module est hors plage, la lettre est indisponible et son chapitre n'est pas rendu. Aucun texte générique ne remplace silencieusement une lettre personnalisée.
+Une preuve manquante ou contradictoire, un cadre incompatible ou une licence artificiellement promue restent bloquants. L'incertitude d'une autre planète n'annule pas une preuve lunaire certaine. Aucun angle ni maison n'est utilisé pour rédiger la lettre.
+
+EXÉCUTION ET DONNÉES
+Composition déterministe locale dans l'exécuteur existant. Aucun transport IA, clé, appel payant, paiement, e-mail, nouveau dossier ou stockage n'est ajouté. La lettre suit les exports HTML/PDF du parcours web du complément ; l’aperçu local de catalogue demeure inchangé. Le compteur de rédaction du dossier principal demeure inchangé.
+
+VÉRIFICATIONS
+Les tests couvrent les douze signes calculés, frontières et heures incertaines, hors plage, hautes latitudes, intégrité des preuves et des cadres, absence de réseau, non-mutation, échappement HTML et parcours HTTP réel avec worker isolé et thème fictif.

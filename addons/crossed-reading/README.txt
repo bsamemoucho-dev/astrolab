@@ -14,6 +14,9 @@ Les calculs, le vocabulaire symbolique existant et les modules restant à prépa
 Les fonctions interprétatives existantes restent exclusivement tropicales. Les nouveaux faits Jyotish/BaZi n'obtiennent aucune licence de portrait psychologique ou de prédiction. Une similitude entre traditions n'ajoute aucune certitude sur la personne.
 Le catalogue tropical reste une base de rédaction dans l'aperçu local. Sur le parcours web, symbolicReading.mjs produit une lecture documentaire courte, reliée aux preuves calculées et aux sources primaires Rao/HKO, sans transport IA. Les traits, événements, archétypes, dignités, interprétations karmiques/familiales ou transgénérationnelles ne sont pas fabriqués. Aucune donnée parentale supplémentaire n'est collectée.
 
+LETTRE D’ÂME
+Sur le parcours web, le complément inclut une courte lettre symbolique lorsque la Lune sidérale est certaine. Ce chapitre distinct reprend uniquement le lexique lunaire déjà documenté, sans nouvelle règle astrologique ni portrait établi. Les preuves, la règle lunaire et la source sont conservées ; voir soul-letter-method.txt. Sans repère lunaire certain, aucun chapitre vide ou texte générique de substitution n’est ajouté. Aucun appel IA payant et aucun changement du compteur du dossier principal.
+
 CONVENTIONS ET INCERTITUDES
 Les méthodes sont détaillées dans jyotish-method.txt, vimshottari-method.txt et bazi-method.txt. Conserver ces versions lors de tout export.
 - Domaine temporel vérifié : naissanceUTC1901–2030. Horsplage : indisponibilité explicite, aucun calcul de remplacement.

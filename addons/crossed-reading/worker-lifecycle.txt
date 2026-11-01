@@ -1,0 +1,18 @@
+LASTRO — CLÔTURE DU WORKER DU COMPLÉMENT
+1 novembre 2026
+
+PROBLÈME
+Le parent rejetait immédiatement la demande à réception d'une exception du worker. Une réponse valide déjà postée pouvait encore attendre sa remise au parent : terminer alors le worker faisait perdre ce résultat. Le test historique « réponse puis exception » pouvait donc échouer selon l'ordonnancement des événements.
+
+CORRECTION
+Le parent conserve ses écouteurs après l'événement d'erreur. Une réponse n'est acceptée que si elle respecte exactement le contrat existant. Sans réponse valide, l'événement de fin rejette avec le code masqué habituel. Un message invalide bloque immédiatement, même si un autre message valide suit. Une fermeture explicite ou le délai dépassé demeure définitif : aucun résultat tardif n'est accepté.
+Cette séquence s'appuie sur le contrat officiel Node 22 : les messages du worker sont remis avant son événement de fin, et une exception non interceptée arrête le worker. Aucun ordre relatif entre réception de l'erreur et réception du message n'est présumé.
+Source primaire : https://github.com/nodejs/node/blob/v22.x/doc/api/worker_threads.md#event-message_1
+
+GARDE-FOUS CONSERVÉS
+Un seul calcul actif, environnement vide, aucun argument Node hérité, mémoire128/16Mo, pile4Mo, délai30secondes. Le créneau n'est libéré qu'après arrêt du thread. Les erreurs sans résultat valide restent bloquantes, sans réponse fictive ni reprise silencieuse. Aucun paiement, e-mail, dossier ou appel IA n'est ajouté.
+La factory de worker injectable est une dépendance interne côté serveur pour les tests. Aucun champ du formulaire ni de l'API publique ne peut la configurer.
+
+VÉRIFICATION
+Les anciens tests sont conservés sans modification. Un nouveau fichier impose explicitement l'ordre erreur → réponse valide → fin, l'ordre inverse, les sorties sans réponse, les réponses invalides, le délai, la fermeture et l'exclusion des calculs concurrents. Ce test ne repose pas sur l'espoir de reproduire une course par de nombreuses répétitions. Le même harnais échoue avec l'ancien gestionnaire et passe avec le correctif.
+Ce défaut du cycle de vie est établi par la reproduction déterministe ; il ne constitue pas à lui seul une identification de l'erreur utilisateur signalée sans son message exact.
