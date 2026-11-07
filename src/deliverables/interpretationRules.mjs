@@ -34,7 +34,7 @@ const COMMON_FORBIDDEN = Object.freeze([
   "certitude sur un tiers"
 ]);
 
-const BODY_THEMES = Object.freeze({
+export const BODY_THEMES = Object.freeze({
   Sun: ["identité consciente", "direction personnelle", "manière de se tenir dans son axe"],
   Moon: ["monde émotionnel", "besoin de sécurité intérieure", "réactivité sensible"],
   Mercury: ["pensée et langage", "manière de relier les idées", "circulation mentale"],
@@ -44,7 +44,7 @@ const BODY_THEMES = Object.freeze({
   Saturn: ["structure", "responsabilité", "rapport aux limites"]
 });
 
-const SIGN_THEMES = Object.freeze({
+export const SIGN_THEMES = Object.freeze({
   Aries: ["initiative", "franchise d'impulsion", "mouvement de départ"],
   Taurus: ["stabilité", "ancrage concret", "rythme patient"],
   Gemini: ["curiosité", "mobilité mentale", "besoin d'échanger"],

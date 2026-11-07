@@ -242,3 +242,24 @@ même naissance que l'astrologie occidentale. Code :
   calendaire classique ;
 - **retrait sans blocage** : hors français, hors plage 1901–2030 ou en cas
   d'erreur de calcul, le chapitre est absent et le dossier est livré normalement.
+
+---
+
+## `lastro-mots-simples@1.0.0` — chapitre « Votre thème en mots simples »
+
+**Décision.** Le dossier payant (français) s'ouvre, juste après la carte du ciel,
+sur une version accessible du thème pour les lecteurs novices. Code :
+`src/deliverables/plainLanguage.mjs`.
+
+- **la même chose que la lecture complète** : fonctions des planètes et couleurs
+  des signes reprises de `BODY_THEMES` / `SIGN_THEMES` (base des règles natales),
+  domaines des maisons repris du glossaire « Comprendre votre carte », sens des
+  aspects repris des conventions Lastro (tension, circulation plus facile,
+  conjonction selon les corps) ;
+- **calculé, sans rédacteur IA** : aucun appel payant, aucun fait nouveau ;
+- **incertitude** : signe non décidable dans la marge → aucun signe affirmé ;
+  maisons seulement si elles sont décidables ; Ascendant stable dans la marge →
+  « probable » ; sans heure, ni maison ni Ascendant ;
+- **les maisons sont décodées, pas interprétées** : la ligne dit à quel domaine
+  la convention associe le secteur, sans en tirer une lecture personnelle que
+  les règles n'autorisent pas.
