@@ -21,7 +21,9 @@ import { invitationForAccessCode, requireInvitation } from "./emailInvitationSer
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const RETENTION_DAYS = 30;
-export const GENERATION_LEASE_MS = 15 * 60 * 1000;
+// 30 minutes : en effort « high », un chapitre peut demander jusqu'à trois appels
+// de sept minutes avant que la progression ne renouvelle le bail.
+export const GENERATION_LEASE_MS = 30 * 60 * 1000;
 export const PUBLIC_GENERATION_RECOVERY_VERSION = "public-generation-recovery@1";
 export const MAX_AUTOMATIC_GENERATION_RECOVERIES = 1;
 export const DELIVERY_EMAIL_TYPES = ["public_reading_link", "public_reading_failure", "admin_alert"];
