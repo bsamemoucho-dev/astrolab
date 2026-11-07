@@ -7,6 +7,7 @@ import { validateStructuredSections } from "../deliverables/factualClaimsValidat
 import { mergeRelationalSubsections, renderableDossierSection } from "../deliverables/dossierPresentation.mjs";
 import { chartSection } from "../deliverables/chart.mjs";
 import { crossedTraditionsSection } from "../deliverables/crossedTraditions.mjs";
+import { plainLanguageSection } from "../deliverables/plainLanguage.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { aiNotice, docStrings, normalizeLanguage } from "../deliverables/i18n.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
@@ -399,7 +400,15 @@ export async function createFullPublicReading(input = {}, options = {}) {
     : conclusionIndex < 0
       ? [...presentedSections, crossedSection]
       : [...presentedSections.slice(0, conclusionIndex), crossedSection, ...presentedSections.slice(conclusionIndex)];
-  const fullSections = [chartSection(socle, strings), ...readingSections, ...annexSections(socle, strings)];
+  // « Votre thème en mots simples » : la version accessible, juste après la carte,
+  // avant les chapitres détaillés qui disent la même chose plus en profondeur.
+  const plainSection = plainLanguageSection({ socle, language });
+  const fullSections = [
+    chartSection(socle, strings),
+    ...(plainSection ? [plainSection] : []),
+    ...readingSections,
+    ...annexSections(socle, strings)
+  ];
   // These lexical measurements are diagnostics, not an independent semantic
   // approval or a reason to manufacture another paid rewrite.
   const editorialDiagnostics = { version: EDITORIAL_DIAGNOSTICS_VERSION, scope: "lexical_repetition_only", blocksDelivery: false, repetitions: crossChapterRepetition({ sections: [...renderedSymbolicSections, ...renderedRelationalSections] }) };

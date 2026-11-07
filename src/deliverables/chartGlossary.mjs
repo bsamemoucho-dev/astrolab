@@ -124,6 +124,10 @@ const COPY = {
   }
 };
 
+// Domaines symboliques des douze maisons (français), réutilisés par le décodeur
+// « Votre thème en mots simples » pour dire exactement la même chose.
+export const HOUSE_DOMAINS_FR = Object.freeze([...COPY.fr.houses]);
+
 // This is a general appendix, intentionally independent of every person's
 // placements and the LLM plan. Twelve domain names follow the published guide.
 export function chartGlossarySection(strings = null) {

@@ -114,6 +114,9 @@ test("createFullPublicReading assembles a validated full dossier without using l
   assert.match(reading.html, /ne garantit ni la justesse des interprétations symboliques ni leur qualité éditoriale/);
   assert.doesNotMatch(reading.html, /non rédigé\(s\)|faute de règle documentée/);
   assert.match(reading.markdown, /Annexe/);
+  // Mots simples : juste après la carte du ciel, avant les chapitres rédigés.
+  assert.match(reading.html, /Votre thème en mots simples/);
+  assert.ok(reading.markdown.indexOf("Votre thème en mots simples") < reading.markdown.indexOf("Synthèse générale"));
   // Regards croisés : calculé, placé avant la conclusion, sans appel IA supplémentaire.
   assert.match(reading.html, /Regards croisés/);
   assert.ok(reading.markdown.indexOf("Regards croisés") < reading.markdown.lastIndexOf("Annexe"));
