@@ -245,7 +245,7 @@ même naissance que l'astrologie occidentale. Code :
 
 ---
 
-## `lastro-mots-simples@1.0.0` — chapitre « Votre thème en mots simples »
+## `lastro-mots-simples@1.1.0` — chapitre « Votre thème en mots simples »
 
 **Décision.** Le dossier payant (français) s'ouvre, juste après la carte du ciel,
 sur une version accessible du thème pour les lecteurs novices. Code :
@@ -263,3 +263,9 @@ sur une version accessible du thème pour les lecteurs novices. Code :
 - **les maisons sont décodées, pas interprétées** : la ligne dit à quel domaine
   la convention associe le secteur, sans en tirer une lecture personnelle que
   les règles n'autorisent pas.
+- **aspects en français courant** (1.1.0) : chaque lien est nommé en mots
+  simples (« face à », « en tension avec », « en harmonie avec », « en accord
+  avec », « réuni à ») suivi du terme technique entre parenthèses ; la
+  définition de chaque famille d'aspects est donnée une seule fois, dans une
+  légende limitée aux familles présentes, au lieu d'être répétée à chaque ligne.
+  1.0.0 écrivait « Le Soleil opposition la Lune » et répétait la définition.

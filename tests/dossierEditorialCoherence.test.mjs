@@ -86,7 +86,7 @@ test('later today is explicitly distinguished from a contact already current, wi
   const p = plan(source);
   const s = section(p, 'next_weeks');
   const block = s.blockPlans.find((b) => b.packetRefs.some((ref) => s.evidencePackets.find((pk) => pk.packetId === ref)?.evidenceRefs.includes(later.evidenceId)));
-  assert.match(block.deterministicPrefix, /Plus tard aujourd’hui/);
+  assert.match(block.deterministicPrefix, /commence plus tard aujourd’hui/);
   assert.equal(p.ownerByEvidenceRef[later.evidenceId], 'next_weeks');
   assert.equal(p.ownerByEvidenceRef[ongoing.evidenceId], 'current_sky');
   let calls = 0;
@@ -124,6 +124,6 @@ for (const [nowUtc, startsAt, expectedLaterToday] of [
     source.evidence.find((p) => p.type === 'TRANSIT_SNAPSHOT').value.nowUtc = nowUtc;
     const s = section(plan(source), 'next_weeks');
     const prefix = s.blockPlans[0].deterministicPrefix;
-    assert.equal(prefix.includes('Plus tard aujourd’hui'), expectedLaterToday);
+    assert.equal(prefix.includes('commence plus tard aujourd’hui'), expectedLaterToday);
   });
 }

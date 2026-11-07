@@ -1,4 +1,4 @@
-// Chapitre « Votre thème en mots simples » (convention lastro-mots-simples@1.0.0).
+// Chapitre « Votre thème en mots simples » (convention lastro-mots-simples@1.1.0).
 //
 // Une version accessible du thème pour les lecteurs qui découvrent l'astrologie :
 // chaque placement est traduit en mots courants, sans jargon. Il DIT LA MÊME
@@ -17,7 +17,7 @@
 import { HOUSE_DOMAINS_FR } from "./chartGlossary.mjs";
 import { BODY_THEMES, SIGN_THEMES } from "./interpretationRules.mjs";
 
-export const PLAIN_LANGUAGE_VERSION = "lastro-mots-simples@1.0.0";
+export const PLAIN_LANGUAGE_VERSION = "lastro-mots-simples@1.1.0";
 export const PLAIN_LANGUAGE_SECTION_ID = "mots-simples";
 
 const BODIES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
@@ -27,9 +27,9 @@ const BODIES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"];
 // pas à votre signe ») ; Jupiter et Saturne suivent leurs thèmes de règle.
 const BODY_PLAIN = Object.freeze({
   Sun: { name: "Le Soleil", short: "le Soleil", plain: "ce que vous cherchez à incarner" },
-  Moon: { name: "La Lune", short: "la Lune", plain: "vos besoins émotionnels" },
+  Moon: { name: "La Lune", short: "la Lune", feminine: true, plural: true, plain: "vos besoins émotionnels" },
   Mercury: { name: "Mercure", short: "Mercure", plain: "votre manière de penser et de communiquer" },
-  Venus: { name: "Vénus", short: "Vénus", plain: "ce que vous aimez et ce qui compte pour vous" },
+  Venus: { name: "Vénus", short: "Vénus", feminine: true, plain: "ce que vous aimez et ce qui compte pour vous" },
   Mars: { name: "Mars", short: "Mars", plain: "votre manière d'agir et de vous affirmer" },
   Jupiter: { name: "Jupiter", short: "Jupiter", plain: "votre façon d'élargir votre horizon et de faire confiance" },
   Saturn: { name: "Saturne", short: "Saturne", plain: "votre rapport aux règles, aux responsabilités et aux limites" }
@@ -126,35 +126,73 @@ function ascendantBlock(socle) {
   ].join("\n\n");
 }
 
-function aspectMeaning(aspect) {
-  const pair = [aspect.bodyA, aspect.bodyB].sort().join("|");
+// Chaque aspect est dit en français courant (« en harmonie », « en tension »)
+// avec son nom technique entre parenthèses ; la définition de chaque famille
+// d'aspects n'est donnée qu'UNE fois, dans la légende, et non répétée à chaque
+// ligne. Le sens suit les conventions Lastro : carré et opposition = tension à
+// accorder ; trigone et sextile = circulation plus facile, qui reste à mettre en
+// œuvre ; conjonction = selon les corps réunis.
+const ASPECT_FR = Object.freeze({ conjunction: "conjonction", opposition: "opposition", square: "carré", trine: "trigone", sextile: "sextile" });
+
+function toFr(short) {
+  return short.startsWith("le ") ? `au ${short.slice(3)}` : `à ${short}`;
+}
+
+function aspectTitle(aspect, a, b) {
+  const first = capitalize(a.short);
   switch (aspect.type) {
-    case "square":
-    case "opposition":
-      return "relie deux fonctions sous tension : elles demandent à être accordées plutôt qu'opposées";
-    case "trine":
-    case "sextile":
-      return "marque, par convention, une circulation plus facile entre deux fonctions, qui reste à mettre en œuvre";
-    case "conjunction":
-      if (SUPPORT_CONJUNCTIONS.has(pair)) return "rapproche deux fonctions qui se soutiennent";
-      if (TENSION_CONJUNCTIONS.has(pair)) return "rapproche deux fonctions sous tension, qui demandent à être accordées";
-      return "rapproche deux fonctions qui agissent ensemble, sans que l'une l'emporte d'avance";
-    default:
-      return null;
+    case "opposition": return `${first} face ${toFr(b.short)} (opposition)`;
+    case "square": return `${first} en tension avec ${b.short} (carré)`;
+    case "trine": return `${first} en harmonie avec ${b.short} (trigone)`;
+    case "sextile": return `${first} en accord avec ${b.short} (sextile)`;
+    case "conjunction": return `${first} réuni${a.feminine ? "e" : ""} ${toFr(b.short)} (conjonction)`;
+    default: return null;
   }
 }
 
-const ASPECT_FR = Object.freeze({ conjunction: "conjonction", opposition: "opposition", square: "carré", trine: "trigone", sextile: "sextile" });
+function aspectSentence(aspect, a, b) {
+  const pair = [aspect.bodyA, aspect.bodyB].sort().join("|");
+  // Sujet = la fonction de la première planète ; accord du verbe selon qu'elle
+  // est au singulier (« ce que vous… », « votre manière… ») ou au pluriel
+  // (« vos besoins émotionnels »).
+  const verb = (singular, plural) => (a.plural ? plural : singular);
+  switch (aspect.type) {
+    case "opposition": return `${a.plain} ${verb("tire", "tirent")} dans une autre direction que ${b.plain}. L'enjeu est de trouver un équilibre entre les deux.`;
+    case "square": return `${a.plain} ${verb("se frotte", "se frottent")} à ${b.plain}. L'enjeu est de les accorder plutôt que de choisir l'un contre l'autre.`;
+    case "trine": return `${a.plain} ${verb("trouve", "trouvent")} facilement un appui dans ${b.plain}.`;
+    case "sextile": return `${a.plain} ${verb("peut", "peuvent")} s'appuyer sur ${b.plain}.`;
+    case "conjunction":
+      if (SUPPORT_CONJUNCTIONS.has(pair)) return `${a.plain} ${verb("va", "vont")} de pair avec ${b.plain}, et l'un soutient l'autre.`;
+      if (TENSION_CONJUNCTIONS.has(pair)) return `${a.plain} ${verb("va", "vont")} de pair avec ${b.plain}, mais sous tension. Les deux demandent à être accordés.`;
+      return `${a.plain} ${verb("va", "vont")} de pair avec ${b.plain}, sans que l'un l'emporte d'avance.`;
+    default: return null;
+  }
+}
 
-function aspectLines(socle) {
-  return (socle?.retainedAspects ?? [])
-    .filter((aspect) => aspect.marginStable !== false && BODY_PLAIN[aspect.bodyA] && BODY_PLAIN[aspect.bodyB] && ASPECT_FR[aspect.type])
-    .map((aspect) => {
-      const meaning = aspectMeaning(aspect);
-      const a = BODY_PLAIN[aspect.bodyA];
-      const b = BODY_PLAIN[aspect.bodyB];
-      return `- **${capitalize(a.short)} ${ASPECT_FR[aspect.type]} ${b.short}** : ${aspect.type === "opposition" ? "une" : aspect.type === "conjunction" ? "une" : "un"} ${ASPECT_FR[aspect.type]} ${meaning}. Ici : ${a.plain} d'un côté, ${b.plain} de l'autre.`;
-    });
+function retainedPlainAspects(socle) {
+  return (socle?.retainedAspects ?? []).filter(
+    (aspect) => aspect.marginStable !== false && BODY_PLAIN[aspect.bodyA] && BODY_PLAIN[aspect.bodyB] && ASPECT_FR[aspect.type]
+  );
+}
+
+function aspectLines(aspects) {
+  return aspects.map((aspect) => {
+    const a = BODY_PLAIN[aspect.bodyA];
+    const b = BODY_PLAIN[aspect.bodyB];
+    return `- **${aspectTitle(aspect, a, b)}** : ${aspectSentence(aspect, a, b)}`;
+  });
+}
+
+// Légende : seulement les familles d'aspects présentes dans la carte.
+function aspectLegend(aspects) {
+  const types = new Set(aspects.map((aspect) => aspect.type));
+  const lines = [];
+  if (types.has("conjunction")) lines.push("- **Conjonction** : deux planètes très proches l'une de l'autre, qui agissent ensemble.");
+  const easy = ["trine", "sextile"].filter((type) => types.has(type)).map((type) => (type === "trine" ? "trigone" : "sextile"));
+  if (easy.length) lines.push(`- **${capitalize(easy.join(", "))}** : une circulation plus facile entre deux parts de vous ; c'est un atout, qui reste à mettre en œuvre.`);
+  const hard = ["square", "opposition"].filter((type) => types.has(type)).map((type) => (type === "square" ? "carré" : "opposition"));
+  if (hard.length) lines.push(`- **${capitalize(hard.join(", "))}** : une tension entre deux besoins, qui demande à être accordée plutôt que tranchée.`);
+  return lines;
 }
 
 export function renderPlainLanguageText(socle) {
@@ -172,13 +210,13 @@ export function renderPlainLanguageText(socle) {
     parts.push("### Votre Ascendant");
     parts.push(asc);
   }
-  const aspects = aspectLines(socle);
+  const aspects = retainedPlainAspects(socle);
   if (aspects.length > 0) {
     parts.push("### Les liens entre vos planètes");
-    parts.push(
-      "Un aspect est un angle particulier entre deux planètes : il indique que deux fonctions de votre thème dialoguent. Voici ceux que retient votre carte."
-    );
-    parts.push(aspects.join("\n"));
+    parts.push("Un aspect est un angle particulier entre deux planètes : il indique que deux parts de vous dialoguent. Par convention :");
+    parts.push(aspectLegend(aspects).join("\n"));
+    parts.push("Dans votre carte :");
+    parts.push(aspectLines(aspects).join("\n"));
   }
   parts.push(
     "Pour aller plus loin, les chapitres suivants reprennent ces mêmes éléments et les développent : comment ils se combinent, et ce qu'ils peuvent éclairer dans vos relations, vos émotions et votre manière d'agir."
