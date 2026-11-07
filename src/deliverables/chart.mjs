@@ -7,7 +7,7 @@
 // par les corps rapides.
 //
 // La répartition par élément et par modalité suit une convention versionnée
-// (`lastro-distribution@1.0.0`) : les sept corps traditionnels, sans pondération.
+// (`lastro-distribution@1.1.0`) : les sept corps traditionnels, sans pondération.
 // Un corps dont le signe n'est pas établi est EXCLU du décompte et compté à part —
 // un pourcentage calculé sur des signes inconnus serait un chiffre inventé.
 
@@ -17,7 +17,7 @@ import { zodiacWheelSvg } from "./natalWheel.mjs";
 
 export { zodiacWheelSvg };
 
-export const LASTRO_DISTRIBUTION_RULE_VERSION = "lastro-distribution@1.0.0";
+export const LASTRO_DISTRIBUTION_RULE_VERSION = "lastro-distribution@1.1.0";
 
 export const SIGNS = Object.freeze([
   "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
@@ -51,6 +51,9 @@ export const ELEMENT_COLOURS = Object.freeze({
 
 // Répartition des sept corps. `notEstablished` sort du décompte : le document dit
 // combien de corps sont concernés au lieu de les ranger dans un signe au hasard.
+// Depuis 1.1.0, un corps dont le signe change dans la marge horaire est lui aussi
+// exclu : deux signes voisins n'ont jamais le même élément ni la même modalité,
+// donc le compter dans son signe nominal affirmerait un fait non décidable.
 export function signDistribution(bodies = []) {
   const liste = Array.isArray(bodies) ? bodies : [];
   const byElement = Object.fromEntries(ELEMENT_ORDER.map((key) => [key, 0]));
@@ -60,7 +63,7 @@ export function signDistribution(bodies = []) {
   for (const body of liste) {
     const element = ELEMENT_BY_SIGN[body?.sign];
     const modality = MODALITY_BY_SIGN[body?.sign];
-    if (!element || !modality) {
+    if (!element || !modality || body?.signStableWithinMargin === false) {
       notEstablished.push(body?.body ?? null);
       continue;
     }

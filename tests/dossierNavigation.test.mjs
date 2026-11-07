@@ -71,7 +71,7 @@ test("calculated distributions and their uncertainty note are an indivisible cha
   const group = html.slice(html.indexOf('<div class="chart-distribution-group">'));
   assert.match(group, /^<div class="chart-distribution-group">\s*<div class="chart-distributions">/);
   assert.match(group, /<p class="footer-note chart-distribution-note">[^]*<\/p>\s*<\/div>$/);
-  assert.match(group, /lastro-distribution@1\.0\.0/);
+  assert.match(group, /lastro-distribution@1\.1\.0/);
   assert.match(group, /Ascendant indécis/);
   assert.deepEqual(socle, before, "layout must not alter calculated facts");
 });

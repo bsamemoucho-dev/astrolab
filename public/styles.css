@@ -1415,6 +1415,20 @@ body.guest #guest-hero .hero-cta:hover { background: #34415a; filter: none; }
 .home-how { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 26px; padding: 23px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .home-how p { color: var(--ink-soft); font-size: .8rem; line-height: 1.5; }
 .home-how span { display: inline-block; margin-right: 9px; color: var(--gold); font-size: .7rem; font-variant-numeric: tabular-nums; }
+.home-offer { margin: 34px 0 8px; padding: 30px 32px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.72); }
+.home-offer-head { max-width: 640px; }
+.home-offer-head h2 { font-size: 1.65rem; font-weight: 500; line-height: 1.25; margin-bottom: 10px; }
+.home-offer-head > p:not(.home-note-kicker) { color: var(--ink-soft); font-size: .92rem; line-height: 1.65; }
+.home-offer-grid { list-style: none; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px 26px; margin: 24px 0; padding: 0; }
+.home-offer-grid li { display: grid; gap: 5px; padding-top: 14px; border-top: 1px solid var(--line); }
+.home-offer-grid strong { font-size: .9rem; font-weight: 650; }
+.home-offer-grid span { color: var(--muted); font-size: .8rem; line-height: 1.55; }
+.home-offer-cta { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid var(--line); }
+.home-offer-cta p { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.home-offer-cta p strong { font-size: 1.9rem; font-weight: 500; }
+.home-offer-cta p span { color: var(--muted); font-size: .8rem; }
+@media (max-width: 850px) { .home-offer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 560px) { .home-offer { padding: 22px 18px; } .home-offer-grid { grid-template-columns: 1fr; } .home-offer-cta .hero-cta { width: 100%; text-align: center; } }
 body.guest .pedagogy { max-width: 840px; padding: 0; margin: 25px auto 32px; }
 .pedagogy summary { cursor: pointer; color: var(--ink-soft); font-size: .86rem; line-height: 1.5; padding: 10px 0; }
 .pedagogy-body { display: grid; gap: 16px; padding-top: 18px; }

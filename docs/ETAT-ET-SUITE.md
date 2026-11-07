@@ -369,7 +369,7 @@ avec la fenêtre d'impression en secours.
 
 ## Prix fixe et offre de lancement (12/09/2026)
 
-Décision actuelle : **une seule formule, 5 €**, sans code de lancement public
+Décision du 12/09/2026 : **une seule formule, 5 €** (prix remplacé depuis par **18 €**, convention `lastro-pricing@1.1.0`), sans code de lancement public
 pré-rempli par défaut. Les codes privés restent possibles via l'environnement.
 
 Ce qui a changé, et pourquoi ce n'est pas qu'un texte :

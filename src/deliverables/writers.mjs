@@ -13,12 +13,32 @@ import { assertLlmBudget, recordLlmSpend } from "./llmBudget.mjs";
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_MODEL = "gpt-6.1-sol";
-export const SOL_REASONING_EFFORT = "low";
-export const SOL_REASONING_TOKEN_ALLOWANCE = 8192;
+export const SOL_REASONING_EFFORT = "high";
+const REASONING_EFFORTS = new Set(["low", "medium", "high"]);
 
-export function completionTokenLimit(model, visibleTokens = 2000) {
+// Effort de raisonnement du modèle par défaut : « high » en production depuis le
+// 7 novembre 2026 (« low » auparavant). ASTROLAB_LLM_REASONING_EFFORT=low|medium
+// permet de revenir en arrière sans redéployer de code.
+export function solReasoningEffort(env = process.env) {
+  const value = String(env.ASTROLAB_LLM_REASONING_EFFORT ?? "").trim().toLowerCase();
+  return REASONING_EFFORTS.has(value) ? value : SOL_REASONING_EFFORT;
+}
+export const SOL_REASONING_TOKEN_ALLOWANCE = 8192;
+// Un effort plus élevé raisonne plus longtemps : si la marge de raisonnement ne
+// suit pas, le modèle épuise sa limite avant d'écrire et renvoie un texte vide.
+const SOL_REASONING_ALLOWANCE_BY_EFFORT = Object.freeze({ low: SOL_REASONING_TOKEN_ALLOWANCE, medium: 16384, high: 32768 });
+
+// Délai maximal d'un appel : plus de raisonnement demande plus de temps.
+const SOL_TIMEOUT_MS_BY_EFFORT = Object.freeze({ low: 180000, medium: 300000, high: 420000 });
+
+export function solRequestTimeoutMs(effort = solReasoningEffort()) {
+  return SOL_TIMEOUT_MS_BY_EFFORT[effort] ?? SOL_TIMEOUT_MS_BY_EFFORT.low;
+}
+
+export function completionTokenLimit(model, visibleTokens = 2000, effort = solReasoningEffort()) {
   const visible = Number.isInteger(visibleTokens) && visibleTokens > 0 ? visibleTokens : 2000;
-  return model === DEFAULT_MODEL ? Math.min(128000, visible + SOL_REASONING_TOKEN_ALLOWANCE) : visible;
+  const allowance = SOL_REASONING_ALLOWANCE_BY_EFFORT[effort] ?? SOL_REASONING_TOKEN_ALLOWANCE;
+  return model === DEFAULT_MODEL ? Math.min(128000, visible + allowance) : visible;
 }
 
 function isNodeTestRuntime() {
@@ -53,7 +73,7 @@ export async function callChatCompletions(config, { system, user, temperature = 
   const controller = new AbortController();
   const isSol = config.model === DEFAULT_MODEL;
   const completionLimit = isSol ? completionTokenLimit(config.model, maxTokens) : maxTokens;
-  const timeout = setTimeout(() => controller.abort(), isSol ? 180000 : 120000);
+  const timeout = setTimeout(() => controller.abort(), isSol ? solRequestTimeoutMs() : 120000);
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const fetchFn = config.fetchFn ?? globalThis.fetch;
@@ -79,7 +99,7 @@ export async function callChatCompletions(config, { system, user, temperature = 
         ...(temperature === null || isSol ? {} : { temperature }),
         ...(responseFormat ? { response_format: responseFormat } : {}),
         ...(isSol
-          ? { reasoning_effort: SOL_REASONING_EFFORT, max_completion_tokens: completionLimit, store: false }
+          ? { reasoning_effort: solReasoningEffort(), max_completion_tokens: completionLimit, store: false }
           : maxTokens ? { max_tokens: maxTokens } : {}),
         messages: [
           { role: "system", content: system },

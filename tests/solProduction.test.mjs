@@ -16,7 +16,7 @@ test('Sol: compatible request, JSON mode, bounded reasoning headroom, no tempera
  let calls=0;
  const result=await callChatCompletions(config(async(url,request)=>{
   calls++;assert.equal(url,'https://example.invalid/v1/chat/completions');const body=JSON.parse(request.body);
-  assert.equal(body.model,DEFAULT_MODEL);assert.equal(body.reasoning_effort,'low');assert.equal(body.temperature,undefined);assert.equal(body.max_tokens,undefined);assert.equal(body.max_completion_tokens,9392);assert.equal(body.store,false);assert.deepEqual(body.response_format,{type:'json_object'});
+  assert.equal(body.model,DEFAULT_MODEL);assert.equal(body.reasoning_effort,'high');assert.equal(body.temperature,undefined);assert.equal(body.max_tokens,undefined);assert.equal(body.max_completion_tokens,33968);assert.equal(body.store,false);assert.deepEqual(body.response_format,{type:'json_object'});
   return {ok:true,json:async()=>response()};
  }),{system:'Write JSON',user:'Fictive facts only',maxTokens:1200,responseFormat:{type:'json_object'},temperature:0.35});
  assert.equal(calls,1);assert.equal(result.usage.completionTokens,900);assert.equal(result.usage.reasoningTokens,700);assert.equal(result.finishReason,'stop');assert.deepEqual(JSON.parse(result.text).blocks,[]);
@@ -43,7 +43,7 @@ test('Sol: interrupted transport makes one request only',async()=>{
 });
 test('Sol: spend estimate includes reasoning reserve at the official output price',()=>{
  assert.deepEqual(priceForModel(DEFAULT_MODEL),{in:2,out:10});
- assert.equal(completionTokenLimit(DEFAULT_MODEL,2000),10192);
+ assert.equal(completionTokenLimit(DEFAULT_MODEL,2000,'low'),10192);assert.equal(completionTokenLimit(DEFAULT_MODEL,2000),34768);
  const estimate=estimateCallCostUsd({model:DEFAULT_MODEL,promptChars:4000,promptTokensUpperBound:4064,outputTokens:10192});
  assert.equal(estimate.promptTokens,4064);assert.equal(estimate.usd,0.110048);
 });
