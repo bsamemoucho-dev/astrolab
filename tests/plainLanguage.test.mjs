@@ -53,7 +53,7 @@ test("un corps dont le signe change dans la marge n'est jamais placé dans un si
   theme.bodies = theme.bodies.map((body) => (body.body === "Moon" ? { ...body, signStableWithinMargin: false } : body));
   const { text } = plainLanguageSection({ socle: theme });
   assert.match(text, /La lune : signe non décidable|la Lune : signe non décidable/i);
-  assert.doesNotMatch(text, /La Lune en /);
+  assert.doesNotMatch(text, /La Lune en [A-ZÉ]/);
 });
 
 test("aucune prédiction ni vocabulaire fataliste", () => {
@@ -69,4 +69,37 @@ test("réservé au français, et rendu comme une section du dossier", () => {
   const html = renderDossierHtml({ title: "Test", personLabel: null, createdAt: "2026-11-07T12:00:00.000Z", writerMode: "llm", sections: [section] });
   assert.match(html, /Votre thème en mots simples/);
   assert.match(html, /<strong>En clair :<\/strong>/);
+});
+
+test("les liens entre planètes : français correct, définitions données une seule fois", () => {
+  const theme = EXACT();
+  theme.retainedAspects = [
+    { bodyA: "Sun", bodyB: "Moon", type: "opposition" },
+    { bodyA: "Moon", bodyB: "Sun", type: "conjunction" },
+    { bodyA: "Sun", bodyB: "Jupiter", type: "trine" },
+    { bodyA: "Mars", bodyB: "Jupiter", type: "trine" },
+    { bodyA: "Moon", bodyB: "Mars", type: "sextile" },
+    { bodyA: "Mercury", bodyB: "Saturn", type: "square" }
+  ];
+  const { text } = plainLanguageSection({ socle: theme });
+  assert.match(text, /Le Soleil face à la Lune \(opposition\)/);
+  assert.match(text, /La Lune réunie au Soleil \(conjonction\)/);
+  assert.match(text, /vos besoins émotionnels peuvent s'appuyer sur/);
+  assert.doesNotMatch(text, /opposition la|à le |\bIci :/);
+  // La définition d'une famille d'aspects n'apparaît qu'une fois, dans la légende.
+  assert.equal(text.split("circulation plus facile").length - 1, 1);
+  assert.equal(text.split("demande à être accordée").length - 1, 1);
+  // Pas de majuscule après les deux-points, pas de double deux-points sur une ligne.
+  for (const line of text.split("\n").filter((l) => l.startsWith("- **") && /\((opposition|carré|trigone|sextile|conjonction)\)/.test(l))) {
+    assert.match(line, /\*\* : [a-zv]/, line);
+    assert.equal(line.split(" : ").length, 2, line);
+  }
+});
+
+test("la légende ne cite que les familles d'aspects présentes", () => {
+  const theme = EXACT();
+  theme.retainedAspects = [{ bodyA: "Sun", bodyB: "Jupiter", type: "trine" }];
+  const { text } = plainLanguageSection({ socle: theme });
+  assert.match(text, /\*\*Trigone\*\* :/);
+  assert.doesNotMatch(text, /\*\*Conjonction\*\*|\*\*Carré|opposition\*\*/);
 });

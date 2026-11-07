@@ -532,8 +532,8 @@ function transitTimingPrefix(packetOrPackets, { nowUtc = null, timeZone = "UTC" 
     const singleDay = start && end && peak && sameFrenchDate(start, end, timeZone) && sameFrenchDate(start, peak, timeZone);
     const exact = singleDay ? null : exactSentence(peak, now, timeZone);
     const laterToday = now && start && start > now && sameFrenchDate(start, now, timeZone)
-      ? "Plus tard aujourd’hui, après l’instant de référence." : null;
-    return [laterToday, window, exact].filter(Boolean).join(" ");
+      ? "Ce passage commence plus tard aujourd’hui." : null;
+    return [window, laterToday, exact].filter(Boolean).join(" ");
   }
   const first = claims[0];
   const aspect = aspectWithArticle(first.aspectType);
