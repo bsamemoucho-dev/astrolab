@@ -1790,6 +1790,7 @@ function applyPricing() {
   }
   // Vue « Offre & prix » : mêmes chiffres, même source.
   setNodeText("#offre-base", formatEuros(pricing.baseCents));
+  setNodeText("#home-offer-price", formatEuros(pricing.totalCents));
   setNodeText("#offre-remise", `−${formatEuros(pricing.promoDiscountCents)}`);
   setNodeText("#offre-total", formatEuros(pricing.totalCents));
   const ligne = $("#offre-remise-line");

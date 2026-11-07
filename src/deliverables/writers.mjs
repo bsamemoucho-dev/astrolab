@@ -14,6 +14,15 @@ import { assertLlmBudget, recordLlmSpend } from "./llmBudget.mjs";
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_MODEL = "gpt-6.1-sol";
 export const SOL_REASONING_EFFORT = "low";
+const REASONING_EFFORTS = new Set(["low", "medium", "high"]);
+
+// Effort de raisonnement du modèle par défaut. « low » reste la valeur de
+// production ; ASTROLAB_LLM_REASONING_EFFORT=medium permet de mesurer le gain de
+// qualité (et le coût) sur une lecture réelle avant de changer ce défaut.
+export function solReasoningEffort(env = process.env) {
+  const value = String(env.ASTROLAB_LLM_REASONING_EFFORT ?? "").trim().toLowerCase();
+  return REASONING_EFFORTS.has(value) ? value : SOL_REASONING_EFFORT;
+}
 export const SOL_REASONING_TOKEN_ALLOWANCE = 8192;
 
 export function completionTokenLimit(model, visibleTokens = 2000) {
@@ -79,7 +88,7 @@ export async function callChatCompletions(config, { system, user, temperature = 
         ...(temperature === null || isSol ? {} : { temperature }),
         ...(responseFormat ? { response_format: responseFormat } : {}),
         ...(isSol
-          ? { reasoning_effort: SOL_REASONING_EFFORT, max_completion_tokens: completionLimit, store: false }
+          ? { reasoning_effort: solReasoningEffort(), max_completion_tokens: completionLimit, store: false }
           : maxTokens ? { max_tokens: maxTokens } : {}),
         messages: [
           { role: "system", content: system },

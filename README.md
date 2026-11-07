@@ -14,9 +14,9 @@ structured result, a transversal inference, and an AI-written explanation.
   paying again.
 - **Payment**: Stripe Checkout embedded in the page (card, Apple Pay, Google Pay;
   Link excluded). **Live and taking payments** — verify with
-  `curl -s https://www.lastro.fr/api/config`. **One fixed price: 5 €**, with no
+  `curl -s https://www.lastro.fr/api/config`. **One fixed price: 18 €**, with no
   public launch code pre-filled by default. The amount
-  is computed server-side from the submitted code alone (`lastro-pricing@1.0.0`): the browser
+  is computed server-side from the submitted code alone (`lastro-pricing@1.1.0`): the browser
   never sends a price, and an unknown code is refused instead of being charged at
   full price. **Private codes** (`ASTROLAB_PROMO_CODES=CODE=montant`, positive = the
   price paid, negative = a discount) live only in the environment — never in the
