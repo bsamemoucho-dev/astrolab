@@ -107,7 +107,7 @@ examinés.
 
 ---
 
-## `lastro-distribution@1.0.0` — répartition par élément et par modalité
+## `lastro-distribution@1.1.0` — répartition par élément et par modalité
 
 **Décision.** La page « carte du ciel » montre la répartition des corps entre les
 quatre éléments (Feu, Terre, Air, Eau) et les trois modalités (Cardinal, Fixe,
@@ -119,7 +119,11 @@ Mutable). Un pourcentage suppose une règle : la voici, écrite.
   n'est inventée — le moteur ne hiérarchise pas les corps ;
 - **corps sans signe établi** : exclus du décompte et **comptés à part**, avec la
   mention « *n* corps sans signe établi, non comptés dans cette répartition ». Un
-  pourcentage calculé sur des signes inconnus serait un chiffre inventé ;
+  pourcentage calculé sur des signes inconnus serait un chiffre inventé. Depuis
+  la 1.1.0, cela inclut un corps dont le signe **change dans la marge horaire**
+  (`signStableWithinMargin === false`) : deux signes voisins n'ont jamais le même
+  élément ni la même modalité, le compter dans son signe nominal affirmerait un
+  fait non décidable ;
 - **les pourcentages affichés** sont le rapport entre le nombre de corps et le
   nombre de corps **classés** (et non le total des sept, qui inclurait les
   exclus) ;
@@ -165,12 +169,12 @@ Ce n'est pas une convention astrologique, mais c'est une règle versionnée : el
 ce qui est affiché au client et ce qui est débité. Elle vit dans
 `src/payments/pricing.mjs`.
 
-| Élément | Valeur en 1.0.0 | Comment la changer |
+| Élément | Valeur actuelle (1.1.0) | Comment la changer |
 |---|---|---|
-| Prix de la lecture | **5 €** (`ASTROLAB_PRICE_CENTS=500`) | variable d'environnement |
+| Prix de la lecture | **18 €** (`ASTROLAB_PRICE_CENTS=1800`, défaut du code) | variable d'environnement |
 | Code public | aucun par défaut (`ASTROLAB_PROMO_CODE` vide) | variable d'environnement |
 | Remise publique | aucune par défaut (`ASTROLAB_PROMO_DISCOUNT_CENTS=0`) | variable d'environnement |
-| Prix payé sans code | **5 €** | calculé par le serveur |
+| Prix payé sans code | **18 €** | calculé par le serveur |
 
 Codes **privés**, facultatifs, définis uniquement par l'environnement
 (`ASTROLAB_PROMO_CODES=CODE=montant`, plusieurs codes séparés par des virgules) :
@@ -212,3 +216,29 @@ Règles de la convention :
    consigne : une consigne n'est pas une contrainte.
 5. Ajouter un test qui vérifie la version, les paramètres, la provenance et
    l'absence de fuite de langage interne dans le document livré.
+
+---
+
+## `lastro-regards-croises@1.0.0` — chapitre « Regards croisés » du dossier payant
+
+**Décision.** Le dossier payant (français) contient un chapitre où le Jyotish
+(sidéral Lahiri, nakshatra, Vimshottari) et le BaZi (quatre piliers) lisent la
+même naissance que l'astrologie occidentale. Code :
+`src/deliverables/crossedTraditions.mjs`, calculs : `addons/crossed-reading/`.
+
+- **calculé, sans rédacteur IA** : gabarits fixes et vocabulaire documenté du
+  complément (Rao, HKO) ; aucun appel payant supplémentaire ;
+- **traditions côte à côte, pas de synthèse** : `crossTraditionSynthesis` reste
+  `not_licensed`. Les « échos » ne signalent qu'une coïncidence de calendrier
+  (même signe dans les deux zodiaques) ou de vocabulaire (même nom d'élément
+  dans les quatre éléments et les cinq phases), écrite comme telle ;
+- **incertitude** : heure non ponctuelle → signe sidéral « probable » s'il est le
+  même aux deux bornes de la fenêtre, « non décidable » sinon ; pas d'Ascendant
+  sidéral, pas de nakshatra ni de période courante non certains, pilier d'heure
+  « indéterminé » ;
+- **période Vimshottari** : seule la période en cours et son année d'ouverture
+  sont écrites, avec la mention qu'elle n'annonce aucun événement ;
+- **tronc du jour** : phase (wu xing) et polarité yin/yang des dix troncs, table
+  calendaire classique ;
+- **retrait sans blocage** : hors français, hors plage 1901–2030 ou en cas
+  d'erreur de calcul, le chapitre est absent et le dossier est livré normalement.

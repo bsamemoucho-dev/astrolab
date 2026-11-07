@@ -149,7 +149,7 @@ test("la section pédagogique n'introduit aucun titre concurrent", () => {
 
 test("le contenu français ne s'affiche pas dans les autres langues", () => {
   // Les blocs ajoutés sont marqués, et la règle d'affichage s'appuie sur la langue du document.
-  assert.equal((expressView.match(/data-french-only/g) || []).length, 4, "cadrage, découverte, étapes et section pédagogique");
+  assert.equal((expressView.match(/data-french-only/g) || []).length, 5, "cadrage, découverte, étapes, offre et section pédagogique");
   assert.match(styles, /:root:not\(\[lang="fr"\]\) \[data-french-only\] \{ display: none !important; \}/);
   assert.match(indexHtml, /<html lang="fr">/);
   assert.match(appJs, /document\.documentElement\.lang = currentLanguage\(\);/);

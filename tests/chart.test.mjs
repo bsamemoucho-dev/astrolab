@@ -166,6 +166,19 @@ test("la répartition est calculée, et les corps sans signe en sortent", () => 
   assert.equal(Object.values(sansHeure.byElement).reduce((total, valeur) => total + valeur, 0), 6);
 });
 
+test("un corps dont le signe change dans la marge sort aussi de la répartition", () => {
+  const bodies = [
+    { body: "Sun", sign: "Capricorn", signStableWithinMargin: true },
+    { body: "Moon", sign: "Taurus", signStableWithinMargin: false },
+    { body: "Mercury", sign: "Capricorn", signStableWithinMargin: null }
+  ];
+  const distribution = signDistribution(bodies);
+  assert.deepEqual(distribution.notEstablished, ["Moon"]);
+  assert.equal(distribution.classified, 2);
+  assert.equal(distribution.byElement.earth, 2);
+  assert.equal(distribution.byModality.fixed, 0);
+});
+
 test("les sept barres portent les répartitions calculées avec libellés et chiffres", () => {
   const socle = EXACT(), section = chartSection(socle, docStrings("fr"));
   const distribution = signDistribution(socle.bodies);

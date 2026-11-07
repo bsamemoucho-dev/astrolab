@@ -6,6 +6,7 @@ import { writeStructuredSectionWithLlm, writeStructuredSectionsWithLlm } from ".
 import { validateStructuredSections } from "../deliverables/factualClaimsValidator.mjs";
 import { mergeRelationalSubsections, renderableDossierSection } from "../deliverables/dossierPresentation.mjs";
 import { chartSection } from "../deliverables/chart.mjs";
+import { crossedTraditionsSection } from "../deliverables/crossedTraditions.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { aiNotice, docStrings, normalizeLanguage } from "../deliverables/i18n.mjs";
 import { annexSections, renderDossierHtml, renderDossierMarkdown } from "../deliverables/render.mjs";
@@ -386,7 +387,19 @@ export async function createFullPublicReading(input = {}, options = {}) {
   const renderedSymbolicSections = generated.sections.map((section) => renderableSection(section, strings, fullDossierPlan.sections.find((plan) => plan.sectionId === section.sectionId), dossierEvidence));
   const renderedRelationalSections = relationalGenerated.sections.map((section) => renderRelationalSection(section, strings, relationalGenerated.plan.sections.find((plan) => plan.sectionId === section.sectionId), dossierEvidence)).filter(Boolean);
   const presentedSections = mergeRelationalSubsections(renderedSymbolicSections, renderedRelationalSections);
-  const fullSections = [chartSection(socle, strings), ...presentedSections, ...annexSections(socle, strings)];
+  // Regards croisés (Jyotish, BaZi) : calculé, sans rédacteur IA, retiré sans
+  // bloquer le dossier si le calcul n'aboutit pas.
+  const crossedSection = options.crossedTraditions === false
+    ? null
+    : crossedTraditionsSection({ natalInput: publicNatalInput(input, place), socle, generatedAt, language, logger: options.logger ?? null });
+  // Placé juste avant la conclusion : le dossier se termine sur elle.
+  const conclusionIndex = presentedSections.findIndex((section) => section.id === "conclusion");
+  const readingSections = !crossedSection
+    ? presentedSections
+    : conclusionIndex < 0
+      ? [...presentedSections, crossedSection]
+      : [...presentedSections.slice(0, conclusionIndex), crossedSection, ...presentedSections.slice(conclusionIndex)];
+  const fullSections = [chartSection(socle, strings), ...readingSections, ...annexSections(socle, strings)];
   // These lexical measurements are diagnostics, not an independent semantic
   // approval or a reason to manufacture another paid rewrite.
   const editorialDiagnostics = { version: EDITORIAL_DIAGNOSTICS_VERSION, scope: "lexical_repetition_only", blocksDelivery: false, repetitions: crossChapterRepetition({ sections: [...renderedSymbolicSections, ...renderedRelationalSections] }) };

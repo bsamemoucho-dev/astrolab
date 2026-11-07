@@ -114,6 +114,12 @@ test("createFullPublicReading assembles a validated full dossier without using l
   assert.match(reading.html, /ne garantit ni la justesse des interprétations symboliques ni leur qualité éditoriale/);
   assert.doesNotMatch(reading.html, /non rédigé\(s\)|faute de règle documentée/);
   assert.match(reading.markdown, /Annexe/);
+  // Regards croisés : calculé, placé avant la conclusion, sans appel IA supplémentaire.
+  assert.match(reading.html, /Regards croisés/);
+  assert.ok(reading.markdown.indexOf("Regards croisés") < reading.markdown.lastIndexOf("Annexe"));
+  if (reading.markdown.includes("## Conclusion")) {
+    assert.ok(reading.markdown.indexOf("Regards croisés") < reading.markdown.indexOf("## Conclusion"));
+  }
   assert.doesNotMatch(reading.markdown, /non rédigé\(s\)|faute de règle documentée/);
   assert.equal(reading.dossier.sectionCount, 19);
   assert.equal(reading.relationship.schema, "astrolab.individual_relational_public_v1");
