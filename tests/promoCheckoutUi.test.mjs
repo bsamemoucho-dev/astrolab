@@ -419,3 +419,42 @@ test('duplicate Stripe completion events never restart a failed generation autom
   assert.equal(h.requests.filter(x=>x.path==='/api/public/readings').length,2);
   assert.equal(h.requests.filter(x=>x.path.endsWith('checkout-session')).length,1);
 });
+
+test('a stuck reading job can be abandoned on the page, after which a new order is accepted',async()=>{
+  const h=harness({realGeneration:true});
+  h.storage.set('fixture_pending',JSON.stringify({id:'fixture_reading',token:'fixture_token'}));
+  h.run('state.pendingReadingJob={id:"fixture_reading",token:"fixture_token"};syncOrderAbandon()');
+  assert.equal(h.node('#order-abandon-line').hidden,false);
+  assert.equal(h.node('#order-abandon').textContent,'Abandonner cette commande');
+  assert.equal(h.run('abandonActiveOrder()'),true);
+  assert.equal(h.storage.has('fixture_pending'),false);
+  assert.equal(h.run('state.pendingReadingJob'),null);
+  assert.equal(h.node('#order-abandon-line').hidden,true);
+  assert.equal(h.node('#express-viewer').hidden,true);
+  assert.equal(h.run('preserveActiveOrder()'),false);
+  assert.match(h.messages.at(-1).text,/Commande abandonnée/);
+  assert.equal(h.requests.some(x=>x.path.includes('delete')),false);
+});
+
+test('an unpaid checkout can be abandoned and its embedded widget is released',async()=>{
+  const h=harness({realGeneration:true});await h.start();
+  assert.equal(h.run('canAbandonActiveOrder()'),true);
+  assert.equal(h.run('abandonActiveOrder()'),true);
+  assert.equal(h.run('state.paymentSessionId'),null);
+  assert.equal(h.run('state.pendingCheckoutSession'),null);
+  assert.ok(h.stripeCalls.some(x=>x.destroy));
+});
+
+test('a confirmed payment whose reading was never created cannot be abandoned',async()=>{
+  const h=harness({realGeneration:true,readingRequest:async()=>{throw new Error('fixture generation failure')}});
+  await h.start();await h.stripeCalls.find(x=>x.options).options.onComplete();
+  assert.equal(h.run('canAbandonActiveOrder()'),false);
+  assert.equal(h.run('abandonActiveOrder()'),false);
+  assert.equal(h.node('#order-abandon-line').hidden,true);
+  assert.equal(h.run('state.paymentSessionId'),'fixture_session');
+});
+
+test('every interface language has the abandon wording',()=>{
+  for(const key of ['orderAbandon','orderAbandonConfirm','orderAbandoned'])
+    assert.equal(app.split(`${key}: "`).length-1,9,key);
+});

@@ -270,7 +270,7 @@ test("the actual reading request includes the invitation token without a raw cod
   for(const fails of [false,true]){
     const calls=[];let completed=0;const nodes=new Map();const $=selector=>{if(!nodes.has(selector))nodes.set(selector,{textContent:"",hidden:false,disabled:false});return nodes.get(selector)};
     const button={textContent:"Launch",disabled:false};$("#express-form").querySelector=()=>button;
-    const ctx=vm.createContext({$,state:{pendingReadingBody:{deliveryEmail:"reader@example.invalid",birthDate:"2000-01-01"},emailInvitationToken:token},uiStrings:()=>({submit:"Launch",testCodeApplied:"Free",recoveryFailed:"Failed"}),api:async(path,options)=>{calls.push({path,body:options.body});if(fails)throw Error("fixture failure");return {html:"<p>Fixture</p>",markdown:"Fixture",freeAccess:true}},showMessage:()=>{},tokenFromDeliveryLink:()=>null,completePaymentAttempt:()=>{completed++},syncPaymentAvailability:()=>{}});
+    const ctx=vm.createContext({$,state:{pendingReadingBody:{deliveryEmail:"reader@example.invalid",birthDate:"2000-01-01"},emailInvitationToken:token},uiStrings:()=>({submit:"Launch",testCodeApplied:"Free",recoveryFailed:"Failed"}),api:async(path,options)=>{calls.push({path,body:options.body});if(fails)throw Error("fixture failure");return {html:"<p>Fixture</p>",markdown:"Fixture",freeAccess:true}},showMessage:()=>{},tokenFromDeliveryLink:()=>null,completePaymentAttempt:()=>{completed++},syncPaymentAvailability:()=>{},syncOrderAbandon:()=>{}});
     const start=app.indexOf('  const runGeneration = async (paymentSessionId');const end=app.indexOf('\n  form.addEventListener("submit"',start);
     vm.runInContext(app.slice(start,end)+'\nglobalThis.generate=runGeneration',ctx);
     await ctx.generate(null);

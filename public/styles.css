@@ -1546,3 +1546,12 @@ button:focus-visible,a:focus-visible,.place-suggestion:focus-visible { outline: 
 .promo-code-row button { margin: 0; }
 .promo-code-box .pay-hint { margin: 0; }
 @media (max-width: 420px) { .promo-code-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* « Abandonner cette commande » : discret, sous le paiement ou le suivi. */
+.order-abandon-line { margin: 0.25rem 0 0.75rem; text-align: center; }
+body .order-abandon-line button#order-abandon {
+  min-height: 0; padding: 4px 6px; border: 0; background: transparent; box-shadow: none;
+  color: var(--muted); font-size: 0.85rem; font-weight: 600;
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+body .order-abandon-line button#order-abandon:hover { color: var(--gold); background: transparent; }
