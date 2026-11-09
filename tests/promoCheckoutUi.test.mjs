@@ -458,3 +458,12 @@ test('every interface language has the abandon wording',()=>{
   for(const key of ['orderAbandon','orderAbandonConfirm','orderAbandoned'])
     assert.equal(app.split(`${key}: "`).length-1,9,key);
 });
+
+test('an open Stripe checkout shows the abandon link, so a free code can still be used afterwards',async()=>{
+  const h=harness({realGeneration:true});await h.start();
+  assert.equal(h.run('state.paymentMounted'),true);
+  assert.equal(h.node('#test-code').disabled,true);
+  assert.equal(h.node('#order-abandon-line').hidden,false);
+  assert.equal(h.run('abandonActiveOrder()'),true);
+  assert.equal(h.node('#test-code').disabled,false);
+});
