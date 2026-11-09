@@ -3509,10 +3509,14 @@ function bindExpressForm() {
       state.paymentMounted = true;
       state.paymentStarting = false;
       syncPaymentAvailability();
+      // Le formulaire Stripe verrouille le champ du code gratuit : le lien
+      // « Abandonner » doit être visible pour revenir en arrière sans recharger.
+      syncOrderAbandon();
       setPayStatus("");
     } catch (error) {
       state.paymentStarting = false;
       syncPaymentAvailability();
+      syncOrderAbandon();
       setPayStatus("");
       if (error.code === "PRICING_CHANGED" && !state.pendingCheckoutSession) {
         await refreshQuote();
