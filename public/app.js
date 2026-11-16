@@ -1004,6 +1004,13 @@ function field(form, name) {
   return form.elements.namedItem(name);
 }
 
+function syncPublicBirthTimeRequirements(form) {
+  const precision = field(form, "timePrecision").value;
+  field(form, "timeValue").required = precision === "exact" || precision === "approximate";
+  field(form, "timeStart").required = precision === "interval";
+  field(form, "timeEnd").required = precision === "interval";
+}
+
 function captureFormValues(form) {
   return Object.fromEntries([...new FormData(form).entries()]);
 }
@@ -3288,6 +3295,7 @@ function bindExpressForm() {
   const intervalWrap = $("#express-interval-fields");
   const syncTimeVisibility = () => {
     const value = precisionSelect.value;
+    syncPublicBirthTimeRequirements(form);
     timeWrap.hidden = !(value === "exact" || value === "approximate");
     intervalWrap.hidden = value !== "interval";
     // Heure approximative : on demande « vers quelle heure » et la marge qui
@@ -3450,6 +3458,7 @@ function bindExpressForm() {
       return;
     }
     const resuming = state.pendingCheckoutSession;
+    if (!resuming && !$("#express-form").reportValidity()) return;
     if (!resuming && !invited) promoQuotes.setCode($("#pay-promo")?.value ?? "");
     const testCode = !invited && !resuming && testCodeInput ? testCodeInput.value.trim() : "";
     if (testCode && state.promoQuote?.code) {
@@ -3476,6 +3485,7 @@ function bindExpressForm() {
       const session = resuming?.session ?? await api("/api/public/checkout-session", {
         method: "POST",
         body: {
+          readingInput: body,
           ...(state.emailInvitationToken ? { invitationToken: state.emailInvitationToken } : { promoCode: confirmed.promoCode }), language: state.language ?? "fr",
           expectedTotalCents: confirmed.quote.totalCents, expectedCurrency: confirmed.quote.currency
         }
@@ -3523,6 +3533,8 @@ function bindExpressForm() {
         showMessage(uiStrings().payPricingChanged, true);
       } else if (error.code === "PRICE_QUOTE_REQUIRED") {
         showMessage(uiStrings().payPromoUnavailable, true);
+      } else if (error.code === "INVALID_READING_INPUT") {
+        showMessage(error.message, true);
       } else {
         if (!state.pendingCheckoutSession) promoQuotes.invalidate();
         showMessage(uiStrings().payPaymentError, true);
@@ -3670,6 +3682,7 @@ function bindExpressForm() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (preserveActiveOrder()) return;
+    if (!form.reportValidity()) return;
     if (state.emailInvitation?.active && state.emailInvitation.status !== "available") {
       showMessage(invitationStrings(currentLanguage()).invalid, true);
       return;

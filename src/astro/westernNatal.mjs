@@ -508,6 +508,32 @@ function timeWindow(normalizedInput) {
   };
 }
 
+// Prévalidation sans éphémérides ni appel externe. Le formulaire public utilise
+// exactement les règles horaires du calcul, avant paiement ou consommation d'un
+// droit. Le fuseau résolu permet aussi de refuser les heures locales inexistantes
+// ou ambiguës avant de lancer un dossier.
+export function validateWesternNatalTimeInput(input = {}) {
+  const birthDate = requireString(input.birthDate, "birthDate");
+  parseDate(birthDate);
+  const time = normalizeTime(input);
+  if (time.timePrecision === "interval") {
+    const seconds = value => {
+      const { hour, minute, second } = parseTime(value);
+      return hour * 3600 + minute * 60 + second;
+    };
+    // Même convention que uncertainIntervalAnalysis : un seul jour civil,
+    // avec une fin strictement postérieure au début (pas de passage à minuit).
+    if (seconds(time.timeEnd) <= seconds(time.timeStart)) {
+      const error = new Error("timeEnd must be later than timeStart within the same civil day");
+      error.status = 400;
+      throw error;
+    }
+  }
+  if (input.timeZone) {
+    timeWindow({ birthDate, ...time, timeZone: input.timeZone });
+  }
+}
+
 function calculateTimedPositions(jd, status) {
   return calculateBodyPositions(SEVEN_TRADITIONAL_BODIES, jd).map((position) => ({
     ...position,

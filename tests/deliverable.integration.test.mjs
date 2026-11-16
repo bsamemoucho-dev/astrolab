@@ -8,6 +8,7 @@ import { writeSection } from "../src/deliverables/writers.mjs";
 import { docStrings } from "../src/deliverables/i18n.mjs";
 import { DOSSIER_SECTIONS, dossierSectionsInOrder } from "../src/deliverables/plan.mjs";
 import { createPublicReading, hasConvergentIndicators } from "../src/models/publicReadingService.mjs";
+import { resetPlaceCache } from "../src/geo/placeResolver.mjs";
 
 async function startTestApp() {
   const { server, store } = createApp({ store: new JsonStore(null) });
@@ -505,7 +506,22 @@ test("healthz and public config endpoints are available", async () => {
   }
 });
 
-test("operator can register a client person with a resolved place and generate a dossier", async () => {
+test("operator can register a client person with a resolved place and generate a dossier", async (t) => {
+  // Le parcours reste complet, mais ne dépend pas d'un géocodeur en ligne.
+  // Les données du sujet de test ne quittent jamais le serveur local.
+  resetPlaceCache();
+  const originalFetch = globalThis.fetch;
+  let geocoderCalls = 0;
+  t.mock.method(globalThis, "fetch", async (input, options) => {
+    const url = new URL(input);
+    if (url.hostname !== "geocoding-api.open-meteo.com") return originalFetch(input, options);
+    assert.equal(url.pathname, "/v1/search");
+    assert.equal(options?.method ?? "GET", "GET");
+    assert.equal(url.searchParams.get("name"), "Courbevoie, France");
+    geocoderCalls++;
+    return new Response(JSON.stringify({ results: [{ id: 3023141, name: "Courbevoie", country: "France",
+      latitude: 48.897, longitude: 2.256, timezone: "Europe/Paris" }] }), { status: 200 });
+  });
   const app = await startTestApp();
   try {
     const cookie = await registerVerifyLogin(app.baseUrl, "operator@example.test");
@@ -591,8 +607,10 @@ test("operator can register a client person with a resolved place and generate a
     assert.ok(annexe);
     assert.match(annexe.text, /lastro-aspects@1\.0\.0/);
     assert.doesNotMatch(annexe.text, /calculated_development_not_production|JPL Horizons|inactive structures/);
+    assert.equal(geocoderCalls, 1);
   } finally {
     await app.close();
+    resetPlaceCache();
   }
 });
 
