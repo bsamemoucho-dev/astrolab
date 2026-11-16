@@ -799,6 +799,7 @@ export function createApp(options = {}) {
       const token = invitationToken(req, body);
       if (token) {
         if (!llmConfiguration()) throw Object.assign(new Error("La rédaction est momentanément indisponible. Aucun paiement n’a été ouvert."), { status: 503, code: "writer_unavailable", expected: true });
+        assertPublicReadingInput(body.readingInput);
         sendJson(res, 201, await createInvitationCheckout(store, token, {
           expectedTotalCents: body.expectedTotalCents, expectedCurrency: body.expectedCurrency, language: body.language
         }), { "cache-control": "no-store" });
@@ -836,6 +837,7 @@ export function createApp(options = {}) {
         error.code = "writer_unavailable";
         throw error;
       }
+      assertPublicReadingInput(body.readingInput);
       sendJson(
         res,
         201,
@@ -962,21 +964,9 @@ export function createApp(options = {}) {
         }
       }
 
-      // Validation AVANT de consommer : une demande incomplète (date manquante)
-      // ne doit pas brûler le code de quelqu'un. La livraison serait de toute
-      // façon enregistrée avant la rédaction, donc le code serait consommé pour
-      // une lecture qui ne peut pas être écrite.
       if (emailInvitation?.kind === "free" && !emailInvitation.usedAt && !llmConfiguration() && !options.publicReadingWriter) {
         throw Object.assign(new Error("La rédaction est momentanément indisponible. Votre invitation reste disponible."), { status: 503, code: "writer_unavailable", expected: true });
       }
-      if (
-        freeAccess ||
-        process.env.ASTROLAB_ALLOW_FREE_READINGS === "1" ||
-        (!stripeConfiguration() && process.env.NODE_ENV !== "production" && isLoopbackAddress(client))
-      ) {
-        assertPublicReadingInput(body);
-      }
-
       let payment = null;
       let existingDelivery = null;
       const sessionId = String(body.paymentSessionId ?? "").trim();
@@ -1084,6 +1074,11 @@ export function createApp(options = {}) {
           };
         }
       }
+
+      // Valider AVANT de créer un dossier ou consommer un droit, pour tous les
+      // parcours. Une reprise conserve son entrée enregistrée ; une lecture déjà
+      // prête a été relivrée plus haut sans exiger une nouvelle saisie.
+      assertPublicReadingInput(existingDelivery?.input ?? body);
 
       // La lecture est enregistrée AVANT la rédaction : si la rédaction échoue
       // ou si le client ferme la page au mauvais moment, elle reste
@@ -1238,6 +1233,7 @@ export function createApp(options = {}) {
         throw error;
       }
       if (delivery.status !== "ready") {
+        assertPublicReadingInput(delivery.input);
         await markDeliveryQueued(store, delivery.id);
         scheduleReadingJob(delivery.id, _req);
       }

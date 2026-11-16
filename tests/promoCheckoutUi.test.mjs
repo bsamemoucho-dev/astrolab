@@ -21,7 +21,7 @@ function declaration(name){
   assert.notEqual(end,-1,name);
   return app.slice(start,end+2);
 }
-function harness({quoteRequest=async code=>code?discounted():full(),checkoutRequest=async()=>({sessionId:'fixture_session',clientSecret:'fixture_secret'}),language='fr',realGeneration=false,readingRequest=async()=>({html:'<p>Fixture reading</p>',markdown:'Fixture reading'}),stripeFailures=0,statusRequest=async()=>({status:'failed',reference:'fixture_reference'}),deliveryRequest=async()=>({delivery:{status:'ready',reading:{html:'<p>Fixture reading</p>'}}})}={}){
+function harness({quoteRequest=async code=>code?discounted():full(),checkoutRequest=async()=>({sessionId:'fixture_session',clientSecret:'fixture_secret'}),language='fr',realGeneration=false,readingRequest=async()=>({html:'<p>Fixture reading</p>',markdown:'Fixture reading'}),stripeFailures=0,statusRequest=async()=>({status:'failed',reference:'fixture_reference'}),deliveryRequest=async()=>({delivery:{status:'ready',reading:{html:'<p>Fixture reading</p>'}}}),formValid=true}={}){
   const nodes=new Map();
   const $=selector=>{
     if(!nodes.has(selector))nodes.set(selector,{textContent:'',hidden:false,value:'',disabled:false,checked:selector==='#ai-consent'});
@@ -31,6 +31,7 @@ function harness({quoteRequest=async code=>code?discounted():full(),checkoutRequ
   const storage=new Map();
   const submitButton={textContent:'Fixture submit',disabled:false};
   $('#express-form').querySelector=()=>submitButton;
+  $('#express-form').reportValidity=()=>formValid;
   for(const selector of ['#express-payment'])$(selector).scrollIntoView=()=>{};
   const api=async(path,options={})=>{
     requests.push({path,body:options.body});
@@ -202,11 +203,11 @@ test('a typed invalid code or failed quote disables the real payment button and 
   }
 });
 
-test('the actual payment path sends only code, language and the verified server amount/currency guard',async()=>{
+test('the actual payment path sends its reading input and the verified server amount/currency guard',async()=>{
   const h=harness();h.setCode(codeA);await h.check();
   await h.start();
   const checkout=h.requests.find(x=>x.path.endsWith('checkout-session'));
-  assert.deepEqual({...checkout.body},{promoCode:codeA,language:'fr',expectedTotalCents:800,expectedCurrency:'eur'});
+  assert.deepEqual(JSON.parse(JSON.stringify(checkout.body)),{readingInput:{fixture:true},promoCode:codeA,language:'fr',expectedTotalCents:800,expectedCurrency:'eur'});
   assert.equal(h.stripeCalls.filter(x=>x.mount).length,1);
   assert.equal(h.node('#pay-promo').disabled,true);
   assert.equal(h.node('#test-code').disabled,true);
@@ -227,6 +228,36 @@ test('the existing six-character free invitation bypasses Stripe and the paid qu
   assert.equal(h.requests.length,0);
   assert.deepEqual(h.generationCalls,[[null,'GIFTAA']]);
   assert.equal(h.stripeCalls.length,0);
+});
+
+test('an invalid birth form cannot open payment or consume a free code',async()=>{
+  for(const code of ['', 'GIFTAA']){
+    const h=harness({formValid:false});h.node('#test-code').value=code;
+    await h.start();
+    assert.equal(h.requests.length,0);
+    assert.equal(h.generationCalls.length,0);
+    assert.equal(h.stripeCalls.length,0);
+    assert.equal(h.run('state.paymentStarting'),false);
+  }
+});
+
+test('an invalid form submission is stopped before place resolution and order creation',async()=>{
+  const h=harness({realGeneration:true,formValid:false});
+  h.node('#express-payment').hidden=true;
+  h.run('ensureResolvedPlace=async()=>{throw Error("must not resolve an invalid form")};state.config.payments.configured=true');
+  await h.submit();
+  assert.equal(h.requests.length,0);
+  assert.equal(h.run('state.pendingReadingBody.fixture'),true);
+  assert.equal(h.node('#express-payment').hidden,true);
+});
+
+test('a controlled birth-input error from checkout remains actionable instead of becoming a payment error',async()=>{
+  const h=harness({checkoutRequest:async()=>{const error=Error('Indiquez votre heure de naissance.');error.code='INVALID_READING_INPUT';throw error}});
+  await h.start();
+  assert.equal(h.messages.at(-1).text,'Indiquez votre heure de naissance.');
+  assert.equal(h.messages.at(-1).error,true);
+  assert.equal(h.stripeCalls.length,0);
+  assert.equal(h.generationCalls.length,0);
 });
 
 test('using both a paid discount and a free invitation is blocked without any external request',async()=>{
@@ -342,6 +373,15 @@ test('a Stripe.js loading failure retries the same payable session without creat
   assert.equal(h.node('#pay-start').disabled,false);
   await h.start();
   assert.equal(h.requests.filter(x=>x.path.endsWith('checkout-session')).length,1);
+  assert.equal(h.stripeCalls.filter(x=>x.mount).length,1);
+});
+
+test('editing the form does not discard an existing payable session or create a second checkout',async()=>{
+  const h=harness({stripeFailures:1});await h.start();
+  h.node('#express-form').reportValidity=()=>false;
+  await h.start();
+  assert.equal(h.requests.filter(x=>x.path.endsWith('checkout-session')).length,1);
+  assert.equal(h.run('state.paymentSessionId'),'fixture_session');
   assert.equal(h.stripeCalls.filter(x=>x.mount).length,1);
 });
 

@@ -6,7 +6,7 @@
 // configured LLM; the result (HTML/Markdown) is returned immediately to the
 // visitor, who can download it. Nothing about the person is stored.
 
-import { calculateWesternNatalChart } from "../astro/westernNatal.mjs";
+import { calculateWesternNatalChart, validateWesternNatalTimeInput } from "../astro/westernNatal.mjs";
 import { chartSection } from "../deliverables/chart.mjs";
 import { estimateUsageCost } from "../deliverables/cost.mjs";
 import { crossCheckReading } from "../deliverables/crossCheck.mjs";
@@ -105,13 +105,51 @@ function normalizePlace(input) {
   };
 }
 
-// Validation minimale de l'entrée, exportée pour pouvoir être appelée AVANT de
-// consommer un code à usage unique : une demande incomplète ne doit pas brûler le
-// code de quelqu'un. `createPublicReading` l'applique de toute façon.
+// Même validation horaire que le calcul, AVANT tout paiement, consommation de
+// code ou création de dossier. Aucun calcul de planète ni appel IA ici.
 export function assertPublicReadingInput(input = {}) {
   if (!cleanString(input?.birthDate)) {
     const error = new Error("La date de naissance est requise.");
     error.status = 400;
+    error.code = "INVALID_READING_INPUT";
+    error.expected = true;
+    throw error;
+  }
+  try {
+    validateWesternNatalTimeInput({
+      ...input,
+      birthDate: cleanString(input.birthDate),
+      // Les deux services publics traitent une précision absente comme inconnue.
+      timePrecision: input.timePrecision ?? "unknown",
+      timeValue: cleanString(input.timeValue),
+      timeStart: cleanString(input.timeStart),
+      timeEnd: cleanString(input.timeEnd),
+      timeZone: normalizePlace(input).timeZone
+    });
+  } catch (cause) {
+    if (cause.status !== 400) throw cause;
+    let message = "Vérifiez l’heure de naissance et la précision choisie avant de continuer.";
+    if (/birthDate/.test(cause.message)) {
+      message = "La date de naissance doit être une date valide au format AAAA-MM-JJ.";
+    } else if (cause.code === "nonexistent_local_time") {
+      message = "Cette heure locale n’existe pas à cette date dans le fuseau du lieu de naissance. Vérifiez les informations saisies.";
+    } else if (cause.code === "ambiguous_local_time") {
+      message = "Cette heure locale est ambiguë lors du changement d’heure. Précisez une heure ou un intervalle non ambigu avant de continuer.";
+    } else if (/timeZone/.test(cause.message)) {
+      message = "Le fuseau du lieu de naissance est invalide. Localisez à nouveau ce lieu.";
+    } else if (/precision/.test(cause.message)) {
+      message = "Choisissez la précision de l’heure de naissance.";
+    } else if (input.timePrecision === "interval") {
+      message = "Renseignez deux heures valides, avec une fin après le début dans la même journée.";
+    } else if (/Missing required field: timeValue/.test(cause.message)) {
+      message = "Renseignez l’heure de naissance, ou choisissez « Inconnue » si vous ne la connaissez pas.";
+    } else if (/margin/.test(cause.message)) {
+      message = "La marge d’incertitude de l’heure doit être un nombre entier de minutes valide.";
+    }
+    const error = new Error(message);
+    error.status = 400;
+    error.code = "INVALID_READING_INPUT";
+    error.expected = true;
     throw error;
   }
 }

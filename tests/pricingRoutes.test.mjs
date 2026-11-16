@@ -15,6 +15,7 @@ const KEYS = ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_CURRENCY", 
 // Le paiement n est ouvert que si un redacteur est configure : les tests du
 // tunnel fournissent donc aussi cette cle.
 const WRITER_KEY = { ASTROLAB_LLM_API_KEY: "cle-de-test", ASTROLAB_LLM_BASE_URL: "https://redacteur.test/v1" };
+const READING_INPUT = { birthDate: "1990-01-15", timePrecision: "exact", timeValue: "12:30", timeZone: "Europe/Paris" };
 
 async function withKeys(values, run) {
   const saved = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
@@ -129,6 +130,7 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
       try {
         // Le prix s'applique : 18 €, quoi que raconte le client.
         const session = await post(app.baseUrl, "/api/public/checkout-session", {
+          readingInput: READING_INPUT,
           amountCents: 100,
           metadata: { pricing_base_cents: "100", pricing_total_cents: "100", pricing_currency: "usd", pricing_discount_cents: "0" },
           promoCode: "",
@@ -146,7 +148,7 @@ test("le montant envoyé par le navigateur est ignoré", async () => {
         assert.equal(calls[0].body["metadata[pricing_currency]"], "eur");
 
         // Sans code : même tarif, toujours sans lire le montant du client.
-        await post(app.baseUrl, "/api/public/checkout-session", { amountCents: 100, label: "cadeau" });
+        await post(app.baseUrl, "/api/public/checkout-session", { amountCents: 100, label: "cadeau", readingInput: READING_INPUT });
         assert.equal(calls.length, 2);
         assert.equal(calls[1].body["line_items[0][price_data][unit_amount]"], "1800");
         assert.doesNotMatch(calls[1].body["line_items[0][price_data][product_data][name]"], /cadeau/);
@@ -196,7 +198,7 @@ test("le prix de l'offre peut être changé sans toucher au code", async () => {
           const ancien = await post(app.baseUrl, "/api/public/price-quote", { promoCode: "bessbousse10" });
           assert.equal(ancien.payload.quote.reason, "unknown");
 
-          const session = await post(app.baseUrl, "/api/public/checkout-session", { promoCode: "LANCEMENT2026" });
+          const session = await post(app.baseUrl, "/api/public/checkout-session", { promoCode: "LANCEMENT2026", readingInput: READING_INPUT });
           assert.equal(session.status, 201);
           assert.equal(calls[0].body["line_items[0][price_data][unit_amount]"], "2000");
           assert.equal(calls[0].body["metadata[pricing_base_cents]"], "3500");
@@ -306,6 +308,7 @@ test("un code privé facture 1 € sans jamais apparaître dans la page", async 
 
           // Et le paiement part bien à 1 €.
           const session = await post(app.baseUrl, "/api/public/checkout-session", {
+            readingInput: READING_INPUT,
             promoCode: "KDMjf87Gh",
             language: "fr"
           });

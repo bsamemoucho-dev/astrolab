@@ -32,7 +32,8 @@ test.after(() => {
 const reading = (text = "validated fixture") => ({ html: `<p>${text}</p>`, markdown: text, dossier: { generatedSectionCount: 1 } });
 async function fixture(now = Date.now()) {
   const store = new JsonStore(null);
-  const { delivery } = await createPaidDelivery(store, { paymentSessionId: "fictional-session", email: "fixture@example.invalid" }, now);
+  const { delivery } = await createPaidDelivery(store, { paymentSessionId: "fictional-session", email: "fixture@example.invalid",
+    input: { birthDate: "1990-01-15", timePrecision: "unknown", timeValue: null, timeZone: "Europe/Paris" } }, now);
   return { store, delivery };
 }
 async function entry(store, id) { return (await store.load()).publicReadings.find((row) => row.id === id); }

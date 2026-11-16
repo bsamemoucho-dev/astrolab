@@ -9,6 +9,7 @@ import { hashAccessCode } from "../src/models/accessCodeService.mjs";
 const CODE = "FAKECODE1200";
 const BATCH = "11111111-1111-4111-8111-111111111111";
 const PROMO = "promo_fake_route";
+const READING_INPUT = { birthDate: "1990-01-15", timePrecision: "exact", timeValue: "12:30", timeZone: "Europe/Paris" };
 function promotion(code = CODE) {
   return {
     object: "promotion_code", id: PROMO, code, active: true, livemode: false,
@@ -82,7 +83,7 @@ test("public native quote is 18 minus 10 EUR and exposes no private code, provid
 
 test("native checkout binds its server snapshot to 8 EUR and applies the verified promotion to an 18 EUR line", async () => {
   await fixture(async ({ post, calls }) => {
-    const result = await post("/api/public/checkout-session", { promoCode: CODE, expectedTotalCents: 800, expectedCurrency: "eur",
+    const result = await post("/api/public/checkout-session", { promoCode: CODE, expectedTotalCents: 800, expectedCurrency: "eur", readingInput: READING_INPUT,
       amountCents: 1, stripePromotionCodeId: "promo_attacker", baseAmountCents: 1, metadata: { pricing_total_cents: "1" } });
     assert.equal(result.status, 201);
     const created = calls.find(call => call.method === "POST");
@@ -130,7 +131,7 @@ test("a code consumed between quote and checkout blocks payment without falling 
 
 test("Stripe rejection after revalidation remains blocking and masks provider text", async () => {
   await fixture(async ({ post, calls }) => {
-    const result = await post("/api/public/checkout-session", { promoCode: CODE });
+    const result = await post("/api/public/checkout-session", { promoCode: CODE, readingInput: READING_INPUT });
     assert.ok(result.status >= 400);
     assert.equal(calls.filter(call => call.method === "POST").length, 1);
     assert.doesNotMatch(JSON.stringify(result.payload), /FAKECODE1200|private-provider-text|sk_test/i);
@@ -197,7 +198,7 @@ test("six-character reductions retain the private 8 EUR quote, verified native C
     assert.equal(stale.status, 409);
     assert.equal(stale.payload.code, "PRICING_CHANGED");
     assert.equal(calls.filter(call => call.method === "POST").length, 0);
-    const checkout = await post("/api/public/checkout-session", { promoCode: code, expectedTotalCents: 800, expectedCurrency: "eur" });
+    const checkout = await post("/api/public/checkout-session", { promoCode: code, expectedTotalCents: 800, expectedCurrency: "eur", readingInput: READING_INPUT });
     assert.equal(checkout.status, 201);
     const created = calls.find(call => call.method === "POST");
     assert.equal(created.body["line_items[0][price_data][unit_amount]"], "1800");

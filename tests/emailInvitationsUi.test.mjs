@@ -221,6 +221,7 @@ for(const language of ["fr","en","de","es","it","pt","no","da","nl"]){
 
 function paymentHarness(kind="free",status="available"){
   const nodes=new Map();const $=selector=>{if(!nodes.has(selector))nodes.set(selector,{value:"",hidden:false,disabled:false,checked:selector==="#ai-consent",textContent:""});return nodes.get(selector)};
+  $("#express-form").reportValidity=()=>true;
   $("#test-code").value="fixture_gift_must_be_ignored";
   const calls=[],generations=[],messages=[],stripe=[];
   const ctx=vm.createContext({$,syncOrderAbandon:()=>{},state:{config:{payments:{publishableKey:"fixture_public"}},emailInvitation:{active:true,status,invitation:invitation(kind)},emailInvitationToken:token,pendingReadingBody:{deliveryEmail:"reader@example.invalid"},promoQuote:null},uiStrings:()=>({submit:"Launch",payStart:"Pay",payPreparing:"Wait",payPaymentError:"Payment unavailable",payPromoUnavailable:"Quote unavailable"}),createPromoQuoteController,
@@ -238,10 +239,17 @@ test("the actual free invitation payment handler starts generation without Strip
   const h=paymentHarness("free");await h.start();assert.deepEqual(h.calls,[]);assert.deepEqual(h.generations,[[null,null]]);assert.deepEqual(h.stripe,[]);
 });
 
-test("the actual discount invitation handler transports only its token and server quote guard",async()=>{
+test("an invalid birth form cannot consume a free e-mail invitation",async()=>{
+  const h=paymentHarness("free");h.node("#express-form").reportValidity=()=>false;
+  await h.start();
+  assert.deepEqual(h.calls,[]);assert.deepEqual(h.generations,[]);assert.deepEqual(h.stripe,[]);
+});
+
+test("the actual discount invitation handler transports its reading input, token and server quote guard",async()=>{
   const h=paymentHarness("discount10");await h.start();
   assert.equal(h.calls.length,2);assert.equal(h.calls[0].body.invitationToken,token);assert.equal("promoCode" in h.calls[0].body,false);
   assert.equal(h.calls[1].body.invitationToken,token);assert.equal(h.calls[1].body.expectedTotalCents,800);assert.equal("promoCode" in h.calls[1].body,false);assert.equal(h.stripe.length,1);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].body.readingInput)),{deliveryEmail:"reader@example.invalid"});
 });
 
 test("a confirmed invitation payment resumes its existing session without creating checkout or calling Stripe",async()=>{

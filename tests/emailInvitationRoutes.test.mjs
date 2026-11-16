@@ -146,7 +146,7 @@ test("discount links show 8 EUR, reuse one checkout and recover a paid session a
   assert.equal(open.data.invitation.quote.totalCents, 800);
   const quote = await post("/api/public/price-quote", { invitationToken: token });
   assert.equal(quote.data.quote.discountCents, 1000);
-  const body = { invitationToken: token, expectedTotalCents: 800, expectedCurrency: "eur", language: "fr" };
+  const body = { invitationToken: token, expectedTotalCents: 800, expectedCurrency: "eur", language: "fr", readingInput: birth };
   assert.equal((await post("/api/public/checkout-session", { ...body, expectedTotalCents: 1800 })).status, 409);
   const pair = await Promise.all([post("/api/public/checkout-session", body), post("/api/public/checkout-session", body)]);
   assert.ok(pair.every(r => r.status === 201)); assert.equal(counters.checkoutCreates, 1);
@@ -173,7 +173,7 @@ test("unavailable promotions, invalid tokens and mixed advantages never fall bac
   const resolved = await post("/api/public/invitations/resolve", { token });
   assert.equal(resolved.data.invitation.status, "unavailable"); assert.equal(resolved.data.invitation.quote, null);
   assert.equal((await post("/api/public/price-quote", { invitationToken: token })).status, 409);
-  assert.equal((await post("/api/public/checkout-session", { invitationToken: token, expectedTotalCents: 800, expectedCurrency: "eur" })).status, 409);
+  assert.equal((await post("/api/public/checkout-session", { invitationToken: token, expectedTotalCents: 800, expectedCurrency: "eur", readingInput: birth })).status, 409);
   assert.equal((await post("/api/public/price-quote", { invitationToken: token, promoCode: "ZX7Q2K" })).status, 400);
   assert.equal((await post("/api/public/invitations/resolve", { token: "A".repeat(43) })).status, 404);
   assert.equal(counters.checkoutCreates, 0); assert.equal((await store.load()).publicReadings.length, 0);
